@@ -18,6 +18,8 @@ type ResumeSection = {
   bullets: string[];
 };
 
+const targetResumeTitle = "AI/ML Project Manager | Technical Program Lead";
+
 const keywordBank = [
   "AI",
   "LLM",
@@ -127,9 +129,7 @@ function buildTailoredResume(
       Math.round((matchedKeywords.length / Math.max(jobKeywords.length, 1)) * 100),
     ),
   );
-  const role = titleCase(
-    targetRole || firstMeaningfulLine(jobDescription, "Target Role"),
-  );
+  const role = titleCase(targetRole || targetResumeTitle);
   const strongestKeywords = [
     ...matchedKeywords,
     ...missingKeywords.slice(0, 4),
@@ -137,28 +137,28 @@ function buildTailoredResume(
   const skills = Array.from(
     new Set([
       ...strongestKeywords,
-      "Product Requirements",
+      "Enterprise AI Program Delivery",
+      "AI/ML Roadmap Planning",
+      "Technical Program Management",
       "Stakeholder Alignment",
-      "Delivery Planning",
-      "Resume Keyword Optimization",
+      "Cross-Functional Leadership",
+      "Digital Transformation",
+      "Revenue Growth Systems",
+      "Responsible AI",
     ]),
   );
-  const summary = `${role} with experience aligning business goals, user needs, and technical delivery. Brings hands-on strengths in ${strongestKeywords
-    .slice(0, 6)
-    .join(", ")} while translating complex requirements into clear roadmaps, launch plans, and measurable outcomes.`;
+  const summary = `${role} with 8+ years of technology leadership across enterprise AI, SaaS, fintech, automation, and digital transformation programs. Experienced managing 5+ concurrent AI/digital transformation initiatives, coordinating 20+ cross-functional team members, supporting $20M+ platform initiatives, exceeding $1M+ annual business targets, managing 30+ staff, and contributing to 235% revenue growth through analytics, CRM, API integration, and automation-enabled execution.`;
   const bullets = [
-    `Repositioned product and delivery experience around ${role} responsibilities, emphasizing the keywords and outcomes requested in the job description.`,
-    "Translated stakeholder goals into requirements, prioritized delivery plans, and launch-ready workflows for technical and business teams.",
-    "Applied analytics, customer context, and quality review to improve product decisions, implementation readiness, and post-launch iteration.",
-    missingKeywords.length > 0
-      ? `Strengthened alignment with role expectations by weaving in ${missingKeywords
-          .slice(0, 5)
-          .join(", ")} where supported by the master resume.`
-      : "Preserved strong keyword coverage while tightening the language for ATS scanning and recruiter readability.",
+    "Led 5+ concurrent AI/digital transformation initiatives across discovery, requirements, roadmap planning, delivery governance, QA, launch readiness, and post-launch optimization.",
+    "Coordinated 20+ cross-functional team members across product, engineering, analytics, marketing, operations, vendors, and executive stakeholders.",
+    "Built analytics, CRM, attribution, website, and automation systems that contributed to 235% revenue growth and stronger operational visibility.",
+    "Supported $20M+ platform initiative planning by aligning executive priorities, product strategy, technical implementation, and stakeholder communication.",
+    "Managed 30+ staff and exceeded $1M+ annual business targets across technology-enabled growth, operations, and service delivery workstreams.",
   ];
   const candidateName = firstMeaningfulLine(masterResume, "Candidate Name");
   const rewrittenResume = `${candidateName}
-${role}
+${targetResumeTitle}
+Email: hello@example.com | Phone: Available upon request | Location: United States | LinkedIn: linkedin.com/in/profile
 
 PROFESSIONAL SUMMARY
 ${summary}
@@ -166,15 +166,37 @@ ${summary}
 CORE SKILLS
 ${skills.join(" | ")}
 
-EXPERIENCE HIGHLIGHTS
+PROFESSIONAL EXPERIENCE
+Principal Product Manager / IT Project Lead | Jormp LLC | Remote / United States | 2020 - Present
 ${bullets.map((bullet) => `- ${bullet}`).join("\n")}
 
-TAILORING NOTES
-- Matched keywords: ${matchedKeywords.length > 0 ? matchedKeywords.join(", ") : "None found yet"}
-- Keywords to strengthen: ${missingKeywords.length > 0 ? missingKeywords.join(", ") : "No major gaps found"}
+Technical Product Owner | Investofly | Remote | 2022 - 2024
+- Developed AI-powered investment assistant and equity crowdfunding platform concepts with product requirements, user workflows, roadmap milestones, and measurable launch criteria.
+- Applied responsible AI, customer discovery, product metrics, and technical feasibility analysis to improve product trust and executive decision-making.
+- Translated ambiguous business goals into delivery-ready requirements for fintech, AI, and platform stakeholders.
 
-SOURCE RESUME EXCERPT
-${masterResume.trim()}`;
+Product Manager | Japaul Gold & Ventures PLC | Lagos, Nigeria | 2018 - 2021
+- Supported a $20M+ fintech/blockchain platform initiative by coordinating business, technical, investor-facing, and executive workstreams.
+- Helped connect product strategy, implementation planning, stakeholder alignment, and operational execution across 4 international regions.
+- Managed 30+ staff across business and operational functions while supporting $1M+ annual business targets.
+
+AI & AUTOMATION PROJECTS
+- Resume Tailoring Agent: Built an AI-assisted workflow for job description analysis, ATS keyword review, match scoring, missing keyword detection, and tailored resume generation.
+- AI Marketing Agent: Designed an AI marketing workflow for campaign messaging, funnel analytics, lead generation, content planning, and marketing automation.
+- Traffic Automation Agent: Created a traffic automation concept for campaign routing, attribution, performance tracking, and optimization workflows.
+- AI Wedding Planning Assistant: Developed a planning assistant concept for vendor discovery, timeline management, budget tracking, and personalized recommendations.
+- Investofly AI Fintech Platform: Led AI fintech platform concept work connecting investor workflows, crowdfunding experiences, product strategy, and responsible AI considerations.
+
+RESEARCH / PUBLICATIONS
+- AI Product Development, AI Ethics, and responsible automation research applied to enterprise workflow design and product delivery.
+- Innovation and entrepreneurship research focused on digital transformation, growth systems, and technology-enabled venture development.
+
+EDUCATION
+M.S. Innovation & Entrepreneurship - University of California, Irvine
+B.Tech. Transport Management & Technology - Federal University of Technology, Akure
+
+CERTIFICATIONS
+Advanced Certified ScrumMaster | Google Project Management Certificate | AI Product Development | AI Ethics`;
 
   return {
     score,
@@ -191,10 +213,11 @@ function parseResumePreview(resumeText: string) {
   const lines = resumeText.split(/\r?\n/);
   const name = lines[0]?.trim() || "Candidate Name";
   const title = lines[1]?.trim() || "Target Role";
+  const contact = lines[2]?.includes("|") ? lines[2].trim() : "";
   const sections: ResumeSection[] = [];
   let currentSection: ResumeSection | null = null;
 
-  for (const rawLine of lines.slice(2)) {
+  for (const rawLine of lines.slice(contact ? 3 : 2)) {
     const line = rawLine.trim();
 
     if (!line) {
@@ -233,13 +256,13 @@ function parseResumePreview(resumeText: string) {
     }
   }
 
-  return { name, title, sections };
+  return { name, title, contact, sections };
 }
 
 export default function Home() {
   const [masterResume, setMasterResume] = useState(sampleResume);
   const [jobDescription, setJobDescription] = useState(sampleJob);
-  const [targetRole, setTargetRole] = useState("AI Product Manager");
+  const [targetRole, setTargetRole] = useState(targetResumeTitle);
   const [result, setResult] = useState<TailoringResult | null>(null);
   const [copyStatus, setCopyStatus] = useState("Copy");
 
@@ -510,34 +533,58 @@ function ResumePreview({ resumeText }: { resumeText: string }) {
   const resume = parseResumePreview(resumeText);
 
   return (
-    <article className="mt-3 max-h-[680px] overflow-auto rounded-md border border-zinc-200 bg-white text-zinc-850">
-      <header className="border-b border-zinc-200 bg-zinc-950 px-6 py-5 text-white">
-        <h4 className="text-2xl font-semibold tracking-tight">{resume.name}</h4>
-        <p className="mt-1 text-sm font-medium text-zinc-200">{resume.title}</p>
+    <article className="mt-3 max-h-[760px] overflow-auto rounded-md border border-zinc-200 bg-white text-zinc-900 shadow-sm">
+      <header className="border-b border-zinc-200 bg-zinc-950 px-7 py-6 text-white">
+        <h4 className="text-3xl font-semibold tracking-tight">{resume.name}</h4>
+        <p className="mt-2 text-base font-medium text-teal-100">
+          {resume.title}
+        </p>
+        {resume.contact ? (
+          <p className="mt-3 text-xs font-medium uppercase tracking-[0.14em] text-zinc-300">
+            {resume.contact}
+          </p>
+        ) : null}
       </header>
 
-      <div className="space-y-6 p-6">
-        {resume.sections.map((section) => (
-          <section key={section.heading}>
-            <h5 className="border-b border-zinc-200 pb-2 text-xs font-bold uppercase tracking-[0.16em] text-teal-700">
+      <div className="space-y-7 p-7">
+        {resume.sections.map((section, sectionIndex) => (
+          <section key={`${section.heading}-${sectionIndex}`}>
+            <h5 className="border-b border-zinc-200 pb-2 text-xs font-bold uppercase tracking-[0.18em] text-teal-700">
               {section.heading}
             </h5>
-            {section.body.length > 0 ? (
-              <div className="mt-3 space-y-2">
-                {section.body.map((paragraph) => (
-                  <p
-                    key={paragraph}
-                    className="text-sm leading-7 text-zinc-700"
-                  >
-                    {paragraph}
-                  </p>
-                ))}
+            {["CORE SKILLS", "CERTIFICATIONS"].includes(section.heading) ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {section.body
+                  .join(" | ")
+                  .split("|")
+                  .map((item) => item.trim())
+                  .filter(Boolean)
+                  .map((item, itemIndex) => (
+                    <span
+                      key={`${item}-${itemIndex}`}
+                      className="rounded-md bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-950 ring-1 ring-teal-100"
+                    >
+                      {item}
+                    </span>
+                  ))}
               </div>
             ) : null}
+            {section.body.length > 0 ? (
+              !["CORE SKILLS", "CERTIFICATIONS"].includes(section.heading) ? (
+                <div className="mt-4 space-y-3">
+                  {section.body.map((paragraph, paragraphIndex) => (
+                    <ResumeBodyLine
+                      key={`${paragraph}-${paragraphIndex}`}
+                      line={paragraph}
+                    />
+                  ))}
+                </div>
+              ) : null
+            ) : null}
             {section.bullets.length > 0 ? (
-              <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7 text-zinc-700">
-                {section.bullets.map((bullet) => (
-                  <li key={bullet}>{bullet}</li>
+              <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-7 text-zinc-700 marker:text-teal-700">
+                {section.bullets.map((bullet, bulletIndex) => (
+                  <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
                 ))}
               </ul>
             ) : null}
@@ -546,4 +593,26 @@ function ResumePreview({ resumeText }: { resumeText: string }) {
       </div>
     </article>
   );
+}
+
+function ResumeBodyLine({ line }: { line: string }) {
+  const parts = line.split("|").map((part) => part.trim());
+
+  if (parts.length >= 3) {
+    return (
+      <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-zinc-950">{parts[0]}</p>
+            <p className="mt-1 text-sm font-medium text-zinc-700">{parts[1]}</p>
+          </div>
+          <div className="text-left text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500 sm:text-right">
+            {parts.slice(2).join(" | ")}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <p className="text-sm leading-7 text-zinc-700">{line}</p>;
 }
