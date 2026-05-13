@@ -1,26 +1,89 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+.resume-export-section,
+.resume-export-block,
+.resume-export-bullets,
+.resume-export-bullet {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.resume-export-section {
+  orphans: 3;
+  widows: 3;
+}
+
+.resume-export-section h5 {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.resume-export-bullets {
+  list-style-position: outside;
+  padding-left: 20px;
+}
+
+.resume-export-bullet {
+  margin-top: 4px;
+  margin-bottom: 4px;
+  line-height: 1.35;
+}
+
+.resume-export-bullet::marker {
+  color: currentColor;
+}
+
+@media print {
+  .resume-export-preview,
+  .resume-export-header,
+  .resume-export-section,
+  .resume-export-block,
+  .resume-export-bullets,
+  .resume-export-bullet {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .resume-export-section h5 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
 }
