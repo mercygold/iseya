@@ -181,6 +181,133 @@ function extractSignals(text: string) {
   return Array.from(new Set(normalized.match(/[a-z][a-z0-9+#.-]{3,}/g) ?? []));
 }
 
+function splitSentences(text: string) {
+  return text
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+}
+
+function dedupeKeywords(keywords: string[]) {
+  return Array.from(new Set(keywords));
+}
+
+function keywordMatchRatio(expected: string[], actual: string[]) {
+  if (expected.length === 0) {
+    return 1;
+  }
+
+  const actualSet = new Set(actual);
+  return expected.filter((keyword) => actualSet.has(keyword)).length / expected.length;
+}
+
+function extractRoleTerms(text: string) {
+  return extractSignals(text).filter(
+    (word) =>
+      ![
+        "manager",
+        "director",
+        "owner",
+        "lead",
+        "senior",
+        "principal",
+        "specialist",
+        "role",
+        "title",
+      ].includes(word),
+  );
+}
+
+function inferJobKeywordGroups(jobDescription: string) {
+  const requiredKeywords: string[] = [];
+  const preferredKeywords: string[] = [];
+  const preferredPattern =
+    /\b(preferred|nice to have|plus|bonus|desired|ideally|familiarity)\b/i;
+
+  for (const sentence of splitSentences(jobDescription)) {
+    const sentenceKeywords = extractKeywords(sentence);
+
+    if (preferredPattern.test(sentence)) {
+      preferredKeywords.push(...sentenceKeywords);
+    } else {
+      requiredKeywords.push(...sentenceKeywords);
+    }
+  }
+
+  const required = dedupeKeywords(requiredKeywords);
+  const preferred = dedupeKeywords(
+    preferredKeywords.filter((keyword) => !required.includes(keyword)),
+  );
+  const allJobKeywords = extractKeywords(jobDescription);
+
+  return {
+    required: required.length > 0 ? required : allJobKeywords,
+    preferred,
+  };
+}
+
+function roleAlignmentScore(
+  masterResume: string,
+  jobDescription: string,
+  targetRole: string,
+) {
+  const resumeHeader = masterResume.split(/\r?\n/).slice(0, 6).join(" ");
+  const jobRole = targetRole || firstMeaningfulLine(jobDescription, "");
+  const roleTerms = extractRoleTerms(jobRole);
+
+  if (roleTerms.length === 0) {
+    return 1;
+  }
+
+  const resumeSignals = new Set(extractSignals(resumeHeader));
+  const matchedRoleTerms = roleTerms.filter((term) => resumeSignals.has(term));
+  return matchedRoleTerms.length / roleTerms.length;
+}
+
+function metricsImpactScore(masterResume: string) {
+  const normalized = normalizeText(masterResume);
+  const metricHits = masterResume.match(/(\$?\d[\d,.]*\+?%?|\b\d+\+?\b)/g) ?? [];
+  const impactTerms = [
+    "increased",
+    "reduced",
+    "improved",
+    "grew",
+    "launched",
+    "led",
+    "managed",
+    "built",
+    "delivered",
+    "optimized",
+    "automated",
+    "coordinated",
+  ].filter((term) => normalized.includes(term));
+
+  return Math.min(1, metricHits.length / 3) * 0.45 + Math.min(1, impactTerms.length / 5) * 0.55;
+}
+
+function aiProjectScore(masterResume: string, jobDescription: string) {
+  const aiPattern = /\b(ai|a\/i|ml|machine learning|llm|prompt|model|automation)\b/i;
+
+  if (!aiPattern.test(jobDescription)) {
+    return 1;
+  }
+
+  const normalizedResume = normalizeText(masterResume);
+  const aiTerms = [
+    "ai",
+    "ml",
+    "machine learning",
+    "llm",
+    "prompt",
+    "automation",
+    "assistant",
+    "model",
+  ];
+  const matches = aiTerms.filter((term) => normalizedResume.includes(term));
+
+  return Math.min(1, matches.length / 3);
+}
+
 function titleCase(value: string) {
   return value
     .trim()
@@ -201,45 +328,38 @@ function firstMeaningfulLine(text: string, fallback: string) {
 function scoreResume(
   masterResume: string,
   jobDescription: string,
-  jobKeywords: string[],
   matchedKeywords: string[],
+  requiredKeywords: string[],
+  preferredKeywords: string[],
+  targetRole: string,
 ) {
-  const resumeSignals = new Set(extractSignals(masterResume));
-  const jobSignals = extractSignals(jobDescription).filter(
-    (word) =>
-      ![
-        "with",
-        "that",
-        "this",
-        "will",
-        "from",
-        "have",
-        "looking",
-        "ideal",
-        "candidate",
-        "experience",
-        "preferred",
-      ].includes(word),
-  );
-  const signalMatches = jobSignals.filter((word) => resumeSignals.has(word));
-  const keywordCoverage = matchedKeywords.length / Math.max(jobKeywords.length, 1);
-  const signalCoverage = signalMatches.length / Math.max(jobSignals.length, 1);
-  const lengthReadiness =
-    masterResume.trim().length > 700 && jobDescription.trim().length > 250
-      ? 1
-      : masterResume.trim().length > 350 && jobDescription.trim().length > 120
-        ? 0.7
-        : 0.45;
+  const requiredScore = keywordMatchRatio(requiredKeywords, matchedKeywords);
+  const preferredScore = keywordMatchRatio(preferredKeywords, matchedKeywords);
+  const roleScore = roleAlignmentScore(masterResume, jobDescription, targetRole);
+  const metricsScore = metricsImpactScore(masterResume);
+  const aiScore = aiProjectScore(masterResume, jobDescription);
   const score = Math.round(
-    Math.min(98, Math.max(28, keywordCoverage * 55 + signalCoverage * 30 + lengthReadiness * 15)),
+    Math.min(
+      100,
+      Math.max(
+        20,
+        requiredScore * 35 +
+          preferredScore * 20 +
+          roleScore * 20 +
+          metricsScore * 15 +
+          aiScore * 10,
+      ),
+    ),
   );
 
   return {
     score,
     notes: [
-      `Keyword coverage: ${Math.round(keywordCoverage * 100)}%`,
-      `Role language overlap: ${Math.round(signalCoverage * 100)}%`,
-      `Input readiness: ${Math.round(lengthReadiness * 100)}%`,
+      `Required keyword match: ${Math.round(requiredScore * 35)}/35`,
+      `Preferred keyword match: ${Math.round(preferredScore * 20)}/20`,
+      `Role/title alignment: ${Math.round(roleScore * 20)}/20`,
+      `Metrics/impact language: ${Math.round(metricsScore * 15)}/15`,
+      `AI/ML project relevance: ${Math.round(aiScore * 10)}/10`,
     ],
   };
 }
@@ -267,7 +387,11 @@ function buildTailoredResume(
   targetRole: string,
   template: TemplateId,
 ): TailoringResult {
-  const jobKeywords = extractKeywords(jobDescription);
+  const keywordGroups = inferJobKeywordGroups(jobDescription);
+  const jobKeywords = dedupeKeywords([
+    ...keywordGroups.required,
+    ...keywordGroups.preferred,
+  ]);
   const resumeKeywords = extractKeywords(masterResume);
   const matchedKeywords = jobKeywords.filter((keyword) =>
     resumeKeywords.includes(keyword),
@@ -278,8 +402,10 @@ function buildTailoredResume(
   const scoreResult = scoreResume(
     masterResume,
     jobDescription,
-    jobKeywords,
     matchedKeywords,
+    keywordGroups.required,
+    keywordGroups.preferred,
+    targetRole,
   );
   const role = titleCase(
     targetRole || firstMeaningfulLine(jobDescription, "Target Role"),
@@ -650,7 +776,7 @@ export default function Home() {
       </section>
 
       {result ? (
-        <section className="mx-auto grid max-w-[96rem] gap-5 px-5 pb-10 sm:px-8 xl:grid-cols-[360px_1fr]">
+        <section className="mx-auto grid max-w-[112rem] gap-5 px-5 pb-10 sm:px-8 xl:grid-cols-[280px_minmax(0,1fr)]">
           <aside className="space-y-5">
             <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-semibold text-zinc-500">Match Score</p>
@@ -687,7 +813,7 @@ export default function Home() {
             />
           </aside>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="min-w-0 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-3 border-b border-zinc-200 pb-5 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-zinc-950">
@@ -740,7 +866,7 @@ export default function Home() {
             {activeOutput === "resume" ? (
               <>
                 <div className="grid gap-5 py-5 lg:grid-cols-2">
-                  <section>
+                  <section id="tailored-summary">
                     <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
                       Tailored Summary
                     </h3>
@@ -757,7 +883,7 @@ export default function Home() {
                     />
                   </section>
 
-                  <section>
+                  <section id="tailored-skills">
                     <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
                       Skills
                     </h3>
@@ -781,20 +907,58 @@ export default function Home() {
                   </section>
                 </div>
 
-                <section>
-                  <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                    Rewritten Resume
-                  </h3>
-                  <textarea
-                    value={result.rewrittenResume}
-                    onChange={(event) => updateResumeOutput(event.target.value)}
-                    className={`mt-3 min-h-[360px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 font-mono text-sm leading-6 text-zinc-800 outline-none transition focus:ring-4 ${colors.ring}`}
-                  />
-                  <ResumePreview
-                    resumeText={result.rewrittenResume}
-                    colors={colors}
-                    template={template}
-                  />
+                <section id="rewritten-resume">
+                  <div className="sticky top-0 z-10 -mx-5 border-y border-zinc-200 bg-white/95 px-5 py-3 backdrop-blur">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                        Rewritten Resume
+                      </h3>
+                      <nav
+                        aria-label="Rewritten resume navigation"
+                        className="flex flex-wrap gap-2"
+                      >
+                        <a
+                          href="#tailored-summary"
+                          className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                        >
+                          Summary
+                        </a>
+                        <a
+                          href="#tailored-skills"
+                          className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                        >
+                          Skills
+                        </a>
+                        <a
+                          href="#resume-editor"
+                          className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                        >
+                          Editor
+                        </a>
+                        <a
+                          href="#resume-preview"
+                          className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                        >
+                          Preview
+                        </a>
+                      </nav>
+                    </div>
+                  </div>
+                  <div className="grid gap-5 pt-5 2xl:grid-cols-[minmax(0,1.08fr)_minmax(520px,0.92fr)]">
+                    <textarea
+                      id="resume-editor"
+                      value={result.rewrittenResume}
+                      onChange={(event) => updateResumeOutput(event.target.value)}
+                      className={`min-h-[720px] w-full resize-y scroll-mt-24 rounded-md border border-zinc-300 bg-white p-4 font-mono text-sm leading-6 text-zinc-800 outline-none transition focus:ring-4 ${colors.ring}`}
+                    />
+                    <div id="resume-preview" className="min-w-0 scroll-mt-24">
+                      <ResumePreview
+                        resumeText={result.rewrittenResume}
+                        colors={colors}
+                        template={template}
+                      />
+                    </div>
+                  </div>
                 </section>
               </>
             ) : (
