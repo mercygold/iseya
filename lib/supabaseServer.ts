@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   cleanSupabaseEnvValue,
   getSupabasePublicConfigStatus,
-  isLikelySupabaseJwt,
+  isLikelySupabaseServiceRoleKey,
   type SupabasePublicConfig,
 } from "./supabaseConfig";
 
@@ -62,7 +62,7 @@ export function createSupabaseServiceRoleClient(): SupabaseClient | null {
     !publicConfig.ok ||
     !serviceRoleKey ||
     /\s/.test(serviceRoleKey) ||
-    !isLikelySupabaseJwt(serviceRoleKey)
+    !isLikelySupabaseServiceRoleKey(serviceRoleKey)
   ) {
     return null;
   }

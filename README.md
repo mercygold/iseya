@@ -22,8 +22,8 @@ Add values to `.env.local`:
 OPENAI_API_KEY=your_key_here
 OPENAI_MODEL=gpt-4o-mini
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_your_key
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_your_key
 ```
 
 `OPENAI_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are server-only. Do not create `NEXT_PUBLIC_OPENAI_API_KEY`, and do not commit real keys.

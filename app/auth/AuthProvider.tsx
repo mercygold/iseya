@@ -30,6 +30,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string, redirectTo?: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   clearError: () => void;
 };
 
@@ -77,6 +78,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [supabase]);
 
+  const ensureUserProfile = useCallback(
+    async (profileUser: User) => {
+      if (!supabase) {
+        return;
+      }
+
+      await supabase.from("profiles").upsert(
+        {
+          id: profileUser.id,
+          email: profileUser.email ?? null,
+          full_name:
+            typeof profileUser.user_metadata?.full_name === "string"
+              ? profileUser.user_metadata.full_name
+              : null,
+        },
+        { onConflict: "id" },
+      );
+    },
+    [supabase],
+  );
+
   const signUp = useCallback<AuthContextValue["signUp"]>(
     async ({ email, password, fullName, emailRedirectTo }) => {
       setError("");
@@ -108,6 +130,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(data.session);
         setUser(data.user);
 
+        if (data.user && data.session) {
+          await ensureUserProfile(data.user);
+        }
+
         return { needsEmailConfirmation: !data.session };
       } catch (signUpError) {
         const message =
@@ -118,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     },
-    [supabase],
+    [ensureUserProfile, supabase],
   );
 
   const login = useCallback<AuthContextValue["login"]>(
@@ -145,6 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setSession(data.session);
         setUser(data.user);
+        await ensureUserProfile(data.user);
       } catch (loginError) {
         const message =
           loginError instanceof Error ? loginError.message : "Login failed. Please try again.";
@@ -154,7 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     },
-    [supabase],
+    [ensureUserProfile, supabase],
   );
 
   const logout = useCallback(async () => {
@@ -219,6 +246,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [supabase],
   );
 
+  const updatePassword = useCallback<AuthContextValue["updatePassword"]>(
+    async (password) => {
+      setError("");
+
+      if (!supabase) {
+        const message = getSupabaseBrowserConfigMessage();
+        setError(message);
+        throw new Error(message);
+      }
+
+      setLoading(true);
+
+      try {
+        const { error: updateError } = await supabase.auth.updateUser({ password });
+
+        if (updateError) {
+          throw updateError;
+        }
+      } catch (updateError) {
+        const message =
+          updateError instanceof Error
+            ? updateError.message
+            : "Password update failed. Please request a new reset link.";
+        setError(message);
+        throw updateError;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [supabase],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -230,9 +289,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       resetPassword,
+      updatePassword,
       clearError: () => setError(""),
     }),
-    [error, loading, login, logout, resetPassword, session, signUp, supabase, user],
+    [error, loading, login, logout, resetPassword, session, signUp, supabase, updatePassword, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
