@@ -1,8 +1,12 @@
 "use client";
 
-import { createElement, useEffect, useMemo, useRef, useState } from "react";
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { User } from "@supabase/supabase-js";
+import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
+import type { Json } from "@/lib/database.types";
 
 const focusRingClass =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2";
@@ -308,6 +312,10 @@ type SavedState = {
   uploadedFiles?: UploadedSourceFile[];
   aiSettings?: AiSettings;
   personalBranding: PersonalBranding;
+};
+
+type CloudResumeContent = SavedState & {
+  savedVersions?: SavedResumeVersion[];
 };
 
 type UsageStats = {
@@ -3954,10 +3962,91 @@ export default function Home() {
   const [activeOutput, setActiveOutput] = useState<OutputTab>("resume");
   const [hydrated, setHydrated] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<Record<string, string>>({});
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authLoaded, setAuthLoaded] = useState(() => !supabase);
+  const [cloudResumeId, setCloudResumeId] = useState<string | null>(null);
+  const [cloudSaveStatus, setCloudSaveStatus] = useState("");
+  const [cloudLoadedForUser, setCloudLoadedForUser] = useState("");
   const skipNextSave = useRef(false);
+  const skipNextCloudSave = useRef(false);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const feedbackTimers = useRef<Record<string, number>>({});
   const previewTheme = previewThemes[theme];
+
+  const buildSavedState = useCallback((): SavedState => {
+    return {
+      masterResume,
+      jobDescription,
+      targetRole,
+      industryTarget,
+      template,
+      theme,
+      result,
+      uploadedFiles,
+      aiSettings,
+      personalBranding,
+    };
+  }, [
+    aiSettings,
+    industryTarget,
+    jobDescription,
+    masterResume,
+    personalBranding,
+    result,
+    targetRole,
+    template,
+    theme,
+    uploadedFiles,
+  ]);
+
+  const applySavedState = useCallback((state: Partial<SavedState>) => {
+    setMasterResume(state.masterResume ?? sampleResume);
+    setPersonalBranding(
+      state.personalBranding
+        ? normalizePersonalBranding(state.personalBranding)
+        : brandingFromResumeText(state.masterResume ?? sampleResume),
+    );
+    setJobDescription(state.jobDescription ?? sampleJob);
+    setTargetRole(state.targetRole ?? "AI Product Manager");
+    setIndustryTarget(
+      isIndustryTarget(state.industryTarget) ? state.industryTarget : "AI / Technology",
+    );
+    setTemplate(isTemplateId(state.template) ? state.template : "executive-navy");
+    setTheme(isThemeId(state.theme) ? state.theme : "deep-navy");
+    setAiSettings({
+      ...defaultAiSettings,
+      ...(state.aiSettings ?? {}),
+      positioningMode: positioningModes.includes(
+        state.aiSettings?.positioningMode ?? defaultAiSettings.positioningMode,
+      )
+        ? state.aiSettings?.positioningMode ?? defaultAiSettings.positioningMode
+        : defaultAiSettings.positioningMode,
+    });
+    setResult(
+      ensureTailoringResult(
+        state.result ?? null,
+        isIndustryTarget(state.industryTarget) ? state.industryTarget : "AI / Technology",
+        state.aiSettings?.positioningMode ?? defaultAiSettings.positioningMode,
+      ),
+    );
+    setUploadedFiles(state.uploadedFiles ?? []);
+  }, []);
+
+  const applyCloudContent = useCallback((content: CloudResumeContent) => {
+    applySavedState(content);
+
+    const cloudVersions = Array.isArray(content.savedVersions)
+      ? content.savedVersions
+          .map(normalizeSavedVersion)
+          .filter((version): version is SavedResumeVersion => Boolean(version))
+      : [];
+
+    if (cloudVersions.length > 0) {
+      setSavedVersions(cloudVersions);
+      setSelectedVersionId((current) => current || cloudVersions[0]?.id || "");
+    }
+  }, [applySavedState]);
 
   useEffect(() => {
     window.setTimeout(() => {
@@ -3966,44 +4055,7 @@ export default function Home() {
 
         if (saved) {
           const parsed = JSON.parse(saved) as Partial<SavedState>;
-          setMasterResume(parsed.masterResume ?? sampleResume);
-          setPersonalBranding(
-            parsed.personalBranding
-              ? normalizePersonalBranding(parsed.personalBranding)
-              : brandingFromResumeText(parsed.masterResume ?? sampleResume),
-          );
-          setJobDescription(parsed.jobDescription ?? sampleJob);
-          setTargetRole(parsed.targetRole ?? "AI Product Manager");
-          setIndustryTarget(
-            isIndustryTarget(parsed.industryTarget)
-              ? parsed.industryTarget
-              : "AI / Technology",
-          );
-          setTemplate(
-            isTemplateId(parsed.template)
-              ? parsed.template
-              : "executive-navy",
-          );
-          setTheme(isThemeId(parsed.theme) ? parsed.theme : "deep-navy");
-          setAiSettings({
-            ...defaultAiSettings,
-            ...(parsed.aiSettings ?? {}),
-            positioningMode: positioningModes.includes(
-              parsed.aiSettings?.positioningMode ?? defaultAiSettings.positioningMode,
-            )
-              ? parsed.aiSettings?.positioningMode ?? defaultAiSettings.positioningMode
-              : defaultAiSettings.positioningMode,
-          });
-          setResult(
-            ensureTailoringResult(
-              parsed.result ?? null,
-              isIndustryTarget(parsed.industryTarget)
-                ? parsed.industryTarget
-                : "AI / Technology",
-              parsed.aiSettings?.positioningMode ?? defaultAiSettings.positioningMode,
-            ),
-          );
-          setUploadedFiles(parsed.uploadedFiles ?? []);
+          applySavedState(parsed);
         }
 
         const savedVersionData = window.localStorage.getItem(versionStorageKey);
@@ -4030,7 +4082,92 @@ export default function Home() {
         setHydrated(true);
       }
     }, 0);
-  }, []);
+  }, [applySavedState]);
+
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    let mounted = true;
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (!mounted) {
+        return;
+      }
+
+      setAuthUser(data.user);
+      setAuthLoaded(true);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUser(session?.user ?? null);
+      setAuthLoaded(true);
+      setCloudLoadedForUser("");
+      setCloudResumeId(null);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  useEffect(() => {
+    if (!hydrated || !authLoaded || !supabase || !authUser) {
+      return;
+    }
+
+    if (cloudLoadedForUser === authUser.id) {
+      return;
+    }
+
+    const activeSupabase = supabase;
+    const activeUser = authUser;
+    let cancelled = false;
+
+    async function loadCloudResume() {
+      setCloudSaveStatus("Loading saved workspace...");
+
+      const { data, error } = await activeSupabase
+        .from("resumes")
+        .select("id, content_json")
+        .eq("user_id", activeUser.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cancelled) {
+        return;
+      }
+
+      if (error) {
+        setCloudSaveStatus("Cloud resume load failed. Local draft is still available.");
+        setCloudLoadedForUser(activeUser.id);
+        return;
+      }
+
+      if (data?.content_json && typeof data.content_json === "object") {
+        skipNextSave.current = true;
+        skipNextCloudSave.current = true;
+        setCloudResumeId(data.id);
+        applyCloudContent(data.content_json as CloudResumeContent);
+        setCloudSaveStatus("Loaded saved workspace.");
+      } else {
+        setCloudSaveStatus("Cloud workspace ready.");
+      }
+
+      setCloudLoadedForUser(activeUser.id);
+    }
+
+    loadCloudResume();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyCloudContent, authLoaded, authUser, cloudLoadedForUser, hydrated, supabase]);
 
   useEffect(() => {
     if (!hydrated) {
@@ -4042,18 +4179,7 @@ export default function Home() {
       return;
     }
 
-    const savedState: SavedState = {
-      masterResume,
-      jobDescription,
-      targetRole,
-      industryTarget,
-      template,
-      theme,
-      result,
-      uploadedFiles,
-      aiSettings,
-      personalBranding,
-    };
+    const savedState = buildSavedState();
 
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(savedState));
@@ -4073,6 +4199,84 @@ export default function Home() {
     uploadedFiles,
     aiSettings,
     personalBranding,
+    buildSavedState,
+  ]);
+
+  useEffect(() => {
+    if (!hydrated || !authLoaded || !supabase || !authUser) {
+      return;
+    }
+
+    if (cloudLoadedForUser !== authUser.id) {
+      return;
+    }
+
+    if (skipNextCloudSave.current) {
+      skipNextCloudSave.current = false;
+      return;
+    }
+
+    const activeSupabase = supabase;
+    const activeUser = authUser;
+
+    const timeout = window.setTimeout(async () => {
+      setCloudSaveStatus("Autosaving...");
+
+      const content = {
+        ...buildSavedState(),
+        savedVersions,
+      } satisfies CloudResumeContent;
+
+      const payload = {
+        user_id: activeUser.id,
+        title: targetRole.trim() || "Untitled Resume",
+        target_role: targetRole.trim() || null,
+        content_json: content as Json,
+        template,
+        theme,
+      };
+
+      const query = cloudResumeId
+        ? activeSupabase
+            .from("resumes")
+            .update(payload)
+            .eq("id", cloudResumeId)
+            .select("id")
+            .single()
+        : activeSupabase.from("resumes").insert(payload).select("id").single();
+
+      const { data, error } = await query;
+
+      if (error) {
+        setCloudSaveStatus("Autosave failed. Your local draft is still saved.");
+        return;
+      }
+
+      setCloudResumeId(data.id);
+      setCloudSaveStatus("Autosaved to your account.");
+    }, 1200);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [
+    aiSettings,
+    authLoaded,
+    authUser,
+    cloudLoadedForUser,
+    cloudResumeId,
+    hydrated,
+    jobDescription,
+    masterResume,
+    personalBranding,
+    result,
+    savedVersions,
+    supabase,
+    targetRole,
+    template,
+    theme,
+    uploadedFiles,
+    buildSavedState,
   ]);
 
   useEffect(() => {
@@ -4146,6 +4350,23 @@ export default function Home() {
         [kind]: normalized[kind] + 1,
       };
     });
+
+    if (supabase && authUser) {
+      if (kind === "aiGenerations") {
+        void supabase.from("ai_generations").insert({
+          user_id: authUser.id,
+          resume_id: cloudResumeId,
+          prompt_type: "tailor_resume",
+          tokens_used: 0,
+        });
+      } else {
+        void supabase.from("exports").insert({
+          user_id: authUser.id,
+          resume_id: cloudResumeId,
+          export_type: activeOutput,
+        });
+      }
+    }
   }
 
   function showActionFeedback(key: string, label: string, duration = 1700) {
@@ -4177,12 +4398,32 @@ export default function Home() {
     }
   }
 
-  function handleAccountPlaceholder(action: "Sign in" | "Sign up" | "Sign out") {
-    setAccountStatus(`${action} will be available when accounts are enabled.`);
+  async function handleSignOut() {
+    if (!supabase) {
+      setAccountStatus("Accounts are not configured yet.");
+      return;
+    }
+
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      setAccountStatus(error.message);
+      return;
+    }
+
+    setAuthUser(null);
+    setCloudResumeId(null);
+    setCloudLoadedForUser("");
+    setCloudSaveStatus("");
+    setAccountStatus("Signed out. Local workspace remains available.");
   }
 
   function openMyResumesPlaceholder() {
-    setAccountStatus("Your saved resume versions are available in this workspace.");
+    setAccountStatus(
+      authUser
+        ? "Your saved resume versions are synced in this workspace."
+        : "Login to sync saved resume versions to your account.",
+    );
     setSelectedVersionId((current) => current || savedVersions[0]?.id || "");
   }
 
@@ -4215,7 +4456,7 @@ export default function Home() {
     } satisfies SavedResumeVersion;
   }
 
-  function saveCurrentVersion() {
+  async function saveCurrentVersion() {
     const snapshot = currentVersionSnapshot();
 
     if (!snapshot) {
@@ -4226,6 +4467,20 @@ export default function Home() {
     setSavedVersions((current) => [snapshot, ...current]);
     setSelectedVersionId(snapshot.id);
     setVersionStatus("Current resume version saved.");
+
+    if (!supabase || !authUser || !cloudResumeId) {
+      return;
+    }
+
+    const { error } = await supabase.from("resume_versions").insert({
+      resume_id: cloudResumeId,
+      version_name: snapshot.name,
+      content_json: snapshot as unknown as Json,
+    });
+
+    if (error) {
+      setVersionStatus("Version saved locally. Cloud version save failed.");
+    }
   }
 
   function loadVersion(version: SavedResumeVersion | null) {
@@ -4818,13 +5073,26 @@ export default function Home() {
           </div>
           <div className="flex max-w-2xl flex-col gap-3 lg:items-end">
             <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
-              <button
-                type="button"
-                onClick={() => handleAccountPlaceholder("Sign in")}
-                className={`border border-white/40 bg-transparent text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] ${buttonBaseClass} ${buttonSizeMdClass}`}
-              >
-                Login / Sign up
-              </button>
+              {authUser ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAccountStatus(
+                      `Signed in as ${authUser.email ?? "your ISEYA account"}.`,
+                    )
+                  }
+                  className={`border border-white/40 bg-transparent text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] ${buttonBaseClass} ${buttonSizeMdClass}`}
+                >
+                  My Account
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  className={`border border-white/40 bg-transparent text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] ${buttonBaseClass} ${buttonSizeMdClass}`}
+                >
+                  Login / Sign up
+                </Link>
+              )}
                 <button
                   type="button"
                   onClick={openMyResumesPlaceholder}
@@ -4844,9 +5112,18 @@ export default function Home() {
               </button>
             </div>
             {accountStatus ? (
-              <p className="rounded-md border border-white/15 bg-white/10 p-3 text-xs font-medium text-white/80">
-                {accountStatus}
-              </p>
+              <div className="rounded-md border border-white/15 bg-white/10 p-3 text-xs font-medium text-white/80">
+                <p>{accountStatus}</p>
+                {authUser ? (
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="mt-2 rounded-md border border-white/30 px-3 py-1.5 font-semibold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]"
+                  >
+                    Sign out
+                  </button>
+                ) : null}
+              </div>
             ) : null}
           </div>
         </div>
@@ -5559,7 +5836,8 @@ export default function Home() {
                   AI Workspace
                 </h2>
                 <p className="mt-1 text-xs font-medium text-slate-500">
-                  Autosaved in your workspace. Editing updates the active document immediately.
+                  {cloudSaveStatus ||
+                    "Autosaved in your workspace. Editing updates the active document immediately."}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -5827,8 +6105,7 @@ function IseyaFooter() {
     ["About", "/about"],
     ["Privacy Policy", "/privacy"],
     ["Terms of Use", "/terms"],
-    ["Contact", "mailto:hello@jormp.com"],
-    ["LinkedIn", "https://www.linkedin.com/company/jormp-llc"],
+    ["Contact", "/contact"],
   ];
 
   return (

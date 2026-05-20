@@ -1,7 +1,12 @@
+import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 export type SupabaseBrowserConfig = {
   url: string;
   anonKey: string;
 };
+
+let browserClient: SupabaseClient | null = null;
 
 export function getSupabaseBrowserConfig(): SupabaseBrowserConfig | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -18,26 +23,16 @@ export function isSupabaseBrowserConfigured() {
   return Boolean(getSupabaseBrowserConfig());
 }
 
-export function supabaseRestUrl(path: string) {
+export function createSupabaseBrowserClient() {
   const config = getSupabaseBrowserConfig();
 
   if (!config) {
     return null;
   }
 
-  return `${config.url.replace(/\/$/, "")}/rest/v1/${path.replace(/^\//, "")}`;
-}
-
-export function supabaseAnonHeaders(accessToken?: string) {
-  const config = getSupabaseBrowserConfig();
-
-  if (!config) {
-    return null;
+  if (!browserClient) {
+    browserClient = createBrowserClient(config.url, config.anonKey);
   }
 
-  return {
-    apikey: config.anonKey,
-    Authorization: `Bearer ${accessToken || config.anonKey}`,
-    "Content-Type": "application/json",
-  };
+  return browserClient;
 }

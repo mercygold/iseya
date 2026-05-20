@@ -1,3 +1,8 @@
+import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 type SupabaseServerConfig = {
   url: string;
   anonKey: string;
@@ -18,26 +23,46 @@ export function isSupabaseServerConfigured() {
   return Boolean(getSupabaseServerConfig());
 }
 
-export function supabaseServerRestUrl(path: string) {
+export async function createSupabaseServerClient() {
   const config = getSupabaseServerConfig();
 
   if (!config) {
     return null;
   }
 
-  return `${config.url.replace(/\/$/, "")}/rest/v1/${path.replace(/^\//, "")}`;
+  const cookieStore = await cookies();
+
+  return createServerClient(config.url, config.anonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
+        } catch {
+          // Server Components cannot mutate cookies. Route handlers and Proxy
+          // handle session refresh writes.
+        }
+      },
+    },
+  });
 }
 
-export function supabaseServerHeaders(accessToken?: string) {
-  const config = getSupabaseServerConfig();
+export function createSupabaseServiceRoleClient(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!config) {
+  if (!url || !serviceRoleKey) {
     return null;
   }
 
-  return {
-    apikey: config.anonKey,
-    Authorization: `Bearer ${accessToken || config.anonKey}`,
-    "Content-Type": "application/json",
-  };
+  return createClient(url, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
 }

@@ -1,6 +1,6 @@
-# Iseya Resume Agent
+# ISEYA Resume Builder
 
-Iseya is a Next.js resume builder and AI career assistant. It supports resume tailoring, cover letters, PDF/DOCX exports, saved local resume versions, upload-based source materials, AI coaching, recruiter simulation, LinkedIn optimization, and application kit generation.
+ISEYA is a Next.js App Router resume builder and AI career assistant by Jormp LLC. It supports tailored resumes, cover letters, LinkedIn kits, application kits, PDF/DOCX exports, saved versions, source uploads, AI coaching, recruiter simulation, Supabase auth, and cloud resume persistence.
 
 ## Local Setup
 
@@ -10,81 +10,108 @@ Install dependencies:
 npm install
 ```
 
-Create a local environment file:
+Create environment variables:
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-Add your server-only OpenAI key:
+Add values to `.env.local`:
 
 ```bash
 OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4o-mini
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
-Do not prefix the OpenAI key with `NEXT_PUBLIC_`. The key is used only by `app/api/tailor/route.ts`.
+`OPENAI_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are server-only. Do not create `NEXT_PUBLIC_OPENAI_API_KEY`, and do not commit real keys.
 
-Optional Supabase project configuration for future account/cloud-save work:
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-
-Run the development server:
+Run the app:
 
 ```bash
 npm run dev
 ```
 
-Open the localhost URL shown in the terminal. If port `3000` is already occupied, Next.js will choose the next available port.
+Open the localhost URL shown in the terminal. Next.js will use another port if `3000` is occupied.
+
+## Supabase Setup
+
+1. Create a Supabase project.
+2. Open the Supabase SQL Editor.
+3. Run `supabase/schema.sql`.
+4. Confirm these tables exist:
+   - `profiles`
+   - `resumes`
+   - `resume_versions`
+   - `exports`
+   - `subscriptions`
+   - `ai_generations`
+5. Confirm Row Level Security is enabled on each table.
+
+The schema also creates private Storage buckets:
+
+- `resumes`
+- `exports`
+- `profile-images`
+
+If you prefer the Supabase dashboard, create those buckets manually under Storage and keep them private. Files should be stored under a user-id folder so the included Storage RLS policies can enforce ownership.
+
+## Auth Testing
+
+1. Add Supabase env vars to `.env.local`.
+2. Restart `npm run dev`.
+3. Visit `/signup` and create a test account.
+4. Confirm the email if your Supabase project requires confirmation.
+5. Visit `/login`, sign in, and confirm you are redirected to `/workspace`.
+6. Visit `/dashboard`; it should redirect to `/workspace`.
+7. Sign out from the account status in the ISEYA header.
+
+Protected routes:
+
+- `/workspace`
+- `/dashboard`
+
+Anonymous users can still use `/` with local browser persistence.
+
+## Autosave Testing
+
+1. Sign in.
+2. Edit the master resume, target role, template, theme, or generated resume.
+3. Wait for the autosave indicator to show the account save status.
+4. Refresh `/workspace`; the latest cloud resume should load.
+5. Click `Save Version`, then confirm a row appears in `resume_versions`.
+6. Load or duplicate saved versions from the Saved Resume Versions panel.
+
+Local fallback remains active when Supabase is not configured or when the user is signed out.
+
+## Deployment To Vercel
+
+1. Push the repository to GitHub.
+2. Import it in Vercel.
+3. Add environment variables in Vercel Project Settings:
+   - `OPENAI_API_KEY`
+   - optional `OPENAI_MODEL`
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+4. Deploy.
+5. Confirm `/login`, `/signup`, `/workspace`, `/api/tailor`, and `/api/extract` work in production.
 
 ## Validation
 
-Before deploying, run:
+Run before deploying:
 
 ```bash
 npm run lint
 npm run build
 ```
 
-## Supabase Preparation
-
-This phase adds Supabase-ready structure without requiring login:
-
-- `lib/supabaseClient.ts` reads browser-safe Supabase env vars.
-- `lib/supabaseServer.ts` prepares server-side Supabase REST configuration.
-- `supabase/schema.sql` defines `profiles`, `resume_versions`, `uploaded_sources`, and `usage_events` with basic RLS policies.
-
-When Supabase is not configured, the app continues using localStorage for drafts, saved versions, uploads metadata, and usage counters.
-
-## Vercel Deployment
-
-1. Push the repository to GitHub.
-2. Import the project in Vercel.
-3. Add environment variables in Vercel Project Settings:
-   - `OPENAI_API_KEY`
-   - Optional: `OPENAI_MODEL`
-   - Optional: `NEXT_PUBLIC_SUPABASE_URL`
-   - Optional: `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-4. Deploy.
-5. Confirm the production deployment can run `/api/tailor` and `/api/extract`.
-
 ## Security Notes
 
-- `.env.local` and other `.env*` files are ignored by git.
-- `OPENAI_API_KEY` must remain server-only.
-- Do not create `NEXT_PUBLIC_OPENAI_API_KEY`.
-- Uploaded files are sent only to the app's backend extraction route, `/api/extract`.
-- Browser localStorage is convenient for MVP persistence but is not secure storage for secrets or sensitive documents.
-- Supabase RLS policies in `supabase/schema.sql` are intentionally basic and should be reviewed before production launch.
-
-## Usage Limits
-
-Local usage tracking currently counts:
-
-- AI generations used today
-- Exports created
-- Saved resume versions
-
-These counters are stored in localStorage for anonymous users. The `usage_events` table is prepared for future authenticated tracking and paid-plan enforcement. Stripe is not implemented in this phase.
+- Browser localStorage is convenient fallback storage, not secure storage for secrets.
+- Uploaded source files are processed by the app backend extraction route.
+- Supabase RLS uses `auth.uid()` ownership checks.
+- The service-role key is available only for trusted server-side operations.
+- Users should verify every generated resume claim before applying.

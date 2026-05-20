@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.106.1",
     "docx": "^9.6.1",
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",

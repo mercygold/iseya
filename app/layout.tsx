@@ -4,6 +4,12 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Iseya by Jormp LLC",
   description: "Tailor, optimize, and export application-ready resumes.",
+  icons: {
+    icon: "/favicon/favicon.ico",
+    shortcut: "/favicon/favicon.ico",
+    apple: "/favicon/apple-touch-icon.png",
+  },
+  manifest: "/favicon/site.webmanifest",
 };
 
 export default function RootLayout({
