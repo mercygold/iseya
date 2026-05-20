@@ -5825,7 +5825,64 @@ export default function Home() {
           </div>
         </section>
       ) : null}
+      <IseyaFooter />
     </main>
+  );
+}
+
+function IseyaFooter() {
+  const footerLinks = [
+    ["About", "/about"],
+    ["Privacy Policy", "/privacy"],
+    ["Terms of Use", "/terms"],
+    ["Contact", "/contact"],
+    ["LinkedIn", "https://www.linkedin.com/"],
+    ["TikTok", "https://www.tiktok.com/"],
+  ];
+
+  return (
+    <footer className="border-t border-[color-mix(in_srgb,var(--iseya-gold)_28%,var(--iseya-navy))] bg-[var(--iseya-navy)] text-white">
+      <div className="mx-auto flex max-w-[112rem] flex-col gap-5 px-5 py-6 text-center sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:text-left">
+        <div className="flex flex-col items-center gap-2 lg:items-start">
+          <Image
+            src="/brand/iseya-logo.png"
+            alt="ISEYA"
+            width={150}
+            height={75}
+            className="h-auto w-[118px] object-contain"
+          />
+          <p className="text-sm font-medium text-white/85">
+            AI-powered career positioning by Jormp LLC.
+          </p>
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+            California, USA
+          </p>
+        </div>
+
+        <div className="flex flex-col items-center gap-3 lg:items-end">
+          <nav aria-label="Footer" className="flex flex-wrap justify-center gap-x-4 gap-y-2 lg:justify-end">
+            {footerLinks.map(([label, href]) => {
+              const isExternal = href.startsWith("http");
+
+              return (
+                <a
+                  key={label}
+                  href={href}
+                  target={isExternal ? "_blank" : undefined}
+                  rel={isExternal ? "noreferrer" : undefined}
+                  className="text-sm font-semibold text-white/85 transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]"
+                >
+                  {label}
+                </a>
+              );
+            })}
+          </nav>
+          <p className="text-xs text-white/65">
+            © 2026 Jormp LLC. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </footer>
   );
 }
 
