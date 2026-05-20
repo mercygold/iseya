@@ -902,7 +902,7 @@ function localTailor(request: TailorRequest): TailorResponse {
       projectRelevance * 0.1 +
       atsReadability * 0.06,
   );
-  const candidateName = firstMeaningfulLine(masterResume, "Candidate Name");
+  const candidateName = firstMeaningfulLine(masterResume, "");
   const strongestKeywords = matchedKeywords.slice(0, 10);
   const tailoredResume = `${candidateName}
 ${role}
@@ -927,14 +927,16 @@ EXPERIENCE HIGHLIGHTS
 
 SOURCE RESUME EXCERPT
 ${masterResume.trim()}`;
+  const signature = candidateName ? `\n${candidateName}` : "";
   const coverLetter = `Dear Hiring Team,
 
-I am writing to express my interest in the ${role} role. My background aligns with the position through ${strongestKeywords.slice(0, 5).join(", ") || "product leadership, stakeholder alignment, and technical delivery"}.
+I am interested in the ${role} role because it aligns with my verified experience in ${strongestKeywords.slice(0, 4).join(", ") || "role-relevant execution, stakeholder alignment, and practical delivery"}.
 
-The attached resume highlights experience translating business goals into requirements, coordinating technical and business stakeholders, and supporting launch-ready product work. I would welcome the opportunity to bring this practical execution focus to your team.
+One relevant strength is translating business goals into clear requirements, coordinating technical and business stakeholders, and supporting launch-ready product work. That experience maps directly to the priorities in this role while keeping the resume grounded in what I can explain in interviews.
 
-Sincerely,
-${candidateName}`;
+I would welcome the opportunity to bring practical judgment, execution discipline, and role-relevant experience to your team.
+
+Sincerely,${signature}`;
 
   const sourceWarnings = sourceMaterialWarnings(
     request.uploadedSourceMaterials,
@@ -967,9 +969,9 @@ ${candidateName}`;
       [
         ...(missingKeywords.length > 0
           ? [
-              `Do not claim ${missingKeywords
+              `Only include ${missingKeywords
                 .slice(0, 3)
-                .join(", ")} unless the candidate can verify that experience.`,
+                .join(", ")} if you can confidently explain that experience in interviews.`,
             ]
           : ["No major unsupported-claim risks detected."]),
         ...sourceWarnings,

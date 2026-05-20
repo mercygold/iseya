@@ -2,7 +2,6 @@
 
 import { createElement, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { isSupabaseBrowserConfigured } from "@/lib/supabaseClient";
 
 type TemplateId =
   | "executive-navy"
@@ -371,7 +370,6 @@ const storageKey = "resume-agent-state-v2";
 const versionStorageKey = "iseya_resume_versions";
 const usageStorageKey = "iseya_usage_stats";
 const acceptedSourceFileTypes = ".pdf,.docx,.txt,.png,.jpg,.jpeg";
-const hasSupabaseConfig = isSupabaseBrowserConfigured();
 const industryTargets: IndustryTarget[] = [
   "AI / Technology",
   "SaaS",
@@ -655,7 +653,7 @@ const templates: Record<TemplateId, TemplateProfile> = {
     description: "Traditional consulting-style preview with crisp section rules.",
     family: "consulting",
     allowImage: false,
-    headingLabel: "Metrics and impact",
+    headingLabel: "Consulting impact",
     sectionOrder: ["SUMMARY", "EXPERIENCE", "SKILLS", "PROJECTS", "EDUCATION", "CERTIFICATIONS"],
   },
   "tech-minimal": {
@@ -954,7 +952,7 @@ function buildCoverLetterFromInputs(
   targetRole: string,
   jobDescription: string,
 ) {
-  const candidateName = firstMeaningfulLine(resumeText, "Candidate Name");
+  const candidateName = firstMeaningfulLine(resumeText, "");
   const role = titleCase(
     targetRole || firstMeaningfulLine(jobDescription, "Target Role"),
   );
@@ -964,28 +962,30 @@ function buildCoverLetterFromInputs(
     resumeKeywords.includes(keyword),
   );
   const primaryStrengths =
-    alignedKeywords.slice(0, 5).join(", ") ||
-    resumeKeywords.slice(0, 5).join(", ") ||
-    "product leadership, stakeholder alignment, and technical delivery";
-  const impactLine =
+    alignedKeywords.slice(0, 4).join(", ") ||
+    resumeKeywords.slice(0, 4).join(", ") ||
+    "role-relevant execution, stakeholder alignment, and practical delivery";
+  const impactLine = cleanExportBullet(
     findResumeLine(resumeText, [
       /\$?\d[\d,.]*\+?%?/,
       /\b(led|launched|built|delivered|improved|managed|automated|coordinated)\b/i,
     ]) ??
-    "I have led cross-functional work from requirements through delivery, aligning business goals with practical implementation.";
+      "I have led cross-functional work from requirements through delivery, aligning business goals with practical implementation.",
+  );
   const jobFocus =
     firstMeaningfulLine(jobDescription, role).replace(/[.。]\s*$/, "");
+  const signature = candidateName ? `\n${candidateName}` : "";
 
   return `Dear Hiring Team,
 
-I am writing to express my interest in the ${role} role. Your need for ${jobFocus} aligns closely with my background in ${primaryStrengths}.
+I am interested in the ${role} role because your focus on ${jobFocus} aligns with my verified experience in ${primaryStrengths}.
 
-${impactLine} This experience has strengthened my ability to turn ambiguous business needs into clear priorities, collaborate with technical and non-technical stakeholders, and deliver work that is ready for launch and iteration.
+One relevant example is: ${impactLine} This reflects how I approach work: clarify priorities, align stakeholders, and turn requirements into practical outcomes.
 
-I would welcome the opportunity to bring this mix of product judgment, execution discipline, and practical technical fluency to your team.
+I would welcome the opportunity to bring this mix of judgment, execution discipline, and role-relevant experience to your team.
 
 Sincerely,
-${candidateName}`;
+${signature}`.trim();
 }
 
 function scoreResume(
@@ -2158,7 +2158,7 @@ function buildTailoredResume(
           .join(", ")} where supported by the master resume.`
       : "Preserved strong keyword coverage while tightening the language for ATS scanning and recruiter readability.",
   ];
-  const candidateName = firstMeaningfulLine(masterResume, "Candidate Name");
+  const candidateName = firstMeaningfulLine(masterResume, "");
   const rewrittenResume = `${candidateName}
 ${role}
 
@@ -2190,7 +2190,7 @@ ${masterResume.trim()}`;
     scoreNotes: scoreResult.notes,
     matchBreakdown,
     positioningStrategy:
-      "Position the candidate as a practical technical product leader who can translate business needs into delivery-ready product work.",
+      "Position you as a practical technical product leader who can translate business needs into delivery-ready product work.",
     improvementNotes: [
       "Add quantified outcomes where the source resume supports them.",
       "Keep role-specific keywords in the summary, skills, and experience sections.",
@@ -2199,7 +2199,7 @@ ${masterResume.trim()}`;
     riskFlags:
       missingKeywords.length > 0
         ? [
-            `Only include ${missingKeywords.slice(0, 3).join(", ")} if supported by real experience.`,
+            `Only include ${missingKeywords.slice(0, 3).join(", ")} if you can confidently explain that experience in interviews.`,
           ]
         : ["No major unsupported-claim risks detected from the provided text."],
     topStrengths: matchedKeywords.slice(0, 6),
@@ -2637,6 +2637,19 @@ function cleanExportBullet(value: string) {
     .trim();
 }
 
+function userFacingGuidance(value: string) {
+  return value
+    .replace(
+      /Do not claim ([^.]+?) unless the candidate can verify that experience\.?/gi,
+      "Only include $1 if you can confidently explain that experience in interviews.",
+    )
+    .replace(/\bthe candidate\b/gi, "you")
+    .replace(/\bcandidate\b/gi, "you")
+    .replace(/\btheir\b/gi, "your")
+    .replace(/\bthey\b/gi, "you")
+    .replace(/\bthem\b/gi, "you");
+}
+
 function formatSectionText(items: string[]) {
   return items.map(cleanEditorText).filter(Boolean).join("\n");
 }
@@ -2749,7 +2762,7 @@ function fileNameForRole(targetRole: string, extension: "pdf" | "docx") {
   return `${roleSlug}.${extension}`;
 }
 
-function coverLetterFileName(targetRole: string, extension: "pdf" | "docx") {
+function coverLetterFileName(targetRole: string, extension: "pdf" | "docx" | "txt") {
   const roleSlug =
     targetRole.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") ||
     "cover-letter";
@@ -2956,7 +2969,7 @@ async function extractUploadedFile(file: File): Promise<UploadedSourceFile> {
         ...baseFile,
         extractedText: await file.text(),
         extractionStatus: "extracted",
-        warnings: ["Used browser TXT fallback because backend extraction was unavailable."],
+        warnings: ["TXT text was added as source material."],
       };
     }
 
@@ -3756,7 +3769,6 @@ export default function Home() {
   const [accountStatus, setAccountStatus] = useState("");
   const [systemStatus, setSystemStatus] = useState("");
   const [usageStats, setUsageStats] = useState<UsageStats>(defaultUsageStats);
-  const [coverCopyStatus, setCoverCopyStatus] = useState("Copy Cover Letter");
   const [activeOutput, setActiveOutput] = useState<OutputTab>("resume");
   const [hydrated, setHydrated] = useState(false);
   const skipNextSave = useRef(false);
@@ -3946,19 +3958,11 @@ export default function Home() {
   }
 
   function handleAccountPlaceholder(action: "Sign in" | "Sign up" | "Sign out") {
-    setAccountStatus(
-      hasSupabaseConfig
-        ? `${action} is ready for Supabase Auth wiring in the next phase.`
-        : `${action} will be enabled after Supabase environment variables are configured.`,
-    );
+    setAccountStatus(`${action} will be available when accounts are enabled.`);
   }
 
   function openMyResumesPlaceholder() {
-    setAccountStatus(
-      hasSupabaseConfig
-        ? "My Resumes cloud sync is prepared. Local saved versions are still active in this phase."
-        : "My Resumes is using local saved versions until Supabase is configured.",
-    );
+    setAccountStatus("Your saved resume versions are available in this workspace.");
     setSelectedVersionId((current) => current || savedVersions[0]?.id || "");
   }
 
@@ -4105,7 +4109,6 @@ export default function Home() {
   }
 
   async function tailorResume() {
-    setCoverCopyStatus("Copy Cover Letter");
     setActiveOutput("resume");
     setTailorError("");
     setIsTailoring(true);
@@ -4149,7 +4152,7 @@ export default function Home() {
       trackUsage("aiGenerations");
     } catch {
       setTailorError(
-        "AI tailoring could not complete. This can happen when the API key is missing or the AI service is unavailable, so I used the local resume generator fallback.",
+        "AI tailoring could not complete, so I used a safe resume generation fallback and kept your draft editable.",
       );
       setResult(
         buildTailoredResume(
@@ -4167,7 +4170,6 @@ export default function Home() {
   }
 
   function generateCoverLetter() {
-    setCoverCopyStatus("Copy Cover Letter");
     setActiveOutput("cover");
     setResult((current) => {
       const nextResult =
@@ -4226,7 +4228,6 @@ export default function Home() {
     setUploadedFiles([]);
     setPreviewSourceFileId("");
     setActiveOutput("resume");
-    setCoverCopyStatus("Copy Cover Letter");
   }
 
   async function handleSourceFiles(files: FileList | null) {
@@ -4378,21 +4379,6 @@ export default function Home() {
     });
   }
 
-  async function copyCoverLetter() {
-    if (!result) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(result.coverLetter);
-      setCoverCopyStatus("Copied");
-      window.setTimeout(() => setCoverCopyStatus("Copy Cover Letter"), 1500);
-    } catch {
-      setCoverCopyStatus("Copy failed");
-      window.setTimeout(() => setCoverCopyStatus("Copy Cover Letter"), 1500);
-    }
-  }
-
   async function downloadCoverLetterPdf() {
     if (!result) {
       return;
@@ -4430,6 +4416,22 @@ export default function Home() {
       trackUsage("exportsCreated");
     } catch {
       setSystemStatus("Cover letter DOCX export failed. Try PDF or refresh and retry.");
+    }
+  }
+
+  function downloadCoverLetterTxt() {
+    if (!result) {
+      return;
+    }
+
+    try {
+      saveBlob(
+        new Blob([result.coverLetter], { type: "text/plain;charset=utf-8" }),
+        coverLetterFileName(targetRole, "txt"),
+      );
+      trackUsage("exportsCreated");
+    } catch {
+      setSystemStatus("Cover letter TXT export failed. Try PDF or DOCX.");
     }
   }
 
@@ -4733,11 +4735,11 @@ export default function Home() {
             >
               Upload Resume / Supporting Files
             </label>
-            <p className="mt-2 text-xs leading-5 text-zinc-500">
-              Accepts PDF, DOCX, TXT, PNG, JPG, and JPEG. TXT, DOCX, and
-              readable PDF files are extracted now; images are saved as source
-              metadata until OCR is connected.
-            </p>
+	            <p className="mt-2 text-xs leading-5 text-zinc-500">
+	              Accepts PDF, DOCX, TXT, PNG, JPG, and JPEG. TXT, DOCX, and
+	              readable PDF files can be reviewed as source material; images are
+	              saved for your workspace.
+	            </p>
 
             {uploadedFiles.length > 0 ? (
               <div className="mt-4 space-y-2">
@@ -5076,8 +5078,7 @@ export default function Home() {
               </div>
             </div>
             <p className="mt-3 text-xs leading-5 text-zinc-500">
-              Usage is tracked locally for now and can be moved to Supabase
-              usage events when accounts are enabled.
+              Your activity and saved versions are managed in your workspace.
             </p>
           </section>
 
@@ -5353,7 +5354,7 @@ export default function Home() {
                   AI Workspace
                 </h2>
                 <p className="mt-1 text-xs font-medium text-slate-500">
-                  Autosaved locally · Editing updates the active document immediately
+                  Autosaved in your workspace. Editing updates the active document immediately.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -5390,7 +5391,7 @@ export default function Home() {
                   <summary className="inline-flex min-h-10 cursor-pointer list-none items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800">
                     Export
                   </summary>
-                  <div className="absolute right-0 z-30 mt-2 w-64 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+	                  <div className="absolute right-0 z-30 mt-2 w-64 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
                     <button
                       type="button"
                       onClick={downloadResumePdf}
@@ -5412,13 +5413,20 @@ export default function Home() {
                     >
                       Cover Letter PDF
                     </button>
-                    <button
-                      type="button"
-                      onClick={downloadCoverLetterDocx}
+	                    <button
+	                      type="button"
+	                      onClick={downloadCoverLetterDocx}
                       className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
-                      Cover Letter DOCX
-                    </button>
+	                      Cover Letter DOCX
+	                    </button>
+	                    <button
+	                      type="button"
+	                      onClick={downloadCoverLetterTxt}
+	                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+	                    >
+	                      Cover Letter TXT
+	                    </button>
                     <button
                       type="button"
                       onClick={downloadLinkedInKitPdf}
@@ -5460,9 +5468,9 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[370px_minmax(0,1fr)]">
-            <aside className="order-2 lg:order-1">
-              <div className="space-y-3 lg:sticky lg:top-24">
+	          <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[370px_minmax(0,1fr)]">
+	            <aside className="order-2 lg:order-1">
+	              <div className="space-y-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-auto lg:pr-1">
                 <CompactAiSidebar result={result} />
                 <AdvancedIntelligencePanel
                   analysis={result.advancedAnalysis}
@@ -5471,16 +5479,16 @@ export default function Home() {
               </div>
             </aside>
 
-            <section className="order-1 min-w-0 rounded-2xl border border-slate-200 bg-slate-100/70 p-4 shadow-sm lg:order-2">
-              <div className="mx-auto max-w-6xl">
+	            <section className="order-1 min-w-0 rounded-2xl border border-slate-200 bg-slate-100/70 p-4 shadow-sm lg:order-2">
+	              <div className="mx-auto max-w-6xl">
                 {activeOutput === "resume" ? (
                   <DocumentFrame title="Editable Resume" subtitle="Section editor">
                     <WeakBulletEditor
                       bullets={result.coach.weakBullets}
                       onApply={rewriteSuggestedBullet}
                     />
-                    <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)]">
-                      <div id="resume-editor" className="min-w-0 scroll-mt-28">
+	                    <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)]">
+	                      <div id="resume-editor" className="min-w-0 scroll-mt-28 xl:max-h-[calc(100vh-9rem)] xl:overflow-auto xl:pr-1">
                         <ModularResumeEditor
                           resumeText={result.rewrittenResume}
                           resetSourceText={masterResume}
@@ -5496,10 +5504,10 @@ export default function Home() {
                           onResumeTextChange={updateResumeOutput}
                         />
                       </div>
-                      <div
-                        id="resume-preview"
-                        className="min-w-0 scroll-mt-28 xl:sticky xl:top-24 xl:self-start"
-                      >
+	                      <div
+	                        id="resume-preview"
+	                        className="min-w-0 scroll-mt-28 xl:sticky xl:top-24 xl:max-h-[calc(100vh-9rem)] xl:self-start xl:overflow-auto xl:pr-1"
+	                      >
                         <ResumePreview
                           resumeText={result.rewrittenResume}
                           theme={previewTheme}
@@ -5510,22 +5518,31 @@ export default function Home() {
                     </div>
                   </DocumentFrame>
 	                ) : activeOutput === "cover" ? (
-                  <DocumentFrame title="Cover Letter" subtitle="Editable letter">
-                    <div className="mb-4 flex flex-wrap gap-2">
+	                  <DocumentFrame title="Cover Letter" subtitle="Editable letter">
+	                    <div className="mb-4 flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={generateCoverLetter}
                         className="inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
                       >
-                        Generate Cover Letter
-                      </button>
-                      <button
-                        type="button"
-                        onClick={copyCoverLetter}
-                        className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                      >
-                        {coverCopyStatus}
-                      </button>
+	                        Generate Cover Letter
+	                      </button>
+	                      <details className="relative">
+	                        <summary className="inline-flex min-h-9 cursor-pointer list-none items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+	                          Export Cover Letter
+	                        </summary>
+	                        <div className="absolute left-0 z-20 mt-2 w-44 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+	                          <button type="button" onClick={downloadCoverLetterPdf} className="block w-full rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+	                            PDF
+	                          </button>
+	                          <button type="button" onClick={downloadCoverLetterDocx} className="block w-full rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+	                            DOCX
+	                          </button>
+	                          <button type="button" onClick={downloadCoverLetterTxt} className="block w-full rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+	                            TXT
+	                          </button>
+	                        </div>
+	                      </details>
                     </div>
                     <textarea
                       value={result.coverLetter}
@@ -6154,14 +6171,11 @@ function ModularResumeEditor({
                       className="min-h-20 w-full resize-y rounded-md border border-slate-200 bg-white p-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
                     />
                     <div className="mt-2 flex flex-wrap gap-2">
+                      <span className="inline-flex min-h-8 items-center rounded-md bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                        Edit Bullet
+                      </span>
                       <EditorActionButton onClick={() => applyBulletAiAction(entryIndex, bulletIndex, "Rewrite Bullet")}>
-                        Rewrite Bullet
-                      </EditorActionButton>
-                      <EditorActionButton onClick={() => applyBulletAiAction(entryIndex, bulletIndex, "Strengthen Metrics")}>
-                        Strengthen Metrics
-                      </EditorActionButton>
-                      <EditorActionButton onClick={() => applyBulletAiAction(entryIndex, bulletIndex, "Make More ATS-Friendly")}>
-                        Make ATS-Friendly
+                        AI Improve Bullet
                       </EditorActionButton>
                       <EditorActionButton onClick={() => moveExperienceBullet(entryIndex, bulletIndex, -1)}>
                         Move Up
@@ -6176,7 +6190,7 @@ function ModularResumeEditor({
                           })
                         }
                       >
-                        Delete Bullet
+                        Remove Bullet
                       </EditorActionButton>
                     </div>
                   </div>
@@ -6229,6 +6243,7 @@ function ModularResumeEditor({
       <ModularSection
         title="Optional Additional Sections"
         onOptimize={() => applyAdditionalSectionAiAction(0, "Optimize this section")}
+        onAiAction={(action) => applyAdditionalSectionAiAction(0, action)}
         onReset={() =>
           commit({
             ...structured,
@@ -6261,17 +6276,6 @@ function ModularResumeEditor({
                 }
                 className="mt-3 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
               />
-              <div className="mt-3 flex flex-wrap gap-2">
-                <EditorActionButton onClick={() => applyAdditionalSectionAiAction(sectionIndex, "Optimize this section")}>
-                  Optimize this section
-                </EditorActionButton>
-                <EditorActionButton onClick={() => applyAdditionalSectionAiAction(sectionIndex, "Rewrite this section")}>
-                  Rewrite this section
-                </EditorActionButton>
-                <EditorActionButton onClick={() => applyAdditionalSectionAiAction(sectionIndex, "Improve for selected industry")}>
-                  Improve for selected industry
-                </EditorActionButton>
-              </div>
             </div>
           ))}
           <button
@@ -6321,20 +6325,22 @@ function ModularSection({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <span className="inline-flex min-h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
+              Edit
+            </span>
             {onOptimize ? (
-              <EditorActionButton onClick={onOptimize}>
-                {isOptimizing ? "Optimizing..." : "Optimize this section"}
-              </EditorActionButton>
-            ) : null}
-            {onAiAction ? (
-              <>
-                <EditorActionButton onClick={() => onAiAction("Rewrite this section")}>
-                  Rewrite this section
-                </EditorActionButton>
-                <EditorActionButton onClick={() => onAiAction("Improve for selected industry")}>
-                  Improve for selected industry
-                </EditorActionButton>
-              </>
+              <AiActionsMenu
+                isOptimizing={isOptimizing}
+                showAdvanced={Boolean(onAiAction)}
+                onSelect={(action) => {
+                  if (action === "Optimize this section") {
+                    onOptimize();
+                    return;
+                  }
+
+                  onAiAction?.(action);
+                }}
+              />
             ) : null}
             {onReset ? (
               <EditorActionButton onClick={onReset}>Reset Section</EditorActionButton>
@@ -6342,27 +6348,57 @@ function ModularSection({
           </div>
         </div>
       </summary>
-      {onAiAction ? (
-        <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
-          {[
-            "Make More Executive",
-            "Make More Technical",
-            "Make More ATS-Friendly",
-            "Shorten",
-            "Strengthen Metrics",
-            "Tailor to Industry",
-            "Improve Recruiter Readability",
-          ].map((action, actionIndex) => (
-            <EditorActionButton
-              key={`${action}-${actionIndex}`}
-              onClick={() => onAiAction(action as AiOptimizationAction)}
-            >
-              {action}
-            </EditorActionButton>
-          ))}
-        </div>
-      ) : null}
       <div className="mt-4">{children}</div>
+    </details>
+  );
+}
+
+function AiActionsMenu({
+  isOptimizing,
+  showAdvanced,
+  onSelect,
+}: {
+  isOptimizing: boolean;
+  showAdvanced: boolean;
+  onSelect: (action: AiOptimizationAction) => void;
+}) {
+  const actions: AiOptimizationAction[] = showAdvanced
+    ? [
+        "Optimize this section",
+        "Rewrite this section",
+        "Improve for selected industry",
+        "Make More Executive",
+        "Make More Technical",
+        "Make More ATS-Friendly",
+        "Shorten",
+        "Strengthen Metrics",
+        "Improve Recruiter Readability",
+      ]
+    : ["Optimize this section"];
+
+  return (
+    <details className="relative">
+      <summary
+        className="inline-flex min-h-8 cursor-pointer list-none items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {isOptimizing ? "Optimizing..." : "AI Actions"}
+      </summary>
+      <div className="absolute right-0 z-20 mt-2 w-64 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+        {actions.map((action, actionIndex) => (
+          <button
+            key={`${action}-${actionIndex}`}
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              onSelect(action);
+            }}
+            className="block w-full rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            {action}
+          </button>
+        ))}
+      </div>
     </details>
   );
 }
@@ -6505,9 +6541,9 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
 
       <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <summary className="cursor-pointer text-sm font-semibold text-slate-900">
-          Truth / Risk Flags
+          Resume Integrity
         </summary>
-        <CoachInlineList items={safeStringArray(result.riskFlags)} />
+        <CoachInlineList items={safeStringArray(result.riskFlags).map(userFacingGuidance)} />
       </details>
 
       <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -6619,7 +6655,7 @@ function CoachInlineList({ items = [] }: { items?: readonly string[] | null }) {
   return (
     <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700">
       {visibleItems.map((item, itemIndex) => (
-        <li key={`${item}-${itemIndex}`}>{item}</li>
+        <li key={`${item}-${itemIndex}`}>{userFacingGuidance(item)}</li>
       ))}
     </ul>
   );
@@ -6643,7 +6679,7 @@ function CoachBlock({
       {visibleItems.length > 0 ? (
         <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-zinc-700">
           {visibleItems.map((item, itemIndex) => (
-            <li key={`${item}-${itemIndex}`}>{item}</li>
+            <li key={`${item}-${itemIndex}`}>{userFacingGuidance(item)}</li>
           ))}
         </ul>
       ) : (
@@ -6665,7 +6701,7 @@ function AdvancedIntelligencePanel({
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <h2 className="text-sm font-semibold text-slate-900">
-        Advanced Intelligence
+        Career Intelligence
       </h2>
       <div className="mt-4 space-y-3">
         <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
@@ -6998,13 +7034,6 @@ function ResumePreview({
               </h4>
             ) : null}
             {contact.title ? <p className={subtitleClass}>{contact.title}</p> : null}
-            <p
-              className={`mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${
-                isExecutive || family === "finance" ? theme.subheadText : theme.accentText
-              }`}
-            >
-              {profile.headingLabel}
-            </p>
             {contactItems.length > 0 ? (
               <p
                 className={`mt-3 text-xs leading-5 ${
