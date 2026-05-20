@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type TemplateId = "executive-navy" | "modern-product" | "ats-clean";
 type ThemeId = "deep-navy" | "modern-teal" | "minimal-black";
@@ -521,6 +521,7 @@ export default function Home() {
   const [copyStatus, setCopyStatus] = useState("Copy");
   const [activeOutput, setActiveOutput] = useState<"resume" | "cover">("resume");
   const [hydrated, setHydrated] = useState(false);
+  const skipNextSave = useRef(false);
   const previewTheme = previewThemes[theme];
 
   useEffect(() => {
@@ -554,6 +555,11 @@ export default function Home() {
       return;
     }
 
+    if (skipNextSave.current) {
+      skipNextSave.current = false;
+      return;
+    }
+
     const savedState: SavedState = {
       masterResume,
       jobDescription,
@@ -578,6 +584,19 @@ export default function Home() {
     setCopyStatus("Copy");
     setActiveOutput("resume");
     setResult(buildTailoredResume(masterResume, jobDescription, targetRole));
+  }
+
+  function resetSavedResume() {
+    skipNextSave.current = true;
+    window.localStorage.removeItem(storageKey);
+    setMasterResume(sampleResume);
+    setJobDescription(sampleJob);
+    setTargetRole("AI Product Manager");
+    setTemplate("executive-navy");
+    setTheme("deep-navy");
+    setResult(null);
+    setActiveOutput("resume");
+    setCopyStatus("Copy");
   }
 
   function updateResumeOutput(value: string) {
@@ -660,14 +679,23 @@ export default function Home() {
               output.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={tailorResume}
-            disabled={!canTailor}
-            className="inline-flex min-h-12 items-center justify-center rounded-lg bg-zinc-950 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
-          >
-            Tailor Resume
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={resetSavedResume}
+              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-50"
+            >
+              Reset Saved Resume
+            </button>
+            <button
+              type="button"
+              onClick={tailorResume}
+              disabled={!canTailor}
+              className="inline-flex min-h-12 items-center justify-center rounded-lg bg-zinc-950 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
+            >
+              Tailor Resume
+            </button>
+          </div>
         </div>
       </section>
 
