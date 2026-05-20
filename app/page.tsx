@@ -316,6 +316,52 @@ function firstMeaningfulLine(text: string, fallback: string) {
   );
 }
 
+function findResumeLine(text: string, patterns: RegExp[]) {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-*]\s+/, "").trim())
+    .find((line) => patterns.some((pattern) => pattern.test(line)));
+}
+
+function buildCoverLetterFromInputs(
+  resumeText: string,
+  targetRole: string,
+  jobDescription: string,
+) {
+  const candidateName = firstMeaningfulLine(resumeText, "Candidate Name");
+  const role = titleCase(
+    targetRole || firstMeaningfulLine(jobDescription, "Target Role"),
+  );
+  const resumeKeywords = extractKeywords(resumeText);
+  const jobKeywords = extractKeywords(jobDescription);
+  const alignedKeywords = jobKeywords.filter((keyword) =>
+    resumeKeywords.includes(keyword),
+  );
+  const primaryStrengths =
+    alignedKeywords.slice(0, 5).join(", ") ||
+    resumeKeywords.slice(0, 5).join(", ") ||
+    "product leadership, stakeholder alignment, and technical delivery";
+  const impactLine =
+    findResumeLine(resumeText, [
+      /\$?\d[\d,.]*\+?%?/,
+      /\b(led|launched|built|delivered|improved|managed|automated|coordinated)\b/i,
+    ]) ??
+    "I have led cross-functional work from requirements through delivery, aligning business goals with practical implementation.";
+  const jobFocus =
+    firstMeaningfulLine(jobDescription, role).replace(/[.。]\s*$/, "");
+
+  return `Dear Hiring Team,
+
+I am writing to express my interest in the ${role} role. Your need for ${jobFocus} aligns closely with my background in ${primaryStrengths}.
+
+${impactLine} This experience has strengthened my ability to turn ambiguous business needs into clear priorities, collaborate with technical and non-technical stakeholders, and deliver work that is ready for launch and iteration.
+
+I would welcome the opportunity to bring this mix of product judgment, execution discipline, and practical technical fluency to your team.
+
+Sincerely,
+${candidateName}`;
+}
+
 function scoreResume(
   masterResume: string,
   jobDescription: string,
@@ -353,23 +399,6 @@ function scoreResume(
       `AI/ML project relevance: ${Math.round(aiScore * 10)}/10`,
     ],
   };
-}
-
-function buildCoverLetter(
-  role: string,
-  candidateName: string,
-  result: Omit<TailoringResult, "coverLetter">,
-) {
-  return `Dear Hiring Team,
-
-I am excited to apply for the ${role} role. My background combines technical product management, IT project leadership, and hands-on delivery across SaaS, AI, fintech, enterprise platforms, CRM systems, analytics, and automation.
-
-In recent roles, I have translated stakeholder goals into product requirements, prioritized delivery plans, coordinated technical and business teams, and supported launch-ready workflows. The experience highlighted in my resume aligns especially well with ${result.matchedKeywords.slice(0, 6).join(", ") || "the core needs of this position"}.
-
-I would welcome the opportunity to bring structured product thinking, cross-functional execution, and practical AI/product delivery experience to your team.
-
-Sincerely,
-${candidateName}`;
 }
 
 function buildTailoredResume(
@@ -458,7 +487,11 @@ ${masterResume.trim()}`;
 
   return {
     ...baseResult,
-    coverLetter: buildCoverLetter(role, candidateName, baseResult),
+    coverLetter: buildCoverLetterFromInputs(
+      rewrittenResume,
+      targetRole,
+      jobDescription,
+    ),
   };
 }
 
@@ -519,6 +552,7 @@ export default function Home() {
   const [theme, setTheme] = useState<ThemeId>("deep-navy");
   const [result, setResult] = useState<TailoringResult | null>(null);
   const [copyStatus, setCopyStatus] = useState("Copy");
+  const [coverCopyStatus, setCoverCopyStatus] = useState("Copy Cover Letter");
   const [activeOutput, setActiveOutput] = useState<"resume" | "cover">("resume");
   const [hydrated, setHydrated] = useState(false);
   const skipNextSave = useRef(false);
@@ -582,8 +616,32 @@ export default function Home() {
 
   function tailorResume() {
     setCopyStatus("Copy");
+    setCoverCopyStatus("Copy Cover Letter");
     setActiveOutput("resume");
     setResult(buildTailoredResume(masterResume, jobDescription, targetRole));
+  }
+
+  function generateCoverLetter() {
+    setCopyStatus("Copy");
+    setCoverCopyStatus("Copy Cover Letter");
+    setActiveOutput("cover");
+    setResult((current) => {
+      const nextResult =
+        current ?? buildTailoredResume(masterResume, jobDescription, targetRole);
+      const resumeText =
+        nextResult.rewrittenResume.trim().length > 0
+          ? nextResult.rewrittenResume
+          : masterResume;
+
+      return {
+        ...nextResult,
+        coverLetter: buildCoverLetterFromInputs(
+          resumeText,
+          targetRole,
+          jobDescription,
+        ),
+      };
+    });
   }
 
   function resetSavedResume() {
@@ -597,6 +655,7 @@ export default function Home() {
     setResult(null);
     setActiveOutput("resume");
     setCopyStatus("Copy");
+    setCoverCopyStatus("Copy Cover Letter");
   }
 
   function updateResumeOutput(value: string) {
@@ -637,6 +696,42 @@ export default function Home() {
       setCopyStatus("Copy failed");
       window.setTimeout(() => setCopyStatus("Copy"), 1500);
     }
+  }
+
+  async function copyCoverLetter() {
+    if (!result) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(result.coverLetter);
+      setCoverCopyStatus("Copied");
+      window.setTimeout(() => setCoverCopyStatus("Copy Cover Letter"), 1500);
+    } catch {
+      setCoverCopyStatus("Copy failed");
+      window.setTimeout(() => setCoverCopyStatus("Copy Cover Letter"), 1500);
+    }
+  }
+
+  function downloadCoverLetterTxt() {
+    if (!result) {
+      return;
+    }
+
+    const fileName = `${
+      targetRole.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") ||
+      "cover-letter"
+    }-cover-letter.txt`;
+    const blob = new Blob([result.coverLetter], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   }
 
   function downloadTxt() {
@@ -686,6 +781,14 @@ export default function Home() {
               className="inline-flex min-h-12 items-center justify-center rounded-lg border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-50"
             >
               Reset Saved Resume
+            </button>
+            <button
+              type="button"
+              onClick={generateCoverLetter}
+              disabled={!canTailor}
+              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+            >
+              Generate Cover Letter
             </button>
             <button
               type="button"
@@ -973,9 +1076,34 @@ export default function Home() {
               </>
             ) : (
               <section className="py-5">
-                <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                  Cover Letter
-                </h3>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                    Cover Letter
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={generateCoverLetter}
+                      className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                    >
+                      Generate Cover Letter
+                    </button>
+                    <button
+                      type="button"
+                      onClick={copyCoverLetter}
+                      className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50"
+                    >
+                      {coverCopyStatus}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={downloadCoverLetterTxt}
+                      className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
+                    >
+                      Download Cover Letter TXT
+                    </button>
+                  </div>
+                </div>
                 <textarea
                   value={result.coverLetter}
                   onChange={(event) => updateCoverLetter(event.target.value)}
