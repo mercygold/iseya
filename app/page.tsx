@@ -231,7 +231,9 @@ type ExperienceEntry = {
   title: string;
   company: string;
   location: string;
-  dates: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
   bullets: string[];
 };
 
@@ -1960,7 +1962,12 @@ function resultFromApiResponse(
 ): TailoringResult {
   const matchScore = safeScore(response.matchScore, 0);
   const matchBreakdown = safeMatchBreakdown(response.matchBreakdown, matchScore);
-  const tailoredResume = response.tailoredResume || "";
+  const tailoredResume = response.tailoredResume
+    ? serializeStructuredResume(
+        structuredResumeFromText(response.tailoredResume),
+        brandingFromResumeText(response.tailoredResume),
+      )
+    : "";
   const coverLetter = response.coverLetter || "";
   const positioningStrategy = response.positioningStrategy || "";
   const parsed = parseResumePreview(tailoredResume);
@@ -2357,18 +2364,62 @@ function sectionItems(section?: ResumeSection) {
   return uniqueStrings([...section.body, ...section.bullets]);
 }
 
+function createEmptyExperience(index = 0): ExperienceEntry {
+  return {
+    id: `experience-${Date.now()}-${index}`,
+    title: "",
+    company: "",
+    location: "",
+    startDate: "",
+    endDate: "",
+    isCurrent: false,
+    bullets: [],
+  };
+}
+
+function cleanBullets(bullets: string[]) {
+  return uniqueStrings(
+    bullets
+      .map((bullet) => cleanExportBullet(bullet.replace(/^[-*]\s+/, "")))
+      .filter(Boolean),
+  );
+}
+
+function splitDateRange(value: string) {
+  const cleaned = cleanEditorText(value);
+  const match = cleaned.match(
+    /^(.*?)\s*(?:-|–|—|to)\s*(present|current|now|.*?)$/i,
+  );
+
+  if (!match) {
+    return { startDate: "", endDate: cleaned, isCurrent: /present|current/i.test(cleaned) };
+  }
+
+  const endDate = cleanEditorText(match[2] || "");
+
+  return {
+    startDate: cleanEditorText(match[1] || ""),
+    endDate: /present|current|now/i.test(endDate) ? "" : endDate,
+    isCurrent: /present|current|now/i.test(endDate),
+  };
+}
+
 function parseExperienceLine(line: string) {
   const cleaned = cleanEditorText(line);
-  const [left, ...dateParts] = cleaned.split(/\s+[|–-]\s+/);
-  const dates = dateParts.join(" - ").trim();
-  const atMatch = left.match(/^(.+?)\s+at\s+(.+)$/i);
-  const dashParts = left.split(/\s+-\s+/);
+  const parts = cleaned.split(/\s+\|\s+/).map(cleanEditorText).filter(Boolean);
+  const roleCompany = parts[0] || cleaned;
+  const datePart = parts.find((part) => /\d{4}|present|current|now/i.test(part)) || "";
+  const location = parts.find((part) => part !== roleCompany && part !== datePart) || "";
+  const atMatch = roleCompany.match(/^(.+?)\s+at\s+(.+)$/i);
+  const dashParts = roleCompany.split(/\s+-\s+/);
+  const dateRange = splitDateRange(datePart);
 
   if (atMatch) {
     return {
       title: atMatch[1].trim(),
       company: atMatch[2].trim(),
-      dates,
+      location,
+      ...dateRange,
     };
   }
 
@@ -2376,15 +2427,83 @@ function parseExperienceLine(line: string) {
     return {
       title: dashParts[0].trim(),
       company: dashParts.slice(1).join(" - ").trim(),
-      dates,
+      location,
+      ...dateRange,
     };
   }
 
   return {
     title: cleaned,
     company: "",
-    dates,
+    location,
+    ...dateRange,
   };
+}
+
+function normalizeExperience(entry: Partial<ExperienceEntry>, index = 0): ExperienceEntry | null {
+  const normalized: ExperienceEntry = {
+    id: entry.id || `experience-${index}`,
+    title: cleanEditorText(entry.title || ""),
+    company: cleanEditorText(entry.company || ""),
+    location: cleanEditorText(entry.location || ""),
+    startDate: cleanEditorText(entry.startDate || ""),
+    endDate: cleanEditorText(entry.endDate || ""),
+    isCurrent: Boolean(entry.isCurrent),
+    bullets: cleanBullets(entry.bullets ?? []),
+  };
+
+  const hasIdentity = Boolean(normalized.title || normalized.company);
+  const hasBullets = normalized.bullets.length > 0;
+
+  if (!hasIdentity && !hasBullets) {
+    return null;
+  }
+
+  if (
+    normalized.title &&
+    normalized.company &&
+    normalized.title.toLowerCase() === normalized.company.toLowerCase()
+  ) {
+    normalized.title = "";
+  }
+
+  return normalized;
+}
+
+function dedupeExperience(entries: ExperienceEntry[]) {
+  const seen = new Set<string>();
+  const deduped: ExperienceEntry[] = [];
+
+  for (const entry of entries) {
+    const key = [
+      entry.title.toLowerCase(),
+      entry.company.toLowerCase(),
+      entry.startDate.toLowerCase(),
+      entry.endDate.toLowerCase(),
+      entry.isCurrent ? "current" : "",
+    ].join("|");
+
+    if (seen.has(key)) {
+      const existing = deduped.find(
+        (item) =>
+          item.title.toLowerCase() === entry.title.toLowerCase() &&
+          item.company.toLowerCase() === entry.company.toLowerCase() &&
+          item.startDate.toLowerCase() === entry.startDate.toLowerCase() &&
+          item.endDate.toLowerCase() === entry.endDate.toLowerCase(),
+      );
+
+      if (existing) {
+        existing.bullets = cleanBullets([...existing.bullets, ...entry.bullets]);
+      }
+
+      continue;
+    }
+
+    seen.add(key);
+    deduped.push(entry);
+  }
+
+  return deduped;
 }
 
 function parseExperienceEntries(section?: ResumeSection): ExperienceEntry[] {
@@ -2394,38 +2513,86 @@ function parseExperienceEntries(section?: ResumeSection): ExperienceEntry[] {
 
   const entries: ExperienceEntry[] = [];
   let current: ExperienceEntry | null = null;
+  const bodyLines = section.body.map(cleanEditorText).filter(Boolean);
+  const isHighlightsOnly = /HIGHLIGHT/i.test(section.heading);
 
-  for (const line of section.body) {
+  for (const line of bodyLines) {
+    const looksLikeMetaLine =
+      current &&
+      /\d{4}|present|current|now/i.test(line) &&
+      !/\b(at|@)\b/i.test(line);
+
+    if (looksLikeMetaLine && current) {
+      const parts = line.split(/\s+\|\s+/).map(cleanEditorText).filter(Boolean);
+      const datePart = parts.find((part) => /\d{4}|present|current|now/i.test(part)) || line;
+      const locationPart = parts.find((part) => part !== datePart && !/\d{4}|present|current|now/i.test(part)) || "";
+      const dateRange = splitDateRange(datePart);
+
+      current.location = current.location || locationPart;
+      current.startDate = current.startDate || dateRange.startDate;
+      current.endDate = current.endDate || dateRange.endDate;
+      current.isCurrent = current.isCurrent || dateRange.isCurrent;
+      continue;
+    }
+
+    const looksLikeRole =
+      /\b(at|@)\b/i.test(line) ||
+      /\s+-\s+/.test(line) ||
+      /\d{4}|present|current/i.test(line);
+
+    if (!looksLikeRole && current) {
+      current.bullets.push(line);
+      continue;
+    }
+
+    if (!looksLikeRole && isHighlightsOnly) {
+      continue;
+    }
+
     const parsed = parseExperienceLine(line);
+    const normalized = normalizeExperience(
+      {
+        id: `experience-${entries.length}`,
+        title: parsed.title,
+        company: parsed.company,
+        location: parsed.location,
+        startDate: parsed.startDate,
+        endDate: parsed.endDate,
+        isCurrent: parsed.isCurrent,
+        bullets: [],
+      },
+      entries.length,
+    );
 
-    current = {
-      id: `experience-${entries.length}`,
-      title: parsed.title || "Experience",
-      company: parsed.company,
-      location: "",
-      dates: parsed.dates,
-      bullets: [],
-    };
-    entries.push(current);
+    if (normalized) {
+      current = normalized;
+      entries.push(current);
+    }
   }
 
-  if (!current) {
-    current = {
-      id: "experience-0",
-      title: section.heading.includes("HIGHLIGHT")
-        ? "Experience Highlights"
-        : "Professional Experience",
-      company: "",
-      location: "",
-      dates: "",
-      bullets: [],
-    };
-    entries.push(current);
+  if (entries.length === 0 && section.bullets.length > 0) {
+    const fallback = normalizeExperience(
+      {
+        id: "experience-0",
+        title: "",
+        company: "",
+        bullets: section.bullets,
+      },
+      0,
+    );
+
+    return fallback ? [fallback] : [];
   }
 
-  current.bullets = section.bullets.map(cleanEditorText).filter(Boolean);
+  if (current) {
+    current.bullets = cleanBullets([...current.bullets, ...section.bullets]);
+  }
 
-  return entries;
+  return dedupeExperience(
+    entries
+      .map((entry, index) => normalizeExperience(entry, index))
+      .filter((entry): entry is ExperienceEntry => Boolean(entry)),
+  );
 }
 
 function structuredResumeFromText(resumeText: string): StructuredResume {
@@ -2539,11 +2706,10 @@ function serializeStructuredResume(
     lines.push("", "CORE SKILLS", uniqueStrings(structured.skills).join(" | "));
   }
 
-  const experience = structured.experience.filter(
-    (entry) =>
-      cleanEditorText(entry.title) ||
-      cleanEditorText(entry.company) ||
-      entry.bullets.some((bullet) => cleanEditorText(bullet)),
+  const experience = dedupeExperience(
+    structured.experience
+      .map((entry, index) => normalizeExperience(entry, index))
+      .filter((entry): entry is ExperienceEntry => Boolean(entry)),
   );
 
   if (experience.length > 0) {
@@ -2556,7 +2722,10 @@ function serializeStructuredResume(
       ]
         .filter(Boolean)
         .join(" - ");
-      const metaLine = [cleanEditorText(entry.location), cleanEditorText(entry.dates)]
+      const dateLine = [entry.startDate, entry.isCurrent ? "Present" : entry.endDate]
+        .filter(Boolean)
+        .join(" - ");
+      const metaLine = [cleanEditorText(entry.location), dateLine]
         .filter(Boolean)
         .join(" | ");
 
@@ -5746,8 +5915,11 @@ function ModularResumeEditor({
 }) {
   const [optimizingKey, setOptimizingKey] = useState("");
   const [optimizationStatus, setOptimizationStatus] = useState("");
+  const [draftExperiences, setDraftExperiences] = useState<ExperienceEntry[]>([]);
+  const [draftBulletsByExperience, setDraftBulletsByExperience] = useState<Record<string, string[]>>({});
   const structured = structuredResumeFromText(resumeText);
   const resetStructured = structuredResumeFromText(resetSourceText);
+  const displayedExperience = [...structured.experience, ...draftExperiences];
 
   function commit(next: StructuredResume) {
     onResumeTextChange(serializeStructuredResume(next, personalBranding));
@@ -5909,7 +6081,14 @@ function ModularResumeEditor({
       sectionText: structured.experience
         .flatMap((entry) => [
           [entry.title, entry.company].filter(Boolean).join(" - "),
-          [entry.location, entry.dates].filter(Boolean).join(" | "),
+          [
+            entry.location,
+            [entry.startDate, entry.isCurrent ? "Present" : entry.endDate]
+              .filter(Boolean)
+              .join(" - "),
+          ]
+            .filter(Boolean)
+            .join(" | "),
           ...entry.bullets,
         ])
         .filter(Boolean)
@@ -5919,13 +6098,15 @@ function ModularResumeEditor({
     if (optimized) {
       commit({
         ...structured,
-        experience: [
+      experience: [
           {
             id: "experience-0",
-            title: "Professional Experience",
+            title: "",
             company: "",
             location: "",
-            dates: "",
+            startDate: "",
+            endDate: "",
+            isCurrent: false,
             bullets: optimized
               .split(/\r?\n/)
               .map((line) => line.replace(/^[-*]\s+/, "").trim())
@@ -5936,12 +6117,47 @@ function ModularResumeEditor({
     }
   }
 
+  async function applySingleExperienceAiAction(
+    entryIndex: number,
+    action: AiOptimizationAction,
+  ) {
+    const entry = displayedExperience[entryIndex];
+
+    if (!entry) {
+      return;
+    }
+
+    const optimized = await optimizeWithBackend({
+      key: `experience-${entryIndex}-${action}`,
+      action,
+      sectionName: entry.title || entry.company || "Experience",
+      sectionText: [
+        [entry.title, entry.company].filter(Boolean).join(" - "),
+        [entry.location, [entry.startDate, entry.isCurrent ? "Present" : entry.endDate].filter(Boolean).join(" - ")]
+          .filter(Boolean)
+          .join(" | "),
+        ...entry.bullets,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+
+    if (optimized) {
+      updateExperience(entryIndex, {
+        bullets: optimized
+          .split(/\r?\n/)
+          .map((line) => line.replace(/^[-*]\s+/, "").trim())
+          .filter(Boolean),
+      });
+    }
+  }
+
   async function applyBulletAiAction(
     entryIndex: number,
     bulletIndex: number,
     action: AiOptimizationAction,
   ) {
-    const entry = structured.experience[entryIndex];
+    const entry = displayedExperience[entryIndex];
     const bullet = entry?.bullets[bulletIndex] || "";
     const optimized = await optimizeWithBackend({
       key: `bullet-${entryIndex}-${bulletIndex}-${action}`,
@@ -5985,18 +6201,106 @@ function ModularResumeEditor({
   }
 
   function updateExperience(index: number, patch: Partial<ExperienceEntry>) {
+    if (index >= structured.experience.length) {
+      const draftIndex = index - structured.experience.length;
+      const nextDrafts = draftExperiences.map((entry, entryIndex) =>
+        entryIndex === draftIndex ? { ...entry, ...patch } : entry,
+      );
+      const updatedDraft = nextDrafts[draftIndex];
+      const normalized = normalizeExperience(updatedDraft, index);
+
+      if (normalized) {
+        commit({
+          ...structured,
+          experience: dedupeExperience([...structured.experience, normalized]),
+        });
+        setDraftExperiences((current) =>
+          current.filter((_, entryIndex) => entryIndex !== draftIndex),
+        );
+        return;
+      }
+
+      setDraftExperiences(nextDrafts);
+      return;
+    }
+
     commit({
       ...structured,
-      experience: structured.experience.map((entry, entryIndex) =>
-        entryIndex === index ? { ...entry, ...patch } : entry,
+      experience: dedupeExperience(
+        structured.experience
+          .map((entry, entryIndex) =>
+            entryIndex === index ? { ...entry, ...patch } : entry,
+          )
+          .map((entry, entryIndex) => normalizeExperience(entry, entryIndex))
+          .filter((entry): entry is ExperienceEntry => Boolean(entry)),
       ),
     });
   }
 
+  function removeExperience(index: number) {
+    const entry = displayedExperience[index];
+
+    if (index >= structured.experience.length) {
+      const draftIndex = index - structured.experience.length;
+      setDraftExperiences((current) =>
+        current.filter((_, entryIndex) => entryIndex !== draftIndex),
+      );
+      if (entry) {
+        setDraftBulletsByExperience((current) => {
+          const next = { ...current };
+          delete next[entry.id];
+          return next;
+        });
+      }
+      return;
+    }
+
+    commit({
+      ...structured,
+      experience: structured.experience.filter((_, entryIndex) => entryIndex !== index),
+    });
+    if (entry) {
+      setDraftBulletsByExperience((current) => {
+        const next = { ...current };
+        delete next[entry.id];
+        return next;
+      });
+    }
+  }
+
   function updateExperienceBullet(entryIndex: number, bulletIndex: number, value: string) {
-    const entry = structured.experience[entryIndex];
+    const entry = displayedExperience[entryIndex];
 
     if (!entry) {
+      return;
+    }
+
+    if (bulletIndex >= entry.bullets.length) {
+      const draftIndex = bulletIndex - entry.bullets.length;
+      const drafts = draftBulletsByExperience[entry.id] ?? [];
+      const nextDrafts = drafts.map((bullet, index) =>
+        index === draftIndex ? value : bullet,
+      );
+
+      if (!nextDrafts[draftIndex]) {
+        nextDrafts[draftIndex] = value;
+      }
+
+      if (cleanEditorText(value)) {
+        updateExperience(entryIndex, {
+          bullets: [...entry.bullets, value],
+        });
+        setDraftBulletsByExperience((current) => ({
+          ...current,
+          [entry.id]: nextDrafts.filter((_, index) => index !== draftIndex),
+        }));
+        return;
+      }
+
+      setDraftBulletsByExperience((current) => ({
+        ...current,
+        [entry.id]: nextDrafts,
+      }));
       return;
     }
 
@@ -6007,8 +6311,29 @@ function ModularResumeEditor({
     });
   }
 
+  function removeExperienceBullet(entryIndex: number, bulletIndex: number) {
+    const entry = displayedExperience[entryIndex];
+
+    if (!entry) {
+      return;
+    }
+
+    if (bulletIndex >= entry.bullets.length) {
+      const draftIndex = bulletIndex - entry.bullets.length;
+      setDraftBulletsByExperience((current) => ({
+        ...current,
+        [entry.id]: (current[entry.id] ?? []).filter((_, index) => index !== draftIndex),
+      }));
+      return;
+    }
+
+    updateExperience(entryIndex, {
+      bullets: entry.bullets.filter((_, index) => index !== bulletIndex),
+    });
+  }
+
   function moveExperienceBullet(entryIndex: number, bulletIndex: number, direction: -1 | 1) {
-    const entry = structured.experience[entryIndex];
+    const entry = displayedExperience[entryIndex];
     const nextIndex = bulletIndex + direction;
 
     if (!entry || nextIndex < 0 || nextIndex >= entry.bullets.length) {
@@ -6141,20 +6466,100 @@ function ModularResumeEditor({
         onAiAction={applyExperienceAiAction}
         isOptimizing={optimizingKey.startsWith("experience-")}
       >
-        <div className="space-y-3">
-          {structured.experience.map((entry, entryIndex) => (
-            <div
-              key={`${entry.id}-${entryIndex}`}
-              className="rounded-xl border border-slate-200 bg-slate-50 p-3"
-            >
-              <div className="grid gap-3 md:grid-cols-2">
-                <ContactField label="Role / Title" value={entry.title} onChange={(value) => updateExperience(entryIndex, { title: value })} />
-                <ContactField label="Company" value={entry.company} onChange={(value) => updateExperience(entryIndex, { company: value })} />
-                <ContactField label="Location" value={entry.location} onChange={(value) => updateExperience(entryIndex, { location: value })} />
-                <ContactField label="Dates" value={entry.dates} onChange={(value) => updateExperience(entryIndex, { dates: value })} />
-              </div>
-              <div className="mt-3 space-y-2">
-                {entry.bullets.map((bullet, bulletIndex) => (
+	        <div className="space-y-3">
+	          <div className="flex flex-wrap items-center justify-between gap-3">
+	            <p className="text-sm font-medium text-slate-600">
+	              {displayedExperience.length > 0
+	                ? "Edit each role directly. Changes update the preview and exports immediately."
+	                : "No experience added yet. Add your first role."}
+	            </p>
+	            <button
+	              type="button"
+	              onClick={() =>
+	                setDraftExperiences((current) => [
+	                  ...current,
+	                  createEmptyExperience(current.length + structured.experience.length),
+	                ])
+	              }
+	              className="inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+	            >
+	              Add Experience
+	            </button>
+	          </div>
+	          {displayedExperience.map((entry, entryIndex) => (
+	            <div
+	              key={`${entry.id}-${entryIndex}`}
+	              className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+	            >
+	              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+	                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+	                  Experience {entryIndex + 1}
+	                </p>
+	                <div className="flex flex-wrap gap-2">
+	                  <details className="relative">
+	                    <summary className="inline-flex min-h-8 cursor-pointer list-none items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100">
+	                      Optimize Experience
+	                    </summary>
+	                    <div className="absolute right-0 z-20 mt-2 w-56 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+	                      {[
+	                        ["Make More Executive", "Make more executive"],
+	                        ["Make More Technical", "Make more technical"],
+	                        ["Make More ATS-Friendly", "Improve ATS language"],
+	                        ["Strengthen Metrics", "Strengthen metrics"],
+	                        ["Shorten", "Shorten bullets"],
+	                        ["Tailor to Industry", "Tailor to selected industry"],
+	                      ].map(([action, label], actionIndex) => (
+	                        <button
+	                          key={`${entry.id}-${action}-${actionIndex}`}
+	                          type="button"
+	                          onClick={(event) => {
+	                            event.preventDefault();
+	                            applySingleExperienceAiAction(entryIndex, action as AiOptimizationAction);
+	                          }}
+	                          className="block w-full rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+	                        >
+	                          {label}
+	                        </button>
+	                      ))}
+	                    </div>
+	                  </details>
+	                  <EditorActionButton
+	                    onClick={() =>
+	                      updateExperience(
+	                        entryIndex,
+	                        resetStructured.experience[entryIndex] ?? createEmptyExperience(entryIndex),
+	                      )
+	                    }
+	                  >
+	                    Reset Experience
+	                  </EditorActionButton>
+	                  <EditorActionButton onClick={() => removeExperience(entryIndex)}>
+	                    Remove Experience
+	                  </EditorActionButton>
+	                </div>
+	              </div>
+	              <div className="grid gap-3 md:grid-cols-2">
+	                <ContactField label="Role / Title" value={entry.title} onChange={(value) => updateExperience(entryIndex, { title: value })} />
+	                <ContactField label="Company" value={entry.company} onChange={(value) => updateExperience(entryIndex, { company: value })} />
+	                <ContactField label="Location" value={entry.location} onChange={(value) => updateExperience(entryIndex, { location: value })} />
+	                <ContactField label="Start Date" value={entry.startDate} onChange={(value) => updateExperience(entryIndex, { startDate: value })} />
+	                <ContactField label="End Date" value={entry.isCurrent ? "" : entry.endDate} onChange={(value) => updateExperience(entryIndex, { endDate: value, isCurrent: false })} />
+	                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+	                  <input
+	                    type="checkbox"
+	                    checked={entry.isCurrent}
+	                    onChange={(event) =>
+	                      updateExperience(entryIndex, {
+	                        isCurrent: event.target.checked,
+	                        endDate: event.target.checked ? "" : entry.endDate,
+	                      })
+	                    }
+	                  />
+	                  Current role
+	                </label>
+	              </div>
+	              <div className="mt-3 space-y-2">
+	                {[...entry.bullets, ...(draftBulletsByExperience[entry.id] ?? [])].map((bullet, bulletIndex) => (
                   <div
                     key={`${entry.id}-bullet-${bulletIndex}`}
                     className="rounded-lg border border-slate-200 bg-white p-2"
@@ -6183,25 +6588,22 @@ function ModularResumeEditor({
                       <EditorActionButton onClick={() => moveExperienceBullet(entryIndex, bulletIndex, 1)}>
                         Move Down
                       </EditorActionButton>
-                      <EditorActionButton
-                        onClick={() =>
-                          updateExperience(entryIndex, {
-                            bullets: entry.bullets.filter((_, index) => index !== bulletIndex),
-                          })
-                        }
-                      >
+	                      <EditorActionButton
+	                        onClick={() => removeExperienceBullet(entryIndex, bulletIndex)}
+	                      >
                         Remove Bullet
                       </EditorActionButton>
                     </div>
                   </div>
                 ))}
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateExperience(entryIndex, {
-                      bullets: [...entry.bullets, "Add a truthful impact bullet."],
-                    })
-                  }
+	                <button
+	                  type="button"
+	                  onClick={() =>
+	                    setDraftBulletsByExperience((current) => ({
+	                      ...current,
+	                      [entry.id]: [...(current[entry.id] ?? []), ""],
+	                    }))
+	                  }
                   className="inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
                 >
                   Add Bullet
@@ -6209,29 +6611,7 @@ function ModularResumeEditor({
               </div>
             </div>
           ))}
-          <button
-            type="button"
-            onClick={() =>
-              commit({
-                ...structured,
-                experience: [
-                  ...structured.experience,
-                  {
-                    id: `experience-${structured.experience.length}`,
-                    title: "",
-                    company: "",
-                    location: "",
-                    dates: "",
-                    bullets: [],
-                  },
-                ],
-              })
-            }
-            className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-          >
-            Add Experience
-          </button>
-        </div>
+	        </div>
       </ModularSection>
 
       <ModularListSection title="AI & Automation Projects" value={structured.projects.join("\n")} onChange={(value) => updateListField("projects", value)} onOptimize={() => applyListAiAction("projects", "AI & Automation Projects", "Optimize this section")} onReset={() => resetSection("projects")} onAiAction={(action) => applyListAiAction("projects", "AI & Automation Projects", action)} isOptimizing={optimizingKey.startsWith("projects-")} />
