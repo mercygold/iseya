@@ -4531,13 +4531,19 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[300px_minmax(0,1fr)_320px]">
-            <aside className="order-2 lg:order-2 2xl:order-1">
-              <CompactAiSidebar result={result} />
+          <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[370px_minmax(0,1fr)]">
+            <aside className="order-2 lg:order-1">
+              <div className="space-y-3 lg:sticky lg:top-24">
+                <CompactAiSidebar result={result} />
+                <AdvancedIntelligencePanel
+                  analysis={result.advancedAnalysis}
+                  onReplaceBullet={replaceBulletWithVersion}
+                />
+              </div>
             </aside>
 
-            <section className="order-1 min-w-0 rounded-2xl border border-slate-200 bg-slate-100/70 p-4 shadow-sm lg:order-1 2xl:order-2">
-              <div className="mx-auto max-w-5xl">
+            <section className="order-1 min-w-0 rounded-2xl border border-slate-200 bg-slate-100/70 p-4 shadow-sm lg:order-2">
+              <div className="mx-auto max-w-6xl">
                 {activeOutput === "resume" ? (
                   <DocumentFrame title="Editable Resume" subtitle="Live draft">
                     <WeakBulletEditor
@@ -4684,14 +4690,6 @@ export default function Home() {
               </div>
             </section>
 
-            <aside className="order-3">
-              <div className="sticky top-24">
-                <AdvancedIntelligencePanel
-                  analysis={result.advancedAnalysis}
-                  onReplaceBullet={replaceBulletWithVersion}
-                />
-              </div>
-            </aside>
           </div>
         </section>
       ) : null}
@@ -4812,7 +4810,7 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
   ] as const;
 
   return (
-    <div className="sticky top-24 space-y-3">
+    <div className="space-y-3">
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
           ATS Scores
