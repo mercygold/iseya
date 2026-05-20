@@ -126,6 +126,26 @@ type AdvancedAnalysis = {
   positioningMode: string;
 };
 
+type LinkedInKit = {
+  headline: string;
+  about: string;
+  featuredProjects: string;
+  topSkills: string[];
+  recruiterKeywords: string[];
+  openToWorkPositioning: string;
+  networkingMessage: string;
+  recruiterOutreachMessage: string;
+};
+
+type ApplicationKit = {
+  recruiterEmail: string;
+  followUpEmail: string;
+  referralRequest: string;
+  connectionRequest: string;
+  interviewIntroPitch: string;
+  tellMeAboutYourself: string;
+};
+
 type TailorResponse = {
   matchScore: number;
   matchBreakdown: {
@@ -147,6 +167,8 @@ type TailorResponse = {
   riskFlags: string[];
   coaching: Coaching;
   advancedAnalysis?: AdvancedAnalysis;
+  linkedin?: LinkedInKit;
+  applicationKit?: ApplicationKit;
 };
 
 const keywordBank = [
@@ -216,6 +238,8 @@ const responseSchema = {
     "improvementNotes",
     "riskFlags",
     "coaching",
+    "linkedin",
+    "applicationKit",
   ],
   properties: {
     matchScore: { type: "number", minimum: 0, maximum: 100 },
@@ -321,6 +345,50 @@ const responseSchema = {
         recruiterObjections: { type: "array", items: { type: "string" } },
       },
     },
+    linkedin: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "headline",
+        "about",
+        "featuredProjects",
+        "topSkills",
+        "recruiterKeywords",
+        "openToWorkPositioning",
+        "networkingMessage",
+        "recruiterOutreachMessage",
+      ],
+      properties: {
+        headline: { type: "string" },
+        about: { type: "string" },
+        featuredProjects: { type: "string" },
+        topSkills: { type: "array", items: { type: "string" } },
+        recruiterKeywords: { type: "array", items: { type: "string" } },
+        openToWorkPositioning: { type: "string" },
+        networkingMessage: { type: "string" },
+        recruiterOutreachMessage: { type: "string" },
+      },
+    },
+    applicationKit: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "recruiterEmail",
+        "followUpEmail",
+        "referralRequest",
+        "connectionRequest",
+        "interviewIntroPitch",
+        "tellMeAboutYourself",
+      ],
+      properties: {
+        recruiterEmail: { type: "string" },
+        followUpEmail: { type: "string" },
+        referralRequest: { type: "string" },
+        connectionRequest: { type: "string" },
+        interviewIntroPitch: { type: "string" },
+        tellMeAboutYourself: { type: "string" },
+      },
+    },
   },
 } as const;
 
@@ -351,6 +419,10 @@ function titleCase(value: string) {
     .split(/\s+/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
+}
+
+function articleFor(value: string) {
+  return /^[aeiou]/i.test(value.trim()) ? "an" : "a";
 }
 
 function stripMarkdown(text: string) {
@@ -686,6 +758,55 @@ function buildLocalAdvancedAnalysis(
   };
 }
 
+function buildLocalApplicationPackage({
+  response,
+  request,
+}: {
+  response: Omit<TailorResponse, "linkedin" | "applicationKit">;
+  request: TailorRequest;
+}): { linkedin: LinkedInKit; applicationKit: ApplicationKit } {
+  const role = titleCase(request.targetRole || firstMeaningfulLine(response.tailoredResume, "Target Role"));
+  const industry = request.industryTarget || "General / ATS";
+  const candidateName = firstMeaningfulLine(response.tailoredResume, "Candidate");
+  const strengths =
+    response.coaching.topStrengths.slice(0, 5).join(", ") ||
+    "product delivery, stakeholder alignment, and execution";
+  const keywords = Array.from(
+    new Set([
+      ...response.coaching.topStrengths,
+      ...response.recommendedKeywords,
+      ...response.missingKeywords,
+    ]),
+  ).slice(0, 12);
+  const firstBullet =
+    response.tailoredResume
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^[-*]\s+/, "").trim())
+      .find((line) => line.length > 40) || response.positioningStrategy;
+  const article = articleFor(role);
+
+  return {
+    linkedin: {
+      headline: `${role} | ${industry} | ${strengths}`,
+      about: `${role} focused on ${industry} opportunities. I bring experience in ${strengths}, with a practical record of translating business needs into clear priorities, stakeholder alignment, and execution-ready work. My background is strongest where product judgment, technical fluency, and measurable delivery need to come together.`,
+      featuredProjects: firstBullet,
+      topSkills: keywords.slice(0, 10),
+      recruiterKeywords: keywords,
+      openToWorkPositioning: `Open to ${role} opportunities in ${industry}, especially roles that value execution discipline, stakeholder leadership, and practical technical fluency.`,
+      networkingMessage: `Hi, I am exploring ${role} opportunities in ${industry}. Your work caught my attention, and I would value connecting with professionals in this space.`,
+      recruiterOutreachMessage: `Hi, I am interested in ${role} opportunities and bring experience across ${strengths}. I would welcome a conversation if my background aligns with roles you are supporting.`,
+    },
+    applicationKit: {
+      recruiterEmail: `Hello,\n\nI am reaching out regarding ${role} opportunities. My background aligns with ${industry} needs through ${strengths}. I would welcome the chance to share how my experience could support your team.\n\nBest regards,\n${candidateName}`,
+      followUpEmail: `Hello,\n\nI wanted to follow up on my interest in the ${role} role. I remain interested because the opportunity aligns with my experience in ${strengths}. Please let me know if I can provide any additional information.\n\nBest regards,\n${candidateName}`,
+      referralRequest: `Hi, I am applying for ${article} ${role} role and noticed your connection to the team. If you feel comfortable, I would appreciate a referral or any guidance on how to position my background for this opportunity.`,
+      connectionRequest: `Hi, I am exploring ${role} opportunities in ${industry} and would value connecting with people working in this space.`,
+      interviewIntroPitch: `I am ${article} ${role} candidate with experience in ${strengths}. I focus on turning business needs into clear priorities, aligning stakeholders, and supporting delivery that is practical, measurable, and recruiter-ready.`,
+      tellMeAboutYourself: `I have built my background around ${strengths}, with a focus on practical execution and cross-functional alignment. For this ${role} opportunity, I am especially interested in applying that experience to ${industry} challenges where clear priorities, technical fluency, and measurable outcomes matter.`,
+    },
+  };
+}
+
 function sourceMaterialText(files: UploadedSourceMaterial[] = []) {
   return files
     .map((file) => file.extractedText?.trim())
@@ -855,10 +976,16 @@ ${candidateName}`;
           : coaching.topStrengths,
     },
   };
+  const packageKit = buildLocalApplicationPackage({
+    response: resultWithCoaching,
+    request,
+  });
 
   return {
     ...resultWithCoaching,
     advancedAnalysis: buildLocalAdvancedAnalysis(resultWithCoaching, request),
+    linkedin: packageKit.linkedin,
+    applicationKit: packageKit.applicationKit,
   };
 }
 
@@ -959,6 +1086,10 @@ function normalizeResponse(response: TailorResponse): TailorResponse {
         fallbackCoaching.recruiterObjections,
     },
   };
+  const fallbackPackage = buildLocalApplicationPackage({
+    response: normalizedResponse,
+    request: { industryTarget: "General / ATS", targetRole: "" },
+  });
 
   return {
     ...normalizedResponse,
@@ -968,6 +1099,8 @@ function normalizeResponse(response: TailorResponse): TailorResponse {
         industryTarget: "General / ATS",
         aiSettings: { positioningMode: "Product" },
       }),
+    linkedin: response.linkedin ?? fallbackPackage.linkedin,
+    applicationKit: response.applicationKit ?? fallbackPackage.applicationKit,
   };
 }
 
@@ -1010,7 +1143,7 @@ async function callOpenAI(request: TailorRequest, apiKey: string) {
           role: "user",
           content: JSON.stringify({
             task:
-              "Analyze the role, industry, required skills, preferred skills, tools, responsibilities, seniority, hidden hiring signals, ATS fit, recruiter readability, truthful candidate positioning, recruiter objections, section-by-section resume quality, weak bullets, keyword density, role positioning, and uploaded source materials. Use uploaded extracted text only when relevant and truthful. Generate a tailored resume, concise recruiter-ready cover letter, score breakdown, and detailed AI Resume Coach data. For weakBullets, include the original bullet, issue type, issue, and a stronger rewritten version grounded only in the source material.",
+              "Analyze the role, industry, required skills, preferred skills, tools, responsibilities, seniority, hidden hiring signals, ATS fit, recruiter readability, truthful candidate positioning, recruiter objections, section-by-section resume quality, weak bullets, keyword density, role positioning, and uploaded source materials. Use uploaded extracted text only when relevant and truthful. Generate a tailored resume, concise recruiter-ready cover letter, score breakdown, detailed AI Resume Coach data, LinkedIn optimization kit, and job application kit. For weakBullets, include the original bullet, issue type, issue, and a stronger rewritten version grounded only in the source material.",
             industryTarget: request.industryTarget || "General / ATS",
             targetRole: request.targetRole || "",
             masterResume: request.masterResume || "",

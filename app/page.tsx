@@ -41,6 +41,28 @@ type TailoringResult = {
   industryFit: string;
   coach: CoachData;
   advancedAnalysis: AdvancedAnalysis;
+  linkedin: LinkedInKit;
+  applicationKit: ApplicationKit;
+};
+
+type LinkedInKit = {
+  headline: string;
+  about: string;
+  featuredProjects: string;
+  topSkills: string[];
+  recruiterKeywords: string[];
+  openToWorkPositioning: string;
+  networkingMessage: string;
+  recruiterOutreachMessage: string;
+};
+
+type ApplicationKit = {
+  recruiterEmail: string;
+  followUpEmail: string;
+  referralRequest: string;
+  connectionRequest: string;
+  interviewIntroPitch: string;
+  tellMeAboutYourself: string;
 };
 
 type MatchBreakdown = {
@@ -273,6 +295,8 @@ type TailorApiResponse = {
   riskFlags: string[];
   coaching?: CoachData;
   advancedAnalysis?: AdvancedAnalysis;
+  linkedin?: LinkedInKit;
+  applicationKit?: ApplicationKit;
 };
 
 const storageKey = "resume-agent-state-v2";
@@ -690,6 +714,10 @@ function titleCase(value: string) {
     .join(" ");
 }
 
+function articleFor(value: string) {
+  return /^[aeiou]/i.test(value.trim()) ? "an" : "a";
+}
+
 function firstMeaningfulLine(text: string, fallback: string) {
   return (
     text
@@ -1098,6 +1126,140 @@ function buildAdvancedAnalysis({
   };
 }
 
+function buildApplicationPackage({
+  resumeText,
+  targetRole,
+  industryTarget,
+  jobDescription,
+  coach,
+}: {
+  resumeText: string;
+  targetRole: string;
+  industryTarget: IndustryTarget;
+  jobDescription: string;
+  coach: CoachData;
+}): { linkedin: LinkedInKit; applicationKit: ApplicationKit } {
+  const resume = parseResumePreview(resumeText);
+  const role = titleCase(targetRole || resume.title || "Target Role");
+  const industry = readableIndustryName(industryTarget);
+  const strengths = safeStringArray(coach.topStrengths).slice(0, 5);
+  const keywords = Array.from(
+    new Set([
+      ...strengths,
+      ...extractKeywords(jobDescription),
+      ...safeStringArray(coach.topGaps).slice(0, 4),
+    ]),
+  ).slice(0, 12);
+  const strengthText =
+    strengths.join(", ") || "product delivery, stakeholder alignment, and execution";
+  const firstProject =
+    parseResumePreview(resumeText)
+      .sections.flatMap((section) => section.bullets)
+      .find(Boolean) || "Relevant projects available in the tailored resume";
+  const article = articleFor(role);
+
+  return {
+    linkedin: {
+      headline: `${role} | ${industry} | ${strengthText}`,
+      about: `${role} focused on ${industry} opportunities. I bring experience in ${strengthText}, with a practical record of translating business needs into clear priorities, stakeholder alignment, and execution-ready work. My background is strongest where product judgment, technical fluency, and measurable delivery need to come together. I am targeting roles where I can help teams clarify strategy, improve workflows, and deliver outcomes grounded in real customer or business needs.`,
+      featuredProjects: firstProject,
+      topSkills: keywords.slice(0, 10),
+      recruiterKeywords: keywords,
+      openToWorkPositioning: `Open to ${role} opportunities in ${industry}, especially roles that value execution discipline, stakeholder leadership, and practical technical fluency.`,
+      networkingMessage: `Hi, I am exploring ${role} opportunities in ${industry}. Your work caught my attention, and I would value connecting with professionals in this space.`,
+      recruiterOutreachMessage: `Hi, I am interested in ${role} opportunities and bring experience across ${strengthText}. I would welcome a conversation if my background aligns with roles you are supporting.`,
+    },
+    applicationKit: {
+      recruiterEmail: `Hello,\n\nI am reaching out regarding ${role} opportunities. My background aligns with ${industry} needs through ${strengthText}. I would welcome the chance to share how my experience could support your team.\n\nBest regards,\n${resume.name}`,
+      followUpEmail: `Hello,\n\nI wanted to follow up on my interest in the ${role} role. I remain interested because the opportunity aligns with my experience in ${strengthText}. Please let me know if I can provide any additional information.\n\nBest regards,\n${resume.name}`,
+      referralRequest: `Hi, I am applying for ${article} ${role} role and noticed your connection to the team. If you feel comfortable, I would appreciate a referral or any guidance on how to position my background for this opportunity.`,
+      connectionRequest: `Hi, I am exploring ${role} opportunities in ${industry} and would value connecting with people working in this space.`,
+      interviewIntroPitch: `I am ${article} ${role} candidate with experience in ${strengthText}. I focus on turning business needs into clear priorities, aligning stakeholders, and supporting delivery that is practical, measurable, and recruiter-ready.`,
+      tellMeAboutYourself: `I have built my background around ${strengthText}, with a focus on practical execution and cross-functional alignment. For this ${role} opportunity, I am especially interested in applying that experience to ${industry} challenges where clear priorities, technical fluency, and measurable outcomes matter.`,
+    },
+  };
+}
+
+function normalizeLinkedInKit(value: Partial<LinkedInKit> | undefined, fallback: LinkedInKit) {
+  return {
+    headline: value?.headline || fallback.headline,
+    about: value?.about || fallback.about,
+    featuredProjects: value?.featuredProjects || fallback.featuredProjects,
+    topSkills: safeStringArray(value?.topSkills, fallback.topSkills),
+    recruiterKeywords: safeStringArray(
+      value?.recruiterKeywords,
+      fallback.recruiterKeywords,
+    ),
+    openToWorkPositioning:
+      value?.openToWorkPositioning || fallback.openToWorkPositioning,
+    networkingMessage: value?.networkingMessage || fallback.networkingMessage,
+    recruiterOutreachMessage:
+      value?.recruiterOutreachMessage || fallback.recruiterOutreachMessage,
+  };
+}
+
+function normalizeApplicationKit(
+  value: Partial<ApplicationKit> | undefined,
+  fallback: ApplicationKit,
+) {
+  return {
+    recruiterEmail: value?.recruiterEmail || fallback.recruiterEmail,
+    followUpEmail: value?.followUpEmail || fallback.followUpEmail,
+    referralRequest: value?.referralRequest || fallback.referralRequest,
+    connectionRequest: value?.connectionRequest || fallback.connectionRequest,
+    interviewIntroPitch:
+      value?.interviewIntroPitch || fallback.interviewIntroPitch,
+    tellMeAboutYourself:
+      value?.tellMeAboutYourself || fallback.tellMeAboutYourself,
+  };
+}
+
+function serializeLinkedInKit(linkedin: LinkedInKit) {
+  return `LINKEDIN HEADLINE
+${linkedin.headline}
+
+ABOUT
+${linkedin.about}
+
+FEATURED PROJECTS
+${linkedin.featuredProjects}
+
+TOP SKILLS
+${linkedin.topSkills.join(", ")}
+
+RECRUITER KEYWORDS
+${linkedin.recruiterKeywords.join(", ")}
+
+OPEN TO WORK POSITIONING
+${linkedin.openToWorkPositioning}
+
+NETWORKING MESSAGE
+${linkedin.networkingMessage}
+
+RECRUITER OUTREACH MESSAGE
+${linkedin.recruiterOutreachMessage}`;
+}
+
+function serializeApplicationKit(applicationKit: ApplicationKit) {
+  return `RECRUITER EMAIL
+${applicationKit.recruiterEmail}
+
+FOLLOW-UP EMAIL
+${applicationKit.followUpEmail}
+
+REFERRAL REQUEST
+${applicationKit.referralRequest}
+
+LINKEDIN CONNECTION REQUEST
+${applicationKit.connectionRequest}
+
+INTERVIEW INTRODUCTION PITCH
+${applicationKit.interviewIntroPitch}
+
+TELL ME ABOUT YOURSELF
+${applicationKit.tellMeAboutYourself}`;
+}
+
 function normalizeAdvancedAnalysis(
   analysis: Partial<AdvancedAnalysis> | undefined | null,
   fallback: Parameters<typeof buildAdvancedAnalysis>[0],
@@ -1486,6 +1648,8 @@ function resultFromApiResponse(
   response: TailorApiResponse,
   activeIndustryTarget: IndustryTarget,
   positioningMode: PositioningMode,
+  targetRole: string,
+  jobDescription: string,
 ): TailoringResult {
   const matchScore = safeScore(response.matchScore, 0);
   const matchBreakdown = safeMatchBreakdown(response.matchBreakdown, matchScore);
@@ -1533,6 +1697,13 @@ function resultFromApiResponse(
     industryTarget: activeIndustryTarget,
     positioningMode,
   };
+  const packageFallback = buildApplicationPackage({
+    resumeText: tailoredResume,
+    targetRole,
+    industryTarget: activeIndustryTarget,
+    jobDescription,
+    coach: normalizeCoachData(response.coaching, fallbackCoachInput),
+  });
 
   return {
     score: Math.round(matchScore),
@@ -1559,6 +1730,11 @@ function resultFromApiResponse(
     advancedAnalysis: normalizeAdvancedAnalysis(
       response.advancedAnalysis,
       advancedFallbackInput,
+    ),
+    linkedin: normalizeLinkedInKit(response.linkedin, packageFallback.linkedin),
+    applicationKit: normalizeApplicationKit(
+      response.applicationKit,
+      packageFallback.applicationKit,
     ),
   };
 }
@@ -1598,6 +1774,13 @@ function ensureTailoringResult(
     industryTarget: activeIndustryTarget,
     positioningMode,
   });
+  const packageFallback = buildApplicationPackage({
+    resumeText: result.rewrittenResume || "",
+    targetRole: result.positioningStrategy || "Target Role",
+    industryTarget: activeIndustryTarget,
+    jobDescription: "",
+    coach,
+  });
 
   return {
     ...result,
@@ -1609,6 +1792,11 @@ function ensureTailoringResult(
     matchBreakdown,
     coach,
     advancedAnalysis,
+    linkedin: normalizeLinkedInKit(result.linkedin, packageFallback.linkedin),
+    applicationKit: normalizeApplicationKit(
+      result.applicationKit,
+      packageFallback.applicationKit,
+    ),
   };
 }
 
@@ -1735,6 +1923,13 @@ ${masterResume.trim()}`;
     rewrittenResume,
     coverLetter,
   });
+  const packageFallback = buildApplicationPackage({
+    resumeText: rewrittenResume,
+    targetRole,
+    industryTarget: "General / ATS",
+    jobDescription,
+    coach,
+  });
 
   return {
     ...baseResult,
@@ -1754,6 +1949,8 @@ ${masterResume.trim()}`;
       industryTarget: "General / ATS",
       positioningMode: "Product",
     }),
+    linkedin: packageFallback.linkedin,
+    applicationKit: packageFallback.applicationKit,
   };
 }
 
@@ -1820,6 +2017,14 @@ function coverLetterFileName(targetRole: string, extension: "pdf" | "docx") {
     "cover-letter";
 
   return `${roleSlug}-cover-letter.${extension}`;
+}
+
+function linkedinKitFileName(targetRole: string, extension: "pdf" | "docx") {
+  const roleSlug =
+    targetRole.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") ||
+    "linkedin-kit";
+
+  return `${roleSlug}-linkedin-kit.${extension}`;
 }
 
 function versionId() {
@@ -2507,6 +2712,115 @@ async function createCoverLetterDocxBlob({
   return Packer.toBlob(document);
 }
 
+async function createTextKitPdfBlob({
+  title,
+  body,
+  theme,
+}: {
+  title: string;
+  body: string;
+  theme: (typeof previewThemes)[ThemeId];
+}) {
+  const ReactPdf = await import("@react-pdf/renderer");
+  const { Document, Page, StyleSheet, Text, View, pdf } = ReactPdf;
+  const sections = body.split(/\n{2,}/).filter(Boolean);
+  const styles = StyleSheet.create({
+    page: {
+      padding: 46,
+      color: theme.textHex,
+      fontFamily: "Helvetica",
+      fontSize: 10.5,
+      lineHeight: 1.55,
+    },
+    title: {
+      borderBottomColor: theme.accentHex,
+      borderBottomWidth: 2,
+      color: theme.headerHex,
+      fontSize: 21,
+      fontWeight: 700,
+      marginBottom: 18,
+      paddingBottom: 8,
+    },
+    section: {
+      marginBottom: 12,
+    },
+    text: {
+      marginBottom: 5,
+    },
+  });
+  const documentNode = createElement(
+    Document,
+    null,
+    createElement(
+      Page,
+      { size: "LETTER", style: styles.page },
+      createElement(Text, { style: styles.title }, title),
+      ...sections.map((section, index) =>
+        createElement(
+          View,
+          { key: `${section.slice(0, 30)}-${index}`, style: styles.section },
+          ...section.split(/\n/).map((line, lineIndex) =>
+            createElement(
+              Text,
+              { key: `${line}-${lineIndex}`, style: styles.text },
+              line,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  return pdf(documentNode).toBlob();
+}
+
+async function createTextKitDocxBlob({
+  title,
+  body,
+  theme,
+}: {
+  title: string;
+  body: string;
+  theme: (typeof previewThemes)[ThemeId];
+}) {
+  const Docx = await import("docx");
+  const { Document: DocxDocument, Packer, Paragraph, TextRun } = Docx;
+  const textColor = stripHash(theme.textHex);
+  const accentColor = stripHash(theme.accentHex);
+  const children = [
+    new Paragraph({
+      spacing: { after: 260 },
+      children: [
+        new TextRun({
+          text: title,
+          bold: true,
+          color: accentColor,
+          size: 32,
+        }),
+      ],
+    }),
+    ...body.split(/\n/).map(
+      (line) =>
+        new Paragraph({
+          spacing: { after: line.trim() ? 120 : 180 },
+          children: [
+            new TextRun({
+              text: line,
+              bold: /^[A-Z][A-Z\s-]+$/.test(line),
+              color: textColor,
+              size: 22,
+            }),
+          ],
+        }),
+    ),
+  ];
+  const document = new DocxDocument({
+    sections: [{ properties: {}, children }],
+  });
+
+  return Packer.toBlob(document);
+}
+
 export default function Home() {
   const [masterResume, setMasterResume] = useState(sampleResume);
   const [jobDescription, setJobDescription] = useState(sampleJob);
@@ -2527,7 +2841,9 @@ export default function Home() {
   const [versionStatus, setVersionStatus] = useState("");
   const [copyStatus, setCopyStatus] = useState("Copy");
   const [coverCopyStatus, setCoverCopyStatus] = useState("Copy Cover Letter");
-  const [activeOutput, setActiveOutput] = useState<"resume" | "cover">("resume");
+  const [activeOutput, setActiveOutput] = useState<
+    "resume" | "cover" | "linkedin" | "application"
+  >("resume");
   const [hydrated, setHydrated] = useState(false);
   const skipNextSave = useRef(false);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -2835,7 +3151,13 @@ export default function Home() {
 
       const data = (await response.json()) as TailorApiResponse;
       setResult(
-        resultFromApiResponse(data, industryTarget, aiSettings.positioningMode),
+        resultFromApiResponse(
+          data,
+          industryTarget,
+          aiSettings.positioningMode,
+          targetRole,
+          jobDescription,
+        ),
       );
     } catch {
       setTailorError(
@@ -2876,6 +3198,27 @@ export default function Home() {
         ),
       };
     });
+  }
+
+  function generateLinkedInProfile() {
+    setResult((current) => {
+      const nextResult =
+        current ?? buildTailoredResume(masterResume, jobDescription, targetRole);
+      const packageKit = buildApplicationPackage({
+        resumeText: nextResult.rewrittenResume || masterResume,
+        targetRole,
+        industryTarget,
+        jobDescription,
+        coach: nextResult.coach,
+      });
+
+      return {
+        ...nextResult,
+        linkedin: packageKit.linkedin,
+        applicationKit: packageKit.applicationKit,
+      };
+    });
+    setActiveOutput("linkedin");
   }
 
   function resetSavedResume() {
@@ -3009,7 +3352,13 @@ export default function Home() {
     }
 
     const output =
-      activeOutput === "cover" ? result.coverLetter : result.rewrittenResume;
+      activeOutput === "cover"
+        ? result.coverLetter
+        : activeOutput === "linkedin"
+          ? serializeLinkedInKit(result.linkedin)
+          : activeOutput === "application"
+            ? serializeApplicationKit(result.applicationKit)
+            : result.rewrittenResume;
 
     try {
       await navigator.clipboard.writeText(output);
@@ -3090,6 +3439,60 @@ export default function Home() {
     saveBlob(blob, fileNameForRole(targetRole, "docx"));
   }
 
+  async function downloadLinkedInKitPdf() {
+    if (!result) {
+      return;
+    }
+
+    const blob = await createTextKitPdfBlob({
+      title: "LinkedIn Kit",
+      body: serializeLinkedInKit(result.linkedin),
+      theme: previewTheme,
+    });
+    saveBlob(blob, linkedinKitFileName(targetRole, "pdf"));
+  }
+
+  async function downloadLinkedInKitDocx() {
+    if (!result) {
+      return;
+    }
+
+    const blob = await createTextKitDocxBlob({
+      title: "LinkedIn Kit",
+      body: serializeLinkedInKit(result.linkedin),
+      theme: previewTheme,
+    });
+    saveBlob(blob, linkedinKitFileName(targetRole, "docx"));
+  }
+
+  function updateLinkedIn(field: keyof LinkedInKit, value: string | string[]) {
+    setResult((current) =>
+      current
+        ? {
+            ...current,
+            linkedin: {
+              ...current.linkedin,
+              [field]: value,
+            },
+          }
+        : current,
+    );
+  }
+
+  function updateApplicationKit(field: keyof ApplicationKit, value: string) {
+    setResult((current) =>
+      current
+        ? {
+            ...current,
+            applicationKit: {
+              ...current.applicationKit,
+              [field]: value,
+            },
+          }
+        : current,
+    );
+  }
+
   return (
     <main className="min-h-screen bg-zinc-50 text-zinc-950">
       <section className="border-b border-zinc-200 bg-white">
@@ -3122,6 +3525,14 @@ export default function Home() {
               className="inline-flex min-h-12 items-center justify-center rounded-lg border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
             >
               Generate Cover Letter
+            </button>
+            <button
+              type="button"
+              onClick={generateLinkedInProfile}
+              disabled={!canTailor}
+              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+            >
+              Generate LinkedIn Profile
             </button>
             <button
               type="button"
@@ -3817,6 +4228,28 @@ export default function Home() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setActiveOutput("linkedin")}
+                  className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition ${
+                    activeOutput === "linkedin"
+                      ? "bg-zinc-900 text-white hover:bg-zinc-800"
+                      : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
+                  }`}
+                >
+                  LinkedIn Optimizer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveOutput("application")}
+                  className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition ${
+                    activeOutput === "application"
+                      ? "bg-zinc-900 text-white hover:bg-zinc-800"
+                      : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
+                  }`}
+                >
+                  Application Kit
+                </button>
+                <button
+                  type="button"
                   onClick={copyOutput}
                   className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50"
                 >
@@ -3937,7 +4370,7 @@ export default function Home() {
                   </div>
                 </section>
               </>
-            ) : (
+            ) : activeOutput === "cover" ? (
               <section className="py-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
@@ -3979,6 +4412,149 @@ export default function Home() {
                   onChange={(event) => updateCoverLetter(event.target.value)}
                   className="mt-3 min-h-[560px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-7 text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
                 />
+              </section>
+            ) : activeOutput === "linkedin" ? (
+              <section className="py-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                    LinkedIn Optimizer
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={generateLinkedInProfile}
+                      className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                    >
+                      Generate LinkedIn Profile
+                    </button>
+                    <CopyTextButton label="Copy LinkedIn Headline" text={result.linkedin.headline} />
+                    <CopyTextButton label="Copy About Section" text={result.linkedin.about} />
+                    <CopyTextButton
+                      label="Copy Recruiter Message"
+                      text={result.linkedin.recruiterOutreachMessage}
+                    />
+                    <button
+                      type="button"
+                      onClick={downloadLinkedInKitPdf}
+                      className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
+                    >
+                      Download LinkedIn Kit PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={downloadLinkedInKitDocx}
+                      className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
+                    >
+                      Download LinkedIn Kit DOCX
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                  <EditableField
+                    label="LinkedIn Headline"
+                    value={result.linkedin.headline}
+                    onChange={(value) => updateLinkedIn("headline", value)}
+                  />
+                  <EditableField
+                    label="Open-To-Work Positioning"
+                    value={result.linkedin.openToWorkPositioning}
+                    onChange={(value) =>
+                      updateLinkedIn("openToWorkPositioning", value)
+                    }
+                  />
+                  <EditableField
+                    label="LinkedIn About Section"
+                    value={result.linkedin.about}
+                    onChange={(value) => updateLinkedIn("about", value)}
+                    tall
+                  />
+                  <EditableField
+                    label="Featured Projects Summary"
+                    value={result.linkedin.featuredProjects}
+                    onChange={(value) => updateLinkedIn("featuredProjects", value)}
+                    tall
+                  />
+                  <EditableField
+                    label="Top Skills List"
+                    value={result.linkedin.topSkills.join(", ")}
+                    onChange={(value) =>
+                      updateLinkedIn(
+                        "topSkills",
+                        value.split(",").map((item) => item.trim()).filter(Boolean),
+                      )
+                    }
+                  />
+                  <EditableField
+                    label="Recruiter Keyword List"
+                    value={result.linkedin.recruiterKeywords.join(", ")}
+                    onChange={(value) =>
+                      updateLinkedIn(
+                        "recruiterKeywords",
+                        value.split(",").map((item) => item.trim()).filter(Boolean),
+                      )
+                    }
+                  />
+                  <EditableField
+                    label="Short Networking Message"
+                    value={result.linkedin.networkingMessage}
+                    onChange={(value) => updateLinkedIn("networkingMessage", value)}
+                  />
+                  <EditableField
+                    label="Recruiter Outreach Message"
+                    value={result.linkedin.recruiterOutreachMessage}
+                    onChange={(value) =>
+                      updateLinkedIn("recruiterOutreachMessage", value)
+                    }
+                  />
+                </div>
+              </section>
+            ) : (
+              <section className="py-5">
+                <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                  Application Kit
+                </h3>
+                <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                  <EditableField
+                    label="Short Recruiter Email"
+                    value={result.applicationKit.recruiterEmail}
+                    onChange={(value) => updateApplicationKit("recruiterEmail", value)}
+                    copy
+                  />
+                  <EditableField
+                    label="Follow-Up Email"
+                    value={result.applicationKit.followUpEmail}
+                    onChange={(value) => updateApplicationKit("followUpEmail", value)}
+                    copy
+                  />
+                  <EditableField
+                    label="Referral Request Message"
+                    value={result.applicationKit.referralRequest}
+                    onChange={(value) => updateApplicationKit("referralRequest", value)}
+                    copy
+                  />
+                  <EditableField
+                    label="LinkedIn Connection Request"
+                    value={result.applicationKit.connectionRequest}
+                    onChange={(value) => updateApplicationKit("connectionRequest", value)}
+                    copy
+                  />
+                  <EditableField
+                    label="Interview Introduction Pitch"
+                    value={result.applicationKit.interviewIntroPitch}
+                    onChange={(value) =>
+                      updateApplicationKit("interviewIntroPitch", value)
+                    }
+                    copy
+                  />
+                  <EditableField
+                    label="30-Second Tell Me About Yourself"
+                    value={result.applicationKit.tellMeAboutYourself}
+                    onChange={(value) =>
+                      updateApplicationKit("tellMeAboutYourself", value)
+                    }
+                    copy
+                  />
+                </div>
               </section>
             )}
           </div>
@@ -4023,6 +4599,61 @@ function KeywordList({
         )}
       </div>
     </div>
+  );
+}
+
+function CopyTextButton({ label, text }: { label: string; text: string }) {
+  const [status, setStatus] = useState(label);
+
+  async function copyText() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus("Copied");
+      window.setTimeout(() => setStatus(label), 1500);
+    } catch {
+      setStatus("Copy failed");
+      window.setTimeout(() => setStatus(label), 1500);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copyText}
+      className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50"
+    >
+      {status}
+    </button>
+  );
+}
+
+function EditableField({
+  label,
+  value,
+  onChange,
+  tall = false,
+  copy = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  tall?: boolean;
+  copy?: boolean;
+}) {
+  return (
+    <section>
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="text-sm font-semibold text-zinc-900">{label}</h4>
+        {copy ? <CopyTextButton label="Copy" text={value} /> : null}
+      </div>
+      <textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={`mt-3 w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100 ${
+          tall ? "min-h-56" : "min-h-32"
+        }`}
+      />
+    </section>
   );
 }
 
