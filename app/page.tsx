@@ -1390,7 +1390,7 @@ function buildAdvancedAnalysis({
         "Add certifications only if already earned or clearly marked as planned.",
       ],
       recommendations: [
-        "Prioritize bullets with action, scope, and verified outcome.",
+        "Prioritize achievements with action, scope, and verified outcome.",
         "Add missing keywords only where the source resume or uploaded materials support them.",
         `Adjust tone toward ${positioningMode.toLowerCase()} positioning.`,
       ],
@@ -1814,7 +1814,7 @@ function buildCoachData({
       ],
       experience: improvementNotes[0]
         ? [improvementNotes[0]]
-        : ["Prioritize bullets that show action, scope, and measurable outcome."],
+        : ["Prioritize achievements that show action, scope, and measurable outcome."],
       projects: [
         hasProjects
           ? "Project evidence is visible; connect it directly to the target role."
@@ -1936,8 +1936,8 @@ function detectWeakBullets(resumeText: string): WeakBulletSuggestion[] {
         original: line,
         issueType,
         issue: lacksMetric
-          ? "This bullet would be stronger with a supported outcome, scope, or measurable result."
-          : "This bullet can lead with impact more clearly.",
+          ? "This achievement would be stronger with a supported outcome, scope, or measurable result."
+          : "This achievement can lead with impact more clearly.",
         strongerVersion: line
           .replace(/^responsible for\s+/i, "Owned ")
           .replace(/^helped\s+/i, "Contributed to ")
@@ -2201,7 +2201,7 @@ ${masterResume.trim()}`;
     improvementNotes: [
       "Add quantified outcomes where the source resume supports them.",
       "Keep role-specific keywords in the summary, skills, and experience sections.",
-      "Make each bullet show action, scope, and business impact.",
+      "Make each achievement show action, scope, and business impact.",
     ],
     riskFlags:
       missingKeywords.length > 0
@@ -2212,7 +2212,7 @@ ${masterResume.trim()}`;
     topStrengths: matchedKeywords.slice(0, 6),
     gapsToFix: missingKeywords.slice(0, 6),
     bulletImprovementSuggestions: [
-      "Convert responsibility bullets into outcome bullets with scope, metric, or launch result.",
+      "Convert responsibility statements into achievements with scope, metric, or launch result.",
       "Add tools, systems, and stakeholders only when they are present in the source material.",
     ],
     atsReadiness:
@@ -4840,7 +4840,7 @@ export default function Home() {
                   Personal Branding & Contact
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  These fields control the resume preview and exports without
+                  These details control the resume preview and exports without
                   inserting placeholder values.
                 </p>
               </div>
@@ -6162,7 +6162,7 @@ function ModularResumeEditor({
     const optimized = await optimizeWithBackend({
       key: `bullet-${entryIndex}-${bulletIndex}-${action}`,
       action,
-      sectionName: "Experience Bullet",
+      sectionName: "Experience Achievement",
       sectionText: bullet,
     });
 
@@ -6332,20 +6332,6 @@ function ModularResumeEditor({
     });
   }
 
-  function moveExperienceBullet(entryIndex: number, bulletIndex: number, direction: -1 | 1) {
-    const entry = displayedExperience[entryIndex];
-    const nextIndex = bulletIndex + direction;
-
-    if (!entry || nextIndex < 0 || nextIndex >= entry.bullets.length) {
-      return;
-    }
-
-    const nextBullets = [...entry.bullets];
-    const [movedBullet] = nextBullets.splice(bulletIndex, 1);
-    nextBullets.splice(nextIndex, 0, movedBullet);
-    updateExperience(entryIndex, { bullets: nextBullets });
-  }
-
   function updateAdditionalSection(
     sectionIndex: number,
     patch: Partial<ResumeSection>,
@@ -6367,7 +6353,7 @@ function ModularResumeEditor({
               Continuous AI Optimization
             </h4>
             <p className="mt-1 text-xs leading-5 text-slate-600">
-              Improve one section or bullet at a time. Inferred suggestions should be verified before use.
+              Improve one section or achievement at a time. Inferred suggestions should be verified before use.
             </p>
           </div>
           <EditorActionButton
@@ -6497,8 +6483,8 @@ function ModularResumeEditor({
 	                </p>
 	                <div className="flex flex-wrap gap-2">
 	                  <details className="relative">
-	                    <summary className="inline-flex min-h-8 cursor-pointer list-none items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100">
-	                      Optimize Experience
+	                    <summary className="inline-flex min-h-8 cursor-pointer list-none items-center justify-center rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800">
+	                      Optimize
 	                    </summary>
 	                    <div className="absolute right-0 z-20 mt-2 w-56 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
 	                      {[
@@ -6506,7 +6492,7 @@ function ModularResumeEditor({
 	                        ["Make More Technical", "Make more technical"],
 	                        ["Make More ATS-Friendly", "Improve ATS language"],
 	                        ["Strengthen Metrics", "Strengthen metrics"],
-	                        ["Shorten", "Shorten bullets"],
+	                        ["Shorten", "Shorten achievements"],
 	                        ["Tailor to Industry", "Tailor to selected industry"],
 	                      ].map(([action, label], actionIndex) => (
 	                        <button
@@ -6531,10 +6517,13 @@ function ModularResumeEditor({
 	                      )
 	                    }
 	                  >
-	                    Reset Experience
+	                    Reset
 	                  </EditorActionButton>
-	                  <EditorActionButton onClick={() => removeExperience(entryIndex)}>
-	                    Remove Experience
+	                  <EditorActionButton
+	                    onClick={() => removeExperience(entryIndex)}
+	                    variant="danger"
+	                  >
+	                    Remove
 	                  </EditorActionButton>
 	                </div>
 	              </div>
@@ -6560,8 +6549,8 @@ function ModularResumeEditor({
 	              </div>
 	              <div className="mt-3 space-y-2">
 	                {[...entry.bullets, ...(draftBulletsByExperience[entry.id] ?? [])].map((bullet, bulletIndex) => (
-                  <div
-                    key={`${entry.id}-bullet-${bulletIndex}`}
+	                  <div
+	                    key={`${entry.id}-achievement-${bulletIndex}`}
                     className="rounded-lg border border-slate-200 bg-white p-2"
                   >
                     <textarea
@@ -6576,22 +6565,14 @@ function ModularResumeEditor({
                       className="min-h-20 w-full resize-y rounded-md border border-slate-200 bg-white p-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
                     />
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <span className="inline-flex min-h-8 items-center rounded-md bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
-                        Edit Bullet
-                      </span>
                       <EditorActionButton onClick={() => applyBulletAiAction(entryIndex, bulletIndex, "Rewrite Bullet")}>
-                        AI Improve Bullet
+                        Improve
                       </EditorActionButton>
-                      <EditorActionButton onClick={() => moveExperienceBullet(entryIndex, bulletIndex, -1)}>
-                        Move Up
-                      </EditorActionButton>
-                      <EditorActionButton onClick={() => moveExperienceBullet(entryIndex, bulletIndex, 1)}>
-                        Move Down
-                      </EditorActionButton>
-	                      <EditorActionButton
-	                        onClick={() => removeExperienceBullet(entryIndex, bulletIndex)}
-	                      >
-                        Remove Bullet
+                      <EditorActionButton
+                        onClick={() => removeExperienceBullet(entryIndex, bulletIndex)}
+                        variant="danger"
+                      >
+                        Remove
                       </EditorActionButton>
                     </div>
                   </div>
@@ -6604,10 +6585,10 @@ function ModularResumeEditor({
 	                      [entry.id]: [...(current[entry.id] ?? []), ""],
 	                    }))
 	                  }
-                  className="inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
-                >
-                  Add Bullet
-                </button>
+	                  className="inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+	                >
+	                  Add Achievement
+	                </button>
               </div>
             </div>
           ))}
@@ -6723,7 +6704,7 @@ function ModularSection({
               />
             ) : null}
             {onReset ? (
-              <EditorActionButton onClick={onReset}>Reset Section</EditorActionButton>
+              <EditorActionButton onClick={onReset}>Reset</EditorActionButton>
             ) : null}
           </div>
         </div>
@@ -6820,10 +6801,17 @@ function ModularListSection({
 function EditorActionButton({
   children,
   onClick,
+  variant = "secondary",
 }: {
   children: ReactNode;
   onClick: () => void;
+  variant?: "secondary" | "danger";
 }) {
+  const className =
+    variant === "danger"
+      ? "inline-flex min-h-8 items-center justify-center rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50"
+      : "inline-flex min-h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100";
+
   return (
     <button
       type="button"
@@ -6831,7 +6819,7 @@ function EditorActionButton({
         event.preventDefault();
         onClick();
       }}
-      className="inline-flex min-h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+      className={className}
     >
       {children}
     </button>
@@ -6957,7 +6945,7 @@ function WeakBulletEditor({
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h3 className="text-sm font-semibold text-amber-950">
-            Weak Bullet Detection
+            Achievement Suggestions
           </h3>
           <p className="mt-1 text-sm leading-6 text-amber-800">
             Review suggested rewrites before applying them to the editable resume.
@@ -6990,7 +6978,7 @@ function WeakBulletEditor({
           {selectedBullet ? (
             <>
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">
-                Improved bullet
+                Improved achievement
               </p>
               <p className="mt-2 text-sm leading-6 text-zinc-700">
                 {selectedBullet.issue}
@@ -7011,7 +6999,7 @@ function WeakBulletEditor({
             </>
           ) : (
             <p className="text-sm leading-6 text-zinc-500">
-              Select a weak bullet to preview the improved version.
+              Select an achievement to preview the improved version.
             </p>
           )}
         </div>
@@ -7188,7 +7176,7 @@ function AdvancedIntelligencePanel({
 
         <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
           <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
-            AI Bullet Improvement Engine
+            AI Achievement Improvement Engine
           </summary>
           <div className="mt-3 space-y-3">
             {analysis.bulletImprovements.length > 0 ? (
@@ -7198,10 +7186,10 @@ function AdvancedIntelligencePanel({
                   className="rounded-md border border-zinc-200 bg-white p-3"
                 >
                   <p className="text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
-                    Improve Bullet
+                    Improve Achievement
                   </p>
                   <p className="mt-2 text-sm leading-6 text-zinc-600">
-                    Current: {bullet.original}
+                    Current achievement: {bullet.original}
                   </p>
                   <BulletVariantButton
                     label="Stronger"
@@ -7237,7 +7225,7 @@ function AdvancedIntelligencePanel({
                 </div>
               ))
             ) : (
-              <p className="text-sm text-zinc-500">No experience bullets detected yet.</p>
+              <p className="text-sm text-zinc-500">No experience achievements detected yet.</p>
             )}
           </div>
         </details>
@@ -7294,7 +7282,7 @@ function BulletVariantButton({
         onClick={() => onReplaceBullet(original, value)}
         className="mt-3 inline-flex min-h-8 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-100"
       >
-        Replace Bullet
+        Replace Achievement
       </button>
     </div>
   );
