@@ -219,6 +219,27 @@ type ResumeSection = {
   bullets: string[];
 };
 
+type ExperienceEntry = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  dates: string;
+  bullets: string[];
+};
+
+type StructuredResume = {
+  summary: string;
+  skills: string[];
+  experience: ExperienceEntry[];
+  projects: string[];
+  education: string[];
+  certifications: string[];
+  publications: string[];
+  tools: string[];
+  additionalSections: ResumeSection[];
+};
+
 type UploadedSourceFile = {
   id: string;
   name: string;
@@ -2139,6 +2160,307 @@ function parseResumePreview(resumeText: string) {
   return { name, title, sections };
 }
 
+function findResumeSection(
+  sections: ResumeSection[],
+  headings: string[],
+): ResumeSection | undefined {
+  const normalizedHeadings = headings.map((heading) => heading.toUpperCase());
+
+  return sections.find((section) =>
+    normalizedHeadings.some((heading) => section.heading.toUpperCase().includes(heading)),
+  );
+}
+
+function uniqueStrings(items: string[]) {
+  return Array.from(
+    new Set(items.map((item) => cleanEditorText(item)).filter(Boolean)),
+  );
+}
+
+function splitResumeList(value: string) {
+  return uniqueStrings(
+    value
+      .split(/\n|,|\||;/)
+      .map((item) => item.replace(/^[-*]\s+/, "").trim()),
+  );
+}
+
+function cleanEditorText(value: string) {
+  return value
+    .replace(/^#{1,6}\s*/, "")
+    .replace(/\*\*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function sectionItems(section?: ResumeSection) {
+  if (!section) {
+    return [];
+  }
+
+  return uniqueStrings([...section.body, ...section.bullets]);
+}
+
+function parseExperienceLine(line: string) {
+  const cleaned = cleanEditorText(line);
+  const [left, ...dateParts] = cleaned.split(/\s+[|–-]\s+/);
+  const dates = dateParts.join(" - ").trim();
+  const atMatch = left.match(/^(.+?)\s+at\s+(.+)$/i);
+  const dashParts = left.split(/\s+-\s+/);
+
+  if (atMatch) {
+    return {
+      title: atMatch[1].trim(),
+      company: atMatch[2].trim(),
+      dates,
+    };
+  }
+
+  if (dashParts.length >= 2) {
+    return {
+      title: dashParts[0].trim(),
+      company: dashParts.slice(1).join(" - ").trim(),
+      dates,
+    };
+  }
+
+  return {
+    title: cleaned,
+    company: "",
+    dates,
+  };
+}
+
+function parseExperienceEntries(section?: ResumeSection): ExperienceEntry[] {
+  if (!section) {
+    return [];
+  }
+
+  const entries: ExperienceEntry[] = [];
+  let current: ExperienceEntry | null = null;
+
+  for (const line of section.body) {
+    const parsed = parseExperienceLine(line);
+
+    current = {
+      id: `experience-${entries.length}`,
+      title: parsed.title || "Experience",
+      company: parsed.company,
+      location: "",
+      dates: parsed.dates,
+      bullets: [],
+    };
+    entries.push(current);
+  }
+
+  if (!current) {
+    current = {
+      id: "experience-0",
+      title: section.heading.includes("HIGHLIGHT")
+        ? "Experience Highlights"
+        : "Professional Experience",
+      company: "",
+      location: "",
+      dates: "",
+      bullets: [],
+    };
+    entries.push(current);
+  }
+
+  current.bullets = section.bullets.map(cleanEditorText).filter(Boolean);
+
+  return entries;
+}
+
+function structuredResumeFromText(resumeText: string): StructuredResume {
+  const { sections } = parseResumePreview(resumeText);
+  const summarySection = findResumeSection(sections, [
+    "PROFESSIONAL SUMMARY",
+    "SUMMARY",
+    "PROFILE",
+  ]);
+  const skillsSection = findResumeSection(sections, ["CORE SKILLS", "SKILLS"]);
+  const experienceSection = findResumeSection(sections, [
+    "PROFESSIONAL EXPERIENCE",
+    "EXPERIENCE HIGHLIGHTS",
+    "EXPERIENCE",
+  ]);
+  const projectSection = findResumeSection(sections, [
+    "AI & AUTOMATION PROJECTS",
+    "AI PROJECTS",
+    "PROJECTS",
+  ]);
+  const educationSection = findResumeSection(sections, ["EDUCATION"]);
+  const certificationSection = findResumeSection(sections, ["CERTIFICATIONS"]);
+  const publicationSection = findResumeSection(sections, [
+    "PUBLICATIONS",
+    "RESEARCH",
+  ]);
+  const toolsSection = findResumeSection(sections, [
+    "TOOLS / TECHNOLOGIES",
+    "TOOLS",
+    "TECHNOLOGIES",
+  ]);
+  const knownSections = new Set(
+    [
+      summarySection,
+      skillsSection,
+      experienceSection,
+      projectSection,
+      educationSection,
+      certificationSection,
+      publicationSection,
+      toolsSection,
+    ]
+      .filter(Boolean)
+      .map((section) => section?.heading),
+  );
+
+  return {
+    summary: sectionItems(summarySection).join(" "),
+    skills: splitResumeList(sectionItems(skillsSection).join(", ")),
+    experience: parseExperienceEntries(experienceSection),
+    projects: sectionItems(projectSection),
+    education: sectionItems(educationSection),
+    certifications: sectionItems(certificationSection),
+    publications: sectionItems(publicationSection),
+    tools: splitResumeList(sectionItems(toolsSection).join(", ")),
+    additionalSections: sections.filter((section) => !knownSections.has(section.heading)),
+  };
+}
+
+function serializeStructuredResume(
+  structured: StructuredResume,
+  branding: PersonalBranding,
+) {
+  const lines: string[] = [];
+  const contact = normalizePersonalBranding(branding);
+
+  if (contact.fullName) {
+    lines.push(contact.fullName);
+  }
+
+  if (contact.professionalTitle) {
+    lines.push(contact.professionalTitle);
+  }
+
+  const contactLine = [
+    contact.email,
+    contact.phone,
+    contact.location,
+    contact.linkedInUrl,
+    contact.portfolioUrl,
+    contact.websiteUrl,
+  ].filter(Boolean);
+
+  if (contactLine.length > 0) {
+    lines.push(contactLine.join(" | "));
+  }
+
+  function pushTextSection(heading: string, body: string) {
+    const cleaned = cleanEditorText(body);
+
+    if (!cleaned) {
+      return;
+    }
+
+    lines.push("", heading, cleaned);
+  }
+
+  function pushListSection(heading: string, items: string[]) {
+    const cleanedItems = uniqueStrings(items);
+
+    if (cleanedItems.length === 0) {
+      return;
+    }
+
+    lines.push("", heading, ...cleanedItems.map((item) => `- ${item}`));
+  }
+
+  pushTextSection("PROFESSIONAL SUMMARY", structured.summary);
+
+  if (structured.skills.length > 0) {
+    lines.push("", "CORE SKILLS", uniqueStrings(structured.skills).join(" | "));
+  }
+
+  const experience = structured.experience.filter(
+    (entry) =>
+      cleanEditorText(entry.title) ||
+      cleanEditorText(entry.company) ||
+      entry.bullets.some((bullet) => cleanEditorText(bullet)),
+  );
+
+  if (experience.length > 0) {
+    lines.push("", "PROFESSIONAL EXPERIENCE");
+
+    for (const entry of experience) {
+      const roleLine = [
+        cleanEditorText(entry.title),
+        cleanEditorText(entry.company),
+      ]
+        .filter(Boolean)
+        .join(" - ");
+      const metaLine = [cleanEditorText(entry.location), cleanEditorText(entry.dates)]
+        .filter(Boolean)
+        .join(" | ");
+
+      if (roleLine) {
+        lines.push(roleLine);
+      }
+
+      if (metaLine) {
+        lines.push(metaLine);
+      }
+
+      lines.push(
+        ...uniqueStrings(entry.bullets).map((bullet) => `- ${bullet}`),
+      );
+    }
+  }
+
+  pushListSection("AI & AUTOMATION PROJECTS", structured.projects);
+  pushListSection("EDUCATION", structured.education);
+  pushListSection("CERTIFICATIONS", structured.certifications);
+  pushListSection("PUBLICATIONS / RESEARCH", structured.publications);
+
+  if (structured.tools.length > 0) {
+    lines.push("", "TOOLS / TECHNOLOGIES", uniqueStrings(structured.tools).join(" | "));
+  }
+
+  for (const section of structured.additionalSections) {
+    const heading = cleanEditorText(section.heading).toUpperCase();
+    const body = section.body.map(cleanEditorText).filter(Boolean);
+    const bullets = uniqueStrings(section.bullets);
+
+    if (!heading || (body.length === 0 && bullets.length === 0)) {
+      continue;
+    }
+
+    lines.push("", heading, ...body, ...bullets.map((bullet) => `- ${bullet}`));
+  }
+
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function optimizeResumeText(value: string) {
+  const cleaned = cleanEditorText(value);
+
+  if (!cleaned) {
+    return "";
+  }
+
+  return /[.!?]$/.test(cleaned) ? cleaned : `${cleaned}.`;
+}
+
+function optimizeResumeBullet(value: string) {
+  const cleaned = cleanEditorText(value)
+    .replace(/^responsible for\s+/i, "Led ")
+    .replace(/^worked on\s+/i, "Contributed to ")
+    .replace(/^helped\s+/i, "Supported ");
+
+  return optimizeResumeText(cleaned);
+}
+
 function extractContactInfoFromText(resumeText: string) {
   const email = resumeText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
   const phone = resumeText.match(
@@ -3148,47 +3470,6 @@ async function createTextKitDocxBlob({
   return Packer.toBlob(document);
 }
 
-function replaceResumeSectionContent(
-  resumeText: string,
-  heading: string,
-  content: string,
-) {
-  const normalizedHeading = heading.toUpperCase();
-  const lines = resumeText.split(/\r?\n/);
-  const startIndex = lines.findIndex(
-    (line) => line.trim().toUpperCase() === normalizedHeading,
-  );
-
-  if (startIndex === -1) {
-    return `${resumeText.trim()}\n\n${normalizedHeading}\n${content.trim()}`.trim();
-  }
-
-  let endIndex = lines.length;
-
-  for (let index = startIndex + 1; index < lines.length; index += 1) {
-    const candidate = lines[index].trim();
-
-    if (
-      candidate.length > 0 &&
-      candidate === candidate.toUpperCase() &&
-      /[A-Z]/.test(candidate)
-    ) {
-      endIndex = index;
-      break;
-    }
-  }
-
-  return [
-    ...lines.slice(0, startIndex + 1),
-    content.trim(),
-    "",
-    ...lines.slice(endIndex),
-  ]
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
 export default function Home() {
   const [masterResume, setMasterResume] = useState(sampleResume);
   const [jobDescription, setJobDescription] = useState(sampleJob);
@@ -3752,11 +4033,15 @@ export default function Home() {
   }
 
   function updateResumeOutput(value: string) {
+    const structured = structuredResumeFromText(value);
+
     setResult((current) =>
       current
         ? {
             ...current,
             rewrittenResume: value,
+            summary: structured.summary || current.summary,
+            skills: structured.skills.length > 0 ? structured.skills : current.skills,
           }
         : current,
     );
@@ -4927,76 +5212,26 @@ export default function Home() {
             <section className="order-1 min-w-0 rounded-2xl border border-slate-200 bg-slate-100/70 p-4 shadow-sm lg:order-2">
               <div className="mx-auto max-w-6xl">
                 {activeOutput === "resume" ? (
-                  <DocumentFrame title="Editable Resume" subtitle="Live draft">
+                  <DocumentFrame title="Editable Resume" subtitle="Section editor">
                     <WeakBulletEditor
                       bullets={result.coach.weakBullets}
                       onApply={rewriteSuggestedBullet}
                     />
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <section id="tailored-summary">
-                        <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                          Summary
-                        </h3>
-                        <textarea
-                          value={result.summary}
-                          onChange={(event) =>
-                            setResult((current) =>
-                              current
-                                ? {
-                                    ...current,
-                                    summary: event.target.value,
-                                    rewrittenResume: replaceResumeSectionContent(
-                                      current.rewrittenResume,
-                                      "PROFESSIONAL SUMMARY",
-                                      event.target.value,
-                                    ),
-                                  }
-                                : current,
-                            )
-                          }
-                          className="mt-2 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-                        />
-                      </section>
-                      <section id="tailored-skills">
-                        <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                          Skills
-                        </h3>
-                        <textarea
-                          value={result.skills.join(", ")}
-                          onChange={(event) =>
-                            setResult((current) =>
-                              current
-                                ? {
-                                    ...current,
-                                    skills: event.target.value
-                                      .split(",")
-                                      .map((skill) => skill.trim())
-                                      .filter(Boolean),
-                                    rewrittenResume: replaceResumeSectionContent(
-                                      current.rewrittenResume,
-                                      "CORE SKILLS",
-                                      event.target.value
-                                        .split(",")
-                                        .map((skill) => skill.trim())
-                                        .filter(Boolean)
-                                        .join(" | "),
-                                    ),
-                                  }
-                                : current,
-                            )
-                          }
-                          className="mt-2 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-                        />
-                      </section>
-                    </div>
                     <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)]">
-                      <textarea
-                        id="resume-editor"
-                        value={result.rewrittenResume}
-                        onChange={(event) => updateResumeOutput(event.target.value)}
-                        className="min-h-[620px] w-full resize-y rounded-xl border border-slate-200 bg-white p-4 font-mono text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-                      />
-                      <div id="resume-preview" className="min-w-0 scroll-mt-28">
+                      <div id="resume-editor" className="min-w-0 scroll-mt-28">
+                        <ModularResumeEditor
+                          resumeText={result.rewrittenResume}
+                          resetSourceText={masterResume}
+                          personalBranding={personalBranding}
+                          onPersonalBrandingChange={updatePersonalBranding}
+                          onProfileImage={handleProfileImage}
+                          onResumeTextChange={updateResumeOutput}
+                        />
+                      </div>
+                      <div
+                        id="resume-preview"
+                        className="min-w-0 scroll-mt-28 xl:sticky xl:top-24 xl:self-start"
+                      >
                         <ResumePreview
                           resumeText={result.rewrittenResume}
                           theme={previewTheme}
@@ -5006,7 +5241,7 @@ export default function Home() {
                       </div>
                     </div>
                   </DocumentFrame>
-                ) : activeOutput === "cover" ? (
+	                ) : activeOutput === "cover" ? (
                   <DocumentFrame title="Cover Letter" subtitle="Editable letter">
                     <div className="mb-4 flex flex-wrap gap-2">
                       <button
@@ -5194,6 +5429,444 @@ function DocumentFrame({
       </div>
       {children}
     </article>
+  );
+}
+
+function ModularResumeEditor({
+  resumeText,
+  resetSourceText,
+  personalBranding,
+  onPersonalBrandingChange,
+  onProfileImage,
+  onResumeTextChange,
+}: {
+  resumeText: string;
+  resetSourceText: string;
+  personalBranding: PersonalBranding;
+  onPersonalBrandingChange: (field: keyof PersonalBranding, value: string) => void;
+  onProfileImage: (file: File | undefined) => void;
+  onResumeTextChange: (value: string) => void;
+}) {
+  const structured = structuredResumeFromText(resumeText);
+  const resetStructured = structuredResumeFromText(resetSourceText);
+
+  function commit(next: StructuredResume) {
+    onResumeTextChange(serializeStructuredResume(next, personalBranding));
+  }
+
+  function updateListField(field: keyof Pick<StructuredResume, "projects" | "education" | "certifications" | "publications" | "tools">, value: string) {
+    commit({
+      ...structured,
+      [field]: splitResumeList(value),
+    });
+  }
+
+  function resetSection(
+    field:
+      | "summary"
+      | "skills"
+      | "experience"
+      | "projects"
+      | "education"
+      | "certifications"
+      | "publications"
+      | "tools",
+  ) {
+    commit({
+      ...structured,
+      [field]: resetStructured[field],
+    });
+  }
+
+  function optimizeSection(
+    field:
+      | "summary"
+      | "projects"
+      | "education"
+      | "certifications"
+      | "publications",
+  ) {
+    if (field === "summary") {
+      commit({
+        ...structured,
+        summary: optimizeResumeText(structured.summary),
+      });
+      return;
+    }
+
+    commit({
+      ...structured,
+      [field]: structured[field].map(optimizeResumeText).filter(Boolean),
+    });
+  }
+
+  function updateExperience(index: number, patch: Partial<ExperienceEntry>) {
+    commit({
+      ...structured,
+      experience: structured.experience.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, ...patch } : entry,
+      ),
+    });
+  }
+
+  function updateExperienceBullet(entryIndex: number, bulletIndex: number, value: string) {
+    const entry = structured.experience[entryIndex];
+
+    if (!entry) {
+      return;
+    }
+
+    updateExperience(entryIndex, {
+      bullets: entry.bullets.map((bullet, index) =>
+        index === bulletIndex ? value : bullet,
+      ),
+    });
+  }
+
+  function moveExperienceBullet(entryIndex: number, bulletIndex: number, direction: -1 | 1) {
+    const entry = structured.experience[entryIndex];
+    const nextIndex = bulletIndex + direction;
+
+    if (!entry || nextIndex < 0 || nextIndex >= entry.bullets.length) {
+      return;
+    }
+
+    const nextBullets = [...entry.bullets];
+    const [movedBullet] = nextBullets.splice(bulletIndex, 1);
+    nextBullets.splice(nextIndex, 0, movedBullet);
+    updateExperience(entryIndex, { bullets: nextBullets });
+  }
+
+  function updateAdditionalSection(
+    sectionIndex: number,
+    patch: Partial<ResumeSection>,
+  ) {
+    commit({
+      ...structured,
+      additionalSections: structured.additionalSections.map((section, index) =>
+        index === sectionIndex ? { ...section, ...patch } : section,
+      ),
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <ModularSection title="Personal Branding & Contact">
+        <div className="grid gap-3 md:grid-cols-2">
+          <ContactField label="Full Name" value={personalBranding.fullName} onChange={(value) => onPersonalBrandingChange("fullName", value)} />
+          <ContactField label="Professional Title" value={personalBranding.professionalTitle} onChange={(value) => onPersonalBrandingChange("professionalTitle", value)} />
+          <ContactField label="Email" value={personalBranding.email} onChange={(value) => onPersonalBrandingChange("email", value)} />
+          <ContactField label="Phone" value={personalBranding.phone} onChange={(value) => onPersonalBrandingChange("phone", value)} />
+          <ContactField label="Location" value={personalBranding.location} onChange={(value) => onPersonalBrandingChange("location", value)} />
+          <ContactField label="LinkedIn URL" value={personalBranding.linkedInUrl} onChange={(value) => onPersonalBrandingChange("linkedInUrl", value)} />
+          <ContactField label="Portfolio URL" value={personalBranding.portfolioUrl} onChange={(value) => onPersonalBrandingChange("portfolioUrl", value)} />
+          <ContactField label="Website URL" value={personalBranding.websiteUrl} onChange={(value) => onPersonalBrandingChange("websiteUrl", value)} />
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <label className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+            Optional Profile Image
+            <input
+              type="file"
+              accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+              className="sr-only"
+              onChange={(event) => onProfileImage(event.target.files?.[0])}
+            />
+          </label>
+          {personalBranding.profileImageDataUrl ? (
+            <button
+              type="button"
+              onClick={() => onPersonalBrandingChange("profileImageDataUrl", "")}
+              className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Remove Image
+            </button>
+          ) : null}
+        </div>
+      </ModularSection>
+
+      <ModularSection
+        title="Professional Summary"
+        onOptimize={() => optimizeSection("summary")}
+        onReset={() => resetSection("summary")}
+      >
+        <textarea
+          value={structured.summary}
+          onChange={(event) =>
+            commit({ ...structured, summary: event.target.value })
+          }
+          className="min-h-32 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+        />
+      </ModularSection>
+
+      <ModularSection
+        title="Core Skills"
+        onOptimize={() =>
+          commit({ ...structured, skills: uniqueStrings(structured.skills) })
+        }
+        onReset={() => resetSection("skills")}
+      >
+        <textarea
+          value={structured.skills.join(", ")}
+          onChange={(event) =>
+            commit({ ...structured, skills: splitResumeList(event.target.value) })
+          }
+          className="min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+        />
+      </ModularSection>
+
+      <ModularSection
+        title="Professional Experience"
+        onOptimize={() =>
+          commit({
+            ...structured,
+            experience: structured.experience.map((entry) => ({
+              ...entry,
+              bullets: entry.bullets.map(optimizeResumeBullet),
+            })),
+          })
+        }
+        onReset={() => resetSection("experience")}
+      >
+        <div className="space-y-3">
+          {structured.experience.map((entry, entryIndex) => (
+            <div
+              key={`${entry.id}-${entryIndex}`}
+              className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+            >
+              <div className="grid gap-3 md:grid-cols-2">
+                <ContactField label="Role / Title" value={entry.title} onChange={(value) => updateExperience(entryIndex, { title: value })} />
+                <ContactField label="Company" value={entry.company} onChange={(value) => updateExperience(entryIndex, { company: value })} />
+                <ContactField label="Location" value={entry.location} onChange={(value) => updateExperience(entryIndex, { location: value })} />
+                <ContactField label="Dates" value={entry.dates} onChange={(value) => updateExperience(entryIndex, { dates: value })} />
+              </div>
+              <div className="mt-3 space-y-2">
+                {entry.bullets.map((bullet, bulletIndex) => (
+                  <div
+                    key={`${entry.id}-bullet-${bulletIndex}`}
+                    className="rounded-lg border border-slate-200 bg-white p-2"
+                  >
+                    <textarea
+                      value={bullet}
+                      onChange={(event) =>
+                        updateExperienceBullet(
+                          entryIndex,
+                          bulletIndex,
+                          event.target.value,
+                        )
+                      }
+                      className="min-h-20 w-full resize-y rounded-md border border-slate-200 bg-white p-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                    />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <EditorActionButton onClick={() => updateExperienceBullet(entryIndex, bulletIndex, optimizeResumeBullet(bullet))}>
+                        Optimize Bullet
+                      </EditorActionButton>
+                      <EditorActionButton onClick={() => moveExperienceBullet(entryIndex, bulletIndex, -1)}>
+                        Move Up
+                      </EditorActionButton>
+                      <EditorActionButton onClick={() => moveExperienceBullet(entryIndex, bulletIndex, 1)}>
+                        Move Down
+                      </EditorActionButton>
+                      <EditorActionButton
+                        onClick={() =>
+                          updateExperience(entryIndex, {
+                            bullets: entry.bullets.filter((_, index) => index !== bulletIndex),
+                          })
+                        }
+                      >
+                        Delete Bullet
+                      </EditorActionButton>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateExperience(entryIndex, {
+                      bullets: [...entry.bullets, "Add a truthful impact bullet."],
+                    })
+                  }
+                  className="inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Add Bullet
+                </button>
+              </div>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              commit({
+                ...structured,
+                experience: [
+                  ...structured.experience,
+                  {
+                    id: `experience-${structured.experience.length}`,
+                    title: "",
+                    company: "",
+                    location: "",
+                    dates: "",
+                    bullets: [],
+                  },
+                ],
+              })
+            }
+            className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            Add Experience
+          </button>
+        </div>
+      </ModularSection>
+
+      <ModularListSection title="AI & Automation Projects" value={structured.projects.join("\n")} onChange={(value) => updateListField("projects", value)} onOptimize={() => optimizeSection("projects")} onReset={() => resetSection("projects")} />
+      <ModularListSection title="Education" value={structured.education.join("\n")} onChange={(value) => updateListField("education", value)} onOptimize={() => optimizeSection("education")} onReset={() => resetSection("education")} />
+      <ModularListSection title="Certifications" value={structured.certifications.join("\n")} onChange={(value) => updateListField("certifications", value)} onOptimize={() => optimizeSection("certifications")} onReset={() => resetSection("certifications")} />
+      <ModularListSection title="Publications / Research" value={structured.publications.join("\n")} onChange={(value) => updateListField("publications", value)} onOptimize={() => optimizeSection("publications")} onReset={() => resetSection("publications")} />
+      <ModularListSection title="Tools / Technologies" value={structured.tools.join(", ")} onChange={(value) => updateListField("tools", value)} onOptimize={() => commit({ ...structured, tools: uniqueStrings(structured.tools) })} onReset={() => resetSection("tools")} />
+
+      <ModularSection
+        title="Optional Additional Sections"
+        onOptimize={() =>
+          commit({
+            ...structured,
+            additionalSections: structured.additionalSections.map((section) => ({
+              ...section,
+              body: section.body.map(optimizeResumeText).filter(Boolean),
+              bullets: section.bullets.map(optimizeResumeBullet).filter(Boolean),
+            })),
+          })
+        }
+        onReset={() =>
+          commit({
+            ...structured,
+            additionalSections: resetStructured.additionalSections,
+          })
+        }
+      >
+        <div className="space-y-3">
+          {structured.additionalSections.map((section, sectionIndex) => (
+            <div
+              key={`${section.heading}-${sectionIndex}`}
+              className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+            >
+              <ContactField
+                label="Section Heading"
+                value={section.heading}
+                onChange={(value) => updateAdditionalSection(sectionIndex, { heading: value })}
+              />
+              <textarea
+                value={[...section.body, ...section.bullets].join("\n")}
+                onChange={(event) =>
+                  updateAdditionalSection(sectionIndex, {
+                    body: event.target.value
+                      .split(/\r?\n/)
+                      .map(cleanEditorText)
+                      .filter(Boolean),
+                    bullets: [],
+                  })
+                }
+                className="mt-3 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+              />
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              commit({
+                ...structured,
+                additionalSections: [
+                  ...structured.additionalSections,
+                  { heading: "ADDITIONAL INFORMATION", body: [], bullets: [] },
+                ],
+              })
+            }
+            className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            Add Section
+          </button>
+        </div>
+      </ModularSection>
+    </div>
+  );
+}
+
+function ModularSection({
+  title,
+  children,
+  onOptimize,
+  onReset,
+}: {
+  title: string;
+  children: ReactNode;
+  onOptimize?: () => void;
+  onReset?: () => void;
+}) {
+  return (
+    <details open className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <summary className="cursor-pointer list-none">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h4 className="text-sm font-semibold text-slate-950">{title}</h4>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+              Autosaved
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {onOptimize ? (
+              <EditorActionButton onClick={onOptimize}>Optimize with AI</EditorActionButton>
+            ) : null}
+            {onReset ? (
+              <EditorActionButton onClick={onReset}>Reset Section</EditorActionButton>
+            ) : null}
+          </div>
+        </div>
+      </summary>
+      <div className="mt-4">{children}</div>
+    </details>
+  );
+}
+
+function ModularListSection({
+  title,
+  value,
+  onChange,
+  onOptimize,
+  onReset,
+}: {
+  title: string;
+  value: string;
+  onChange: (value: string) => void;
+  onOptimize: () => void;
+  onReset: () => void;
+}) {
+  return (
+    <ModularSection title={title} onOptimize={onOptimize} onReset={onReset}>
+      <textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+      />
+    </ModularSection>
+  );
+}
+
+function EditorActionButton({
+  children,
+  onClick,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.preventDefault();
+        onClick();
+      }}
+      className="inline-flex min-h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+    >
+      {children}
+    </button>
   );
 }
 
