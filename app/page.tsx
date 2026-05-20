@@ -3214,7 +3214,7 @@ async function createResumePdfBlob(
 	      padding: hasHeaderBand ? (family === "executive" ? 22 : 18) : 0,
 	    },
     name: {
-      color: hasHeaderBand ? "#ffffff" : theme.textHex,
+      color: hasHeaderBand ? "#ffffff" : theme.accentHex,
       fontSize:
         family === "executive"
           ? 24
@@ -3403,7 +3403,7 @@ async function createResumeDocxBlob(
         fill: headerColor,
       }
     : undefined;
-  const headerTextColor = hasHeaderBand ? "FFFFFF" : textColor;
+  const headerTextColor = hasHeaderBand ? "FFFFFF" : accentColor;
   const headerAccentColor = hasHeaderBand ? "FFFFFF" : accentColor;
   const children = [
     new Paragraph({
@@ -4872,7 +4872,7 @@ export default function Home() {
             id="master-resume"
             value={masterResume}
             onChange={(event) => setMasterResume(event.target.value)}
-            className="mt-3 min-h-[420px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+            className="mt-3 min-h-[420px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
             placeholder="Paste your master resume here..."
           />
 
@@ -5086,7 +5086,7 @@ export default function Home() {
               id="target-role"
               value={targetRole}
               onChange={(event) => setTargetRole(event.target.value)}
-              className="mt-3 w-full rounded-md border border-zinc-300 bg-white p-4 text-sm text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+              className="mt-3 w-full rounded-md border border-zinc-300 bg-white p-4 text-sm text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
               placeholder="Example: AI Product Manager"
             />
 
@@ -5102,7 +5102,7 @@ export default function Home() {
               onChange={(event) =>
                 setIndustryTarget(event.target.value as IndustryTarget)
               }
-              className="mt-3 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+              className="mt-3 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
             >
               {industryTargets.map((industry) => (
                 <option key={industry} value={industry}>
@@ -5117,7 +5117,7 @@ export default function Home() {
                 <select
                   value={template}
                   onChange={(event) => setTemplate(event.target.value as TemplateId)}
-                  className="mt-3 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                  className="mt-3 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                 >
                   {Object.entries(templates).map(([id, item]) => (
                     <option key={id} value={id}>
@@ -5132,7 +5132,7 @@ export default function Home() {
                 <select
                   value={theme}
                   onChange={(event) => setTheme(event.target.value as ThemeId)}
-                  className="mt-3 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                  className="mt-3 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                 >
                   <option value="deep-navy">Deep Navy</option>
                   <option value="modern-teal">Modern Teal</option>
@@ -5166,7 +5166,7 @@ export default function Home() {
                         model: event.target.value,
                       }))
                     }
-                    className="mt-2 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                    className="mt-2 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                   >
                     <option value="gpt-4o-mini">gpt-4o-mini</option>
                     <option value="gpt-4o">gpt-4o</option>
@@ -5183,7 +5183,7 @@ export default function Home() {
                         positioningMode: event.target.value as PositioningMode,
                       }))
                     }
-                    className="mt-2 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                    className="mt-2 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                   >
                     {positioningModes.map((mode) => (
                       <option key={mode} value={mode}>
@@ -5234,7 +5234,7 @@ export default function Home() {
                         toneStyle: event.target.value,
                       }))
                     }
-                    className="mt-2 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                    className="mt-2 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                   >
                     <option value="Executive concise">Executive concise</option>
                     <option value="Technical precise">Technical precise</option>
@@ -5370,7 +5370,7 @@ export default function Home() {
                           key={`${version.id}-${versionIndex}`}
                           className={`block cursor-pointer rounded-md border p-3 transition ${
                             selectedVersionId === version.id
-                              ? "border-teal-300 bg-teal-50"
+                              ? "border-[var(--iseya-gold)] bg-[#FFF8E6]"
                               : "border-zinc-200 bg-zinc-50 hover:bg-white"
                           }`}
                           onClick={() => setSelectedVersionId(version.id)}
@@ -5535,7 +5535,7 @@ export default function Home() {
               id="job-description"
               value={jobDescription}
               onChange={(event) => setJobDescription(event.target.value)}
-              className="mt-3 min-h-[300px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+              className="mt-3 min-h-[300px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
               placeholder="Paste the job description here..."
             />
           </div>
@@ -5762,7 +5762,7 @@ export default function Home() {
                     <textarea
                       value={result.coverLetter}
                       onChange={(event) => updateCoverLetter(event.target.value)}
-                      className="min-h-[640px] w-full resize-y rounded-xl border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                      className="min-h-[640px] w-full resize-y rounded-xl border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                     />
                   </DocumentFrame>
                 ) : activeOutput === "linkedin" ? (
@@ -5835,9 +5835,8 @@ function IseyaFooter() {
     ["About", "/about"],
     ["Privacy Policy", "/privacy"],
     ["Terms of Use", "/terms"],
-    ["Contact", "/contact"],
-    ["LinkedIn", "https://www.linkedin.com/"],
-    ["TikTok", "https://www.tiktok.com/"],
+    ["Contact", "mailto:hello@jormp.com"],
+    ["LinkedIn", "https://www.linkedin.com/company/jormp-llc"],
   ];
 
   return (
@@ -5847,9 +5846,9 @@ function IseyaFooter() {
           <Image
             src="/brand/iseya-logo.png"
             alt="ISEYA"
-            width={150}
-            height={75}
-            className="h-auto w-[118px] object-contain"
+            width={180}
+            height={90}
+            className="h-auto w-[120px] object-contain sm:w-[160px] lg:w-[180px]"
           />
           <p className="text-sm font-medium text-white/85">
             AI-powered career positioning by Jormp LLC.
@@ -5990,7 +5989,7 @@ function ContactField({
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+        className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
       />
     </label>
   );
@@ -6018,7 +6017,7 @@ function EditableField({
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className={`mt-3 w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100 ${
+        className={`mt-3 w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6] ${
           tall ? "min-h-56" : "min-h-32"
         }`}
       />
@@ -6042,11 +6041,11 @@ function DocumentFrame({
           <h3 className="text-lg font-semibold tracking-tight text-[var(--iseya-navy)]">
             {title}
           </h3>
-          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">
+          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
             {subtitle}
           </p>
         </div>
-        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+        <span className="rounded-full bg-[#FFF8E6] px-3 py-1 text-xs font-semibold text-[var(--iseya-navy)] ring-1 ring-[var(--iseya-gold)]/40">
           Autosaved
         </span>
       </div>
@@ -6515,7 +6514,7 @@ function ModularResumeEditor({
 
   return (
     <div className="space-y-4">
-      <section className="rounded-xl border border-teal-100 bg-teal-50/60 p-4">
+      <section className="rounded-xl border border-[var(--iseya-gold)]/25 bg-[#FFF8E6]/60 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h4 className="text-sm font-semibold text-[var(--iseya-navy)]">
@@ -6543,7 +6542,7 @@ function ModularResumeEditor({
           </EditorActionButton>
         </div>
         {optimizationStatus ? (
-          <p className="mt-3 rounded-md border border-teal-100 bg-white px-3 py-2 text-xs font-medium text-slate-700">
+          <p className="mt-3 rounded-md border border-[var(--iseya-gold)]/25 bg-white px-3 py-2 text-xs font-medium text-slate-700">
             {optimizationStatus}
           </p>
         ) : null}
@@ -6594,7 +6593,7 @@ function ModularResumeEditor({
           onChange={(event) =>
             commit({ ...structured, summary: event.target.value })
           }
-          className="min-h-32 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="min-h-32 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
         />
       </ModularSection>
 
@@ -6610,7 +6609,7 @@ function ModularResumeEditor({
           onChange={(event) =>
             commit({ ...structured, skills: splitResumeList(event.target.value) })
           }
-          className="min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          className="min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
         />
       </ModularSection>
 
@@ -6731,7 +6730,7 @@ function ModularResumeEditor({
                           event.target.value,
                         )
                       }
-                      className="min-h-20 w-full resize-y rounded-md border border-slate-200 bg-white p-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                      className="min-h-20 w-full resize-y rounded-md border border-slate-200 bg-white p-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                     />
                     <div className="mt-2 flex flex-wrap gap-2">
                       <EditorActionButton onClick={() => applyBulletAiAction(entryIndex, bulletIndex, "Rewrite Bullet")}>
@@ -6804,7 +6803,7 @@ function ModularResumeEditor({
                     bullets: [],
                   })
                 }
-                className="mt-3 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                className="mt-3 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
               />
             </div>
           ))}
@@ -6850,7 +6849,7 @@ function ModularSection({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h4 className="text-sm font-semibold text-[var(--iseya-navy)]">{title}</h4>
-            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
               Autosaved
             </p>
           </div>
@@ -6961,7 +6960,7 @@ function ModularListSection({
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+        className="min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
       />
     </ModularSection>
   );
@@ -7418,7 +7417,7 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
       </div>
       <div className="mt-2 h-2 rounded-full bg-zinc-200">
         <div
-          className="h-2 rounded-full bg-teal-700"
+          className="h-2 rounded-full bg-[var(--iseya-gold)]"
           style={{ width: `${safeScoreValue}%` }}
         />
       </div>
@@ -7509,7 +7508,10 @@ function ResumePreview({
   const headerClass = headerClassByFamily[family];
   const subtitleClass = isExecutive || family === "finance"
     ? `mt-1 text-sm font-medium ${theme.subheadText}`
-    : "mt-1 text-sm font-medium text-zinc-500";
+    : `mt-1 text-sm font-medium ${theme.accentText}`;
+  const nameClass = isExecutive || family === "finance"
+    ? ""
+    : theme.accentText;
   const sectionClassByFamily: Record<TemplateFamily, string> = {
     ats: "break-inside-avoid",
     executive: "break-inside-avoid rounded-sm border-l-4 border-zinc-100 pl-4",
@@ -7556,7 +7558,7 @@ function ResumePreview({
           <div className="min-w-0 flex-1">
             {contact.name ? (
               <h4
-                className={`font-semibold tracking-tight ${
+                className={`font-semibold tracking-tight ${nameClass} ${
                   family === "executive"
                     ? "text-3xl"
                     : family === "ats"
