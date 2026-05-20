@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type TemplateId = "modern" | "classic" | "compact";
-type ThemeId = "teal" | "indigo" | "rose" | "slate";
+type TemplateId = "executive-navy" | "modern-product" | "ats-clean";
+type ThemeId = "deep-navy" | "modern-teal" | "minimal-black";
 
 type TailoringResult = {
   score: number;
@@ -98,70 +98,61 @@ const sampleJob = `AI Product Manager
 
 We are looking for an AI Product Manager to lead the development of AI-powered workflow automation products. The ideal candidate has experience with SaaS products, Agile delivery, stakeholder management, analytics, customer discovery, roadmap planning, API integrations, and cross-functional collaboration. Experience with LLMs, prompt engineering, responsible AI, product metrics, and enterprise software is preferred.`;
 
-const themeClasses: Record<
+const previewThemes: Record<
   ThemeId,
   {
     accentText: string;
-    accentBg: string;
-    accentHover: string;
-    accentSoft: string;
     accentBorder: string;
     headerBg: string;
-    ring: string;
+    headerText: string;
+    subheadText: string;
   }
 > = {
-  teal: {
+  "deep-navy": {
+    accentText: "text-[#12345a]",
+    accentBorder: "border-[#b7c6d8]",
+    headerBg: "bg-[#0b1f3a]",
+    headerText: "text-white",
+    subheadText: "text-[#d8e4f2]",
+  },
+  "modern-teal": {
     accentText: "text-teal-700",
-    accentBg: "bg-teal-700",
-    accentHover: "hover:bg-teal-800",
-    accentSoft: "bg-teal-50 text-teal-900",
     accentBorder: "border-teal-200",
-    headerBg: "bg-zinc-950",
-    ring: "focus:border-teal-600 focus:ring-teal-100",
+    headerBg: "bg-teal-800",
+    headerText: "text-white",
+    subheadText: "text-teal-50",
   },
-  indigo: {
-    accentText: "text-indigo-700",
-    accentBg: "bg-indigo-700",
-    accentHover: "hover:bg-indigo-800",
-    accentSoft: "bg-indigo-50 text-indigo-900",
-    accentBorder: "border-indigo-200",
-    headerBg: "bg-indigo-950",
-    ring: "focus:border-indigo-600 focus:ring-indigo-100",
-  },
-  rose: {
-    accentText: "text-rose-700",
-    accentBg: "bg-rose-700",
-    accentHover: "hover:bg-rose-800",
-    accentSoft: "bg-rose-50 text-rose-900",
-    accentBorder: "border-rose-200",
-    headerBg: "bg-rose-950",
-    ring: "focus:border-rose-600 focus:ring-rose-100",
-  },
-  slate: {
-    accentText: "text-slate-700",
-    accentBg: "bg-slate-800",
-    accentHover: "hover:bg-slate-900",
-    accentSoft: "bg-slate-100 text-slate-900",
-    accentBorder: "border-slate-300",
-    headerBg: "bg-slate-950",
-    ring: "focus:border-slate-600 focus:ring-slate-100",
+  "minimal-black": {
+    accentText: "text-zinc-800",
+    accentBorder: "border-zinc-300",
+    headerBg: "bg-zinc-900",
+    headerText: "text-white",
+    subheadText: "text-zinc-200",
   },
 };
 
 const templates: Record<TemplateId, { label: string; description: string }> = {
-  modern: {
-    label: "Modern",
-    description: "Balanced summary, skills, and experience highlights.",
+  "executive-navy": {
+    label: "Executive Navy",
+    description: "Formal preview with a strong navy header and classic spacing.",
   },
-  classic: {
-    label: "Classic",
-    description: "Conservative resume structure for traditional ATS scans.",
+  "modern-product": {
+    label: "Modern Product",
+    description: "Product-focused preview with clean section rhythm.",
   },
-  compact: {
-    label: "Compact",
-    description: "Tighter output for fast recruiter review.",
+  "ats-clean": {
+    label: "ATS Clean",
+    description: "Minimal preview optimized for straightforward scanning.",
   },
 };
+
+function isTemplateId(value: unknown): value is TemplateId {
+  return typeof value === "string" && value in templates;
+}
+
+function isThemeId(value: unknown): value is ThemeId {
+  return typeof value === "string" && value in previewThemes;
+}
 
 function normalizeText(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9+#.\s-]/g, " ");
@@ -385,7 +376,6 @@ function buildTailoredResume(
   masterResume: string,
   jobDescription: string,
   targetRole: string,
-  template: TemplateId,
 ): TailoringResult {
   const keywordGroups = inferJobKeywordGroups(jobDescription);
   const jobKeywords = dedupeKeywords([
@@ -437,14 +427,6 @@ function buildTailoredResume(
       : "Preserved strong keyword coverage while tightening the language for ATS scanning and recruiter readability.",
   ];
   const candidateName = firstMeaningfulLine(masterResume, "Candidate Name");
-  const templateHeading =
-    template === "classic"
-      ? "PROFESSIONAL EXPERIENCE"
-      : template === "compact"
-        ? "SELECTED HIGHLIGHTS"
-        : "EXPERIENCE HIGHLIGHTS";
-  const sourceExcerpt =
-    template === "compact" ? masterResume.trim().slice(0, 900) : masterResume.trim();
   const rewrittenResume = `${candidateName}
 ${role}
 
@@ -454,16 +436,15 @@ ${summary}
 CORE SKILLS
 ${skills.join(" | ")}
 
-${templateHeading}
+EXPERIENCE HIGHLIGHTS
 ${bullets.map((bullet) => `- ${bullet}`).join("\n")}
 
 TAILORING NOTES
 - Matched keywords: ${matchedKeywords.length > 0 ? matchedKeywords.join(", ") : "None found yet"}
 - Keywords to strengthen: ${missingKeywords.length > 0 ? missingKeywords.join(", ") : "No major gaps found"}
-- Template: ${templates[template].label}
 
 SOURCE RESUME EXCERPT
-${sourceExcerpt}`;
+${masterResume.trim()}`;
   const baseResult = {
     score: scoreResult.score,
     matchedKeywords,
@@ -534,13 +515,13 @@ export default function Home() {
   const [masterResume, setMasterResume] = useState(sampleResume);
   const [jobDescription, setJobDescription] = useState(sampleJob);
   const [targetRole, setTargetRole] = useState("AI Product Manager");
-  const [template, setTemplate] = useState<TemplateId>("modern");
-  const [theme, setTheme] = useState<ThemeId>("teal");
+  const [template, setTemplate] = useState<TemplateId>("executive-navy");
+  const [theme, setTheme] = useState<ThemeId>("deep-navy");
   const [result, setResult] = useState<TailoringResult | null>(null);
   const [copyStatus, setCopyStatus] = useState("Copy");
   const [activeOutput, setActiveOutput] = useState<"resume" | "cover">("resume");
   const [hydrated, setHydrated] = useState(false);
-  const colors = themeClasses[theme];
+  const previewTheme = previewThemes[theme];
 
   useEffect(() => {
     window.setTimeout(() => {
@@ -552,8 +533,12 @@ export default function Home() {
           setMasterResume(parsed.masterResume ?? sampleResume);
           setJobDescription(parsed.jobDescription ?? sampleJob);
           setTargetRole(parsed.targetRole ?? "AI Product Manager");
-          setTemplate(parsed.template ?? "modern");
-          setTheme(parsed.theme ?? "teal");
+          setTemplate(
+            isTemplateId(parsed.template)
+              ? parsed.template
+              : "executive-navy",
+          );
+          setTheme(isThemeId(parsed.theme) ? parsed.theme : "deep-navy");
           setResult(parsed.result ?? null);
         }
       } catch {
@@ -592,7 +577,7 @@ export default function Home() {
   function tailorResume() {
     setCopyStatus("Copy");
     setActiveOutput("resume");
-    setResult(buildTailoredResume(masterResume, jobDescription, targetRole, template));
+    setResult(buildTailoredResume(masterResume, jobDescription, targetRole));
   }
 
   function updateResumeOutput(value: string) {
@@ -663,9 +648,7 @@ export default function Home() {
       <section className="border-b border-zinc-200 bg-white">
         <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-5 py-8 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <p
-              className={`text-sm font-semibold uppercase tracking-[0.18em] ${colors.accentText}`}
-            >
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-teal-700">
               Resume Tailoring Agent MVP
             </p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
@@ -700,7 +683,7 @@ export default function Home() {
             id="master-resume"
             value={masterResume}
             onChange={(event) => setMasterResume(event.target.value)}
-            className={`mt-3 min-h-[420px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:ring-4 ${colors.ring}`}
+            className="mt-3 min-h-[420px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
             placeholder="Paste your master resume here..."
           />
         </div>
@@ -717,7 +700,7 @@ export default function Home() {
               id="target-role"
               value={targetRole}
               onChange={(event) => setTargetRole(event.target.value)}
-              className={`mt-3 w-full rounded-md border border-zinc-300 bg-white p-4 text-sm text-zinc-800 outline-none transition focus:ring-4 ${colors.ring}`}
+              className="mt-3 w-full rounded-md border border-zinc-300 bg-white p-4 text-sm text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
               placeholder="Example: AI Product Manager"
             />
 
@@ -727,7 +710,7 @@ export default function Home() {
                 <select
                   value={template}
                   onChange={(event) => setTemplate(event.target.value as TemplateId)}
-                  className={`mt-3 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:ring-4 ${colors.ring}`}
+                  className="mt-3 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
                 >
                   {Object.entries(templates).map(([id, item]) => (
                     <option key={id} value={id}>
@@ -742,12 +725,11 @@ export default function Home() {
                 <select
                   value={theme}
                   onChange={(event) => setTheme(event.target.value as ThemeId)}
-                  className={`mt-3 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:ring-4 ${colors.ring}`}
+                  className="mt-3 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
                 >
-                  <option value="teal">Teal</option>
-                  <option value="indigo">Indigo</option>
-                  <option value="rose">Rose</option>
-                  <option value="slate">Slate</option>
+                  <option value="deep-navy">Deep Navy</option>
+                  <option value="modern-teal">Modern Teal</option>
+                  <option value="minimal-black">Minimal Black</option>
                 </select>
               </label>
             </div>
@@ -768,7 +750,7 @@ export default function Home() {
               id="job-description"
               value={jobDescription}
               onChange={(event) => setJobDescription(event.target.value)}
-              className={`mt-3 min-h-[300px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:ring-4 ${colors.ring}`}
+              className="mt-3 min-h-[300px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
               placeholder="Paste the job description here..."
             />
           </div>
@@ -788,7 +770,7 @@ export default function Home() {
               </div>
               <div className="mt-5 h-3 rounded-full bg-zinc-100">
                 <div
-                  className={`h-3 rounded-full ${colors.accentBg}`}
+                  className="h-3 rounded-full bg-teal-700"
                   style={{ width: `${result.score}%` }}
                 />
               </div>
@@ -829,7 +811,7 @@ export default function Home() {
                   onClick={() => setActiveOutput("resume")}
                   className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition ${
                     activeOutput === "resume"
-                      ? `${colors.accentBg} text-white ${colors.accentHover}`
+                      ? "bg-zinc-900 text-white hover:bg-zinc-800"
                       : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
                   }`}
                 >
@@ -840,7 +822,7 @@ export default function Home() {
                   onClick={() => setActiveOutput("cover")}
                   className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition ${
                     activeOutput === "cover"
-                      ? `${colors.accentBg} text-white ${colors.accentHover}`
+                      ? "bg-zinc-900 text-white hover:bg-zinc-800"
                       : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
                   }`}
                 >
@@ -856,7 +838,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={downloadTxt}
-                  className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white transition ${colors.accentBg} ${colors.accentHover}`}
+                  className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
                 >
                   Download TXT
                 </button>
@@ -879,7 +861,7 @@ export default function Home() {
                             : current,
                         )
                       }
-                      className={`mt-3 min-h-36 w-full resize-y rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-700 outline-none transition focus:ring-4 ${colors.ring}`}
+                      className="mt-3 min-h-36 w-full resize-y rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-700 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
                     />
                   </section>
 
@@ -902,7 +884,7 @@ export default function Home() {
                             : current,
                         )
                       }
-                      className={`mt-3 min-h-36 w-full resize-y rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-700 outline-none transition focus:ring-4 ${colors.ring}`}
+                      className="mt-3 min-h-36 w-full resize-y rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-700 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
                     />
                   </section>
                 </div>
@@ -949,12 +931,12 @@ export default function Home() {
                       id="resume-editor"
                       value={result.rewrittenResume}
                       onChange={(event) => updateResumeOutput(event.target.value)}
-                      className={`min-h-[720px] w-full resize-y scroll-mt-24 rounded-md border border-zinc-300 bg-white p-4 font-mono text-sm leading-6 text-zinc-800 outline-none transition focus:ring-4 ${colors.ring}`}
+                      className="min-h-[720px] w-full resize-y scroll-mt-24 rounded-md border border-zinc-300 bg-white p-4 font-mono text-sm leading-6 text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
                     />
                     <div id="resume-preview" className="min-w-0 scroll-mt-24">
                       <ResumePreview
                         resumeText={result.rewrittenResume}
-                        colors={colors}
+                        theme={previewTheme}
                         template={template}
                       />
                     </div>
@@ -969,7 +951,7 @@ export default function Home() {
                 <textarea
                   value={result.coverLetter}
                   onChange={(event) => updateCoverLetter(event.target.value)}
-                  className={`mt-3 min-h-[560px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-7 text-zinc-800 outline-none transition focus:ring-4 ${colors.ring}`}
+                  className="mt-3 min-h-[560px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-7 text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
                 />
               </section>
             )}
@@ -1019,28 +1001,46 @@ function KeywordList({
 
 function ResumePreview({
   resumeText,
-  colors,
+  theme,
   template,
 }: {
   resumeText: string;
-  colors: (typeof themeClasses)[ThemeId];
+  theme: (typeof previewThemes)[ThemeId];
   template: TemplateId;
 }) {
   const resume = parseResumePreview(resumeText);
-  const compactClass = template === "compact" ? "space-y-4 p-5" : "space-y-6 p-6";
+  const isExecutive = template === "executive-navy";
+  const isModern = template === "modern-product";
+  const bodyClass =
+    template === "ats-clean"
+      ? "space-y-5 p-6"
+      : isModern
+        ? "space-y-6 p-7"
+        : "space-y-6 p-7";
+  const headerClass = isExecutive
+    ? `border-b border-zinc-200 px-7 py-6 ${theme.headerBg} ${theme.headerText}`
+    : isModern
+      ? `border-b border-zinc-200 border-l-4 bg-white px-6 py-5 text-zinc-950 ${theme.accentBorder}`
+      : "border-b border-zinc-200 bg-white px-6 py-4 text-zinc-950";
+  const subtitleClass = isExecutive
+    ? `mt-1 text-sm font-medium ${theme.subheadText}`
+    : "mt-1 text-sm font-medium text-zinc-500";
 
   return (
     <article className="mt-5 max-h-[760px] overflow-auto rounded-md border border-zinc-200 bg-white text-zinc-850">
-      <header className={`border-b border-zinc-200 px-6 py-5 text-white ${colors.headerBg}`}>
+      <header className={headerClass}>
         <h4 className="text-2xl font-semibold tracking-tight">{resume.name}</h4>
-        <p className="mt-1 text-sm font-medium text-zinc-200">{resume.title}</p>
+        <p className={subtitleClass}>{resume.title}</p>
       </header>
 
-      <div className={compactClass}>
+      <div className={bodyClass}>
         {resume.sections.map((section) => (
-          <section key={section.heading}>
+          <section
+            key={section.heading}
+            className={isModern ? "border-l-2 border-zinc-100 pl-4" : undefined}
+          >
             <h5
-              className={`border-b pb-2 text-xs font-bold uppercase tracking-[0.16em] ${colors.accentText} ${colors.accentBorder}`}
+              className={`border-b pb-2 text-xs font-bold uppercase tracking-[0.16em] ${theme.accentText} ${theme.accentBorder}`}
             >
               {section.heading}
             </h5>
