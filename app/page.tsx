@@ -1262,7 +1262,7 @@ function buildBulletImprovements(resumeText: string): BulletImprovement[] {
 
     return {
       original: bullet,
-      strongerVersion: `${base}, clarifying ownership, scope, and outcome with source-backed detail.`,
+      strongerVersion: `${base}. Add verified ownership, scope, or outcome detail where supported.`,
       atsOptimizedVersion: `${base}, aligning keywords, tools, and responsibilities to the target job description.`,
       executiveVersion: `${base}, connecting execution to strategic priorities, stakeholder confidence, and measurable business value.`,
       conciseVersion: base.length > 120 ? `${base.slice(0, 117)}...` : base,
@@ -1945,7 +1945,7 @@ function detectWeakBullets(resumeText: string): WeakBulletSuggestion[] {
           .replace(/^participated in\s+/i, "Collaborated on ")
           .replace(/\.$/, "") +
           (lacksMetric
-            ? ", clarifying scope, stakeholders, and outcome using only verified source details."
+            ? ". Add only verified scope, stakeholder, or outcome details where supported."
             : "."),
       };
     });
@@ -2617,6 +2617,26 @@ function optimizeResumeBullet(value: string) {
   return optimizeResumeText(cleaned);
 }
 
+function cleanExportBullet(value: string) {
+  return cleanEditorText(value)
+    .replace(
+      /,?\s*clarifying scope, stakeholders, and outcome using only verified source details\.?/gi,
+      "",
+    )
+    .replace(
+      /,?\s*clarifying ownership, scope, and outcome with source-backed detail\.?/gi,
+      "",
+    )
+    .replace(/\busing only verified source details\b\.?/gi, "")
+    .replace(/^responsible for\s+/i, "Led ")
+    .replace(/^worked on\s+/i, "Advanced ")
+    .replace(/^helped\s+/i, "Supported ")
+    .replace(/^handled\s+/i, "Managed ")
+    .replace(/^participated in\s+/i, "Collaborated on ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function formatSectionText(items: string[]) {
   return items.map(cleanEditorText).filter(Boolean).join("\n");
 }
@@ -2980,8 +3000,9 @@ async function createResumePdfBlob(
         : family === "academic" || family === "legal"
           ? 38
           : 36;
-  const orderedSections = orderedResumeSections(resume.sections, template);
-  const styles = StyleSheet.create({
+	  const orderedSections = orderedResumeSections(resume.sections, template);
+  const contactSeparator = "  |  ";
+	  const styles = StyleSheet.create({
     page: {
       padding: pagePadding,
       color: theme.textHex,
@@ -2990,13 +3011,13 @@ async function createResumePdfBlob(
       fontSize: isAts ? 9.5 : family === "executive" ? 10.5 : 10,
       lineHeight: family === "consulting" || family === "finance" ? 1.35 : 1.45,
     },
-    header: {
-      backgroundColor: hasHeaderBand ? theme.headerHex : "#ffffff",
-      borderBottomColor: theme.accentHex,
-      borderBottomWidth: hasHeaderBand ? 0 : family === "ats" ? 1 : 2,
-      marginBottom: family === "executive" ? 22 : 18,
-      padding: hasHeaderBand ? (family === "executive" ? 20 : 16) : 0,
-    },
+	    header: {
+	      backgroundColor: hasHeaderBand ? theme.headerHex : "#ffffff",
+	      borderBottomColor: theme.accentHex,
+	      borderBottomWidth: hasHeaderBand ? 0 : family === "ats" ? 1 : 2,
+	      marginBottom: family === "executive" ? 26 : 21,
+	      padding: hasHeaderBand ? (family === "executive" ? 22 : 18) : 0,
+	    },
     name: {
       color: hasHeaderBand ? "#ffffff" : theme.textHex,
       fontSize:
@@ -3007,19 +3028,21 @@ async function createResumePdfBlob(
             : family === "ats"
               ? 18
               : 20,
-      fontWeight: 700,
-      marginBottom: 4,
-    },
-    title: {
-      color: hasHeaderBand ? "#e5e7eb" : theme.accentHex,
-      fontSize: 10,
-      fontWeight: 600,
-    },
-    contact: {
-      color: hasHeaderBand ? "#e5e7eb" : theme.textHex,
-      fontSize: 8.5,
-      marginTop: 5,
-    },
+	      fontWeight: 700,
+	      marginBottom: family === "ats" ? 7 : 8,
+	    },
+	    title: {
+	      color: hasHeaderBand ? "#e5e7eb" : theme.accentHex,
+	      fontSize: family === "executive" ? 12 : 10.5,
+	      fontWeight: 600,
+	      marginBottom: 8,
+	    },
+	    contact: {
+	      color: hasHeaderBand ? "#e5e7eb" : theme.textHex,
+	      fontSize: 8.8,
+	      lineHeight: 1.45,
+	      marginTop: 2,
+	    },
     headerRow: {
       alignItems: "center",
       display: "flex",
@@ -3035,15 +3058,15 @@ async function createResumePdfBlob(
       objectFit: "cover",
       width: 58,
     },
-    section: {
+	    section: {
       borderLeftColor: isModern ? theme.accentHex : "#ffffff",
       borderLeftWidth: isModern ? (family === "creative" ? 4 : 2) : 0,
-      marginBottom:
-        family === "ats" || family === "consulting" || family === "finance"
-          ? 10
-          : 14,
-      paddingLeft: isModern ? 9 : 0,
-    },
+	      marginBottom:
+	        family === "ats" || family === "consulting" || family === "finance"
+	          ? 12
+	          : 16,
+	      paddingLeft: isModern ? 9 : 0,
+	    },
     heading: {
       borderBottomColor: theme.accentHex,
       borderBottomWidth: family === "ats" ? 0.5 : 1,
@@ -3051,17 +3074,18 @@ async function createResumePdfBlob(
       fontSize: family === "academic" || family === "legal" ? 10 : 9,
       fontWeight: 700,
       letterSpacing: family === "ats" ? 0.2 : 0.8,
-      marginBottom: 6,
-      paddingBottom: 3,
-      textTransform: "uppercase",
-    },
-    paragraph: {
-      marginBottom: 4,
-    },
-    bullet: {
-      marginBottom: 3,
-      paddingLeft: 8,
-    },
+	      marginBottom: 8,
+	      paddingBottom: 4,
+	      textTransform: "uppercase",
+	    },
+	    paragraph: {
+	      marginBottom: 6,
+	    },
+	    bullet: {
+	      lineHeight: 1.5,
+	      marginBottom: 5,
+	      paddingLeft: 10,
+	    },
   });
 
   const documentNode = createElement(
@@ -3085,9 +3109,9 @@ async function createResumePdfBlob(
           createElement(
             View,
             { style: styles.headerText },
-            contact.name
-              ? createElement(Text, { style: styles.name }, contact.name)
-              : null,
+	            contact.name
+	              ? createElement(Text, { style: styles.name }, contact.name)
+	              : null,
             contact.title
               ? createElement(Text, { style: styles.title }, contact.title)
               : null,
@@ -3103,11 +3127,11 @@ async function createResumePdfBlob(
                             key: `${item}-${itemIndex}`,
                             src: normalizeUrl(item),
                           },
-                          `${item}${itemIndex < contactLines.length - 1 ? " | " : ""}`,
-                        )
-                      : `${item}${itemIndex < contactLines.length - 1 ? " | " : ""}`,
-                  ),
-                )
+	                          `${item}${itemIndex < contactLines.length - 1 ? contactSeparator : ""}`,
+	                        )
+	                      : `${item}${itemIndex < contactLines.length - 1 ? contactSeparator : ""}`,
+	                  ),
+	                )
               : null,
           ),
         ),
@@ -3124,13 +3148,13 @@ async function createResumePdfBlob(
               paragraph,
             ),
           ),
-          ...section.bullets.map((bullet, bulletIndex) =>
-            createElement(
-              Text,
-              { key: `${bullet}-${bulletIndex}`, style: styles.bullet },
-              `- ${bullet}`,
-            ),
-          ),
+	          ...section.bullets.map((bullet, bulletIndex) =>
+	            createElement(
+	              Text,
+	              { key: `${bullet}-${bulletIndex}`, style: styles.bullet },
+	              `• ${cleanExportBullet(bullet)}`,
+	            ),
+	          ),
         ),
       ),
     ),
@@ -3176,26 +3200,31 @@ async function createResumeDocxBlob(
   const orderedSections = orderedResumeSections(resume.sections, template);
   const headingSize = family === "academic" || family === "legal" ? 21 : 19;
   const bodySize = family === "ats" ? 20 : family === "executive" ? 22 : 21;
+  const contactSize = family === "ats" ? 17 : 18;
+  const headerShading = hasHeaderBand
+    ? {
+        type: ShadingType.CLEAR,
+        color: "auto",
+        fill: headerColor,
+      }
+    : undefined;
+  const headerTextColor = hasHeaderBand ? "FFFFFF" : textColor;
+  const headerAccentColor = hasHeaderBand ? "FFFFFF" : accentColor;
   const children = [
     new Paragraph({
-      shading: hasHeaderBand
-        ? {
-            type: ShadingType.CLEAR,
-            color: "auto",
-            fill: headerColor,
-          }
-        : undefined,
-      spacing: { after: 80 },
+      shading: headerShading,
+      spacing: { after: contact.title ? 110 : 160 },
       children: [
         new TextRun({
-          text: contact.name,
-              bold: true,
-              color: hasHeaderBand ? "FFFFFF" : textColor,
-              size: family === "executive" ? 34 : family === "ats" ? 28 : 30,
-            }),
-          ],
+          text: contact.name || "",
+          bold: true,
+          color: headerTextColor,
+          size: family === "executive" ? 34 : family === "ats" ? 28 : 30,
+        }),
+      ],
     }),
     new Paragraph({
+      shading: headerShading,
       border: hasHeaderBand
         ? undefined
         : {
@@ -3206,13 +3235,13 @@ async function createResumeDocxBlob(
               space: 1,
             },
           },
-      spacing: { after: 260 },
+      spacing: { after: contactLines.length > 0 ? 130 : 280 },
       children: [
         new TextRun({
-          text: contact.title,
+          text: contact.title || "",
           bold: true,
-          color: hasHeaderBand ? "FFFFFF" : accentColor,
-          size: 21,
+          color: headerAccentColor,
+          size: family === "executive" ? 23 : 21,
         }),
       ],
     }),
@@ -3222,7 +3251,13 @@ async function createResumeDocxBlob(
     const contactRuns = contactLines.flatMap((item, itemIndex) => {
       const suffix =
         itemIndex < contactLines.length - 1
-          ? [new TextRun({ text: " | ", color: textColor, size: 18 })]
+          ? [
+              new TextRun({
+                text: "  |  ",
+                color: hasHeaderBand ? "FFFFFF" : textColor,
+                size: contactSize,
+              }),
+            ]
           : [];
 
       if (isUrlLike(item)) {
@@ -3232,8 +3267,8 @@ async function createResumeDocxBlob(
             children: [
               new TextRun({
                 text: item,
-                color: accentColor,
-                size: 18,
+                color: hasHeaderBand ? "FFFFFF" : accentColor,
+                size: contactSize,
                 underline: {},
               }),
             ],
@@ -3242,12 +3277,20 @@ async function createResumeDocxBlob(
         ];
       }
 
-      return [new TextRun({ text: item, color: textColor, size: 18 }), ...suffix];
+      return [
+        new TextRun({
+          text: item,
+          color: hasHeaderBand ? "FFFFFF" : textColor,
+          size: contactSize,
+        }),
+        ...suffix,
+      ];
     });
 
     children.push(
       new Paragraph({
-        spacing: { after: 220 },
+        shading: headerShading,
+        spacing: { after: family === "executive" ? 300 : 250 },
         children: contactRuns,
       }),
     );
@@ -3265,8 +3308,8 @@ async function createResumeDocxBlob(
           },
         },
         spacing: {
-          before: family === "executive" ? 160 : 120,
-          after: family === "ats" ? 80 : 120,
+          before: family === "executive" ? 190 : 145,
+          after: family === "ats" ? 95 : 130,
         },
         children: [
           new TextRun({
@@ -3292,8 +3335,14 @@ async function createResumeDocxBlob(
       children.push(
         new Paragraph({
           bullet: { level: 0 },
-          spacing: { after: family === "consulting" || family === "finance" ? 55 : 70 },
-          children: [new TextRun({ text: bullet, color: textColor, size: bodySize })],
+          spacing: { after: family === "consulting" || family === "finance" ? 75 : 90 },
+          children: [
+            new TextRun({
+              text: cleanExportBullet(bullet),
+              color: textColor,
+              size: bodySize,
+            }),
+          ],
         }),
       );
     }
@@ -7008,9 +7057,11 @@ function ResumePreview({
             ) : null}
             {section.bullets.length > 0 ? (
               <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7 text-zinc-700">
-                {section.bullets.map((bullet, bulletIndex) => (
-                  <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
-                ))}
+	                {section.bullets.map((bullet, bulletIndex) => (
+	                  <li key={`${bullet}-${bulletIndex}`}>
+	                    {cleanExportBullet(bullet)}
+	                  </li>
+	                ))}
               </ul>
             ) : null}
           </section>

@@ -499,7 +499,7 @@ function detectWeakBullets(text: string): WeakBulletSuggestion[] {
             .replace(/^participated in\s+/i, "Collaborated on ")
             .replace(/\.$/, "") +
           (lacksMetric
-            ? ", clarifying scope, stakeholders, and outcome using only verified source details."
+            ? ". Add only verified scope, stakeholder, or outcome details where supported."
             : "."),
       };
     });
@@ -631,7 +631,7 @@ function buildLocalAdvancedAnalysis(
 
     return {
       original: bullet,
-      strongerVersion: `${base}, clarifying ownership, scope, and outcome with source-backed detail.`,
+      strongerVersion: `${base}. Add verified ownership, scope, or outcome detail where supported.`,
       atsOptimizedVersion: `${base}, aligning keywords, tools, and responsibilities to the target job description.`,
       executiveVersion: `${base}, connecting execution to strategic priorities, stakeholder confidence, and measurable business value.`,
       conciseVersion: base.length > 120 ? `${base.slice(0, 117)}...` : base,
