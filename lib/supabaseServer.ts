@@ -2,21 +2,24 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  cleanSupabaseEnvValue,
+  getSupabasePublicConfigStatus,
+  isLikelySupabaseJwt,
+  type SupabasePublicConfig,
+} from "./supabaseConfig";
 
-type SupabaseServerConfig = {
-  url: string;
-  anonKey: string;
-};
+type SupabaseServerConfig = SupabasePublicConfig;
 
 export function getSupabaseServerConfig(): SupabaseServerConfig | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const result = getSupabasePublicConfigStatus();
 
-  if (!url || !anonKey) {
-    return null;
-  }
+  return result.ok ? result.config : null;
+}
 
-  return { url, anonKey };
+export function getSupabaseServerConfigMessage() {
+  const result = getSupabasePublicConfigStatus();
+  return result.ok ? "" : result.message;
 }
 
 export function isSupabaseServerConfigured() {
@@ -52,14 +55,19 @@ export async function createSupabaseServerClient() {
 }
 
 export function createSupabaseServiceRoleClient(): SupabaseClient | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const publicConfig = getSupabasePublicConfigStatus();
+  const serviceRoleKey = cleanSupabaseEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  if (!url || !serviceRoleKey) {
+  if (
+    !publicConfig.ok ||
+    !serviceRoleKey ||
+    /\s/.test(serviceRoleKey) ||
+    !isLikelySupabaseJwt(serviceRoleKey)
+  ) {
     return null;
   }
 
-  return createClient(url, serviceRoleKey, {
+  return createClient(publicConfig.config.url, serviceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

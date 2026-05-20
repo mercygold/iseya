@@ -1,22 +1,23 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  getSupabasePublicConfigStatus,
+  type SupabasePublicConfig,
+} from "./supabaseConfig";
 
-export type SupabaseBrowserConfig = {
-  url: string;
-  anonKey: string;
-};
+export type SupabaseBrowserConfig = SupabasePublicConfig;
 
 let browserClient: SupabaseClient | null = null;
 
 export function getSupabaseBrowserConfig(): SupabaseBrowserConfig | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const result = getSupabasePublicConfigStatus();
 
-  if (!url || !anonKey) {
-    return null;
-  }
+  return result.ok ? result.config : null;
+}
 
-  return { url, anonKey };
+export function getSupabaseBrowserConfigMessage() {
+  const result = getSupabasePublicConfigStatus();
+  return result.ok ? "" : result.message;
 }
 
 export function isSupabaseBrowserConfigured() {

@@ -3,8 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
+import { FormEvent, useState } from "react";
+import { useAuth } from "./AuthProvider";
 
 type AuthMode = "login" | "signup";
 
@@ -15,13 +15,12 @@ type AuthFormProps = {
 export default function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const { login, signUp, resetPassword, loading, error: authError, clearError } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const redirectedFrom = searchParams.get("redirectedFrom") || "/workspace";
   const isLogin = mode === "login";
@@ -30,83 +29,50 @@ export default function AuthForm({ mode }: AuthFormProps) {
     event.preventDefault();
     setError("");
     setStatus("");
-
-    if (!supabase) {
-      setError("Accounts are not configured yet. Add Supabase environment variables to enable sign in.");
-      return;
-    }
-
-    setLoading(true);
+    clearError();
 
     try {
       if (isLogin) {
-        const { error: loginError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (loginError) {
-          throw loginError;
-        }
-
+        await login(email, password);
         router.replace(redirectedFrom);
         router.refresh();
         return;
       }
 
-      const { error: signupError } = await supabase.auth.signUp({
+      const { needsEmailConfirmation } = await signUp({
         email,
         password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/workspace`,
-        },
+        fullName,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=/workspace`,
       });
 
-      if (signupError) {
-        throw signupError;
+      if (needsEmailConfirmation) {
+        setStatus("Check your email to confirm your account, then return to ISEYA.");
+        return;
       }
 
-      setStatus("Check your email to confirm your account, then return to ISEYA.");
+      router.replace("/workspace");
+      router.refresh();
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Authentication failed. Please try again.");
-    } finally {
-      setLoading(false);
     }
   }
 
   async function handleForgotPassword() {
     setError("");
     setStatus("");
+    clearError();
 
     if (!email.trim()) {
       setError("Enter your email first, then request a reset link.");
       return;
     }
 
-    if (!supabase) {
-      setError("Accounts are not configured yet. Add Supabase environment variables to enable password reset.");
-      return;
-    }
-
-    setLoading(true);
-
     try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?next=/workspace`,
-      });
-
-      if (resetError) {
-        throw resetError;
-      }
-
+      await resetPassword(email, `${window.location.origin}/auth/callback?next=/workspace`);
       setStatus("Password reset email sent.");
     } catch (resetError) {
       setError(resetError instanceof Error ? resetError.message : "Password reset failed. Please try again.");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -190,9 +156,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
             />
           </label>
 
-          {error ? (
+          {error || authError ? (
             <p className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
-              {error}
+              {error || authError}
             </p>
           ) : null}
           {status ? (

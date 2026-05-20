@@ -4,9 +4,9 @@ import { createElement, useCallback, useEffect, useMemo, useRef, useState } from
 import Image from "next/image";
 import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import type { User } from "@supabase/supabase-js";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import type { Json } from "@/lib/database.types";
+import { useAuth } from "./auth/AuthProvider";
 
 const focusRingClass =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2";
@@ -3963,8 +3963,8 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<Record<string, string>>({});
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const [authUser, setAuthUser] = useState<User | null>(null);
-  const [authLoaded, setAuthLoaded] = useState(() => !supabase);
+  const { user: authUser, loading: authLoading, logout } = useAuth();
+  const authLoaded = !authLoading;
   const [cloudResumeId, setCloudResumeId] = useState<string | null>(null);
   const [cloudSaveStatus, setCloudSaveStatus] = useState("");
   const [cloudLoadedForUser, setCloudLoadedForUser] = useState("");
@@ -4083,37 +4083,6 @@ export default function Home() {
       }
     }, 0);
   }, [applySavedState]);
-
-  useEffect(() => {
-    if (!supabase) {
-      return;
-    }
-
-    let mounted = true;
-
-    supabase.auth.getUser().then(({ data }) => {
-      if (!mounted) {
-        return;
-      }
-
-      setAuthUser(data.user);
-      setAuthLoaded(true);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAuthUser(session?.user ?? null);
-      setAuthLoaded(true);
-      setCloudLoadedForUser("");
-      setCloudResumeId(null);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
 
   useEffect(() => {
     if (!hydrated || !authLoaded || !supabase || !authUser) {
@@ -4399,19 +4368,13 @@ export default function Home() {
   }
 
   async function handleSignOut() {
-    if (!supabase) {
-      setAccountStatus("Accounts are not configured yet.");
+    try {
+      await logout();
+    } catch (error) {
+      setAccountStatus(error instanceof Error ? error.message : "Sign out failed.");
       return;
     }
 
-    const { error } = await supabase.auth.signOut();
-
-    if (error) {
-      setAccountStatus(error.message);
-      return;
-    }
-
-    setAuthUser(null);
     setCloudResumeId(null);
     setCloudLoadedForUser("");
     setCloudSaveStatus("");
