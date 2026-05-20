@@ -17,6 +17,14 @@ type TailorRequest = {
   industryTarget?: string;
   uploadedSourceMaterials?: UploadedSourceMaterial[];
   currentEditedResume?: string;
+  aiSettings?: {
+    model?: string;
+    creativity?: number;
+    atsStrictness?: number;
+    toneStyle?: string;
+    aggressiveOptimization?: boolean;
+    positioningMode?: string;
+  };
 };
 
 type SectionCritique = {
@@ -52,6 +60,72 @@ type Coaching = {
   recruiterObjections: string[];
 };
 
+type ReviewSimulation = {
+  score: number;
+  strengths: string[];
+  weaknesses: string[];
+  concerns: string[];
+  interviewProbability: string;
+};
+
+type AdvancedAnalysis = {
+  recruiterSimulation: {
+    atsScreening: ReviewSimulation;
+    recruiterReview: ReviewSimulation;
+    hiringManagerReview: ReviewSimulation;
+  };
+  keyScores: {
+    likelihoodOfInterview: number;
+    atsPassProbability: number;
+    executiveReadiness: number;
+    technicalDepth: number;
+    leadershipStrength: number;
+    industryAlignment: number;
+  };
+  interviewPrep: {
+    whyYouFitThisRole: string;
+    likelyQuestions: string[];
+    behavioralQuestions: string[];
+    technicalQuestions: string[];
+    executiveQuestions: string[];
+    industrySpecificQuestions: string[];
+    potentialRecruiterObjections: string[];
+  };
+  gapAnalysis: {
+    missingKeywords: string[];
+    weakExperienceAreas: string[];
+    seniorityGaps: string[];
+    leadershipGaps: string[];
+    technicalGaps: string[];
+    educationAlignment: string[];
+    certificationAlignment: string[];
+    recommendations: string[];
+    wordingChanges: string[];
+  };
+  jobDescriptionIntelligence: {
+    requiredSkills: string[];
+    preferredSkills: string[];
+    hiddenPriorities: string[];
+    likelyHiringGoals: string[];
+    leadershipExpectations: string[];
+    senioritySignals: string[];
+    keywordMap: string[];
+    alignmentSummary: string;
+    roleStrategy: string;
+  };
+  bulletImprovements: Array<{
+    original: string;
+    strongerVersion: string;
+    atsOptimizedVersion: string;
+    executiveVersion: string;
+    conciseVersion: string;
+    metricFocusedVersion: string;
+    suggestedMetrics: string[];
+  }>;
+  aiSuggestions: string[];
+  positioningMode: string;
+};
+
 type TailorResponse = {
   matchScore: number;
   matchBreakdown: {
@@ -72,6 +146,7 @@ type TailorResponse = {
   improvementNotes: string[];
   riskFlags: string[];
   coaching: Coaching;
+  advancedAnalysis?: AdvancedAnalysis;
 };
 
 const keywordBank = [
@@ -105,6 +180,26 @@ const keywordBank = [
   "technical",
   "integration",
   "leadership",
+  "research",
+  "publications",
+  "teaching",
+  "methodology",
+  "ROI",
+  "compliance",
+  "EMR",
+  "EHR",
+  "workflow optimization",
+  "banking",
+  "fintech",
+  "SaaS",
+  "supply chain",
+  "aviation",
+  "manufacturing",
+  "energy",
+  "technical program management",
+  "project management",
+  "strategy",
+  "legal tech",
 ];
 
 const responseSchema = {
@@ -415,6 +510,182 @@ function buildLocalCoaching({
   };
 }
 
+function resumeBullets(text: string) {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-*]\s+/, "").trim())
+    .filter((line) => line.length > 20)
+    .filter((line) =>
+      /\b(led|managed|built|created|supported|developed|coordinated|improved|launched|owned|translated)\b/i.test(
+        line,
+      ),
+    )
+    .slice(0, 8);
+}
+
+function buildLocalAdvancedAnalysis(
+  response: Omit<TailorResponse, "advancedAnalysis">,
+  request: TailorRequest,
+): AdvancedAnalysis {
+  const positioningMode = request.aiSettings?.positioningMode || "Product";
+  const interviewLabel =
+    response.matchScore >= 85 ? "Strong" : response.matchScore >= 70 ? "Moderate" : "Limited";
+  const makeReview = (
+    score: number,
+    strengths: string[],
+    weaknesses: string[],
+    concerns: string[],
+  ): ReviewSimulation => ({
+    score: clampScore(score),
+    strengths,
+    weaknesses,
+    concerns,
+    interviewProbability: interviewLabel,
+  });
+  const bulletImprovements = resumeBullets(response.tailoredResume).map((bullet) => {
+    const base = bullet.replace(/\.$/, "");
+    const hasMetric = /\$?\d[\d,.]*\+?%?/.test(bullet);
+
+    return {
+      original: bullet,
+      strongerVersion: `${base}, clarifying ownership, scope, and outcome with source-backed detail.`,
+      atsOptimizedVersion: `${base}, aligning keywords, tools, and responsibilities to the target job description.`,
+      executiveVersion: `${base}, connecting execution to strategic priorities, stakeholder confidence, and measurable business value.`,
+      conciseVersion: base.length > 120 ? `${base.slice(0, 117)}...` : base,
+      metricFocusedVersion: hasMetric
+        ? bullet
+        : `${base}, adding verified scope, stakeholder count, timeline, or business result where available.`,
+      suggestedMetrics: hasMetric
+        ? ["Existing metric detected; verify accuracy before use."]
+        : [
+            "AI suggestion - verify before use: stakeholder count.",
+            "AI suggestion - verify before use: number of projects, launches, users, or workflows affected.",
+            "AI suggestion - verify before use: time saved, revenue influenced, cost reduced, or quality improved.",
+          ],
+    };
+  });
+
+  return {
+    recruiterSimulation: {
+      atsScreening: makeReview(
+        response.matchBreakdown.atsReadability,
+        ["Plain section structure and role keywords support ATS parsing."],
+        response.missingKeywords.length > 0
+          ? [`Missing or light keywords: ${response.missingKeywords.slice(0, 5).join(", ")}.`]
+          : ["No major ATS keyword gaps detected."],
+        ["Unsupported keywords should not be added without source evidence."],
+      ),
+      recruiterReview: makeReview(
+        response.matchScore,
+        ["Resume has a clear role target and recruiter-readable positioning."],
+        ["Some bullets may need stronger measurable proof."],
+        response.riskFlags,
+      ),
+      hiringManagerReview: makeReview(
+        response.matchBreakdown.seniorityAlignment,
+        ["Experience can be mapped to ownership, delivery, and stakeholder outcomes."],
+        ["Hiring manager may ask for deeper examples of scope and decision-making."],
+        ["Prepare proof stories for the most senior claims."],
+      ),
+    },
+    keyScores: {
+      likelihoodOfInterview: response.matchScore,
+      atsPassProbability: response.matchBreakdown.atsReadability,
+      executiveReadiness: clampScore(
+        (response.matchBreakdown.seniorityAlignment +
+          response.matchBreakdown.metricStrength) /
+          2,
+      ),
+      technicalDepth: response.matchBreakdown.projectRelevance,
+      leadershipStrength: response.matchBreakdown.seniorityAlignment,
+      industryAlignment: response.matchBreakdown.industryFit,
+    },
+    interviewPrep: {
+      whyYouFitThisRole: response.positioningStrategy,
+      likelyQuestions: [
+        "Walk me through the most relevant project for this role.",
+        "Which accomplishment best proves your fit for this position?",
+        "How have you translated ambiguous requirements into execution?",
+      ],
+      behavioralQuestions: [
+        "Tell me about a time you influenced stakeholders without direct authority.",
+        "Describe a project that changed direction and how you handled it.",
+      ],
+      technicalQuestions: [
+        "Which systems, tools, or technical workflows are most relevant here?",
+        "How do you work with engineering or technical teams to make tradeoffs?",
+      ],
+      executiveQuestions: [
+        "How would you prioritize the first 90 days in this role?",
+        "What business outcome would you focus on first?",
+      ],
+      industrySpecificQuestions: [
+        `What makes your experience relevant to ${request.industryTarget || "this industry"}?`,
+        "Which industry risks or constraints would you watch first?",
+      ],
+      potentialRecruiterObjections: response.riskFlags,
+    },
+    gapAnalysis: {
+      missingKeywords: response.missingKeywords,
+      weakExperienceAreas: ["Quantified impact", "Scope clarity", "Role-specific proof stories"],
+      seniorityGaps: ["Make ownership level, decision rights, and stakeholder level explicit."],
+      leadershipGaps: ["Add leadership outcomes only where supported by source material."],
+      technicalGaps: response.missingKeywords.filter((keyword) =>
+        /ai|ml|api|data|analytics|automation|llm|technical/i.test(keyword),
+      ),
+      educationAlignment: ["Education should stay concise and relevant to the target role."],
+      certificationAlignment: [
+        "Add certifications only if already earned or clearly marked as planned.",
+      ],
+      recommendations: [
+        "Prioritize bullets with action, scope, and verified outcome.",
+        "Add missing keywords only where source material supports them.",
+        `Adjust tone toward ${positioningMode.toLowerCase()} positioning.`,
+      ],
+      wordingChanges: [
+        "Replace task language with ownership and outcome language.",
+        "Move role-relevant keywords into the summary and skills sections.",
+      ],
+    },
+    jobDescriptionIntelligence: {
+      requiredSkills: response.recommendedKeywords.slice(0, 6),
+      preferredSkills: response.missingKeywords.slice(0, 6),
+      hiddenPriorities: [
+        "Ability to reduce ambiguity",
+        "Stakeholder trust",
+        "Evidence of execution under constraints",
+      ],
+      likelyHiringGoals: [
+        "Find a candidate who can ramp quickly and show credible impact.",
+      ],
+      leadershipExpectations: [
+        "Clear ownership, prioritization, communication, and delivery judgment.",
+      ],
+      senioritySignals: [
+        "Scope of ownership",
+        "Cross-functional influence",
+        "Decision quality",
+      ],
+      keywordMap: [
+        ...response.recommendedKeywords,
+        ...response.missingKeywords,
+      ].slice(0, 12),
+      alignmentSummary: `The resume is positioned for ${request.industryTarget || "the selected industry"} with a ${response.matchScore}/100 overall match.`,
+      roleStrategy: `Use ${positioningMode.toLowerCase()} positioning while keeping every claim grounded in source material.`,
+    },
+    bulletImprovements,
+    aiSuggestions: [
+      response.missingKeywords.length > 0
+        ? `Add stronger evidence for ${response.missingKeywords.slice(0, 3).join(", ")} if truthful.`
+        : "Keyword coverage is strong; focus on proof depth.",
+      "Add stronger roadmap ownership language where source material supports it.",
+      "Check whether metrics are concentrated in one role and distribute proof across relevant experience.",
+      "Leadership positioning could be stronger if scope and stakeholder level are verified.",
+    ],
+    positioningMode,
+  };
+}
+
 function sourceMaterialText(files: UploadedSourceMaterial[] = []) {
   return files
     .map((file) => file.extractedText?.trim())
@@ -574,8 +845,7 @@ ${candidateName}`;
   };
 
   const coaching = buildLocalCoaching(resultWithoutCoaching);
-
-  return {
+  const resultWithCoaching = {
     ...resultWithoutCoaching,
     coaching: {
       ...coaching,
@@ -584,6 +854,11 @@ ${candidateName}`;
           ? matchedKeywords.slice(0, 5)
           : coaching.topStrengths,
     },
+  };
+
+  return {
+    ...resultWithCoaching,
+    advancedAnalysis: buildLocalAdvancedAnalysis(resultWithCoaching, request),
   };
 }
 
@@ -612,7 +887,7 @@ function normalizeResponse(response: TailorResponse): TailorResponse {
   const fallbackCoaching = buildLocalCoaching(normalizedBase);
   const coaching = response.coaching ?? fallbackCoaching;
 
-  return {
+  const normalizedResponse = {
     ...normalizedBase,
     coaching: {
       overallRecruiterImpression:
@@ -684,6 +959,16 @@ function normalizeResponse(response: TailorResponse): TailorResponse {
         fallbackCoaching.recruiterObjections,
     },
   };
+
+  return {
+    ...normalizedResponse,
+    advancedAnalysis:
+      response.advancedAnalysis ??
+      buildLocalAdvancedAnalysis(normalizedResponse, {
+        industryTarget: "General / ATS",
+        aiSettings: { positioningMode: "Product" },
+      }),
+  };
 }
 
 async function callOpenAI(request: TailorRequest, apiKey: string) {
@@ -702,8 +987,11 @@ async function callOpenAI(request: TailorRequest, apiKey: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-      temperature: 0.25,
+      model: request.aiSettings?.model || process.env.OPENAI_MODEL || "gpt-4o-mini",
+      temperature: Math.max(
+        0,
+        Math.min(1, (request.aiSettings?.creativity ?? 25) / 100),
+      ),
       response_format: {
         type: "json_schema",
         json_schema: {
@@ -729,6 +1017,7 @@ async function callOpenAI(request: TailorRequest, apiKey: string) {
             currentEditedResume: request.currentEditedResume || "",
             jobDescription: request.jobDescription || "",
             uploadedSourceMaterials: sourceMaterials,
+            aiSettings: request.aiSettings,
           }),
         },
       ],

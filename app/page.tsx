@@ -40,6 +40,7 @@ type TailoringResult = {
   recruiterReadability: string;
   industryFit: string;
   coach: CoachData;
+  advancedAnalysis: AdvancedAnalysis;
 };
 
 type MatchBreakdown = {
@@ -86,6 +87,94 @@ type CoachData = {
   recruiterObjections: string[];
 };
 
+type ReviewSimulation = {
+  score: number;
+  strengths: string[];
+  weaknesses: string[];
+  concerns: string[];
+  interviewProbability: string;
+};
+
+type BulletImprovement = {
+  original: string;
+  strongerVersion: string;
+  atsOptimizedVersion: string;
+  executiveVersion: string;
+  conciseVersion: string;
+  metricFocusedVersion: string;
+  suggestedMetrics: string[];
+};
+
+type AdvancedAnalysis = {
+  recruiterSimulation: {
+    atsScreening: ReviewSimulation;
+    recruiterReview: ReviewSimulation;
+    hiringManagerReview: ReviewSimulation;
+  };
+  keyScores: {
+    likelihoodOfInterview: number;
+    atsPassProbability: number;
+    executiveReadiness: number;
+    technicalDepth: number;
+    leadershipStrength: number;
+    industryAlignment: number;
+  };
+  interviewPrep: {
+    whyYouFitThisRole: string;
+    likelyQuestions: string[];
+    behavioralQuestions: string[];
+    technicalQuestions: string[];
+    executiveQuestions: string[];
+    industrySpecificQuestions: string[];
+    potentialRecruiterObjections: string[];
+  };
+  gapAnalysis: {
+    missingKeywords: string[];
+    weakExperienceAreas: string[];
+    seniorityGaps: string[];
+    leadershipGaps: string[];
+    technicalGaps: string[];
+    educationAlignment: string[];
+    certificationAlignment: string[];
+    recommendations: string[];
+    wordingChanges: string[];
+  };
+  jobDescriptionIntelligence: {
+    requiredSkills: string[];
+    preferredSkills: string[];
+    hiddenPriorities: string[];
+    likelyHiringGoals: string[];
+    leadershipExpectations: string[];
+    senioritySignals: string[];
+    keywordMap: string[];
+    alignmentSummary: string;
+    roleStrategy: string;
+  };
+  bulletImprovements: BulletImprovement[];
+  aiSuggestions: string[];
+  positioningMode: PositioningMode;
+};
+
+type PositioningMode =
+  | "Executive"
+  | "Technical"
+  | "Product"
+  | "Academic"
+  | "Consulting"
+  | "Startup"
+  | "Enterprise"
+  | "Research"
+  | "Operations";
+
+type AiSettings = {
+  model: string;
+  creativity: number;
+  atsStrictness: number;
+  toneStyle: string;
+  aggressiveOptimization: boolean;
+  positioningMode: PositioningMode;
+};
+
 type ResumeSection = {
   heading: string;
   body: string[];
@@ -121,6 +210,7 @@ type SavedState = {
   theme: ThemeId;
   result: TailoringResult | null;
   uploadedFiles?: UploadedSourceFile[];
+  aiSettings?: AiSettings;
 };
 
 type SavedResumeVersion = {
@@ -142,6 +232,25 @@ type SavedResumeVersion = {
 
 type IndustryTarget =
   | "AI / Technology"
+  | "SaaS"
+  | "Healthcare IT"
+  | "Health Informatics"
+  | "Finance"
+  | "Fintech"
+  | "Banking"
+  | "Strategy"
+  | "Academia"
+  | "Higher Education"
+  | "Law / Legal Tech"
+  | "Government"
+  | "Operations"
+  | "Supply Chain"
+  | "Aviation"
+  | "Energy"
+  | "Manufacturing"
+  | "Product Management"
+  | "Technical Program Management"
+  | "Project Management"
   | "Academic / Research"
   | "Finance / Fintech"
   | "Real Estate"
@@ -163,6 +272,7 @@ type TailorApiResponse = {
   improvementNotes: string[];
   riskFlags: string[];
   coaching?: CoachData;
+  advancedAnalysis?: AdvancedAnalysis;
 };
 
 const storageKey = "resume-agent-state-v2";
@@ -170,16 +280,54 @@ const versionStorageKey = "iseya_resume_versions";
 const acceptedSourceFileTypes = ".pdf,.docx,.txt,.png,.jpg,.jpeg";
 const industryTargets: IndustryTarget[] = [
   "AI / Technology",
+  "SaaS",
+  "Healthcare IT",
+  "Health Informatics",
+  "Finance",
+  "Fintech",
+  "Banking",
+  "Real Estate",
+  "Consulting",
+  "Strategy",
+  "Academia",
+  "Higher Education",
+  "Law / Legal Tech",
+  "Government",
+  "Operations",
+  "Supply Chain",
+  "Aviation",
+  "Energy",
+  "Manufacturing",
+  "Product Management",
+  "Technical Program Management",
+  "Project Management",
   "Academic / Research",
   "Finance / Fintech",
-  "Real Estate",
   "Healthcare / Health IT",
-  "Consulting",
   "Legal / Policy",
   "Operations / Logistics",
   "Marketing / Growth",
   "General / ATS",
 ];
+const positioningModes: PositioningMode[] = [
+  "Executive",
+  "Technical",
+  "Product",
+  "Academic",
+  "Consulting",
+  "Startup",
+  "Enterprise",
+  "Research",
+  "Operations",
+];
+const defaultAiSettings: AiSettings = {
+  model: "gpt-4o-mini",
+  creativity: 25,
+  atsStrictness: 75,
+  toneStyle: "Executive concise",
+  aggressiveOptimization: false,
+  positioningMode: "Product",
+};
 
 const keywordBank = [
   "AI",
@@ -212,6 +360,26 @@ const keywordBank = [
   "technical",
   "integration",
   "leadership",
+  "research",
+  "publications",
+  "teaching",
+  "methodology",
+  "ROI",
+  "compliance",
+  "EMR",
+  "EHR",
+  "workflow optimization",
+  "banking",
+  "fintech",
+  "SaaS",
+  "supply chain",
+  "aviation",
+  "manufacturing",
+  "energy",
+  "technical program management",
+  "project management",
+  "strategy",
+  "legal tech",
 ];
 
 const sampleResume = `ANU MERCYGOLD JOSHUA
@@ -711,6 +879,396 @@ function safeWeakBullets(value: unknown, fallback: WeakBulletSuggestion[] = []) 
     : fallback;
 }
 
+function clampPercent(value: unknown, fallback: number) {
+  return Math.max(0, Math.min(100, Math.round(safeScore(value, fallback))));
+}
+
+function safeReviewSimulation(
+  value: Partial<ReviewSimulation> | undefined,
+  fallbackScore: number,
+): ReviewSimulation {
+  return {
+    score: clampPercent(value?.score, fallbackScore),
+    strengths: safeStringArray(value?.strengths, [
+      "Relevant experience is visible for this target role.",
+    ]),
+    weaknesses: safeStringArray(value?.weaknesses, [
+      "Add stronger proof points where source material supports them.",
+    ]),
+    concerns: safeStringArray(value?.concerns, [
+      "Recruiter may look for clearer evidence of scope, impact, and role fit.",
+    ]),
+    interviewProbability:
+      value?.interviewProbability ||
+      (fallbackScore >= 85 ? "High" : fallbackScore >= 70 ? "Moderate" : "Low"),
+  };
+}
+
+function bulletsFromResumeText(resumeText: string) {
+  return resumeText
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-*]\s+/, "").trim())
+    .filter((line) => line.length > 20)
+    .filter((line) =>
+      /\b(led|managed|built|created|supported|developed|coordinated|improved|launched|owned|translated)\b/i.test(
+        line,
+      ),
+    )
+    .slice(0, 8);
+}
+
+function buildBulletImprovements(resumeText: string): BulletImprovement[] {
+  return bulletsFromResumeText(resumeText).map((bullet) => {
+    const base = bullet.replace(/\.$/, "");
+    const hasMetric = /\$?\d[\d,.]*\+?%?/.test(bullet);
+    const metricSuffix = hasMetric
+      ? "."
+      : ", adding verified scope, stakeholder count, timeline, or business result where available.";
+
+    return {
+      original: bullet,
+      strongerVersion: `${base}, clarifying ownership, scope, and outcome with source-backed detail.`,
+      atsOptimizedVersion: `${base}, aligning keywords, tools, and responsibilities to the target job description.`,
+      executiveVersion: `${base}, connecting execution to strategic priorities, stakeholder confidence, and measurable business value.`,
+      conciseVersion: base.length > 120 ? `${base.slice(0, 117)}...` : base,
+      metricFocusedVersion: `${base}${metricSuffix}`,
+      suggestedMetrics: hasMetric
+        ? ["Existing metric detected; verify accuracy before use."]
+        : [
+            "AI suggestion - verify before use: number of stakeholders involved.",
+            "AI suggestion - verify before use: number of projects, launches, users, or workflows affected.",
+            "AI suggestion - verify before use: time saved, revenue influenced, cost reduced, or quality improved.",
+          ],
+    };
+  });
+}
+
+function buildAdvancedAnalysis({
+  score,
+  breakdown,
+  missingKeywords,
+  recommendedKeywords,
+  rewrittenResume,
+  summary,
+  industryTarget,
+  positioningMode,
+}: {
+  score: number;
+  breakdown: MatchBreakdown;
+  missingKeywords: string[];
+  recommendedKeywords: string[];
+  rewrittenResume: string;
+  summary: string;
+  industryTarget: IndustryTarget;
+  positioningMode: PositioningMode;
+}): AdvancedAnalysis {
+  const requiredSkills = recommendedKeywords.slice(0, 6);
+  const preferredSkills = missingKeywords.slice(0, 6);
+  const industryName = readableIndustryName(industryTarget);
+
+  return {
+    recruiterSimulation: {
+      atsScreening: safeReviewSimulation(
+        {
+          score: breakdown.atsReadability,
+          strengths: ["Plain section structure and role keywords support ATS parsing."],
+          weaknesses:
+            missingKeywords.length > 0
+              ? [`Missing or light keywords: ${missingKeywords.slice(0, 5).join(", ")}.`]
+              : ["No major ATS keyword gaps detected."],
+          concerns: ["Unsupported keywords should not be added without source evidence."],
+          interviewProbability:
+            breakdown.atsReadability >= 85 ? "Likely to pass ATS" : "Needs ATS tightening",
+        },
+        breakdown.atsReadability,
+      ),
+      recruiterReview: safeReviewSimulation(
+        {
+          score,
+          strengths: ["Resume has a clear role target and recruiter-readable positioning."],
+          weaknesses: ["Some bullets may need stronger measurable proof."],
+          concerns: missingKeywords.slice(0, 3),
+          interviewProbability: score >= 85 ? "Strong" : score >= 70 ? "Moderate" : "Limited",
+        },
+        score,
+      ),
+      hiringManagerReview: safeReviewSimulation(
+        {
+          score: breakdown.seniorityAlignment,
+          strengths: ["Experience can be mapped to ownership, delivery, and stakeholder outcomes."],
+          weaknesses: ["Hiring manager may ask for deeper examples of scope and decision-making."],
+          concerns: ["Prepare proof stories for the most senior claims."],
+          interviewProbability:
+            breakdown.seniorityAlignment >= 85 ? "Strong" : "Moderate with proof points",
+        },
+        breakdown.seniorityAlignment,
+      ),
+    },
+    keyScores: {
+      likelihoodOfInterview: score,
+      atsPassProbability: breakdown.atsReadability,
+      executiveReadiness: Math.round((breakdown.seniorityAlignment + breakdown.metricStrength) / 2),
+      technicalDepth: breakdown.projectRelevance,
+      leadershipStrength: breakdown.seniorityAlignment,
+      industryAlignment: breakdown.industryFit,
+    },
+    interviewPrep: {
+      whyYouFitThisRole: summary,
+      likelyQuestions: [
+        "Walk me through the most relevant project for this role.",
+        "Which accomplishment best proves your fit for this position?",
+        "How have you translated ambiguous requirements into execution?",
+      ],
+      behavioralQuestions: [
+        "Tell me about a time you influenced stakeholders without direct authority.",
+        "Describe a project that changed direction and how you handled it.",
+      ],
+      technicalQuestions: [
+        "Which systems, tools, or technical workflows are most relevant here?",
+        "How do you work with engineering or technical teams to make tradeoffs?",
+      ],
+      executiveQuestions: [
+        "How would you prioritize the first 90 days in this role?",
+        "What business outcome would you focus on first?",
+      ],
+      industrySpecificQuestions: [
+        `What makes your experience relevant to ${industryName}?`,
+        `Which ${industryName} risks or constraints would you watch first?`,
+      ],
+      potentialRecruiterObjections:
+        missingKeywords.length > 0
+          ? [`Potential concern: evidence for ${missingKeywords.slice(0, 4).join(", ")}.`]
+          : ["Potential concern: depth of proof for the strongest claims."],
+    },
+    gapAnalysis: {
+      missingKeywords,
+      weakExperienceAreas: ["Quantified impact", "Scope clarity", "Role-specific proof stories"],
+      seniorityGaps: ["Make ownership level, decision rights, and stakeholder level explicit."],
+      leadershipGaps: ["Add leadership outcomes only where supported by source material."],
+      technicalGaps: missingKeywords.filter((keyword) =>
+        /ai|ml|api|data|analytics|automation|llm|technical/i.test(keyword),
+      ),
+      educationAlignment: ["Education should stay concise and relevant to the target role."],
+      certificationAlignment: [
+        "Add certifications only if already earned or clearly marked as planned.",
+      ],
+      recommendations: [
+        "Prioritize bullets with action, scope, and verified outcome.",
+        "Add missing keywords only where the source resume or uploaded materials support them.",
+        `Adjust tone toward ${positioningMode.toLowerCase()} positioning.`,
+      ],
+      wordingChanges: [
+        "Replace task language with ownership and outcome language.",
+        "Move the most role-relevant keywords into the summary and skills sections.",
+      ],
+    },
+    jobDescriptionIntelligence: {
+      requiredSkills,
+      preferredSkills,
+      hiddenPriorities: [
+        "Ability to reduce ambiguity",
+        "Stakeholder trust",
+        "Evidence of execution under constraints",
+      ],
+      likelyHiringGoals: [
+        "Find a candidate who can ramp quickly and show credible impact.",
+      ],
+      leadershipExpectations: [
+        "Clear ownership, prioritization, communication, and delivery judgment.",
+      ],
+      senioritySignals: [
+        "Scope of ownership",
+        "Cross-functional influence",
+        "Decision quality",
+      ],
+      keywordMap: [...requiredSkills, ...preferredSkills].slice(0, 12),
+      alignmentSummary: `The resume is positioned for ${industryName} with a ${score}/100 overall match.`,
+      roleStrategy: `Use ${positioningMode.toLowerCase()} positioning while keeping every claim grounded in the source material.`,
+    },
+    bulletImprovements: buildBulletImprovements(rewrittenResume),
+    aiSuggestions: [
+      missingKeywords.length > 0
+        ? `Add stronger evidence for ${missingKeywords.slice(0, 3).join(", ")} if truthful.`
+        : "Keyword coverage is strong; focus on proof depth.",
+      "Add stronger roadmap ownership language where source material supports it.",
+      "Check whether metrics are concentrated in one role and distribute proof across relevant experience.",
+      "Leadership positioning could be stronger if scope and stakeholder level are verified.",
+    ],
+    positioningMode,
+  };
+}
+
+function normalizeAdvancedAnalysis(
+  analysis: Partial<AdvancedAnalysis> | undefined | null,
+  fallback: Parameters<typeof buildAdvancedAnalysis>[0],
+): AdvancedAnalysis {
+  const fallbackAnalysis = buildAdvancedAnalysis(fallback);
+  const keyScores = analysis?.keyScores ?? fallbackAnalysis.keyScores;
+  const recruiterSimulation =
+    analysis?.recruiterSimulation ?? fallbackAnalysis.recruiterSimulation;
+  const interviewPrep = analysis?.interviewPrep ?? fallbackAnalysis.interviewPrep;
+  const gapAnalysis = analysis?.gapAnalysis ?? fallbackAnalysis.gapAnalysis;
+  const jobDescriptionIntelligence =
+    analysis?.jobDescriptionIntelligence ??
+    fallbackAnalysis.jobDescriptionIntelligence;
+
+  return {
+    recruiterSimulation: {
+      atsScreening: safeReviewSimulation(
+        recruiterSimulation.atsScreening,
+        fallbackAnalysis.recruiterSimulation.atsScreening.score,
+      ),
+      recruiterReview: safeReviewSimulation(
+        recruiterSimulation.recruiterReview,
+        fallbackAnalysis.recruiterSimulation.recruiterReview.score,
+      ),
+      hiringManagerReview: safeReviewSimulation(
+        recruiterSimulation.hiringManagerReview,
+        fallbackAnalysis.recruiterSimulation.hiringManagerReview.score,
+      ),
+    },
+    keyScores: {
+      likelihoodOfInterview: clampPercent(
+        keyScores.likelihoodOfInterview,
+        fallbackAnalysis.keyScores.likelihoodOfInterview,
+      ),
+      atsPassProbability: clampPercent(
+        keyScores.atsPassProbability,
+        fallbackAnalysis.keyScores.atsPassProbability,
+      ),
+      executiveReadiness: clampPercent(
+        keyScores.executiveReadiness,
+        fallbackAnalysis.keyScores.executiveReadiness,
+      ),
+      technicalDepth: clampPercent(
+        keyScores.technicalDepth,
+        fallbackAnalysis.keyScores.technicalDepth,
+      ),
+      leadershipStrength: clampPercent(
+        keyScores.leadershipStrength,
+        fallbackAnalysis.keyScores.leadershipStrength,
+      ),
+      industryAlignment: clampPercent(
+        keyScores.industryAlignment,
+        fallbackAnalysis.keyScores.industryAlignment,
+      ),
+    },
+    interviewPrep: {
+      whyYouFitThisRole:
+        interviewPrep.whyYouFitThisRole ||
+        fallbackAnalysis.interviewPrep.whyYouFitThisRole,
+      likelyQuestions: safeStringArray(
+        interviewPrep.likelyQuestions,
+        fallbackAnalysis.interviewPrep.likelyQuestions,
+      ),
+      behavioralQuestions: safeStringArray(
+        interviewPrep.behavioralQuestions,
+        fallbackAnalysis.interviewPrep.behavioralQuestions,
+      ),
+      technicalQuestions: safeStringArray(
+        interviewPrep.technicalQuestions,
+        fallbackAnalysis.interviewPrep.technicalQuestions,
+      ),
+      executiveQuestions: safeStringArray(
+        interviewPrep.executiveQuestions,
+        fallbackAnalysis.interviewPrep.executiveQuestions,
+      ),
+      industrySpecificQuestions: safeStringArray(
+        interviewPrep.industrySpecificQuestions,
+        fallbackAnalysis.interviewPrep.industrySpecificQuestions,
+      ),
+      potentialRecruiterObjections: safeStringArray(
+        interviewPrep.potentialRecruiterObjections,
+        fallbackAnalysis.interviewPrep.potentialRecruiterObjections,
+      ),
+    },
+    gapAnalysis: {
+      missingKeywords: safeStringArray(
+        gapAnalysis.missingKeywords,
+        fallbackAnalysis.gapAnalysis.missingKeywords,
+      ),
+      weakExperienceAreas: safeStringArray(
+        gapAnalysis.weakExperienceAreas,
+        fallbackAnalysis.gapAnalysis.weakExperienceAreas,
+      ),
+      seniorityGaps: safeStringArray(
+        gapAnalysis.seniorityGaps,
+        fallbackAnalysis.gapAnalysis.seniorityGaps,
+      ),
+      leadershipGaps: safeStringArray(
+        gapAnalysis.leadershipGaps,
+        fallbackAnalysis.gapAnalysis.leadershipGaps,
+      ),
+      technicalGaps: safeStringArray(
+        gapAnalysis.technicalGaps,
+        fallbackAnalysis.gapAnalysis.technicalGaps,
+      ),
+      educationAlignment: safeStringArray(
+        gapAnalysis.educationAlignment,
+        fallbackAnalysis.gapAnalysis.educationAlignment,
+      ),
+      certificationAlignment: safeStringArray(
+        gapAnalysis.certificationAlignment,
+        fallbackAnalysis.gapAnalysis.certificationAlignment,
+      ),
+      recommendations: safeStringArray(
+        gapAnalysis.recommendations,
+        fallbackAnalysis.gapAnalysis.recommendations,
+      ),
+      wordingChanges: safeStringArray(
+        gapAnalysis.wordingChanges,
+        fallbackAnalysis.gapAnalysis.wordingChanges,
+      ),
+    },
+    jobDescriptionIntelligence: {
+      requiredSkills: safeStringArray(
+        jobDescriptionIntelligence.requiredSkills,
+        fallbackAnalysis.jobDescriptionIntelligence.requiredSkills,
+      ),
+      preferredSkills: safeStringArray(
+        jobDescriptionIntelligence.preferredSkills,
+        fallbackAnalysis.jobDescriptionIntelligence.preferredSkills,
+      ),
+      hiddenPriorities: safeStringArray(
+        jobDescriptionIntelligence.hiddenPriorities,
+        fallbackAnalysis.jobDescriptionIntelligence.hiddenPriorities,
+      ),
+      likelyHiringGoals: safeStringArray(
+        jobDescriptionIntelligence.likelyHiringGoals,
+        fallbackAnalysis.jobDescriptionIntelligence.likelyHiringGoals,
+      ),
+      leadershipExpectations: safeStringArray(
+        jobDescriptionIntelligence.leadershipExpectations,
+        fallbackAnalysis.jobDescriptionIntelligence.leadershipExpectations,
+      ),
+      senioritySignals: safeStringArray(
+        jobDescriptionIntelligence.senioritySignals,
+        fallbackAnalysis.jobDescriptionIntelligence.senioritySignals,
+      ),
+      keywordMap: safeStringArray(
+        jobDescriptionIntelligence.keywordMap,
+        fallbackAnalysis.jobDescriptionIntelligence.keywordMap,
+      ),
+      alignmentSummary:
+        jobDescriptionIntelligence.alignmentSummary ||
+        fallbackAnalysis.jobDescriptionIntelligence.alignmentSummary,
+      roleStrategy:
+        jobDescriptionIntelligence.roleStrategy ||
+        fallbackAnalysis.jobDescriptionIntelligence.roleStrategy,
+    },
+    bulletImprovements:
+      Array.isArray(analysis?.bulletImprovements) &&
+      analysis.bulletImprovements.length > 0
+        ? analysis.bulletImprovements
+        : fallbackAnalysis.bulletImprovements,
+    aiSuggestions: safeStringArray(
+      analysis?.aiSuggestions,
+      fallbackAnalysis.aiSuggestions,
+    ),
+    positioningMode: analysis?.positioningMode || fallbackAnalysis.positioningMode,
+  };
+}
+
 function buildCoachData({
   score,
   breakdown,
@@ -924,7 +1482,11 @@ function detectWeakBullets(resumeText: string): WeakBulletSuggestion[] {
     });
 }
 
-function resultFromApiResponse(response: TailorApiResponse): TailoringResult {
+function resultFromApiResponse(
+  response: TailorApiResponse,
+  activeIndustryTarget: IndustryTarget,
+  positioningMode: PositioningMode,
+): TailoringResult {
   const matchScore = safeScore(response.matchScore, 0);
   const matchBreakdown = safeMatchBreakdown(response.matchBreakdown, matchScore);
   const tailoredResume = response.tailoredResume || "";
@@ -961,6 +1523,16 @@ function resultFromApiResponse(response: TailorApiResponse): TailoringResult {
     rewrittenResume: tailoredResume,
     coverLetter,
   };
+  const advancedFallbackInput = {
+    score: Math.round(matchScore),
+    breakdown: matchBreakdown,
+    missingKeywords,
+    recommendedKeywords,
+    rewrittenResume: tailoredResume,
+    summary: summarySection?.body.join(" ") || positioningStrategy,
+    industryTarget: activeIndustryTarget,
+    positioningMode,
+  };
 
   return {
     score: Math.round(matchScore),
@@ -984,10 +1556,18 @@ function resultFromApiResponse(response: TailorApiResponse): TailoringResult {
     recruiterReadability: `Recruiter readability is supported by role fit at ${Math.round(matchBreakdown.roleFit)}/100 and seniority alignment at ${Math.round(matchBreakdown.seniorityAlignment)}/100.`,
     industryFit: `Industry fit score: ${Math.round(matchBreakdown.industryFit)}/100`,
     coach: normalizeCoachData(response.coaching, fallbackCoachInput),
+    advancedAnalysis: normalizeAdvancedAnalysis(
+      response.advancedAnalysis,
+      advancedFallbackInput,
+    ),
   };
 }
 
-function ensureTailoringResult(result: TailoringResult | null): TailoringResult | null {
+function ensureTailoringResult(
+  result: TailoringResult | null,
+  activeIndustryTarget: IndustryTarget = "General / ATS",
+  positioningMode: PositioningMode = "Product",
+): TailoringResult | null {
   if (!result) {
     return null;
   }
@@ -1008,6 +1588,16 @@ function ensureTailoringResult(result: TailoringResult | null): TailoringResult 
     rewrittenResume: result.rewrittenResume || "",
     coverLetter: result.coverLetter || "",
   });
+  const advancedAnalysis = normalizeAdvancedAnalysis(result.advancedAnalysis, {
+    score,
+    breakdown: matchBreakdown,
+    missingKeywords,
+    recommendedKeywords,
+    rewrittenResume: result.rewrittenResume || "",
+    summary: result.summary || result.positioningStrategy || "",
+    industryTarget: activeIndustryTarget,
+    positioningMode,
+  });
 
   return {
     ...result,
@@ -1018,6 +1608,7 @@ function ensureTailoringResult(result: TailoringResult | null): TailoringResult 
     riskFlags,
     matchBreakdown,
     coach,
+    advancedAnalysis,
   };
 }
 
@@ -1153,6 +1744,16 @@ ${masterResume.trim()}`;
       topStrengths:
         matchedKeywords.length > 0 ? matchedKeywords.slice(0, 5) : coach.topStrengths,
     },
+    advancedAnalysis: buildAdvancedAnalysis({
+      score: scoreResult.score,
+      breakdown: matchBreakdown,
+      missingKeywords,
+      recommendedKeywords: missingKeywords.slice(0, 8),
+      rewrittenResume,
+      summary,
+      industryTarget: "General / ATS",
+      positioningMode: "Product",
+    }),
   };
 }
 
@@ -1267,7 +1868,11 @@ function inferCompanyName(jobDescription: string) {
 }
 
 function normalizeSavedVersion(version: Partial<SavedResumeVersion>) {
-  const result = ensureTailoringResult(version.result ?? null);
+  const result = ensureTailoringResult(
+    version.result ?? null,
+    isIndustryTarget(version.industryTarget) ? version.industryTarget : "General / ATS",
+    version.result?.advancedAnalysis?.positioningMode ?? "Product",
+  );
 
   if (!version.id || !result) {
     return null;
@@ -1906,6 +2511,7 @@ export default function Home() {
     useState<IndustryTarget>("AI / Technology");
   const [template, setTemplate] = useState<TemplateId>("executive-navy");
   const [theme, setTheme] = useState<ThemeId>("deep-navy");
+  const [aiSettings, setAiSettings] = useState<AiSettings>(defaultAiSettings);
   const [result, setResult] = useState<TailoringResult | null>(null);
   const [tailorError, setTailorError] = useState("");
   const [isTailoring, setIsTailoring] = useState(false);
@@ -1944,7 +2550,24 @@ export default function Home() {
               : "executive-navy",
           );
           setTheme(isThemeId(parsed.theme) ? parsed.theme : "deep-navy");
-          setResult(ensureTailoringResult(parsed.result ?? null));
+          setAiSettings({
+            ...defaultAiSettings,
+            ...(parsed.aiSettings ?? {}),
+            positioningMode: positioningModes.includes(
+              parsed.aiSettings?.positioningMode ?? defaultAiSettings.positioningMode,
+            )
+              ? parsed.aiSettings?.positioningMode ?? defaultAiSettings.positioningMode
+              : defaultAiSettings.positioningMode,
+          });
+          setResult(
+            ensureTailoringResult(
+              parsed.result ?? null,
+              isIndustryTarget(parsed.industryTarget)
+                ? parsed.industryTarget
+                : "AI / Technology",
+              parsed.aiSettings?.positioningMode ?? defaultAiSettings.positioningMode,
+            ),
+          );
           setUploadedFiles(parsed.uploadedFiles ?? []);
         }
 
@@ -1987,6 +2610,7 @@ export default function Home() {
       theme,
       result,
       uploadedFiles,
+      aiSettings,
     };
 
     window.localStorage.setItem(storageKey, JSON.stringify(savedState));
@@ -2000,6 +2624,7 @@ export default function Home() {
     template,
     theme,
     uploadedFiles,
+    aiSettings,
   ]);
 
   useEffect(() => {
@@ -2093,7 +2718,13 @@ export default function Home() {
     setIndustryTarget(version.industryTarget);
     setTemplate(version.template);
     setTheme(version.theme);
-    setResult(ensureTailoringResult(version.result));
+    setResult(
+      ensureTailoringResult(
+        version.result,
+        version.industryTarget,
+        version.result.advancedAnalysis?.positioningMode ?? aiSettings.positioningMode,
+      ),
+    );
     setUploadedFiles(version.uploadedFiles);
     setActiveOutput("resume");
     setVersionStatus(`Loaded ${version.name}.`);
@@ -2190,6 +2821,7 @@ export default function Home() {
             extractedText: file.extractedText,
           })),
           currentEditedResume: result?.rewrittenResume,
+          aiSettings,
         }),
       });
 
@@ -2198,7 +2830,9 @@ export default function Home() {
       }
 
       const data = (await response.json()) as TailorApiResponse;
-      setResult(resultFromApiResponse(data));
+      setResult(
+        resultFromApiResponse(data, industryTarget, aiSettings.positioningMode),
+      );
     } catch {
       setTailorError(
         "AI tailoring could not complete, so I used the local resume generator fallback.",
@@ -2335,6 +2969,32 @@ export default function Home() {
             (bullet) => bullet.original !== original,
           ),
         },
+      };
+    });
+  }
+
+  function replaceBulletWithVersion(original: string, replacement: string) {
+    setResult((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const escapedOriginal = original.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const bulletPattern = new RegExp(`(^|\\n)([-*]\\s*)?${escapedOriginal}`, "m");
+      const rewrittenResume = bulletPattern.test(current.rewrittenResume)
+        ? current.rewrittenResume.replace(
+            bulletPattern,
+            (_match, prefix: string, bulletMarker: string | undefined) =>
+              `${prefix}${bulletMarker ?? ""}${replacement}`,
+          )
+        : current.rewrittenResume;
+
+      return {
+        ...current,
+        rewrittenResume,
+        bullets: current.bullets.map((bullet) =>
+          bullet === original ? replacement : bullet,
+        ),
       };
     });
   }
@@ -2707,6 +3367,117 @@ export default function Home() {
           </div>
 
           <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+            <details>
+              <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+                AI Model Settings
+              </summary>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label className="text-sm font-semibold text-zinc-900">
+                  Model
+                  <select
+                    value={aiSettings.model}
+                    onChange={(event) =>
+                      setAiSettings((current) => ({
+                        ...current,
+                        model: event.target.value,
+                      }))
+                    }
+                    className="mt-2 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                  >
+                    <option value="gpt-4o-mini">gpt-4o-mini</option>
+                    <option value="gpt-4o">gpt-4o</option>
+                    <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+                  </select>
+                </label>
+                <label className="text-sm font-semibold text-zinc-900">
+                  Positioning Mode
+                  <select
+                    value={aiSettings.positioningMode}
+                    onChange={(event) =>
+                      setAiSettings((current) => ({
+                        ...current,
+                        positioningMode: event.target.value as PositioningMode,
+                      }))
+                    }
+                    className="mt-2 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                  >
+                    {positioningModes.map((mode) => (
+                      <option key={mode} value={mode}>
+                        {mode}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-semibold text-zinc-900">
+                  Creativity: {aiSettings.creativity}
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={aiSettings.creativity}
+                    onChange={(event) =>
+                      setAiSettings((current) => ({
+                        ...current,
+                        creativity: Number(event.target.value),
+                      }))
+                    }
+                    className="mt-2 w-full"
+                  />
+                </label>
+                <label className="text-sm font-semibold text-zinc-900">
+                  ATS Strictness: {aiSettings.atsStrictness}
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={aiSettings.atsStrictness}
+                    onChange={(event) =>
+                      setAiSettings((current) => ({
+                        ...current,
+                        atsStrictness: Number(event.target.value),
+                      }))
+                    }
+                    className="mt-2 w-full"
+                  />
+                </label>
+                <label className="text-sm font-semibold text-zinc-900">
+                  Tone Style
+                  <select
+                    value={aiSettings.toneStyle}
+                    onChange={(event) =>
+                      setAiSettings((current) => ({
+                        ...current,
+                        toneStyle: event.target.value,
+                      }))
+                    }
+                    className="mt-2 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                  >
+                    <option value="Executive concise">Executive concise</option>
+                    <option value="Technical precise">Technical precise</option>
+                    <option value="Consulting polished">Consulting polished</option>
+                    <option value="Academic evidence-based">
+                      Academic evidence-based
+                    </option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-3 text-sm font-semibold text-zinc-900">
+                  <input
+                    type="checkbox"
+                    checked={aiSettings.aggressiveOptimization}
+                    onChange={(event) =>
+                      setAiSettings((current) => ({
+                        ...current,
+                        aggressiveOptimization: event.target.checked,
+                      }))
+                    }
+                  />
+                  Aggressive optimization
+                </label>
+              </div>
+            </details>
+          </section>
+
+          <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
             <details open>
               <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
                 Saved Resume Versions
@@ -3000,6 +3771,10 @@ export default function Home() {
             <AIResumeCoach
               result={result}
               onRewriteBullet={rewriteSuggestedBullet}
+            />
+            <AdvancedIntelligencePanel
+              analysis={result.advancedAnalysis}
+              onReplaceBullet={replaceBulletWithVersion}
             />
           </aside>
 
@@ -3467,6 +4242,272 @@ function CoachBlock({
         </p>
       )}
     </section>
+  );
+}
+
+function AdvancedIntelligencePanel({
+  analysis,
+  onReplaceBullet,
+}: {
+  analysis: AdvancedAnalysis;
+  onReplaceBullet: (original: string, replacement: string) => void;
+}) {
+  const keyScores = [
+    ["Likelihood of Interview", analysis.keyScores.likelihoodOfInterview],
+    ["ATS Pass Probability", analysis.keyScores.atsPassProbability],
+    ["Executive Readiness", analysis.keyScores.executiveReadiness],
+    ["Technical Depth", analysis.keyScores.technicalDepth],
+    ["Leadership Strength", analysis.keyScores.leadershipStrength],
+    ["Industry Alignment", analysis.keyScores.industryAlignment],
+  ] as const;
+  const simulations = [
+    ["ATS Screening", analysis.recruiterSimulation.atsScreening],
+    ["Recruiter Review", analysis.recruiterSimulation.recruiterReview],
+    ["Hiring Manager Review", analysis.recruiterSimulation.hiringManagerReview],
+  ] as const;
+
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+      <h2 className="text-sm font-semibold text-zinc-900">
+        Recruiter Simulation
+      </h2>
+      <div className="mt-4 space-y-4">
+        <section className="space-y-2">
+          {keyScores.map(([label, score]) => (
+            <ScoreBar key={label} label={label} score={score} />
+          ))}
+        </section>
+
+        <details open className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+            Review Simulation
+          </summary>
+          <div className="mt-3 space-y-3">
+            {simulations.map(([title, review]) => (
+              <div key={title} className="rounded-md border border-zinc-200 bg-white p-3">
+                <ScoreBar label={title} score={review.score} />
+                <CoachBlock title="Strengths" items={review.strengths} />
+                <CoachBlock title="Weaknesses" items={review.weaknesses} />
+                <CoachBlock title="Likely Concerns" items={review.concerns} />
+                <CoachBlock
+                  title="Interview Probability"
+                  items={[review.interviewProbability]}
+                />
+              </div>
+            ))}
+          </div>
+        </details>
+
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+            AI Interview Prep
+          </summary>
+          <div className="mt-3 space-y-4">
+            <CoachBlock
+              title="Why You Fit This Role"
+              items={[analysis.interviewPrep.whyYouFitThisRole]}
+            />
+            <CoachBlock title="Likely Questions" items={analysis.interviewPrep.likelyQuestions} />
+            <CoachBlock
+              title="Behavioral Questions"
+              items={analysis.interviewPrep.behavioralQuestions}
+            />
+            <CoachBlock
+              title="Technical Questions"
+              items={analysis.interviewPrep.technicalQuestions}
+            />
+            <CoachBlock
+              title="Executive Questions"
+              items={analysis.interviewPrep.executiveQuestions}
+            />
+            <CoachBlock
+              title="Industry-Specific Questions"
+              items={analysis.interviewPrep.industrySpecificQuestions}
+            />
+            <CoachBlock
+              title="Potential Recruiter Objections"
+              items={analysis.interviewPrep.potentialRecruiterObjections}
+            />
+          </div>
+        </details>
+
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+            Gap Analysis
+          </summary>
+          <div className="mt-3 space-y-4">
+            <CoachBlock title="Missing Keywords" items={analysis.gapAnalysis.missingKeywords} />
+            <CoachBlock
+              title="Weak Experience Areas"
+              items={analysis.gapAnalysis.weakExperienceAreas}
+            />
+            <CoachBlock title="Seniority Gaps" items={analysis.gapAnalysis.seniorityGaps} />
+            <CoachBlock title="Leadership Gaps" items={analysis.gapAnalysis.leadershipGaps} />
+            <CoachBlock title="Technical Gaps" items={analysis.gapAnalysis.technicalGaps} />
+            <CoachBlock
+              title="Education Alignment"
+              items={analysis.gapAnalysis.educationAlignment}
+            />
+            <CoachBlock
+              title="Certification Alignment"
+              items={analysis.gapAnalysis.certificationAlignment}
+            />
+            <CoachBlock title="Recommendations" items={analysis.gapAnalysis.recommendations} />
+            <CoachBlock title="Wording Changes" items={analysis.gapAnalysis.wordingChanges} />
+          </div>
+        </details>
+
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+            Job Description Intelligence
+          </summary>
+          <div className="mt-3 space-y-4">
+            <CoachBlock
+              title="Required Skills"
+              items={analysis.jobDescriptionIntelligence.requiredSkills}
+            />
+            <CoachBlock
+              title="Preferred Skills"
+              items={analysis.jobDescriptionIntelligence.preferredSkills}
+            />
+            <CoachBlock
+              title="Hidden Priorities"
+              items={analysis.jobDescriptionIntelligence.hiddenPriorities}
+            />
+            <CoachBlock
+              title="Likely Hiring Goals"
+              items={analysis.jobDescriptionIntelligence.likelyHiringGoals}
+            />
+            <CoachBlock
+              title="Leadership Expectations"
+              items={analysis.jobDescriptionIntelligence.leadershipExpectations}
+            />
+            <CoachBlock
+              title="Seniority Signals"
+              items={analysis.jobDescriptionIntelligence.senioritySignals}
+            />
+            <CoachBlock
+              title="Keyword Map"
+              items={analysis.jobDescriptionIntelligence.keywordMap}
+            />
+            <CoachBlock
+              title="Role Strategy"
+              items={[
+                analysis.jobDescriptionIntelligence.alignmentSummary,
+                analysis.jobDescriptionIntelligence.roleStrategy,
+              ]}
+            />
+          </div>
+        </details>
+
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+            AI Bullet Improvement Engine
+          </summary>
+          <div className="mt-3 space-y-3">
+            {analysis.bulletImprovements.length > 0 ? (
+              analysis.bulletImprovements.map((bullet) => (
+                <div key={bullet.original} className="rounded-md border border-zinc-200 bg-white p-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
+                    Improve Bullet
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-600">
+                    Current: {bullet.original}
+                  </p>
+                  <BulletVariantButton
+                    label="Stronger"
+                    value={bullet.strongerVersion}
+                    original={bullet.original}
+                    onReplaceBullet={onReplaceBullet}
+                  />
+                  <BulletVariantButton
+                    label="ATS Optimized"
+                    value={bullet.atsOptimizedVersion}
+                    original={bullet.original}
+                    onReplaceBullet={onReplaceBullet}
+                  />
+                  <BulletVariantButton
+                    label="Executive"
+                    value={bullet.executiveVersion}
+                    original={bullet.original}
+                    onReplaceBullet={onReplaceBullet}
+                  />
+                  <BulletVariantButton
+                    label="Concise"
+                    value={bullet.conciseVersion}
+                    original={bullet.original}
+                    onReplaceBullet={onReplaceBullet}
+                  />
+                  <BulletVariantButton
+                    label="Metric-Focused"
+                    value={bullet.metricFocusedVersion}
+                    original={bullet.original}
+                    onReplaceBullet={onReplaceBullet}
+                  />
+                  <CoachBlock title="Suggested Metrics" items={bullet.suggestedMetrics} />
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-zinc-500">No experience bullets detected yet.</p>
+            )}
+          </div>
+        </details>
+
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+            AI Suggestions
+          </summary>
+          <CoachBlock title="Smart Suggestions" items={analysis.aiSuggestions} />
+        </details>
+      </div>
+    </div>
+  );
+}
+
+function ScoreBar({ label, score }: { label: string; score: number }) {
+  const safeScoreValue = clampPercent(score, 0);
+
+  return (
+    <div className="rounded-md border border-zinc-200 bg-white p-3">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="font-medium text-zinc-700">{label}</span>
+        <span className="font-semibold text-zinc-950">{safeScoreValue}/100</span>
+      </div>
+      <div className="mt-2 h-2 rounded-full bg-zinc-200">
+        <div
+          className="h-2 rounded-full bg-teal-700"
+          style={{ width: `${safeScoreValue}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function BulletVariantButton({
+  label,
+  value,
+  original,
+  onReplaceBullet,
+}: {
+  label: string;
+  value: string;
+  original: string;
+  onReplaceBullet: (original: string, replacement: string) => void;
+}) {
+  return (
+    <div className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 p-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+        {label}
+      </p>
+      <p className="mt-2 text-sm leading-6 text-zinc-800">{value}</p>
+      <button
+        type="button"
+        onClick={() => onReplaceBullet(original, value)}
+        className="mt-3 inline-flex min-h-8 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-100"
+      >
+        Replace Bullet
+      </button>
+    </div>
   );
 }
 
