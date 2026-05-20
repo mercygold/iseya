@@ -8,9 +8,9 @@ const focusRingClass =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2";
 const buttonBaseClass =
   `inline-flex items-center justify-center rounded-md font-semibold transition duration-150 ease-out hover:shadow-md active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 ${focusRingClass}`;
-const buttonSizeSmClass = "min-h-8 px-3 py-1.5 text-xs";
+const buttonSizeSmClass = "min-h-9 px-3 py-2 text-xs";
 const buttonSizeMdClass = "min-h-10 px-4 py-2 text-sm";
-const primaryButtonClass = `${buttonBaseClass} border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] text-white hover:border-[var(--iseya-gold)] hover:bg-[#001B4F]`;
+const primaryButtonClass = `${buttonBaseClass} border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]`;
 const secondaryButtonClass = `${buttonBaseClass} border border-[var(--iseya-border)] bg-[var(--iseya-white)] text-[var(--iseya-navy)] hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]`;
 const dangerButtonClass = `${buttonBaseClass} border border-red-200 bg-white text-red-700 hover:border-red-300 hover:bg-red-50`;
 const menuItemClass =
@@ -4798,9 +4798,9 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <section className="iseya-header">
-        <div className="mx-auto flex max-w-[112rem] flex-col gap-5 px-5 py-6 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="flex items-center">
+        <div className="mx-auto flex max-w-[112rem] flex-col gap-5 px-5 py-5 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 max-w-5xl">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               {logoFailed ? (
                 <span className="text-3xl font-bold tracking-[0.14em] text-[var(--iseya-white)] sm:text-4xl">
                   ISEYA
@@ -4816,10 +4816,12 @@ export default function Home() {
                   onError={() => setLogoFailed(true)}
                 />
               )}
+              <p className="border-l-0 border-[var(--iseya-gold)] text-sm font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)] sm:border-l sm:pl-4 sm:text-base">
+                Beyond Resume. Positioning.
+              </p>
             </div>
-            <p className="mt-3 max-w-2xl text-base leading-7 text-white/85">
-              Iseya helps you tailor resumes, cover letters, LinkedIn profiles,
-              and career application materials.
+            <p className="mt-3 max-w-none text-base leading-7 text-white/85 lg:whitespace-nowrap">
+              Iseya helps you tailor resumes, cover letters, LinkedIn profiles, and career application materials.
             </p>
           </div>
           <div className="flex max-w-2xl flex-col gap-3 lg:items-end">
@@ -5584,7 +5586,7 @@ export default function Home() {
                     }
                     className={`${buttonBaseClass} ${buttonSizeMdClass} ${
                       activeOutput === id
-                        ? "border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] text-white hover:border-[var(--iseya-gold)] hover:bg-[#001B4F]"
+                        ? "border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]"
                         : "border border-[var(--iseya-border)] bg-[var(--iseya-white)] text-[var(--iseya-navy)] hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]"
                     }`}
                   >
@@ -6591,7 +6593,7 @@ function ModularResumeEditor({
 	                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
 	                  Experience {entryIndex + 1}
 	                </p>
-	                <div className="flex flex-wrap gap-2">
+	                <div className="flex flex-wrap gap-2 sm:flex-nowrap">
 	                  <details className="relative">
 	                    <summary className={`${primaryButtonClass} ${buttonSizeSmClass} cursor-pointer list-none`}>
 	                      {optimizingKey.startsWith(`experience-${entryIndex}-`) ? "Optimizing..." : "Optimize"}
@@ -6795,8 +6797,8 @@ function ModularSection({
               Autosaved
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <span className="inline-flex min-h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
+          <div className="flex flex-wrap justify-end gap-2 sm:flex-nowrap">
+            <span className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
               Edit
             </span>
             {onOptimize ? (
