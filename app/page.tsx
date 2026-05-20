@@ -67,6 +67,8 @@ type ApplicationKit = {
   tellMeAboutYourself: string;
 };
 
+type OutputTab = "resume" | "cover" | "linkedin" | "application" | "preview";
+
 type MatchBreakdown = {
   roleFit: number;
   industryFit: number;
@@ -1996,10 +1998,11 @@ ${masterResume.trim()}`;
 
 function parseResumePreview(resumeText: string) {
   const lines = resumeText.split(/\r?\n/);
-  const name = lines[0]?.trim() || "Candidate Name";
-  const title = lines[1]?.trim() || "Target Role";
+  const name = lines[0]?.trim() || "";
+  const title = lines[1]?.trim() || "";
   const sections: ResumeSection[] = [];
   let currentSection: ResumeSection | null = null;
+  const contact = extractContactInfoFromText(resumeText);
 
   for (const rawLine of lines.slice(2)) {
     const line = rawLine.trim();
@@ -2009,6 +2012,11 @@ function parseResumePreview(resumeText: string) {
     }
 
     const cleanedLine = line.replace(/^#{1,6}\s*/, "").replace(/^\*+\s*/, "");
+
+    if (isLikelyContactLine(cleanedLine, contact)) {
+      continue;
+    }
+
     const isHeading =
       cleanedLine === cleanedLine.toUpperCase() &&
       /^[A-Z0-9 &/+-]+$/.test(cleanedLine) &&
@@ -2041,6 +2049,62 @@ function parseResumePreview(resumeText: string) {
   }
 
   return { name, title, sections };
+}
+
+function extractContactInfoFromText(resumeText: string) {
+  const email = resumeText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+  const phone = resumeText.match(
+    /(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/,
+  )?.[0];
+  const linkedIn = resumeText.match(
+    /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/[^\s,)]+/i,
+  )?.[0];
+  const urls = resumeText.match(/(?:https?:\/\/|www\.)[^\s,)]+/gi) ?? [];
+  const website = urls.find((url) => !/linkedin\.com/i.test(url));
+  const lines = resumeText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  const labeledLocation = lines
+    .find((line) => /^location\s*:/i.test(line))
+    ?.replace(/^location\s*:/i, "")
+    .trim();
+  const location =
+    labeledLocation ||
+    lines.find(
+      (line) =>
+        !line.includes("@") &&
+        !/(?:https?:\/\/|www\.|linkedin\.com)/i.test(line) &&
+        !phoneRegex().test(line) &&
+        /^[A-Za-z .'-]+,\s*[A-Z]{2}(?:\s+\d{5})?$/.test(line),
+    );
+
+  return {
+    email,
+    phone,
+    linkedIn,
+    website,
+    location,
+  };
+}
+
+function phoneRegex() {
+  return /(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/;
+}
+
+function isLikelyContactLine(
+  line: string,
+  contact: ReturnType<typeof extractContactInfoFromText>,
+) {
+  return Boolean(
+    (contact.email && line.includes(contact.email)) ||
+      (contact.phone && line.includes(contact.phone)) ||
+      (contact.linkedIn && line.includes(contact.linkedIn)) ||
+      (contact.website && line.includes(contact.website)) ||
+      (contact.location && line === contact.location) ||
+      /^location\s*:/i.test(line),
+  );
 }
 
 function fileNameForRole(targetRole: string, extension: "pdf" | "docx") {
@@ -2275,6 +2339,14 @@ async function createResumePdfBlob(
   const ReactPdf = await import("@react-pdf/renderer");
   const { Document, Page, StyleSheet, Text, View, pdf } = ReactPdf;
   const resume = parseResumePreview(resumeText);
+  const contact = extractContactInfo(resumeText);
+  const contactLines = [
+    contact.email,
+    contact.phone,
+    contact.linkedIn,
+    contact.website,
+    contact.location,
+  ].filter(Boolean);
   const isAts = template === "ats-clean";
   const hasHeaderBand =
     template === "executive-navy" || template === "bold-leadership";
@@ -2306,6 +2378,11 @@ async function createResumePdfBlob(
       color: hasHeaderBand ? "#e5e7eb" : theme.accentHex,
       fontSize: 10,
       fontWeight: 600,
+    },
+    contact: {
+      color: hasHeaderBand ? "#e5e7eb" : theme.textHex,
+      fontSize: 8.5,
+      marginTop: 5,
     },
     section: {
       borderLeftColor: isModern ? theme.accentHex : "#ffffff",
@@ -2342,8 +2419,11 @@ async function createResumePdfBlob(
       createElement(
         View,
         { style: styles.header },
-        createElement(Text, { style: styles.name }, resume.name),
-        createElement(Text, { style: styles.title }, resume.title),
+        resume.name ? createElement(Text, { style: styles.name }, resume.name) : null,
+        resume.title ? createElement(Text, { style: styles.title }, resume.title) : null,
+        contactLines.length > 0
+          ? createElement(Text, { style: styles.contact }, contactLines.join(" | "))
+          : null,
       ),
       ...resume.sections.map((section, sectionIndex) =>
         createElement(
@@ -2387,6 +2467,14 @@ async function createResumeDocxBlob(
     TextRun,
   } = Docx;
   const resume = parseResumePreview(resumeText);
+  const contact = extractContactInfo(resumeText);
+  const contactLines = [
+    contact.email,
+    contact.phone,
+    contact.linkedIn,
+    contact.website,
+    contact.location,
+  ].filter(Boolean);
   const hasHeaderBand =
     template === "executive-navy" || template === "bold-leadership";
   const isModern =
@@ -2435,6 +2523,21 @@ async function createResumeDocxBlob(
       ],
     }),
   ];
+
+  if (contactLines.length > 0) {
+    children.push(
+      new Paragraph({
+        spacing: { after: 220 },
+        children: [
+          new TextRun({
+            text: contactLines.join(" | "),
+            color: hasHeaderBand ? "FFFFFF" : textColor,
+            size: 18,
+          }),
+        ],
+      }),
+    );
+  }
 
   for (const section of resume.sections) {
     children.push(
@@ -2493,20 +2596,12 @@ async function createResumeDocxBlob(
 
 function extractContactInfo(resumeText: string) {
   const resume = parseResumePreview(resumeText);
-  const email = resumeText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
-  const phone = resumeText.match(
-    /(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/,
-  )?.[0];
-  const linkedIn = resumeText.match(
-    /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/[^\s,)]+/i,
-  )?.[0];
+  const contact = extractContactInfoFromText(resumeText);
 
   return {
     name: resume.name,
     title: resume.title,
-    email,
-    phone,
-    linkedIn,
+    ...contact,
   };
 }
 
@@ -2932,9 +3027,7 @@ export default function Home() {
   const [systemStatus, setSystemStatus] = useState("");
   const [usageStats, setUsageStats] = useState<UsageStats>(defaultUsageStats);
   const [coverCopyStatus, setCoverCopyStatus] = useState("Copy Cover Letter");
-  const [activeOutput, setActiveOutput] = useState<
-    "resume" | "cover" | "linkedin" | "application"
-  >("resume");
+  const [activeOutput, setActiveOutput] = useState<OutputTab>("resume");
   const [hydrated, setHydrated] = useState(false);
   const skipNextSave = useRef(false);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -4430,14 +4523,13 @@ export default function Home() {
                   ["cover", "Cover Letter"],
                   ["linkedin", "LinkedIn"],
                   ["application", "Application Kit"],
+                  ["preview", "Preview"],
                 ].map(([id, label]) => (
                   <button
                     key={id}
                     type="button"
                     onClick={() =>
-                      setActiveOutput(
-                        id as "resume" | "cover" | "linkedin" | "application",
-                      )
+                      setActiveOutput(id as OutputTab)
                     }
                     className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition ${
                       activeOutput === id
@@ -4448,12 +4540,6 @@ export default function Home() {
                     {label}
                   </button>
                 ))}
-                <a
-                  href="#resume-preview"
-                  className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  Preview
-                </a>
                 <button
                   type="button"
                   onClick={() => setActiveOutput("resume")}
@@ -4677,6 +4763,17 @@ export default function Home() {
                       <EditableField label="Recruiter Keyword List" value={result.linkedin.recruiterKeywords.join(", ")} onChange={(value) => updateLinkedIn("recruiterKeywords", value.split(",").map((item) => item.trim()).filter(Boolean))} />
                       <EditableField label="Short Networking Message" value={result.linkedin.networkingMessage} onChange={(value) => updateLinkedIn("networkingMessage", value)} />
                       <EditableField label="Recruiter Outreach Message" value={result.linkedin.recruiterOutreachMessage} onChange={(value) => updateLinkedIn("recruiterOutreachMessage", value)} />
+                    </div>
+                  </DocumentFrame>
+                ) : activeOutput === "preview" ? (
+                  <DocumentFrame title="Resume Preview" subtitle="Download layout">
+                    <div className="rounded-2xl bg-slate-200/70 px-3 py-6 sm:px-6 lg:px-10">
+                      <ResumePreview
+                        resumeText={result.rewrittenResume}
+                        theme={previewTheme}
+                        template={template}
+                        fullPage
+                      />
                     </div>
                   </DocumentFrame>
                 ) : (
@@ -5251,41 +5348,79 @@ function ResumePreview({
   resumeText,
   theme,
   template,
+  fullPage = false,
 }: {
   resumeText: string;
   theme: (typeof previewThemes)[ThemeId];
   template: TemplateId;
+  fullPage?: boolean;
 }) {
   const resume = parseResumePreview(resumeText);
+  const contact = extractContactInfo(resumeText);
+  const contactItems = [
+    contact.email,
+    contact.phone,
+    contact.linkedIn,
+    contact.website,
+    contact.location,
+  ].filter(Boolean);
   const isExecutive = template === "executive-navy";
   const isModern = template === "modern-product";
   const bodyClass =
     template === "ats-clean"
-      ? "space-y-5 p-6"
+      ? fullPage
+        ? "space-y-4 px-10 py-8"
+        : "space-y-5 p-6"
       : isModern
-        ? "space-y-6 p-7"
-        : "space-y-6 p-7";
+        ? fullPage
+          ? "space-y-5 px-11 py-9"
+          : "space-y-6 p-7"
+        : fullPage
+          ? "space-y-5 px-11 py-9"
+          : "space-y-6 p-7";
   const headerClass = isExecutive
-    ? `border-b border-zinc-200 px-7 py-6 ${theme.headerBg} ${theme.headerText}`
+    ? `border-b border-zinc-200 ${fullPage ? "px-11 py-8" : "px-7 py-6"} ${theme.headerBg} ${theme.headerText}`
     : isModern
-      ? `border-b border-zinc-200 border-l-4 bg-white px-6 py-5 text-zinc-950 ${theme.accentBorder}`
-      : "border-b border-zinc-200 bg-white px-6 py-4 text-zinc-950";
+      ? `border-b border-zinc-200 border-l-4 bg-white ${fullPage ? "px-10 py-7" : "px-6 py-5"} text-zinc-950 ${theme.accentBorder}`
+      : `border-b border-zinc-200 bg-white ${fullPage ? "px-10 py-7" : "px-6 py-4"} text-zinc-950`;
   const subtitleClass = isExecutive
     ? `mt-1 text-sm font-medium ${theme.subheadText}`
     : "mt-1 text-sm font-medium text-zinc-500";
 
   return (
-    <article className="rounded-xl border border-slate-200 bg-white text-zinc-850 shadow-sm">
+    <article
+      className={`mx-auto rounded-xl border border-slate-200 bg-white text-zinc-850 shadow-sm ${
+        fullPage
+          ? "min-h-[11in] w-full max-w-[8.5in] overflow-hidden print:shadow-none"
+          : ""
+      }`}
+    >
       <header className={headerClass}>
-        <h4 className="text-2xl font-semibold tracking-tight">{resume.name}</h4>
-        <p className={subtitleClass}>{resume.title}</p>
+        {resume.name ? (
+          <h4 className="text-2xl font-semibold tracking-tight">{resume.name}</h4>
+        ) : null}
+        {resume.title ? <p className={subtitleClass}>{resume.title}</p> : null}
+        {contactItems.length > 0 ? (
+          <p
+            className={`mt-3 text-xs leading-5 ${
+              isExecutive ? theme.subheadText : "text-zinc-600"
+            }`}
+          >
+            {contactItems.map((item, itemIndex) => (
+              <span key={`${item}-${itemIndex}`}>
+                {item}
+                {itemIndex < contactItems.length - 1 ? " | " : ""}
+              </span>
+            ))}
+          </p>
+        ) : null}
       </header>
 
       <div className={bodyClass}>
         {resume.sections.map((section, sectionIndex) => (
           <section
             key={`${section.heading}-${sectionIndex}`}
-            className={isModern ? "border-l-2 border-zinc-100 pl-4" : undefined}
+            className={`${isModern ? "border-l-2 border-zinc-100 pl-4" : ""} break-inside-avoid`}
           >
             <h5
               className={`border-b pb-2 text-xs font-bold uppercase tracking-[0.16em] ${theme.accentText} ${theme.accentBorder}`}
