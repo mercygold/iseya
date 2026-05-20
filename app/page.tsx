@@ -123,6 +123,23 @@ type SavedState = {
   uploadedFiles?: UploadedSourceFile[];
 };
 
+type SavedResumeVersion = {
+  id: string;
+  name: string;
+  targetRole: string;
+  industryTarget: IndustryTarget;
+  companyName: string;
+  template: TemplateId;
+  theme: ThemeId;
+  createdAt: string;
+  updatedAt: string;
+  matchScore: number;
+  masterResume: string;
+  jobDescription: string;
+  result: TailoringResult;
+  uploadedFiles: UploadedSourceFile[];
+};
+
 type IndustryTarget =
   | "AI / Technology"
   | "Academic / Research"
@@ -149,6 +166,7 @@ type TailorApiResponse = {
 };
 
 const storageKey = "resume-agent-state-v2";
+const versionStorageKey = "iseya_resume_versions";
 const acceptedSourceFileTypes = ".pdf,.docx,.txt,.png,.jpg,.jpeg";
 const industryTargets: IndustryTarget[] = [
   "AI / Technology",
@@ -1203,6 +1221,88 @@ function coverLetterFileName(targetRole: string, extension: "pdf" | "docx") {
   return `${roleSlug}-cover-letter.${extension}`;
 }
 
+function versionId() {
+  return `version-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function formatVersionDate(value: string | Date = new Date()) {
+  const date = typeof value === "string" ? new Date(value) : value;
+
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function readableIndustryName(industry: IndustryTarget) {
+  return industry
+    .replace(" / ", " ")
+    .replace("General ATS", "General ATS")
+    .replace("Healthcare Health IT", "Healthcare IT")
+    .replace("Finance Fintech", "Fintech");
+}
+
+function defaultVersionName(targetRole: string, industry: IndustryTarget) {
+  const role = targetRole.trim() || "Tailored Resume";
+  return `${role} — ${readableIndustryName(industry)} — ${formatVersionDate()}`;
+}
+
+function inferCompanyName(jobDescription: string) {
+  const companyPatterns = [
+    /\bat\s+([A-Z][A-Za-z0-9&.,' -]{2,60})/i,
+    /\bjoin\s+([A-Z][A-Za-z0-9&.,' -]{2,60})/i,
+    /\bcompany:\s*([^\n]+)/i,
+    /\bemployer:\s*([^\n]+)/i,
+  ];
+
+  for (const pattern of companyPatterns) {
+    const match = jobDescription.match(pattern)?.[1]?.trim();
+
+    if (match) {
+      return match.replace(/[.。]\s*$/, "").slice(0, 80);
+    }
+  }
+
+  return "";
+}
+
+function normalizeSavedVersion(version: Partial<SavedResumeVersion>) {
+  const result = ensureTailoringResult(version.result ?? null);
+
+  if (!version.id || !result) {
+    return null;
+  }
+
+  const targetRole = version.targetRole || "Target Role";
+  const industryTarget = isIndustryTarget(version.industryTarget)
+    ? version.industryTarget
+    : "General / ATS";
+  const template = isTemplateId(version.template)
+    ? version.template
+    : "executive-navy";
+  const theme = isThemeId(version.theme) ? version.theme : "deep-navy";
+  const now = new Date().toISOString();
+
+  return {
+    id: version.id,
+    name: version.name || defaultVersionName(targetRole, industryTarget),
+    targetRole,
+    industryTarget,
+    companyName: version.companyName || "",
+    template,
+    theme,
+    createdAt: version.createdAt || now,
+    updatedAt: version.updatedAt || version.createdAt || now,
+    matchScore: safeScore(version.matchScore, result.score),
+    masterResume: version.masterResume || sampleResume,
+    jobDescription: version.jobDescription || sampleJob,
+    result,
+    uploadedFiles: Array.isArray(version.uploadedFiles)
+      ? version.uploadedFiles
+      : [],
+  } satisfies SavedResumeVersion;
+}
+
 function stripHash(color: string) {
   return color.replace("#", "");
 }
@@ -1811,6 +1911,10 @@ export default function Home() {
   const [isTailoring, setIsTailoring] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedSourceFile[]>([]);
   const [previewSourceFileId, setPreviewSourceFileId] = useState("");
+  const [savedVersions, setSavedVersions] = useState<SavedResumeVersion[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState("");
+  const [compareVersionIds, setCompareVersionIds] = useState<string[]>([]);
+  const [versionStatus, setVersionStatus] = useState("");
   const [copyStatus, setCopyStatus] = useState("Copy");
   const [coverCopyStatus, setCoverCopyStatus] = useState("Copy Cover Letter");
   const [activeOutput, setActiveOutput] = useState<"resume" | "cover">("resume");
@@ -1842,6 +1946,19 @@ export default function Home() {
           setTheme(isThemeId(parsed.theme) ? parsed.theme : "deep-navy");
           setResult(ensureTailoringResult(parsed.result ?? null));
           setUploadedFiles(parsed.uploadedFiles ?? []);
+        }
+
+        const savedVersionData = window.localStorage.getItem(versionStorageKey);
+
+        if (savedVersionData) {
+          const parsedVersions = JSON.parse(savedVersionData) as Array<
+            Partial<SavedResumeVersion>
+          >;
+          const normalizedVersions = parsedVersions
+            .map(normalizeSavedVersion)
+            .filter((version): version is SavedResumeVersion => Boolean(version));
+
+          setSavedVersions(normalizedVersions);
         }
       } catch {
         window.localStorage.removeItem(storageKey);
@@ -1885,6 +2002,14 @@ export default function Home() {
     uploadedFiles,
   ]);
 
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+
+    window.localStorage.setItem(versionStorageKey, JSON.stringify(savedVersions));
+  }, [hydrated, savedVersions]);
+
   const extractedSourceText = useMemo(
     () =>
       uploadedFiles
@@ -1901,6 +2026,144 @@ export default function Home() {
       targetRole.trim().length >= 2,
     [jobDescription, masterResume, targetRole],
   );
+
+  const selectedVersion = useMemo(
+    () => savedVersions.find((version) => version.id === selectedVersionId) ?? null,
+    [savedVersions, selectedVersionId],
+  );
+
+  const comparedVersions = useMemo(
+    () =>
+      compareVersionIds
+        .map((id) => savedVersions.find((version) => version.id === id))
+        .filter((version): version is SavedResumeVersion => Boolean(version)),
+    [compareVersionIds, savedVersions],
+  );
+
+  function currentVersionSnapshot(
+    id = versionId(),
+    name = defaultVersionName(targetRole, industryTarget),
+  ) {
+    if (!result) {
+      return null;
+    }
+
+    const now = new Date().toISOString();
+
+    return {
+      id,
+      name,
+      targetRole,
+      industryTarget,
+      companyName: inferCompanyName(jobDescription),
+      template,
+      theme,
+      createdAt: now,
+      updatedAt: now,
+      matchScore: result.score,
+      masterResume,
+      jobDescription,
+      result,
+      uploadedFiles,
+    } satisfies SavedResumeVersion;
+  }
+
+  function saveCurrentVersion() {
+    const snapshot = currentVersionSnapshot();
+
+    if (!snapshot) {
+      setVersionStatus("Tailor a resume before saving a version.");
+      return;
+    }
+
+    setSavedVersions((current) => [snapshot, ...current]);
+    setSelectedVersionId(snapshot.id);
+    setVersionStatus("Current resume version saved.");
+  }
+
+  function loadVersion(version: SavedResumeVersion | null) {
+    if (!version) {
+      setVersionStatus("Select a saved version to load.");
+      return;
+    }
+
+    setMasterResume(version.masterResume);
+    setJobDescription(version.jobDescription);
+    setTargetRole(version.targetRole);
+    setIndustryTarget(version.industryTarget);
+    setTemplate(version.template);
+    setTheme(version.theme);
+    setResult(ensureTailoringResult(version.result));
+    setUploadedFiles(version.uploadedFiles);
+    setActiveOutput("resume");
+    setVersionStatus(`Loaded ${version.name}.`);
+  }
+
+  function duplicateVersion(version: SavedResumeVersion | null) {
+    if (!version) {
+      setVersionStatus("Select a saved version to duplicate.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const duplicate = {
+      ...version,
+      id: versionId(),
+      name: `${version.name} Copy`,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    setSavedVersions((current) => [duplicate, ...current]);
+    setSelectedVersionId(duplicate.id);
+    setVersionStatus("Version duplicated.");
+  }
+
+  function renameVersion(version: SavedResumeVersion | null) {
+    if (!version) {
+      setVersionStatus("Select a saved version to rename.");
+      return;
+    }
+
+    const nextName = window.prompt("Rename saved resume version", version.name)?.trim();
+
+    if (!nextName) {
+      return;
+    }
+
+    setSavedVersions((current) =>
+      current.map((item) =>
+        item.id === version.id
+          ? { ...item, name: nextName, updatedAt: new Date().toISOString() }
+          : item,
+      ),
+    );
+    setVersionStatus("Version renamed.");
+  }
+
+  function deleteVersion(version: SavedResumeVersion | null) {
+    if (!version) {
+      setVersionStatus("Select a saved version to delete.");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to delete this saved resume version?")) {
+      return;
+    }
+
+    setSavedVersions((current) => current.filter((item) => item.id !== version.id));
+    setCompareVersionIds((current) => current.filter((id) => id !== version.id));
+    setSelectedVersionId((current) => (current === version.id ? "" : current));
+    setVersionStatus("Version deleted.");
+  }
+
+  function toggleCompareVersion(versionIdToToggle: string) {
+    setCompareVersionIds((current) =>
+      current.includes(versionIdToToggle)
+        ? current.filter((id) => id !== versionIdToToggle)
+        : [...current, versionIdToToggle].slice(-4),
+    );
+  }
 
   async function tailorResume() {
     setCopyStatus("Copy");
@@ -2442,6 +2705,235 @@ export default function Home() {
               {templates[template].description}
             </p>
           </div>
+
+          <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+            <details open>
+              <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+                Saved Resume Versions
+              </summary>
+              <div className="mt-4 space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={saveCurrentVersion}
+                    disabled={!result}
+                    className="inline-flex min-h-9 items-center justify-center rounded-md bg-zinc-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+                  >
+                    Save Current Version
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => loadVersion(selectedVersion)}
+                    disabled={!selectedVersion}
+                    className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                  >
+                    Load Version
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => duplicateVersion(selectedVersion)}
+                    disabled={!selectedVersion}
+                    className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                  >
+                    Duplicate Version
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => renameVersion(selectedVersion)}
+                    disabled={!selectedVersion}
+                    className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                  >
+                    Rename Version
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteVersion(selectedVersion)}
+                    disabled={!selectedVersion}
+                    className="inline-flex min-h-9 items-center justify-center rounded-md border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                  >
+                    Delete Version
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      selectedVersion
+                        ? toggleCompareVersion(selectedVersion.id)
+                        : setVersionStatus("Select a saved version to compare.")
+                    }
+                    disabled={!selectedVersion}
+                    className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                  >
+                    Compare Versions
+                  </button>
+                </div>
+
+                {versionStatus ? (
+                  <p className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs font-medium text-zinc-700">
+                    {versionStatus}
+                  </p>
+                ) : null}
+
+                {savedVersions.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="max-h-80 space-y-2 overflow-auto pr-1">
+                      {savedVersions.map((version) => (
+                        <div
+                          key={version.id}
+                          className={`block cursor-pointer rounded-md border p-3 transition ${
+                            selectedVersionId === version.id
+                              ? "border-teal-300 bg-teal-50"
+                              : "border-zinc-200 bg-zinc-50 hover:bg-white"
+                          }`}
+                          onClick={() => setSelectedVersionId(version.id)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="radio"
+                              name="saved-version"
+                              checked={selectedVersionId === version.id}
+                              onChange={() => setSelectedVersionId(version.id)}
+                              className="mt-1"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-zinc-900">
+                                {version.name}
+                              </p>
+                              <p className="mt-1 text-xs leading-5 text-zinc-600">
+                                {version.targetRole} |{" "}
+                                {readableIndustryName(version.industryTarget)}
+                                {version.companyName
+                                  ? ` | ${version.companyName}`
+                                  : ""}
+                              </p>
+                              <p className="mt-1 text-xs text-zinc-500">
+                                Score {Math.round(version.matchScore)}% |{" "}
+                                {templates[version.template].label} |{" "}
+                                {version.theme
+                                  .split("-")
+                                  .map(
+                                    (word) =>
+                                      word.charAt(0).toUpperCase() + word.slice(1),
+                                  )
+                                  .join(" ")}
+                              </p>
+                              <p className="mt-1 text-xs text-zinc-500">
+                                Created {formatVersionDate(version.createdAt)} |
+                                Updated {formatVersionDate(version.updatedAt)}
+                              </p>
+                              <label className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-zinc-700">
+                                <input
+                                  type="checkbox"
+                                  checked={compareVersionIds.includes(version.id)}
+                                  onClick={(event) => event.stopPropagation()}
+                                  onChange={() => toggleCompareVersion(version.id)}
+                                />
+                                Compare Versions
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {comparedVersions.length > 0 ? (
+                      <div className="rounded-md border border-zinc-200 bg-white p-3">
+                        <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
+                          Compare Versions
+                        </h3>
+                        <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                          {comparedVersions.map((version) => (
+                            <div
+                              key={version.id}
+                              className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+                            >
+                              <p className="text-sm font-semibold text-zinc-900">
+                                {version.name}
+                              </p>
+                              <dl className="mt-2 space-y-1 text-xs leading-5 text-zinc-600">
+                                <div>
+                                  <dt className="font-semibold text-zinc-800">
+                                    Target role
+                                  </dt>
+                                  <dd>{version.targetRole}</dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-zinc-800">
+                                    Industry
+                                  </dt>
+                                  <dd>{readableIndustryName(version.industryTarget)}</dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-zinc-800">
+                                    Match score
+                                  </dt>
+                                  <dd>{Math.round(version.matchScore)}%</dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-zinc-800">
+                                    Strongest keywords
+                                  </dt>
+                                  <dd>
+                                    {safeStringArray(
+                                      version.result.coach?.topStrengths,
+                                      version.result.matchedKeywords,
+                                    )
+                                      .slice(0, 5)
+                                      .join(", ") || "None saved"}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-zinc-800">
+                                    Missing keywords
+                                  </dt>
+                                  <dd>
+                                    {safeStringArray(version.result.missingKeywords)
+                                      .slice(0, 5)
+                                      .join(", ") || "No major gaps saved"}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-zinc-800">
+                                    Summary preview
+                                  </dt>
+                                  <dd>{version.result.summary.slice(0, 180)}</dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-zinc-800">
+                                    Template and theme
+                                  </dt>
+                                  <dd>
+                                    {templates[version.template].label} |{" "}
+                                    {version.theme
+                                      .split("-")
+                                      .map(
+                                        (word) =>
+                                          word.charAt(0).toUpperCase() +
+                                          word.slice(1),
+                                      )
+                                      .join(" ")}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt className="font-semibold text-zinc-800">
+                                    Last updated
+                                  </dt>
+                                  <dd>{new Date(version.updatedAt).toLocaleString()}</dd>
+                                </div>
+                              </dl>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-sm leading-6 text-zinc-500">
+                    No saved versions yet. Tailor a resume, then save it here.
+                  </p>
+                )}
+              </div>
+            </details>
+          </section>
 
           <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
             <label
