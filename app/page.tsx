@@ -67,6 +67,18 @@ type ApplicationKit = {
   tellMeAboutYourself: string;
 };
 
+type PersonalBranding = {
+  fullName: string;
+  professionalTitle: string;
+  email: string;
+  phone: string;
+  location: string;
+  linkedInUrl: string;
+  portfolioUrl: string;
+  websiteUrl: string;
+  profileImageDataUrl: string;
+};
+
 type OutputTab = "resume" | "cover" | "linkedin" | "application" | "preview";
 
 type MatchBreakdown = {
@@ -237,6 +249,7 @@ type SavedState = {
   result: TailoringResult | null;
   uploadedFiles?: UploadedSourceFile[];
   aiSettings?: AiSettings;
+  personalBranding: PersonalBranding;
 };
 
 type UsageStats = {
@@ -260,6 +273,7 @@ type SavedResumeVersion = {
   jobDescription: string;
   result: TailoringResult;
   uploadedFiles: UploadedSourceFile[];
+  personalBranding: PersonalBranding;
 };
 
 type IndustryTarget =
@@ -363,6 +377,18 @@ const defaultAiSettings: AiSettings = {
   toneStyle: "Executive concise",
   aggressiveOptimization: false,
   positioningMode: "Product",
+};
+
+const emptyPersonalBranding: PersonalBranding = {
+  fullName: "",
+  professionalTitle: "",
+  email: "",
+  phone: "",
+  location: "",
+  linkedInUrl: "",
+  portfolioUrl: "",
+  websiteUrl: "",
+  profileImageDataUrl: "",
 };
 
 const keywordBank = [
@@ -901,6 +927,68 @@ function safeStringArray(value: unknown, fallback: string[] = []) {
         (item): item is string => typeof item === "string" && item.trim().length > 0,
       )
     : fallback;
+}
+
+function normalizePersonalBranding(value: unknown): PersonalBranding {
+  if (!value || typeof value !== "object") {
+    return emptyPersonalBranding;
+  }
+
+  const candidate = value as Partial<PersonalBranding>;
+
+  return {
+    fullName: candidate.fullName?.trim() ?? "",
+    professionalTitle: candidate.professionalTitle?.trim() ?? "",
+    email: candidate.email?.trim() ?? "",
+    phone: candidate.phone?.trim() ?? "",
+    location: candidate.location?.trim() ?? "",
+    linkedInUrl: candidate.linkedInUrl?.trim() ?? "",
+    portfolioUrl: candidate.portfolioUrl?.trim() ?? "",
+    websiteUrl: candidate.websiteUrl?.trim() ?? "",
+    profileImageDataUrl:
+      typeof candidate.profileImageDataUrl === "string" &&
+      candidate.profileImageDataUrl.startsWith("data:image/")
+        ? candidate.profileImageDataUrl
+        : "",
+  };
+}
+
+function brandingFromResumeText(resumeText: string): PersonalBranding {
+  const resume = parseResumePreview(resumeText);
+  const contact = extractContactInfoFromText(resumeText);
+
+  return {
+    ...emptyPersonalBranding,
+    fullName: resume.name,
+    professionalTitle: resume.title,
+    email: contact.email ?? "",
+    phone: contact.phone ?? "",
+    location: contact.location ?? "",
+    linkedInUrl: contact.linkedIn ?? "",
+    portfolioUrl: contact.portfolio ?? "",
+    websiteUrl: contact.website ?? "",
+  };
+}
+
+function mergeBrandingWithResume(
+  resumeText: string,
+  branding?: PersonalBranding,
+) {
+  const resume = parseResumePreview(resumeText);
+  const extracted = extractContactInfoFromText(resumeText);
+  const normalized = normalizePersonalBranding(branding);
+
+  return {
+    name: normalized.fullName || resume.name,
+    title: normalized.professionalTitle || resume.title,
+    email: normalized.email || extracted.email,
+    phone: normalized.phone || extracted.phone,
+    linkedIn: normalized.linkedInUrl || extracted.linkedIn,
+    portfolio: normalized.portfolioUrl || extracted.portfolio,
+    website: normalized.websiteUrl || extracted.website,
+    location: normalized.location || extracted.location,
+    profileImageDataUrl: normalized.profileImageDataUrl,
+  };
 }
 
 function usageDateKey(date = new Date()) {
@@ -2060,7 +2148,10 @@ function extractContactInfoFromText(resumeText: string) {
     /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/[^\s,)]+/i,
   )?.[0];
   const urls = resumeText.match(/(?:https?:\/\/|www\.)[^\s,)]+/gi) ?? [];
-  const website = urls.find((url) => !/linkedin\.com/i.test(url));
+  const portfolio = urls.find((url) => /portfolio|behance|dribbble|github/i.test(url));
+  const website = urls.find(
+    (url) => !/linkedin\.com/i.test(url) && url !== portfolio,
+  );
   const lines = resumeText
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -2084,6 +2175,7 @@ function extractContactInfoFromText(resumeText: string) {
     email,
     phone,
     linkedIn,
+    portfolio,
     website,
     location,
   };
@@ -2101,9 +2193,26 @@ function isLikelyContactLine(
     (contact.email && line.includes(contact.email)) ||
       (contact.phone && line.includes(contact.phone)) ||
       (contact.linkedIn && line.includes(contact.linkedIn)) ||
+      (contact.portfolio && line.includes(contact.portfolio)) ||
       (contact.website && line.includes(contact.website)) ||
       (contact.location && line === contact.location) ||
       /^location\s*:/i.test(line),
+  );
+}
+
+function normalizeUrl(value: string) {
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
+function isUrlLike(value: string) {
+  return /^(?:https?:\/\/|www\.|linkedin\.com\/)/i.test(value);
+}
+
+function shouldShowProfileImage(template: TemplateId, imageDataUrl = "") {
+  return Boolean(
+    imageDataUrl &&
+      template !== "ats-clean" &&
+      template !== "tech-minimal",
   );
 }
 
@@ -2222,6 +2331,9 @@ function normalizeSavedVersion(version: Partial<SavedResumeVersion>) {
     uploadedFiles: Array.isArray(version.uploadedFiles)
       ? version.uploadedFiles
       : [],
+    personalBranding: normalizePersonalBranding(
+      version.personalBranding ?? brandingFromResumeText(version.masterResume || sampleResume),
+    ),
   } satisfies SavedResumeVersion;
 }
 
@@ -2335,18 +2447,20 @@ async function createResumePdfBlob(
   resumeText: string,
   template: TemplateId,
   theme: (typeof previewThemes)[ThemeId],
+  branding?: PersonalBranding,
 ) {
   const ReactPdf = await import("@react-pdf/renderer");
-  const { Document, Page, StyleSheet, Text, View, pdf } = ReactPdf;
+  const { Document, Image, Link, Page, StyleSheet, Text, View, pdf } = ReactPdf;
   const resume = parseResumePreview(resumeText);
-  const contact = extractContactInfo(resumeText);
+  const contact = mergeBrandingWithResume(resumeText, branding);
   const contactLines = [
     contact.email,
     contact.phone,
     contact.linkedIn,
+    contact.portfolio,
     contact.website,
     contact.location,
-  ].filter(Boolean);
+  ].filter((item): item is string => Boolean(item));
   const isAts = template === "ats-clean";
   const hasHeaderBand =
     template === "executive-navy" || template === "bold-leadership";
@@ -2384,6 +2498,21 @@ async function createResumePdfBlob(
       fontSize: 8.5,
       marginTop: 5,
     },
+    headerRow: {
+      alignItems: "center",
+      display: "flex",
+      flexDirection: "row",
+      gap: 12,
+    },
+    headerText: {
+      flexGrow: 1,
+    },
+    profileImage: {
+      borderRadius: 999,
+      height: 58,
+      objectFit: "cover",
+      width: 58,
+    },
     section: {
       borderLeftColor: isModern ? theme.accentHex : "#ffffff",
       borderLeftWidth: isModern ? 2 : 0,
@@ -2419,11 +2548,44 @@ async function createResumePdfBlob(
       createElement(
         View,
         { style: styles.header },
-        resume.name ? createElement(Text, { style: styles.name }, resume.name) : null,
-        resume.title ? createElement(Text, { style: styles.title }, resume.title) : null,
-        contactLines.length > 0
-          ? createElement(Text, { style: styles.contact }, contactLines.join(" | "))
-          : null,
+        createElement(
+          View,
+          { style: styles.headerRow },
+          shouldShowProfileImage(template, contact.profileImageDataUrl)
+            ? createElement(Image, {
+                src: contact.profileImageDataUrl,
+                style: styles.profileImage,
+              })
+            : null,
+          createElement(
+            View,
+            { style: styles.headerText },
+            contact.name
+              ? createElement(Text, { style: styles.name }, contact.name)
+              : null,
+            contact.title
+              ? createElement(Text, { style: styles.title }, contact.title)
+              : null,
+            contactLines.length > 0
+              ? createElement(
+                  Text,
+                  { style: styles.contact },
+                  ...contactLines.map((item, itemIndex) =>
+                    isUrlLike(item)
+                      ? createElement(
+                          Link,
+                          {
+                            key: `${item}-${itemIndex}`,
+                            src: normalizeUrl(item),
+                          },
+                          `${item}${itemIndex < contactLines.length - 1 ? " | " : ""}`,
+                        )
+                      : `${item}${itemIndex < contactLines.length - 1 ? " | " : ""}`,
+                  ),
+                )
+              : null,
+          ),
+        ),
       ),
       ...resume.sections.map((section, sectionIndex) =>
         createElement(
@@ -2456,25 +2618,28 @@ async function createResumeDocxBlob(
   resumeText: string,
   template: TemplateId,
   theme: (typeof previewThemes)[ThemeId],
+  branding?: PersonalBranding,
 ) {
   const Docx = await import("docx");
   const {
     BorderStyle,
     Document: DocxDocument,
+    ExternalHyperlink,
     Packer,
     Paragraph,
     ShadingType,
     TextRun,
   } = Docx;
   const resume = parseResumePreview(resumeText);
-  const contact = extractContactInfo(resumeText);
+  const contact = mergeBrandingWithResume(resumeText, branding);
   const contactLines = [
     contact.email,
     contact.phone,
     contact.linkedIn,
+    contact.portfolio,
     contact.website,
     contact.location,
-  ].filter(Boolean);
+  ].filter((item): item is string => Boolean(item));
   const hasHeaderBand =
     template === "executive-navy" || template === "bold-leadership";
   const isModern =
@@ -2494,7 +2659,7 @@ async function createResumeDocxBlob(
       spacing: { after: 80 },
       children: [
         new TextRun({
-          text: resume.name,
+          text: contact.name,
           bold: true,
           color: hasHeaderBand ? "FFFFFF" : textColor,
           size: template === "bold-leadership" ? 34 : 30,
@@ -2515,7 +2680,7 @@ async function createResumeDocxBlob(
       spacing: { after: 260 },
       children: [
         new TextRun({
-          text: resume.title,
+          text: contact.title,
           bold: true,
           color: hasHeaderBand ? "FFFFFF" : accentColor,
           size: 21,
@@ -2525,16 +2690,36 @@ async function createResumeDocxBlob(
   ];
 
   if (contactLines.length > 0) {
+    const contactRuns = contactLines.flatMap((item, itemIndex) => {
+      const suffix =
+        itemIndex < contactLines.length - 1
+          ? [new TextRun({ text: " | ", color: textColor, size: 18 })]
+          : [];
+
+      if (isUrlLike(item)) {
+        return [
+          new ExternalHyperlink({
+            link: normalizeUrl(item),
+            children: [
+              new TextRun({
+                text: item,
+                color: accentColor,
+                size: 18,
+                underline: {},
+              }),
+            ],
+          }),
+          ...suffix,
+        ];
+      }
+
+      return [new TextRun({ text: item, color: textColor, size: 18 }), ...suffix];
+    });
+
     children.push(
       new Paragraph({
         spacing: { after: 220 },
-        children: [
-          new TextRun({
-            text: contactLines.join(" | "),
-            color: hasHeaderBand ? "FFFFFF" : textColor,
-            size: 18,
-          }),
-        ],
+        children: contactRuns,
       }),
     );
   }
@@ -2594,17 +2779,6 @@ async function createResumeDocxBlob(
   return Packer.toBlob(document);
 }
 
-function extractContactInfo(resumeText: string) {
-  const resume = parseResumePreview(resumeText);
-  const contact = extractContactInfoFromText(resumeText);
-
-  return {
-    name: resume.name,
-    title: resume.title,
-    ...contact,
-  };
-}
-
 function coverLetterLines(coverLetter: string, name: string) {
   const lines = coverLetter
     .split(/\r?\n/)
@@ -2628,21 +2802,26 @@ async function createCoverLetterPdfBlob({
   resumeText,
   template,
   theme,
+  branding,
 }: {
   coverLetter: string;
   resumeText: string;
   template: TemplateId;
   theme: (typeof previewThemes)[ThemeId];
+  branding?: PersonalBranding;
 }) {
   const ReactPdf = await import("@react-pdf/renderer");
   const { Document, Page, StyleSheet, Text, View, pdf } = ReactPdf;
-  const contact = extractContactInfo(resumeText);
+  const contact = mergeBrandingWithResume(resumeText, branding);
   const lines = coverLetterLines(coverLetter, contact.name);
   const contactLines = [
     contact.email ? `Email: ${contact.email}` : "",
     contact.phone ? `Phone: ${contact.phone}` : "",
     contact.linkedIn ? `LinkedIn: ${contact.linkedIn}` : "",
-  ].filter(Boolean);
+    contact.portfolio ? `Portfolio: ${contact.portfolio}` : "",
+    contact.website ? `Website: ${contact.website}` : "",
+    contact.location ? `Location: ${contact.location}` : "",
+  ].filter((item): item is string => Boolean(item));
   const hasHeaderBand =
     template === "executive-navy" || template === "bold-leadership";
   const isModern =
@@ -2739,11 +2918,13 @@ async function createCoverLetterDocxBlob({
   resumeText,
   template,
   theme,
+  branding,
 }: {
   coverLetter: string;
   resumeText: string;
   template: TemplateId;
   theme: (typeof previewThemes)[ThemeId];
+  branding?: PersonalBranding;
 }) {
   const Docx = await import("docx");
   const {
@@ -2754,12 +2935,15 @@ async function createCoverLetterDocxBlob({
     ShadingType,
     TextRun,
   } = Docx;
-  const contact = extractContactInfo(resumeText);
+  const contact = mergeBrandingWithResume(resumeText, branding);
   const lines = coverLetterLines(coverLetter, contact.name);
   const contactLine = [
     contact.email ? `Email: ${contact.email}` : "",
     contact.phone ? `Phone: ${contact.phone}` : "",
     contact.linkedIn ? `LinkedIn: ${contact.linkedIn}` : "",
+    contact.portfolio ? `Portfolio: ${contact.portfolio}` : "",
+    contact.website ? `Website: ${contact.website}` : "",
+    contact.location ? `Location: ${contact.location}` : "",
   ]
     .filter(Boolean)
     .join(" | ");
@@ -3009,6 +3193,9 @@ export default function Home() {
   const [masterResume, setMasterResume] = useState(sampleResume);
   const [jobDescription, setJobDescription] = useState(sampleJob);
   const [targetRole, setTargetRole] = useState("AI Product Manager");
+  const [personalBranding, setPersonalBranding] = useState<PersonalBranding>(() =>
+    brandingFromResumeText(sampleResume),
+  );
   const [industryTarget, setIndustryTarget] =
     useState<IndustryTarget>("AI / Technology");
   const [template, setTemplate] = useState<TemplateId>("executive-navy");
@@ -3041,6 +3228,11 @@ export default function Home() {
         if (saved) {
           const parsed = JSON.parse(saved) as Partial<SavedState>;
           setMasterResume(parsed.masterResume ?? sampleResume);
+          setPersonalBranding(
+            parsed.personalBranding
+              ? normalizePersonalBranding(parsed.personalBranding)
+              : brandingFromResumeText(parsed.masterResume ?? sampleResume),
+          );
           setJobDescription(parsed.jobDescription ?? sampleJob);
           setTargetRole(parsed.targetRole ?? "AI Product Manager");
           setIndustryTarget(
@@ -3121,6 +3313,7 @@ export default function Home() {
       result,
       uploadedFiles,
       aiSettings,
+      personalBranding,
     };
 
     try {
@@ -3140,6 +3333,7 @@ export default function Home() {
     theme,
     uploadedFiles,
     aiSettings,
+    personalBranding,
   ]);
 
   useEffect(() => {
@@ -3250,6 +3444,7 @@ export default function Home() {
       jobDescription,
       result,
       uploadedFiles,
+      personalBranding,
     } satisfies SavedResumeVersion;
   }
 
@@ -3279,6 +3474,11 @@ export default function Home() {
       setIndustryTarget(version.industryTarget);
       setTemplate(version.template);
       setTheme(version.theme);
+      setPersonalBranding(
+        normalizePersonalBranding(
+          version.personalBranding ?? brandingFromResumeText(version.masterResume),
+        ),
+      );
       setResult(
         ensureTailoringResult(
           version.result,
@@ -3472,6 +3672,7 @@ export default function Home() {
     skipNextSave.current = true;
     window.localStorage.removeItem(storageKey);
     setMasterResume(sampleResume);
+    setPersonalBranding(brandingFromResumeText(sampleResume));
     setJobDescription(sampleJob);
     setTargetRole("AI Product Manager");
     setIndustryTarget("AI / Technology");
@@ -3516,6 +3717,38 @@ export default function Home() {
   function removeSourceFile(fileId: string) {
     setUploadedFiles((current) => current.filter((file) => file.id !== fileId));
     setPreviewSourceFileId((current) => (current === fileId ? "" : current));
+  }
+
+  function updatePersonalBranding(field: keyof PersonalBranding, value: string) {
+    setPersonalBranding((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  function handleProfileImage(file: File | undefined) {
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setSystemStatus("Profile image must be a PNG or JPG image file.");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      setPersonalBranding((current) => ({
+        ...current,
+        profileImageDataUrl:
+          typeof reader.result === "string" ? reader.result : "",
+      }));
+    };
+    reader.onerror = () => {
+      setSystemStatus("Profile image could not be loaded.");
+    };
+    reader.readAsDataURL(file);
   }
 
   function updateResumeOutput(value: string) {
@@ -3624,6 +3857,7 @@ export default function Home() {
         resumeText: result.rewrittenResume,
         template,
         theme: previewTheme,
+        branding: personalBranding,
       });
       saveBlob(blob, coverLetterFileName(targetRole, "pdf"));
       trackUsage("exportsCreated");
@@ -3643,6 +3877,7 @@ export default function Home() {
         resumeText: result.rewrittenResume,
         template,
         theme: previewTheme,
+        branding: personalBranding,
       });
       saveBlob(blob, coverLetterFileName(targetRole, "docx"));
       trackUsage("exportsCreated");
@@ -3661,6 +3896,7 @@ export default function Home() {
         result.rewrittenResume,
         template,
         previewTheme,
+        personalBranding,
       );
       saveBlob(blob, fileNameForRole(targetRole, "pdf"));
       trackUsage("exportsCreated");
@@ -3679,6 +3915,7 @@ export default function Home() {
         result.rewrittenResume,
         template,
         previewTheme,
+        personalBranding,
       );
       saveBlob(blob, fileNameForRole(targetRole, "docx"));
       trackUsage("exportsCreated");
@@ -3877,6 +4114,61 @@ export default function Home() {
             className="mt-3 min-h-[420px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
             placeholder="Paste your master resume here..."
           />
+
+          <section className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-950">
+                  Personal Branding & Contact
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  These fields control the resume preview and exports without
+                  inserting placeholder values.
+                </p>
+              </div>
+              {personalBranding.profileImageDataUrl ? (
+                <button
+                  type="button"
+                  onClick={() => updatePersonalBranding("profileImageDataUrl", "")}
+                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                >
+                  Remove Image
+                </button>
+              ) : null}
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <ContactField label="Full Name" value={personalBranding.fullName} onChange={(value) => updatePersonalBranding("fullName", value)} />
+              <ContactField label="Professional Title" value={personalBranding.professionalTitle} onChange={(value) => updatePersonalBranding("professionalTitle", value)} />
+              <ContactField label="Email" value={personalBranding.email} onChange={(value) => updatePersonalBranding("email", value)} />
+              <ContactField label="Phone" value={personalBranding.phone} onChange={(value) => updatePersonalBranding("phone", value)} />
+              <ContactField label="Location" value={personalBranding.location} onChange={(value) => updatePersonalBranding("location", value)} />
+              <ContactField label="LinkedIn URL" value={personalBranding.linkedInUrl} onChange={(value) => updatePersonalBranding("linkedInUrl", value)} />
+              <ContactField label="Portfolio URL" value={personalBranding.portfolioUrl} onChange={(value) => updatePersonalBranding("portfolioUrl", value)} />
+              <ContactField label="Website URL" value={personalBranding.websiteUrl} onChange={(value) => updatePersonalBranding("websiteUrl", value)} />
+            </div>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+              {personalBranding.profileImageDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={personalBranding.profileImageDataUrl}
+                  alt=""
+                  className="h-16 w-16 rounded-full border border-slate-200 object-cover"
+                />
+              ) : null}
+              <label className="inline-flex min-h-10 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-100">
+                Optional Profile Image
+                <input
+                  type="file"
+                  accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                  onChange={(event) => handleProfileImage(event.target.files?.[0])}
+                  className="sr-only"
+                />
+              </label>
+              <p className="text-xs leading-5 text-slate-500">
+                Hidden automatically in ATS-focused templates.
+              </p>
+            </div>
+          </section>
 
           <div className="mt-4 border-t border-zinc-200 pt-4">
             <input
@@ -4709,6 +5001,7 @@ export default function Home() {
                           resumeText={result.rewrittenResume}
                           theme={previewTheme}
                           template={template}
+                          branding={personalBranding}
                         />
                       </div>
                     </div>
@@ -4772,6 +5065,7 @@ export default function Home() {
                         resumeText={result.rewrittenResume}
                         theme={previewTheme}
                         template={template}
+                        branding={personalBranding}
                         fullPage
                       />
                     </div>
@@ -4820,6 +5114,27 @@ function CopyTextButton({ label, text }: { label: string; text: string }) {
     >
       {status}
     </button>
+  );
+}
+
+function ContactField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block text-xs font-semibold text-slate-700">
+      {label}
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+      />
+    </label>
   );
 }
 
@@ -5348,22 +5663,25 @@ function ResumePreview({
   resumeText,
   theme,
   template,
+  branding,
   fullPage = false,
 }: {
   resumeText: string;
   theme: (typeof previewThemes)[ThemeId];
   template: TemplateId;
+  branding?: PersonalBranding;
   fullPage?: boolean;
 }) {
   const resume = parseResumePreview(resumeText);
-  const contact = extractContactInfo(resumeText);
+  const contact = mergeBrandingWithResume(resumeText, branding);
   const contactItems = [
     contact.email,
     contact.phone,
     contact.linkedIn,
+    contact.portfolio,
     contact.website,
     contact.location,
-  ].filter(Boolean);
+  ].filter((item): item is string => Boolean(item));
   const isExecutive = template === "executive-navy";
   const isModern = template === "modern-product";
   const bodyClass =
@@ -5396,24 +5714,49 @@ function ResumePreview({
       }`}
     >
       <header className={headerClass}>
-        {resume.name ? (
-          <h4 className="text-2xl font-semibold tracking-tight">{resume.name}</h4>
-        ) : null}
-        {resume.title ? <p className={subtitleClass}>{resume.title}</p> : null}
-        {contactItems.length > 0 ? (
-          <p
-            className={`mt-3 text-xs leading-5 ${
-              isExecutive ? theme.subheadText : "text-zinc-600"
-            }`}
-          >
-            {contactItems.map((item, itemIndex) => (
-              <span key={`${item}-${itemIndex}`}>
-                {item}
-                {itemIndex < contactItems.length - 1 ? " | " : ""}
-              </span>
-            ))}
-          </p>
-        ) : null}
+        <div className="flex items-start gap-4">
+          {shouldShowProfileImage(template, contact.profileImageDataUrl) ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={contact.profileImageDataUrl}
+              alt=""
+              className="h-20 w-20 rounded-full object-cover ring-2 ring-white/70"
+            />
+          ) : null}
+          <div className="min-w-0 flex-1">
+            {contact.name ? (
+              <h4 className="text-2xl font-semibold tracking-tight">
+                {contact.name}
+              </h4>
+            ) : null}
+            {contact.title ? <p className={subtitleClass}>{contact.title}</p> : null}
+            {contactItems.length > 0 ? (
+              <p
+                className={`mt-3 text-xs leading-5 ${
+                  isExecutive ? theme.subheadText : "text-zinc-600"
+                }`}
+              >
+                {contactItems.map((item, itemIndex) => (
+                  <span key={`${item}-${itemIndex}`}>
+                    {isUrlLike(item) ? (
+                      <a
+                        href={normalizeUrl(item)}
+                        className="underline decoration-current/40 underline-offset-2"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {item}
+                      </a>
+                    ) : (
+                      item
+                    )}
+                    {itemIndex < contactItems.length - 1 ? " | " : ""}
+                  </span>
+                ))}
+              </p>
+            ) : null}
+          </div>
+        </div>
       </header>
 
       <div className={bodyClass}>
