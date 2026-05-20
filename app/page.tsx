@@ -22,12 +22,34 @@ type TailoringResult = {
   score: number;
   matchedKeywords: string[];
   missingKeywords: string[];
+  recommendedKeywords: string[];
   summary: string;
   skills: string[];
   bullets: string[];
   rewrittenResume: string;
   coverLetter: string;
   scoreNotes: string[];
+  matchBreakdown: MatchBreakdown;
+  positioningStrategy: string;
+  improvementNotes: string[];
+  riskFlags: string[];
+  topStrengths: string[];
+  gapsToFix: string[];
+  bulletImprovementSuggestions: string[];
+  atsReadiness: string;
+  recruiterReadability: string;
+  industryFit: string;
+};
+
+type MatchBreakdown = {
+  roleFit: number;
+  industryFit: number;
+  requiredSkillsMatch: number;
+  preferredSkillsMatch: number;
+  metricStrength: number;
+  seniorityAlignment: number;
+  projectRelevance: number;
+  atsReadability: number;
 };
 
 type ResumeSection = {
@@ -48,16 +70,53 @@ type SavedState = {
   masterResume: string;
   jobDescription: string;
   targetRole: string;
+  industryTarget: IndustryTarget;
   template: TemplateId;
   theme: ThemeId;
   result: TailoringResult | null;
   uploadedFiles?: UploadedSourceFile[];
 };
 
+type IndustryTarget =
+  | "AI / Technology"
+  | "Academic / Research"
+  | "Finance / Fintech"
+  | "Real Estate"
+  | "Healthcare / Health IT"
+  | "Consulting"
+  | "Legal / Policy"
+  | "Operations / Logistics"
+  | "Marketing / Growth"
+  | "General / ATS";
+
+type TailorApiResponse = {
+  matchScore: number;
+  matchBreakdown: MatchBreakdown;
+  missingKeywords: string[];
+  recommendedKeywords: string[];
+  positioningStrategy: string;
+  tailoredResume: string;
+  coverLetter: string;
+  improvementNotes: string[];
+  riskFlags: string[];
+};
+
 const storageKey = "resume-agent-state-v2";
 const acceptedSourceFileTypes = ".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg";
 const extractLaterNote =
   "File uploaded. Full AI extraction will be enabled when backend parsing is connected.";
+const industryTargets: IndustryTarget[] = [
+  "AI / Technology",
+  "Academic / Research",
+  "Finance / Fintech",
+  "Real Estate",
+  "Healthcare / Health IT",
+  "Consulting",
+  "Legal / Policy",
+  "Operations / Logistics",
+  "Marketing / Growth",
+  "General / ATS",
+];
 
 const keywordBank = [
   "AI",
@@ -241,6 +300,10 @@ function isTemplateId(value: unknown): value is TemplateId {
 
 function isThemeId(value: unknown): value is ThemeId {
   return typeof value === "string" && value in previewThemes;
+}
+
+function isIndustryTarget(value: unknown): value is IndustryTarget {
+  return typeof value === "string" && industryTargets.includes(value as IndustryTarget);
 }
 
 function normalizeText(text: string) {
@@ -490,6 +553,74 @@ function scoreResume(
   };
 }
 
+function buildLocalMatchBreakdown(score: number): MatchBreakdown {
+  return {
+    roleFit: Math.min(100, score + 2),
+    industryFit: Math.min(100, score),
+    requiredSkillsMatch: Math.min(100, score + 4),
+    preferredSkillsMatch: Math.max(0, score - 6),
+    metricStrength: Math.max(0, score - 10),
+    seniorityAlignment: Math.min(100, score + 3),
+    projectRelevance: Math.min(100, score + 1),
+    atsReadability: Math.min(100, score + 5),
+  };
+}
+
+function scoreNotesFromBreakdown(breakdown: MatchBreakdown) {
+  return [
+    `Role fit: ${Math.round(breakdown.roleFit)}/100`,
+    `Industry fit: ${Math.round(breakdown.industryFit)}/100`,
+    `Required skills match: ${Math.round(breakdown.requiredSkillsMatch)}/100`,
+    `Preferred skills match: ${Math.round(breakdown.preferredSkillsMatch)}/100`,
+    `Metric strength: ${Math.round(breakdown.metricStrength)}/100`,
+    `Seniority alignment: ${Math.round(breakdown.seniorityAlignment)}/100`,
+    `Project relevance: ${Math.round(breakdown.projectRelevance)}/100`,
+    `ATS readability: ${Math.round(breakdown.atsReadability)}/100`,
+  ];
+}
+
+function resultFromApiResponse(response: TailorApiResponse): TailoringResult {
+  const parsed = parseResumePreview(response.tailoredResume);
+  const summarySection = parsed.sections.find(
+    (section) => section.heading === "PROFESSIONAL SUMMARY",
+  );
+  const skillsSection = parsed.sections.find(
+    (section) => section.heading === "CORE SKILLS",
+  );
+  const highlightSection = parsed.sections.find((section) =>
+    /EXPERIENCE|HIGHLIGHT/i.test(section.heading),
+  );
+  const skills =
+    skillsSection?.body
+      .join(" | ")
+      .split("|")
+      .map((skill) => skill.trim())
+      .filter(Boolean) ?? response.recommendedKeywords;
+
+  return {
+    score: Math.round(response.matchScore),
+    matchedKeywords: [],
+    missingKeywords: response.missingKeywords,
+    recommendedKeywords: response.recommendedKeywords,
+    summary: summarySection?.body.join(" ") || response.positioningStrategy,
+    skills,
+    bullets: highlightSection?.bullets ?? response.improvementNotes.slice(0, 4),
+    rewrittenResume: response.tailoredResume,
+    coverLetter: response.coverLetter,
+    scoreNotes: scoreNotesFromBreakdown(response.matchBreakdown),
+    matchBreakdown: response.matchBreakdown,
+    positioningStrategy: response.positioningStrategy,
+    improvementNotes: response.improvementNotes,
+    riskFlags: response.riskFlags,
+    topStrengths: response.recommendedKeywords.slice(0, 6),
+    gapsToFix: response.missingKeywords.slice(0, 6),
+    bulletImprovementSuggestions: response.improvementNotes,
+    atsReadiness: `ATS readability score: ${Math.round(response.matchBreakdown.atsReadability)}/100`,
+    recruiterReadability: `Recruiter readability is supported by role fit at ${Math.round(response.matchBreakdown.roleFit)}/100 and seniority alignment at ${Math.round(response.matchBreakdown.seniorityAlignment)}/100.`,
+    industryFit: `Industry fit score: ${Math.round(response.matchBreakdown.industryFit)}/100`,
+  };
+}
+
 function buildTailoredResume(
   masterResume: string,
   jobDescription: string,
@@ -567,11 +698,38 @@ ${masterResume.trim()}`;
     score: scoreResult.score,
     matchedKeywords,
     missingKeywords,
+    recommendedKeywords: missingKeywords.slice(0, 8),
     summary,
     skills,
     bullets,
     rewrittenResume,
     scoreNotes: scoreResult.notes,
+    matchBreakdown: buildLocalMatchBreakdown(scoreResult.score),
+    positioningStrategy:
+      "Position the candidate as a practical technical product leader who can translate business needs into delivery-ready product work.",
+    improvementNotes: [
+      "Add quantified outcomes where the source resume supports them.",
+      "Keep role-specific keywords in the summary, skills, and experience sections.",
+      "Make each bullet show action, scope, and business impact.",
+    ],
+    riskFlags:
+      missingKeywords.length > 0
+        ? [
+            `Only include ${missingKeywords.slice(0, 3).join(", ")} if supported by real experience.`,
+          ]
+        : ["No major unsupported-claim risks detected from the provided text."],
+    topStrengths: matchedKeywords.slice(0, 6),
+    gapsToFix: missingKeywords.slice(0, 6),
+    bulletImprovementSuggestions: [
+      "Convert responsibility bullets into outcome bullets with scope, metric, or launch result.",
+      "Add tools, systems, and stakeholders only when they are present in the source material.",
+    ],
+    atsReadiness:
+      "ATS readiness is solid when the tailored resume keeps required keywords in plain section headings and avoids unsupported claims.",
+    recruiterReadability:
+      "Recruiter readability improves with a focused summary, concise skills, and bullets that lead with business impact.",
+    industryFit:
+      "Industry fit is based on the overlap between the job description and the provided resume/source materials.",
   };
 
   return {
@@ -1170,9 +1328,13 @@ export default function Home() {
   const [masterResume, setMasterResume] = useState(sampleResume);
   const [jobDescription, setJobDescription] = useState(sampleJob);
   const [targetRole, setTargetRole] = useState("AI Product Manager");
+  const [industryTarget, setIndustryTarget] =
+    useState<IndustryTarget>("AI / Technology");
   const [template, setTemplate] = useState<TemplateId>("executive-navy");
   const [theme, setTheme] = useState<ThemeId>("deep-navy");
   const [result, setResult] = useState<TailoringResult | null>(null);
+  const [tailorError, setTailorError] = useState("");
+  const [isTailoring, setIsTailoring] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedSourceFile[]>([]);
   const [copyStatus, setCopyStatus] = useState("Copy");
   const [coverCopyStatus, setCoverCopyStatus] = useState("Copy Cover Letter");
@@ -1192,6 +1354,11 @@ export default function Home() {
           setMasterResume(parsed.masterResume ?? sampleResume);
           setJobDescription(parsed.jobDescription ?? sampleJob);
           setTargetRole(parsed.targetRole ?? "AI Product Manager");
+          setIndustryTarget(
+            isIndustryTarget(parsed.industryTarget)
+              ? parsed.industryTarget
+              : "AI / Technology",
+          );
           setTemplate(
             isTemplateId(parsed.template)
               ? parsed.template
@@ -1223,6 +1390,7 @@ export default function Home() {
       masterResume,
       jobDescription,
       targetRole,
+      industryTarget,
       template,
       theme,
       result,
@@ -1235,6 +1403,7 @@ export default function Home() {
     jobDescription,
     masterResume,
     result,
+    industryTarget,
     targetRole,
     template,
     theme,
@@ -1258,11 +1427,46 @@ export default function Home() {
     [jobDescription, masterResume, targetRole],
   );
 
-  function tailorResume() {
+  async function tailorResume() {
     setCopyStatus("Copy");
     setCoverCopyStatus("Copy Cover Letter");
     setActiveOutput("resume");
-    setResult(buildTailoredResume(masterResume, jobDescription, targetRole));
+    setTailorError("");
+    setIsTailoring(true);
+
+    try {
+      const response = await fetch("/api/tailor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          masterResume,
+          jobDescription,
+          targetRole,
+          industryTarget,
+          uploadedSourceMaterials: uploadedFiles.map((file) => ({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            extractedText: file.extractedText,
+          })),
+          currentEditedResume: result?.rewrittenResume,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("AI tailoring is unavailable right now.");
+      }
+
+      const data = (await response.json()) as TailorApiResponse;
+      setResult(resultFromApiResponse(data));
+    } catch {
+      setTailorError(
+        "AI tailoring could not complete, so I used the local resume generator fallback.",
+      );
+      setResult(buildTailoredResume(masterResume, jobDescription, targetRole));
+    } finally {
+      setIsTailoring(false);
+    }
   }
 
   function generateCoverLetter() {
@@ -1294,9 +1498,11 @@ export default function Home() {
     setMasterResume(sampleResume);
     setJobDescription(sampleJob);
     setTargetRole("AI Product Manager");
+    setIndustryTarget("AI / Technology");
     setTemplate("executive-navy");
     setTheme("deep-navy");
     setResult(null);
+    setTailorError("");
     setUploadedFiles([]);
     setActiveOutput("resume");
     setCopyStatus("Copy");
@@ -1492,10 +1698,10 @@ export default function Home() {
             <button
               type="button"
               onClick={tailorResume}
-              disabled={!canTailor}
+              disabled={!canTailor || isTailoring}
               className="inline-flex min-h-12 items-center justify-center rounded-lg bg-zinc-950 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
             >
-              Tailor Resume
+              {isTailoring ? "AI is tailoring your resume..." : "Tailor Resume"}
             </button>
           </div>
         </div>
@@ -1630,6 +1836,27 @@ export default function Home() {
               placeholder="Example: AI Product Manager"
             />
 
+            <label
+              htmlFor="industry-target"
+              className="mt-5 block text-sm font-semibold text-zinc-900"
+            >
+              Industry Target
+            </label>
+            <select
+              id="industry-target"
+              value={industryTarget}
+              onChange={(event) =>
+                setIndustryTarget(event.target.value as IndustryTarget)
+              }
+              className="mt-3 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+            >
+              {industryTargets.map((industry) => (
+                <option key={industry} value={industry}>
+                  {industry}
+                </option>
+              ))}
+            </select>
+
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <label className="block text-sm font-semibold text-zinc-900">
                 Template
@@ -1687,6 +1914,14 @@ export default function Home() {
         </div>
       </section>
 
+      {tailorError ? (
+        <section className="mx-auto max-w-[96rem] px-5 pb-4 sm:px-8">
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">
+            {tailorError}
+          </div>
+        </section>
+      ) : null}
+
       {result ? (
         <section className="mx-auto grid max-w-[112rem] gap-5 px-5 pb-10 sm:px-8 xl:grid-cols-[280px_minmax(0,1fr)]">
           <aside className="space-y-5">
@@ -1723,6 +1958,7 @@ export default function Home() {
               emptyText="No major keyword gaps found."
               variant="missing"
             />
+            <AIResumeCoach result={result} />
           </aside>
 
           <div className="min-w-0 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
@@ -1965,6 +2201,60 @@ function KeywordList({
         )}
       </div>
     </div>
+  );
+}
+
+function AIResumeCoach({ result }: { result: TailoringResult }) {
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+      <h2 className="text-sm font-semibold text-zinc-900">AI Resume Coach</h2>
+      <div className="mt-4 space-y-5">
+        <CoachBlock
+          title="Positioning Strategy"
+          items={[result.positioningStrategy]}
+        />
+        <CoachBlock title="Top Strengths" items={result.topStrengths} />
+        <CoachBlock title="Gaps To Fix" items={result.gapsToFix} />
+        <CoachBlock
+          title="Keyword Recommendations"
+          items={result.recommendedKeywords}
+        />
+        <CoachBlock
+          title="Bullet Improvement Suggestions"
+          items={result.bulletImprovementSuggestions}
+        />
+        <CoachBlock title="Truth / Risk Flags" items={result.riskFlags} />
+        <CoachBlock title="ATS Readiness" items={[result.atsReadiness]} />
+        <CoachBlock
+          title="Recruiter Readability"
+          items={[result.recruiterReadability]}
+        />
+        <CoachBlock title="Industry Fit" items={[result.industryFit]} />
+      </div>
+    </div>
+  );
+}
+
+function CoachBlock({ title, items }: { title: string; items: string[] }) {
+  const visibleItems = items.filter(Boolean);
+
+  return (
+    <section>
+      <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
+        {title}
+      </h3>
+      {visibleItems.length > 0 ? (
+        <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-zinc-700">
+          {visibleItems.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm leading-6 text-zinc-500">
+          No specific guidance yet.
+        </p>
+      )}
+    </section>
   );
 }
 
