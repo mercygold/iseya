@@ -10,7 +10,15 @@ type TemplateId =
   | "ats-clean"
   | "consulting-classic"
   | "tech-minimal"
-  | "bold-leadership";
+  | "bold-leadership"
+  | "ats-professional"
+  | "executive-modern"
+  | "academic-research"
+  | "finance-fintech"
+  | "healthcare-health-it"
+  | "creative-portfolio"
+  | "legal-policy"
+  | "product-saas";
 type ThemeId =
   | "deep-navy"
   | "modern-teal"
@@ -596,30 +604,139 @@ const previewThemes: Record<
   },
 };
 
-const templates: Record<TemplateId, { label: string; description: string }> = {
+type TemplateFamily =
+  | "ats"
+  | "executive"
+  | "consulting"
+  | "academic"
+  | "finance"
+  | "healthcare"
+  | "creative"
+  | "legal"
+  | "product"
+  | "technical";
+
+type TemplateProfile = {
+  label: string;
+  description: string;
+  family: TemplateFamily;
+  allowImage: boolean;
+  sectionOrder: string[];
+  headingLabel: string;
+};
+
+const templates: Record<TemplateId, TemplateProfile> = {
   "executive-navy": {
     label: "Executive Navy",
     description: "Formal preview with a strong navy header and classic spacing.",
+    family: "executive",
+    allowImage: true,
+    headingLabel: "Leadership-first",
+    sectionOrder: ["SUMMARY", "SKILLS", "EXPERIENCE", "PROJECTS", "EDUCATION", "CERTIFICATIONS"],
   },
   "modern-product": {
     label: "Modern Product",
     description: "Product-focused preview with clean section rhythm.",
+    family: "product",
+    allowImage: false,
+    headingLabel: "Product outcomes",
+    sectionOrder: ["SUMMARY", "SKILLS", "PROJECTS", "EXPERIENCE", "TOOLS", "EDUCATION"],
   },
   "ats-clean": {
     label: "ATS Clean",
     description: "Minimal preview optimized for straightforward scanning.",
+    family: "ats",
+    allowImage: false,
+    headingLabel: "Parser-friendly",
+    sectionOrder: ["SUMMARY", "SKILLS", "EXPERIENCE", "PROJECTS", "EDUCATION", "CERTIFICATIONS"],
   },
   "consulting-classic": {
     label: "Consulting Classic",
     description: "Traditional consulting-style preview with crisp section rules.",
+    family: "consulting",
+    allowImage: false,
+    headingLabel: "Metrics and impact",
+    sectionOrder: ["SUMMARY", "EXPERIENCE", "SKILLS", "PROJECTS", "EDUCATION", "CERTIFICATIONS"],
   },
   "tech-minimal": {
     label: "Tech Minimal",
     description: "Lean technical preview with compact spacing and clear hierarchy.",
+    family: "technical",
+    allowImage: false,
+    headingLabel: "Technical clarity",
+    sectionOrder: ["SUMMARY", "TOOLS", "SKILLS", "PROJECTS", "EXPERIENCE", "EDUCATION"],
   },
   "bold-leadership": {
     label: "Bold Leadership",
     description: "High-impact preview with a stronger leadership-oriented header.",
+    family: "executive",
+    allowImage: true,
+    headingLabel: "Executive scope",
+    sectionOrder: ["SUMMARY", "EXPERIENCE", "SKILLS", "PROJECTS", "EDUCATION", "CERTIFICATIONS"],
+  },
+  "ats-professional": {
+    label: "ATS Professional",
+    description: "Plain parser-friendly layout with simple headings, tight spacing, and no image.",
+    family: "ats",
+    allowImage: false,
+    headingLabel: "Parser-friendly",
+    sectionOrder: ["SUMMARY", "SKILLS", "EXPERIENCE", "PROJECTS", "TOOLS", "EDUCATION", "CERTIFICATIONS"],
+  },
+  "executive-modern": {
+    label: "Executive Modern",
+    description: "Premium leadership hierarchy with a strong header, open spacing, and executive emphasis.",
+    family: "executive",
+    allowImage: true,
+    headingLabel: "Leadership-first",
+    sectionOrder: ["SUMMARY", "EXPERIENCE", "SKILLS", "PROJECTS", "EDUCATION", "CERTIFICATIONS"],
+  },
+  "academic-research": {
+    label: "Academic Research",
+    description: "Research-first hierarchy emphasizing publications, teaching, methods, and credentials.",
+    family: "academic",
+    allowImage: false,
+    headingLabel: "Research-first",
+    sectionOrder: ["SUMMARY", "PUBLICATIONS", "RESEARCH", "PROJECTS", "EDUCATION", "CERTIFICATIONS", "SKILLS", "EXPERIENCE"],
+  },
+  "finance-fintech": {
+    label: "Finance / Fintech",
+    description: "Metrics-forward structure for impact, risk, compliance, controls, and financial systems.",
+    family: "finance",
+    allowImage: false,
+    headingLabel: "Impact and controls",
+    sectionOrder: ["SUMMARY", "EXPERIENCE", "SKILLS", "PROJECTS", "TOOLS", "EDUCATION", "CERTIFICATIONS"],
+  },
+  "healthcare-health-it": {
+    label: "Healthcare / Health IT",
+    description: "Credential and workflow-oriented layout for compliance, systems integration, and care operations.",
+    family: "healthcare",
+    allowImage: false,
+    headingLabel: "Systems and compliance",
+    sectionOrder: ["SUMMARY", "CERTIFICATIONS", "SKILLS", "EXPERIENCE", "PROJECTS", "TOOLS", "EDUCATION"],
+  },
+  "creative-portfolio": {
+    label: "Creative Portfolio",
+    description: "Portfolio-led preview with optional image, visual accents, and stronger link presentation.",
+    family: "creative",
+    allowImage: true,
+    headingLabel: "Portfolio-led",
+    sectionOrder: ["SUMMARY", "PROJECTS", "SKILLS", "TOOLS", "EXPERIENCE", "EDUCATION", "CERTIFICATIONS"],
+  },
+  "legal-policy": {
+    label: "Legal / Policy",
+    description: "Formal hierarchy for governance, policy, publications, compliance, and advisory work.",
+    family: "legal",
+    allowImage: false,
+    headingLabel: "Formal governance",
+    sectionOrder: ["SUMMARY", "EXPERIENCE", "PUBLICATIONS", "RESEARCH", "EDUCATION", "CERTIFICATIONS", "SKILLS"],
+  },
+  "product-saas": {
+    label: "Product / SaaS",
+    description: "Product outcomes layout emphasizing roadmap, users, APIs, experiments, and business metrics.",
+    family: "product",
+    allowImage: false,
+    headingLabel: "Product outcomes",
+    sectionOrder: ["SUMMARY", "SKILLS", "PROJECTS", "EXPERIENCE", "TOOLS", "EDUCATION", "CERTIFICATIONS"],
   },
 };
 
@@ -629,6 +746,30 @@ function isTemplateId(value: unknown): value is TemplateId {
 
 function isThemeId(value: unknown): value is ThemeId {
   return typeof value === "string" && value in previewThemes;
+}
+
+function templateProfile(template: TemplateId) {
+  return templates[template] ?? templates["executive-navy"];
+}
+
+function sectionOrderScore(section: ResumeSection, template: TemplateId) {
+  const heading = section.heading.toUpperCase();
+  const order = templateProfile(template).sectionOrder;
+  const index = order.findIndex((token) => heading.includes(token));
+
+  return index === -1 ? order.length + 1 : index;
+}
+
+function orderedResumeSections(sections: ResumeSection[], template: TemplateId) {
+  return sections
+    .map((section, index) => ({ section, index }))
+    .sort((left, right) => {
+      const leftScore = sectionOrderScore(left.section, template);
+      const rightScore = sectionOrderScore(right.section, template);
+
+      return leftScore === rightScore ? left.index - right.index : leftScore - rightScore;
+    })
+    .map(({ section }) => section);
 }
 
 function isIndustryTarget(value: unknown): value is IndustryTarget {
@@ -2577,11 +2718,7 @@ function isUrlLike(value: string) {
 }
 
 function shouldShowProfileImage(template: TemplateId, imageDataUrl = "") {
-  return Boolean(
-    imageDataUrl &&
-      template !== "ats-clean" &&
-      template !== "tech-minimal",
-  );
+  return Boolean(imageDataUrl && templateProfile(template).allowImage);
 }
 
 function fileNameForRole(targetRole: string, extension: "pdf" | "docx") {
@@ -2829,30 +2966,47 @@ async function createResumePdfBlob(
     contact.website,
     contact.location,
   ].filter((item): item is string => Boolean(item));
-  const isAts = template === "ats-clean";
+  const profile = templateProfile(template);
+  const family = profile.family;
+  const isAts = family === "ats";
   const hasHeaderBand =
-    template === "executive-navy" || template === "bold-leadership";
-  const isModern =
-    template === "modern-product" || template === "tech-minimal";
-  const pagePadding = template === "tech-minimal" || isAts ? 32 : 40;
+    family === "executive" || family === "creative" || family === "finance";
+  const isModern = ["product", "technical", "creative"].includes(family);
+  const pagePadding =
+    family === "ats"
+      ? 30
+      : family === "executive"
+        ? 44
+        : family === "academic" || family === "legal"
+          ? 38
+          : 36;
+  const orderedSections = orderedResumeSections(resume.sections, template);
   const styles = StyleSheet.create({
     page: {
       padding: pagePadding,
       color: theme.textHex,
-      fontFamily: "Helvetica",
-      fontSize: isAts ? 9.5 : 10,
-      lineHeight: 1.45,
+      fontFamily:
+        family === "academic" || family === "legal" ? "Times-Roman" : "Helvetica",
+      fontSize: isAts ? 9.5 : family === "executive" ? 10.5 : 10,
+      lineHeight: family === "consulting" || family === "finance" ? 1.35 : 1.45,
     },
     header: {
       backgroundColor: hasHeaderBand ? theme.headerHex : "#ffffff",
       borderBottomColor: theme.accentHex,
-      borderBottomWidth: hasHeaderBand ? 0 : 2,
-      marginBottom: 18,
-      padding: hasHeaderBand ? 16 : 0,
+      borderBottomWidth: hasHeaderBand ? 0 : family === "ats" ? 1 : 2,
+      marginBottom: family === "executive" ? 22 : 18,
+      padding: hasHeaderBand ? (family === "executive" ? 20 : 16) : 0,
     },
     name: {
       color: hasHeaderBand ? "#ffffff" : theme.textHex,
-      fontSize: template === "bold-leadership" ? 24 : 20,
+      fontSize:
+        family === "executive"
+          ? 24
+          : family === "creative"
+            ? 23
+            : family === "ats"
+              ? 18
+              : 20,
       fontWeight: 700,
       marginBottom: 4,
     },
@@ -2883,17 +3037,20 @@ async function createResumePdfBlob(
     },
     section: {
       borderLeftColor: isModern ? theme.accentHex : "#ffffff",
-      borderLeftWidth: isModern ? 2 : 0,
-      marginBottom: isAts ? 10 : 13,
-      paddingLeft: isModern ? 8 : 0,
+      borderLeftWidth: isModern ? (family === "creative" ? 4 : 2) : 0,
+      marginBottom:
+        family === "ats" || family === "consulting" || family === "finance"
+          ? 10
+          : 14,
+      paddingLeft: isModern ? 9 : 0,
     },
     heading: {
       borderBottomColor: theme.accentHex,
-      borderBottomWidth: 1,
+      borderBottomWidth: family === "ats" ? 0.5 : 1,
       color: theme.accentHex,
-      fontSize: 9,
+      fontSize: family === "academic" || family === "legal" ? 10 : 9,
       fontWeight: 700,
-      letterSpacing: 0.8,
+      letterSpacing: family === "ats" ? 0.2 : 0.8,
       marginBottom: 6,
       paddingBottom: 3,
       textTransform: "uppercase",
@@ -2955,7 +3112,7 @@ async function createResumePdfBlob(
           ),
         ),
       ),
-      ...resume.sections.map((section, sectionIndex) =>
+      ...orderedSections.map((section, sectionIndex) =>
         createElement(
           View,
           { key: `${section.heading}-${sectionIndex}`, style: styles.section },
@@ -3008,13 +3165,17 @@ async function createResumeDocxBlob(
     contact.website,
     contact.location,
   ].filter((item): item is string => Boolean(item));
+  const profile = templateProfile(template);
+  const family = profile.family;
   const hasHeaderBand =
-    template === "executive-navy" || template === "bold-leadership";
-  const isModern =
-    template === "modern-product" || template === "tech-minimal";
+    family === "executive" || family === "creative" || family === "finance";
+  const isModern = ["product", "technical", "creative"].includes(family);
   const accentColor = stripHash(theme.accentHex);
   const headerColor = stripHash(theme.headerHex);
   const textColor = stripHash(theme.textHex);
+  const orderedSections = orderedResumeSections(resume.sections, template);
+  const headingSize = family === "academic" || family === "legal" ? 21 : 19;
+  const bodySize = family === "ats" ? 20 : family === "executive" ? 22 : 21;
   const children = [
     new Paragraph({
       shading: hasHeaderBand
@@ -3028,11 +3189,11 @@ async function createResumeDocxBlob(
       children: [
         new TextRun({
           text: contact.name,
-          bold: true,
-          color: hasHeaderBand ? "FFFFFF" : textColor,
-          size: template === "bold-leadership" ? 34 : 30,
-        }),
-      ],
+              bold: true,
+              color: hasHeaderBand ? "FFFFFF" : textColor,
+              size: family === "executive" ? 34 : family === "ats" ? 28 : 30,
+            }),
+          ],
     }),
     new Paragraph({
       border: hasHeaderBand
@@ -3092,24 +3253,27 @@ async function createResumeDocxBlob(
     );
   }
 
-  for (const section of resume.sections) {
+  for (const section of orderedSections) {
     children.push(
       new Paragraph({
         border: {
           bottom: {
             style: BorderStyle.SINGLE,
             color: accentColor,
-            size: isModern ? 8 : 6,
+            size: isModern || family === "consulting" || family === "finance" ? 8 : 6,
             space: 1,
           },
         },
-        spacing: { before: 120, after: 120 },
+        spacing: {
+          before: family === "executive" ? 160 : 120,
+          after: family === "ats" ? 80 : 120,
+        },
         children: [
           new TextRun({
             text: section.heading,
             bold: true,
             color: accentColor,
-            size: 19,
+            size: headingSize,
           }),
         ],
       }),
@@ -3119,7 +3283,7 @@ async function createResumeDocxBlob(
       children.push(
         new Paragraph({
           spacing: { after: 90 },
-          children: [new TextRun({ text: paragraph, color: textColor, size: 21 })],
+          children: [new TextRun({ text: paragraph, color: textColor, size: bodySize })],
         }),
       );
     }
@@ -3128,8 +3292,8 @@ async function createResumeDocxBlob(
       children.push(
         new Paragraph({
           bullet: { level: 0 },
-          spacing: { after: 70 },
-          children: [new TextRun({ text: bullet, color: textColor, size: 21 })],
+          spacing: { after: family === "consulting" || family === "finance" ? 55 : 70 },
+          children: [new TextRun({ text: bullet, color: textColor, size: bodySize })],
         }),
       );
     }
@@ -3190,11 +3354,12 @@ async function createCoverLetterPdfBlob({
     contact.website ? `Website: ${contact.website}` : "",
     contact.location ? `Location: ${contact.location}` : "",
   ].filter((item): item is string => Boolean(item));
+  const profile = templateProfile(template);
+  const family = profile.family;
   const hasHeaderBand =
-    template === "executive-navy" || template === "bold-leadership";
-  const isModern =
-    template === "modern-product" || template === "tech-minimal";
-  const isAts = template === "ats-clean";
+    family === "executive" || family === "creative" || family === "finance";
+  const isAts = family === "ats";
+  const isModern = ["product", "technical", "creative"].includes(family);
   const today = new Date().toLocaleDateString(undefined, {
     year: "numeric",
     month: "long",
@@ -3202,22 +3367,23 @@ async function createCoverLetterPdfBlob({
   });
   const styles = StyleSheet.create({
     page: {
-      padding: isAts || template === "tech-minimal" ? 42 : 48,
+      padding: isAts || family === "technical" ? 42 : family === "executive" ? 52 : 48,
       color: theme.textHex,
-      fontFamily: "Helvetica",
-      fontSize: 10.5,
-      lineHeight: 1.55,
+      fontFamily:
+        family === "academic" || family === "legal" ? "Times-Roman" : "Helvetica",
+      fontSize: isAts ? 10 : family === "executive" ? 11 : 10.5,
+      lineHeight: family === "consulting" || family === "finance" ? 1.45 : 1.55,
     },
     header: {
       backgroundColor: hasHeaderBand ? theme.headerHex : "#ffffff",
       borderBottomColor: theme.accentHex,
       borderBottomWidth: hasHeaderBand ? 0 : 2,
-      marginBottom: 22,
-      padding: hasHeaderBand ? 16 : 0,
+      marginBottom: family === "executive" ? 26 : 22,
+      padding: hasHeaderBand ? (family === "executive" ? 20 : 16) : 0,
     },
     name: {
       color: hasHeaderBand ? "#ffffff" : theme.textHex,
-      fontSize: template === "bold-leadership" ? 24 : 21,
+      fontSize: family === "executive" ? 24 : family === "ats" ? 19 : 21,
       fontWeight: 700,
       marginBottom: 4,
     },
@@ -3315,8 +3481,9 @@ async function createCoverLetterDocxBlob({
   ]
     .filter(Boolean)
     .join(" | ");
+  const family = templateProfile(template).family;
   const hasHeaderBand =
-    template === "executive-navy" || template === "bold-leadership";
+    family === "executive" || family === "creative" || family === "finance";
   const accentColor = stripHash(theme.accentHex);
   const headerColor = stripHash(theme.headerHex);
   const textColor = stripHash(theme.textHex);
@@ -3337,11 +3504,11 @@ async function createCoverLetterDocxBlob({
       spacing: { after: 80 },
       children: [
         new TextRun({
-          text: contact.name,
-          bold: true,
-          color: hasHeaderBand ? "FFFFFF" : textColor,
-          size: template === "bold-leadership" ? 34 : 30,
-        }),
+              text: contact.name,
+              bold: true,
+              color: hasHeaderBand ? "FFFFFF" : textColor,
+              size: family === "executive" ? 34 : family === "ats" ? 28 : 30,
+            }),
       ],
     }),
     new Paragraph({
@@ -6691,28 +6858,63 @@ function ResumePreview({
     contact.website,
     contact.location,
   ].filter((item): item is string => Boolean(item));
-  const isExecutive = template === "executive-navy";
-  const isModern = template === "modern-product";
-  const bodyClass =
-    template === "ats-clean"
-      ? fullPage
-        ? "space-y-4 px-10 py-8"
-        : "space-y-5 p-6"
-      : isModern
-        ? fullPage
-          ? "space-y-5 px-11 py-9"
-          : "space-y-6 p-7"
-        : fullPage
-          ? "space-y-5 px-11 py-9"
-          : "space-y-6 p-7";
-  const headerClass = isExecutive
-    ? `border-b border-zinc-200 ${fullPage ? "px-11 py-8" : "px-7 py-6"} ${theme.headerBg} ${theme.headerText}`
-    : isModern
-      ? `border-b border-zinc-200 border-l-4 bg-white ${fullPage ? "px-10 py-7" : "px-6 py-5"} text-zinc-950 ${theme.accentBorder}`
-      : `border-b border-zinc-200 bg-white ${fullPage ? "px-10 py-7" : "px-6 py-4"} text-zinc-950`;
-  const subtitleClass = isExecutive
+  const profile = templateProfile(template);
+  const family = profile.family;
+  const isExecutive = family === "executive";
+  const orderedSections = orderedResumeSections(resume.sections, template);
+  const bodyClassByFamily: Record<TemplateFamily, string> = {
+    ats: fullPage ? "space-y-3 px-10 py-8" : "space-y-4 p-6",
+    executive: fullPage ? "space-y-6 px-12 py-10" : "space-y-7 p-8",
+    consulting: fullPage ? "space-y-4 px-11 py-9" : "space-y-5 p-7",
+    academic: fullPage ? "space-y-4 px-12 py-9" : "space-y-5 p-7",
+    finance: fullPage ? "space-y-4 px-11 py-9" : "space-y-5 p-7",
+    healthcare: fullPage ? "space-y-4 px-11 py-9" : "space-y-5 p-7",
+    creative: fullPage ? "space-y-5 px-10 py-9" : "space-y-6 p-7",
+    legal: fullPage ? "space-y-4 px-12 py-9" : "space-y-5 p-7",
+    product: fullPage ? "space-y-5 px-11 py-9" : "space-y-6 p-7",
+    technical: fullPage ? "space-y-4 px-10 py-8" : "space-y-5 p-6",
+  };
+  const bodyClass = bodyClassByFamily[family];
+  const headerClassByFamily: Record<TemplateFamily, string> = {
+    ats: `border-b border-zinc-300 bg-white ${fullPage ? "px-10 py-6" : "px-6 py-4"} text-zinc-950`,
+    executive: `border-b border-zinc-200 ${fullPage ? "px-12 py-9" : "px-8 py-7"} ${theme.headerBg} ${theme.headerText}`,
+    consulting: `border-b-2 bg-white ${fullPage ? "px-11 py-7" : "px-7 py-5"} text-zinc-950 ${theme.accentBorder}`,
+    academic: `border-b border-zinc-300 bg-white ${fullPage ? "px-12 py-7" : "px-7 py-5"} font-serif text-zinc-950`,
+    finance: `border-b border-zinc-200 ${fullPage ? "px-11 py-7" : "px-7 py-5"} ${theme.headerBg} ${theme.headerText}`,
+    healthcare: `border-b-4 bg-white ${fullPage ? "px-11 py-7" : "px-7 py-5"} text-zinc-950 ${theme.accentBorder}`,
+    creative: `border-b border-zinc-200 border-l-8 bg-white ${fullPage ? "px-10 py-8" : "px-7 py-6"} text-zinc-950 ${theme.accentBorder}`,
+    legal: `border-y-4 bg-white ${fullPage ? "px-12 py-7" : "px-7 py-5"} font-serif text-zinc-950 ${theme.accentBorder}`,
+    product: `border-b border-zinc-200 border-l-4 bg-white ${fullPage ? "px-10 py-7" : "px-6 py-5"} text-zinc-950 ${theme.accentBorder}`,
+    technical: `border-b border-zinc-200 bg-white ${fullPage ? "px-10 py-6" : "px-6 py-4"} text-zinc-950`,
+  };
+  const headerClass = headerClassByFamily[family];
+  const subtitleClass = isExecutive || family === "finance"
     ? `mt-1 text-sm font-medium ${theme.subheadText}`
     : "mt-1 text-sm font-medium text-zinc-500";
+  const sectionClassByFamily: Record<TemplateFamily, string> = {
+    ats: "break-inside-avoid",
+    executive: "break-inside-avoid rounded-sm border-l-4 border-zinc-100 pl-4",
+    consulting: "break-inside-avoid border border-zinc-100 p-3",
+    academic: "break-inside-avoid font-serif",
+    finance: "break-inside-avoid border-l-4 border-zinc-100 pl-4",
+    healthcare: "break-inside-avoid rounded-md border border-zinc-100 bg-zinc-50/40 p-3",
+    creative: "break-inside-avoid rounded-lg border border-zinc-100 p-3",
+    legal: "break-inside-avoid font-serif",
+    product: "break-inside-avoid border-l-2 border-zinc-100 pl-4",
+    technical: "break-inside-avoid border-l-2 border-zinc-100 pl-4",
+  };
+  const headingClassByFamily: Record<TemplateFamily, string> = {
+    ats: `border-b pb-1 text-[11px] font-bold uppercase ${theme.accentText} ${theme.accentBorder}`,
+    executive: `border-b pb-2 text-xs font-bold uppercase tracking-[0.16em] ${theme.accentText} ${theme.accentBorder}`,
+    consulting: `border-b-2 pb-2 text-xs font-bold uppercase tracking-[0.14em] ${theme.accentText} ${theme.accentBorder}`,
+    academic: `border-b pb-2 text-sm font-bold tracking-normal ${theme.accentText} ${theme.accentBorder}`,
+    finance: `border-b pb-2 text-xs font-bold uppercase tracking-[0.12em] ${theme.accentText} ${theme.accentBorder}`,
+    healthcare: `border-b pb-2 text-xs font-bold uppercase tracking-[0.12em] ${theme.accentText} ${theme.accentBorder}`,
+    creative: `pb-2 text-xs font-bold uppercase tracking-[0.18em] ${theme.accentText}`,
+    legal: `border-b pb-2 text-sm font-bold uppercase tracking-[0.08em] ${theme.accentText} ${theme.accentBorder}`,
+    product: `border-b pb-2 text-xs font-bold uppercase tracking-[0.16em] ${theme.accentText} ${theme.accentBorder}`,
+    technical: `border-b pb-2 text-xs font-bold uppercase tracking-[0.12em] ${theme.accentText} ${theme.accentBorder}`,
+  };
 
   return (
     <article
@@ -6734,15 +6936,30 @@ function ResumePreview({
           ) : null}
           <div className="min-w-0 flex-1">
             {contact.name ? (
-              <h4 className="text-2xl font-semibold tracking-tight">
+              <h4
+                className={`font-semibold tracking-tight ${
+                  family === "executive"
+                    ? "text-3xl"
+                    : family === "ats"
+                      ? "text-xl"
+                      : "text-2xl"
+                }`}
+              >
                 {contact.name}
               </h4>
             ) : null}
             {contact.title ? <p className={subtitleClass}>{contact.title}</p> : null}
+            <p
+              className={`mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${
+                isExecutive || family === "finance" ? theme.subheadText : theme.accentText
+              }`}
+            >
+              {profile.headingLabel}
+            </p>
             {contactItems.length > 0 ? (
               <p
                 className={`mt-3 text-xs leading-5 ${
-                  isExecutive ? theme.subheadText : "text-zinc-600"
+                  isExecutive || family === "finance" ? theme.subheadText : "text-zinc-600"
                 }`}
               >
                 {contactItems.map((item, itemIndex) => (
@@ -6769,14 +6986,12 @@ function ResumePreview({
       </header>
 
       <div className={bodyClass}>
-        {resume.sections.map((section, sectionIndex) => (
+        {orderedSections.map((section, sectionIndex) => (
           <section
             key={`${section.heading}-${sectionIndex}`}
-            className={`${isModern ? "border-l-2 border-zinc-100 pl-4" : ""} break-inside-avoid`}
+            className={sectionClassByFamily[family]}
           >
-            <h5
-              className={`border-b pb-2 text-xs font-bold uppercase tracking-[0.16em] ${theme.accentText} ${theme.accentBorder}`}
-            >
+            <h5 className={headingClassByFamily[family]}>
               {section.heading}
             </h5>
             {section.body.length > 0 ? (
