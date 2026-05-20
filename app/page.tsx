@@ -1,6 +1,7 @@
 "use client";
 
 import { createElement, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { isSupabaseBrowserConfigured } from "@/lib/supabaseClient";
 
 type TemplateId =
@@ -2066,6 +2067,14 @@ function linkedinKitFileName(targetRole: string, extension: "pdf" | "docx") {
   return `${roleSlug}-linkedin-kit.${extension}`;
 }
 
+function applicationKitFileName(targetRole: string, extension: "pdf" | "docx") {
+  const roleSlug =
+    targetRole.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") ||
+    "application-kit";
+
+  return `${roleSlug}-application-kit.${extension}`;
+}
+
 function versionId() {
   return `version-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -2860,6 +2869,47 @@ async function createTextKitDocxBlob({
   return Packer.toBlob(document);
 }
 
+function replaceResumeSectionContent(
+  resumeText: string,
+  heading: string,
+  content: string,
+) {
+  const normalizedHeading = heading.toUpperCase();
+  const lines = resumeText.split(/\r?\n/);
+  const startIndex = lines.findIndex(
+    (line) => line.trim().toUpperCase() === normalizedHeading,
+  );
+
+  if (startIndex === -1) {
+    return `${resumeText.trim()}\n\n${normalizedHeading}\n${content.trim()}`.trim();
+  }
+
+  let endIndex = lines.length;
+
+  for (let index = startIndex + 1; index < lines.length; index += 1) {
+    const candidate = lines[index].trim();
+
+    if (
+      candidate.length > 0 &&
+      candidate === candidate.toUpperCase() &&
+      /[A-Z]/.test(candidate)
+    ) {
+      endIndex = index;
+      break;
+    }
+  }
+
+  return [
+    ...lines.slice(0, startIndex + 1),
+    content.trim(),
+    "",
+    ...lines.slice(endIndex),
+  ]
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export default function Home() {
   const [masterResume, setMasterResume] = useState(sampleResume);
   const [jobDescription, setJobDescription] = useState(sampleJob);
@@ -2881,7 +2931,6 @@ export default function Home() {
   const [accountStatus, setAccountStatus] = useState("");
   const [systemStatus, setSystemStatus] = useState("");
   const [usageStats, setUsageStats] = useState<UsageStats>(defaultUsageStats);
-  const [copyStatus, setCopyStatus] = useState("Copy");
   const [coverCopyStatus, setCoverCopyStatus] = useState("Copy Cover Letter");
   const [activeOutput, setActiveOutput] = useState<
     "resume" | "cover" | "linkedin" | "application"
@@ -3220,7 +3269,6 @@ export default function Home() {
   }
 
   async function tailorResume() {
-    setCopyStatus("Copy");
     setCoverCopyStatus("Copy Cover Letter");
     setActiveOutput("resume");
     setTailorError("");
@@ -3283,7 +3331,6 @@ export default function Home() {
   }
 
   function generateCoverLetter() {
-    setCopyStatus("Copy");
     setCoverCopyStatus("Copy Cover Letter");
     setActiveOutput("cover");
     setResult((current) => {
@@ -3342,7 +3389,6 @@ export default function Home() {
     setUploadedFiles([]);
     setPreviewSourceFileId("");
     setActiveOutput("resume");
-    setCopyStatus("Copy");
     setCoverCopyStatus("Copy Cover Letter");
   }
 
@@ -3457,30 +3503,6 @@ export default function Home() {
         ),
       };
     });
-  }
-
-  async function copyOutput() {
-    if (!result) {
-      return;
-    }
-
-    const output =
-      activeOutput === "cover"
-        ? result.coverLetter
-        : activeOutput === "linkedin"
-          ? serializeLinkedInKit(result.linkedin)
-          : activeOutput === "application"
-            ? serializeApplicationKit(result.applicationKit)
-            : result.rewrittenResume;
-
-    try {
-      await navigator.clipboard.writeText(output);
-      setCopyStatus("Copied");
-      window.setTimeout(() => setCopyStatus("Copy"), 1500);
-    } catch {
-      setCopyStatus("Copy failed");
-      window.setTimeout(() => setCopyStatus("Copy"), 1500);
-    }
   }
 
   async function copyCoverLetter() {
@@ -3608,6 +3630,42 @@ export default function Home() {
     }
   }
 
+  async function downloadApplicationKitPdf() {
+    if (!result) {
+      return;
+    }
+
+    try {
+      const blob = await createTextKitPdfBlob({
+        title: "Application Kit",
+        body: serializeApplicationKit(result.applicationKit),
+        theme: previewTheme,
+      });
+      saveBlob(blob, applicationKitFileName(targetRole, "pdf"));
+      trackUsage("exportsCreated");
+    } catch {
+      setSystemStatus("Application Kit PDF export failed. Try DOCX or retry.");
+    }
+  }
+
+  async function downloadApplicationKitDocx() {
+    if (!result) {
+      return;
+    }
+
+    try {
+      const blob = await createTextKitDocxBlob({
+        title: "Application Kit",
+        body: serializeApplicationKit(result.applicationKit),
+        theme: previewTheme,
+      });
+      saveBlob(blob, applicationKitFileName(targetRole, "docx"));
+      trackUsage("exportsCreated");
+    } catch {
+      setSystemStatus("Application Kit DOCX export failed. Try PDF or retry.");
+    }
+  }
+
   async function downloadActivePdf() {
     if (activeOutput === "cover") {
       await downloadCoverLetterPdf();
@@ -3620,7 +3678,7 @@ export default function Home() {
     }
 
     if (activeOutput === "application") {
-      setSystemStatus("Application Kit export is not available yet. Use Copy for now.");
+      await downloadApplicationKitPdf();
       return;
     }
 
@@ -3639,7 +3697,7 @@ export default function Home() {
     }
 
     if (activeOutput === "application") {
-      setSystemStatus("Application Kit export is not available yet. Use Copy for now.");
+      await downloadApplicationKitDocx();
       return;
     }
 
@@ -4393,445 +4451,251 @@ export default function Home() {
       ) : null}
 
       {result ? (
-        <section className="mx-auto grid max-w-[112rem] gap-5 px-5 pb-10 sm:px-8 xl:grid-cols-[300px_minmax(0,1fr)]">
-          <aside className="space-y-5">
-            <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-semibold text-zinc-500">Match Score</p>
-              <div className="mt-4 flex items-end gap-2">
-                <span className="text-5xl font-semibold tracking-tight text-zinc-950">
-                  {result.score}
-                </span>
-                <span className="pb-2 text-xl font-semibold text-zinc-500">%</span>
-              </div>
-              <div className="mt-5 h-3 rounded-full bg-zinc-100">
-                <div
-                  className="h-3 rounded-full bg-teal-700"
-                  style={{ width: `${result.score}%` }}
-                />
-              </div>
-              <ul className="mt-4 space-y-2 text-sm text-zinc-600">
-                {safeStringArray(result.scoreNotes).map((note, noteIndex) => (
-                  <li key={`${note}-${noteIndex}`}>{note}</li>
-                ))}
-              </ul>
-            </div>
-
-            <KeywordList
-              title="Matched Keywords"
-              keywords={result.matchedKeywords}
-              emptyText="No matched keywords found yet."
-              variant="match"
-            />
-            <KeywordList
-              title="Missing Keywords"
-              keywords={result.missingKeywords}
-              emptyText="No major keyword gaps found."
-              variant="missing"
-            />
-            <AIResumeCoach
-              result={result}
-            />
-            <AdvancedIntelligencePanel
-              analysis={result.advancedAnalysis}
-              onReplaceBullet={replaceBulletWithVersion}
-            />
-          </aside>
-
-          <div className="min-w-0 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="sticky top-0 z-20 -mx-5 flex flex-col gap-3 border-b border-zinc-200 bg-white/95 px-5 pb-5 pt-1 backdrop-blur md:flex-row md:items-center md:justify-between">
+        <section className="mx-auto max-w-[118rem] px-4 pb-10 sm:px-6 xl:px-8">
+          <div className="sticky top-0 z-30 mb-5 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+            <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-zinc-950">
-                  Tailored Output
+                <h2 className="text-base font-semibold text-slate-950">
+                  AI Workspace
                 </h2>
-                <p className="mt-1 text-sm text-zinc-500">
-                  Edit the generated resume fields and cover letter before use.
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  Autosaved locally · Editing updates the active document immediately
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveOutput("resume")}
-                  className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition ${
-                    activeOutput === "resume"
-                      ? "bg-zinc-900 text-white hover:bg-zinc-800"
-                      : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
-                  }`}
-                >
-                  Resume
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveOutput("cover")}
-                  className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition ${
-                    activeOutput === "cover"
-                      ? "bg-zinc-900 text-white hover:bg-zinc-800"
-                      : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
-                  }`}
-                >
-                  Cover Letter
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveOutput("linkedin")}
-                  className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition ${
-                    activeOutput === "linkedin"
-                      ? "bg-zinc-900 text-white hover:bg-zinc-800"
-                      : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
-                  }`}
-                >
-                  LinkedIn
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveOutput("application")}
-                  className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition ${
-                    activeOutput === "application"
-                      ? "bg-zinc-900 text-white hover:bg-zinc-800"
-                      : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
-                  }`}
-                >
-                  Application Kit
-                </button>
+                {[
+                  ["resume", "Resume"],
+                  ["cover", "Cover Letter"],
+                  ["linkedin", "LinkedIn"],
+                  ["application", "Application Kit"],
+                ].map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() =>
+                      setActiveOutput(
+                        id as "resume" | "cover" | "linkedin" | "application",
+                      )
+                    }
+                    className={`inline-flex min-h-9 items-center justify-center rounded-md px-3 py-2 text-xs font-semibold transition ${
+                      activeOutput === id
+                        ? "bg-slate-950 text-white hover:bg-slate-800"
+                        : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
                 <a
                   href="#resume-preview"
-                  className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50"
+                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                   Preview
                 </a>
                 <button
                   type="button"
-                  onClick={copyOutput}
-                  className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50"
+                  onClick={() => setActiveOutput("resume")}
+                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
-                  {copyStatus}
+                  Edit Resume
                 </button>
                 <details className="relative">
-                  <summary className="inline-flex min-h-10 cursor-pointer list-none items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800">
-                    Download
+                  <summary className="inline-flex min-h-9 cursor-pointer list-none items-center justify-center rounded-md bg-teal-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-teal-800">
+                    Export
                   </summary>
-                  <div className="absolute right-0 z-30 mt-2 w-44 rounded-md border border-zinc-200 bg-white p-2 shadow-lg">
+                  <div className="absolute right-0 z-30 mt-2 w-40 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
                     <button
                       type="button"
                       onClick={downloadActivePdf}
-                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
                       PDF
                     </button>
                     <button
                       type="button"
                       onClick={downloadActiveDocx}
-                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
                       DOCX
                     </button>
                   </div>
                 </details>
+                <button
+                  type="button"
+                  onClick={saveCurrentVersion}
+                  className="inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Save Version
+                </button>
               </div>
             </div>
+          </div>
 
-            {activeOutput === "resume" ? (
-              <>
-                <div className="grid gap-5 py-5 lg:grid-cols-2">
-                  <section id="tailored-summary">
-                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                      Tailored Summary
-                    </h3>
-                    <textarea
-                      value={result.summary}
-                      onChange={(event) =>
-                        setResult((current) =>
-                          current
-                            ? { ...current, summary: event.target.value }
-                            : current,
-                        )
-                      }
-                      className="mt-3 min-h-36 w-full resize-y rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-700 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[300px_minmax(0,1fr)_320px]">
+            <aside className="order-2 lg:order-2 2xl:order-1">
+              <CompactAiSidebar result={result} />
+            </aside>
+
+            <section className="order-1 min-w-0 rounded-2xl border border-slate-200 bg-slate-100/70 p-4 shadow-sm lg:order-1 2xl:order-2">
+              <div className="mx-auto max-w-5xl">
+                {activeOutput === "resume" ? (
+                  <DocumentFrame title="Editable Resume" subtitle="Live draft">
+                    <WeakBulletEditor
+                      bullets={result.coach.weakBullets}
+                      onApply={rewriteSuggestedBullet}
                     />
-                  </section>
-
-                  <section id="tailored-skills">
-                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                      Skills
-                    </h3>
-                    <textarea
-                      value={result.skills.join(", ")}
-                      onChange={(event) =>
-                        setResult((current) =>
-                          current
-                            ? {
-                                ...current,
-                                skills: event.target.value
-                                  .split(",")
-                                  .map((skill) => skill.trim())
-                                  .filter(Boolean),
-                              }
-                            : current,
-                        )
-                      }
-                      className="mt-3 min-h-36 w-full resize-y rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-700 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-                    />
-                  </section>
-                </div>
-
-                <section id="rewritten-resume">
-                  <WeakBulletEditor
-                    bullets={result.coach.weakBullets}
-                    onApply={rewriteSuggestedBullet}
-                  />
-                  <div className="sticky top-0 z-10 -mx-5 border-y border-zinc-200 bg-white/95 px-5 py-3 backdrop-blur">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                        Rewritten Resume
-                      </h3>
-                      <nav
-                        aria-label="Rewritten resume navigation"
-                        className="flex flex-wrap gap-2"
-                      >
-                        <a
-                          href="#tailored-summary"
-                          className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                        >
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <section id="tailored-summary">
+                        <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                           Summary
-                        </a>
-                        <a
-                          href="#tailored-skills"
-                          className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                        >
+                        </h3>
+                        <textarea
+                          value={result.summary}
+                          onChange={(event) =>
+                            setResult((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    summary: event.target.value,
+                                    rewrittenResume: replaceResumeSectionContent(
+                                      current.rewrittenResume,
+                                      "PROFESSIONAL SUMMARY",
+                                      event.target.value,
+                                    ),
+                                  }
+                                : current,
+                            )
+                          }
+                          className="mt-2 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                        />
+                      </section>
+                      <section id="tailored-skills">
+                        <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                           Skills
-                        </a>
-                        <a
-                          href="#resume-editor"
-                          className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                        >
-                          Editor
-                        </a>
-                        <a
-                          href="#resume-preview"
-                          className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                        >
-                          Preview
-                        </a>
-                      </nav>
+                        </h3>
+                        <textarea
+                          value={result.skills.join(", ")}
+                          onChange={(event) =>
+                            setResult((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    skills: event.target.value
+                                      .split(",")
+                                      .map((skill) => skill.trim())
+                                      .filter(Boolean),
+                                    rewrittenResume: replaceResumeSectionContent(
+                                      current.rewrittenResume,
+                                      "CORE SKILLS",
+                                      event.target.value
+                                        .split(",")
+                                        .map((skill) => skill.trim())
+                                        .filter(Boolean)
+                                        .join(" | "),
+                                    ),
+                                  }
+                                : current,
+                            )
+                          }
+                          className="mt-2 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                        />
+                      </section>
                     </div>
-                  </div>
-                  <div className="grid gap-5 pt-5 2xl:grid-cols-[minmax(0,1.08fr)_minmax(520px,0.92fr)]">
+                    <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)]">
+                      <textarea
+                        id="resume-editor"
+                        value={result.rewrittenResume}
+                        onChange={(event) => updateResumeOutput(event.target.value)}
+                        className="min-h-[620px] w-full resize-y rounded-xl border border-slate-200 bg-white p-4 font-mono text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                      />
+                      <div id="resume-preview" className="min-w-0 scroll-mt-28">
+                        <ResumePreview
+                          resumeText={result.rewrittenResume}
+                          theme={previewTheme}
+                          template={template}
+                        />
+                      </div>
+                    </div>
+                  </DocumentFrame>
+                ) : activeOutput === "cover" ? (
+                  <DocumentFrame title="Cover Letter" subtitle="Editable letter">
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={generateCoverLetter}
+                        className="inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                      >
+                        Generate Cover Letter
+                      </button>
+                      <button
+                        type="button"
+                        onClick={copyCoverLetter}
+                        className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                      >
+                        {coverCopyStatus}
+                      </button>
+                    </div>
                     <textarea
-                      id="resume-editor"
-                      value={result.rewrittenResume}
-                      onChange={(event) => updateResumeOutput(event.target.value)}
-                      className="min-h-[720px] w-full resize-y scroll-mt-24 rounded-md border border-zinc-300 bg-white p-4 font-mono text-sm leading-6 text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                      value={result.coverLetter}
+                      onChange={(event) => updateCoverLetter(event.target.value)}
+                      className="min-h-[640px] w-full resize-y rounded-xl border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
                     />
-                    <div id="resume-preview" className="min-w-0 scroll-mt-24">
-                      <ResumePreview
-                        resumeText={result.rewrittenResume}
-                        theme={previewTheme}
-                        template={template}
+                  </DocumentFrame>
+                ) : activeOutput === "linkedin" ? (
+                  <DocumentFrame title="LinkedIn Optimizer" subtitle="Profile kit">
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={generateLinkedInProfile}
+                        className="inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                      >
+                        Generate LinkedIn Profile
+                      </button>
+                      <CopyTextButton label="Copy Headline" text={result.linkedin.headline} />
+                      <CopyTextButton label="Copy About" text={result.linkedin.about} />
+                      <CopyTextButton
+                        label="Copy Recruiter Message"
+                        text={result.linkedin.recruiterOutreachMessage}
                       />
                     </div>
-                  </div>
-                </section>
-              </>
-            ) : activeOutput === "cover" ? (
-              <section className="py-5">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                    Cover Letter
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={generateCoverLetter}
-                      className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
-                    >
-                      Generate Cover Letter
-                    </button>
-                    <button
-                      type="button"
-                      onClick={copyCoverLetter}
-                      className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50"
-                    >
-                      {coverCopyStatus}
-                    </button>
-                  </div>
-                </div>
-                <textarea
-                  value={result.coverLetter}
-                  onChange={(event) => updateCoverLetter(event.target.value)}
-                  className="mt-3 min-h-[560px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-7 text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <EditableField label="LinkedIn Headline" value={result.linkedin.headline} onChange={(value) => updateLinkedIn("headline", value)} />
+                      <EditableField label="Open-To-Work Positioning" value={result.linkedin.openToWorkPositioning} onChange={(value) => updateLinkedIn("openToWorkPositioning", value)} />
+                      <EditableField label="LinkedIn About Section" value={result.linkedin.about} onChange={(value) => updateLinkedIn("about", value)} tall />
+                      <EditableField label="Featured Projects Summary" value={result.linkedin.featuredProjects} onChange={(value) => updateLinkedIn("featuredProjects", value)} tall />
+                      <EditableField label="Top Skills List" value={result.linkedin.topSkills.join(", ")} onChange={(value) => updateLinkedIn("topSkills", value.split(",").map((item) => item.trim()).filter(Boolean))} />
+                      <EditableField label="Recruiter Keyword List" value={result.linkedin.recruiterKeywords.join(", ")} onChange={(value) => updateLinkedIn("recruiterKeywords", value.split(",").map((item) => item.trim()).filter(Boolean))} />
+                      <EditableField label="Short Networking Message" value={result.linkedin.networkingMessage} onChange={(value) => updateLinkedIn("networkingMessage", value)} />
+                      <EditableField label="Recruiter Outreach Message" value={result.linkedin.recruiterOutreachMessage} onChange={(value) => updateLinkedIn("recruiterOutreachMessage", value)} />
+                    </div>
+                  </DocumentFrame>
+                ) : (
+                  <DocumentFrame title="Application Kit" subtitle="Outreach package">
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <EditableField label="Short Recruiter Email" value={result.applicationKit.recruiterEmail} onChange={(value) => updateApplicationKit("recruiterEmail", value)} copy />
+                      <EditableField label="Follow-Up Email" value={result.applicationKit.followUpEmail} onChange={(value) => updateApplicationKit("followUpEmail", value)} copy />
+                      <EditableField label="Referral Request Message" value={result.applicationKit.referralRequest} onChange={(value) => updateApplicationKit("referralRequest", value)} copy />
+                      <EditableField label="LinkedIn Connection Request" value={result.applicationKit.connectionRequest} onChange={(value) => updateApplicationKit("connectionRequest", value)} copy />
+                      <EditableField label="Interview Introduction Pitch" value={result.applicationKit.interviewIntroPitch} onChange={(value) => updateApplicationKit("interviewIntroPitch", value)} copy />
+                      <EditableField label="30-Second Tell Me About Yourself" value={result.applicationKit.tellMeAboutYourself} onChange={(value) => updateApplicationKit("tellMeAboutYourself", value)} copy />
+                    </div>
+                  </DocumentFrame>
+                )}
+              </div>
+            </section>
+
+            <aside className="order-3">
+              <div className="sticky top-24">
+                <AdvancedIntelligencePanel
+                  analysis={result.advancedAnalysis}
+                  onReplaceBullet={replaceBulletWithVersion}
                 />
-              </section>
-            ) : activeOutput === "linkedin" ? (
-              <section className="py-5">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                    LinkedIn Optimizer
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={generateLinkedInProfile}
-                      className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
-                    >
-                      Generate LinkedIn Profile
-                    </button>
-                    <CopyTextButton label="Copy LinkedIn Headline" text={result.linkedin.headline} />
-                    <CopyTextButton label="Copy About Section" text={result.linkedin.about} />
-                    <CopyTextButton
-                      label="Copy Recruiter Message"
-                      text={result.linkedin.recruiterOutreachMessage}
-                    />
-                  </div>
-                </div>
-                <div className="mt-5 grid gap-5 lg:grid-cols-2">
-                  <EditableField
-                    label="LinkedIn Headline"
-                    value={result.linkedin.headline}
-                    onChange={(value) => updateLinkedIn("headline", value)}
-                  />
-                  <EditableField
-                    label="Open-To-Work Positioning"
-                    value={result.linkedin.openToWorkPositioning}
-                    onChange={(value) =>
-                      updateLinkedIn("openToWorkPositioning", value)
-                    }
-                  />
-                  <EditableField
-                    label="LinkedIn About Section"
-                    value={result.linkedin.about}
-                    onChange={(value) => updateLinkedIn("about", value)}
-                    tall
-                  />
-                  <EditableField
-                    label="Featured Projects Summary"
-                    value={result.linkedin.featuredProjects}
-                    onChange={(value) => updateLinkedIn("featuredProjects", value)}
-                    tall
-                  />
-                  <EditableField
-                    label="Top Skills List"
-                    value={result.linkedin.topSkills.join(", ")}
-                    onChange={(value) =>
-                      updateLinkedIn(
-                        "topSkills",
-                        value.split(",").map((item) => item.trim()).filter(Boolean),
-                      )
-                    }
-                  />
-                  <EditableField
-                    label="Recruiter Keyword List"
-                    value={result.linkedin.recruiterKeywords.join(", ")}
-                    onChange={(value) =>
-                      updateLinkedIn(
-                        "recruiterKeywords",
-                        value.split(",").map((item) => item.trim()).filter(Boolean),
-                      )
-                    }
-                  />
-                  <EditableField
-                    label="Short Networking Message"
-                    value={result.linkedin.networkingMessage}
-                    onChange={(value) => updateLinkedIn("networkingMessage", value)}
-                  />
-                  <EditableField
-                    label="Recruiter Outreach Message"
-                    value={result.linkedin.recruiterOutreachMessage}
-                    onChange={(value) =>
-                      updateLinkedIn("recruiterOutreachMessage", value)
-                    }
-                  />
-                </div>
-              </section>
-            ) : (
-              <section className="py-5">
-                <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                  Application Kit
-                </h3>
-                <div className="mt-5 grid gap-5 lg:grid-cols-2">
-                  <EditableField
-                    label="Short Recruiter Email"
-                    value={result.applicationKit.recruiterEmail}
-                    onChange={(value) => updateApplicationKit("recruiterEmail", value)}
-                    copy
-                  />
-                  <EditableField
-                    label="Follow-Up Email"
-                    value={result.applicationKit.followUpEmail}
-                    onChange={(value) => updateApplicationKit("followUpEmail", value)}
-                    copy
-                  />
-                  <EditableField
-                    label="Referral Request Message"
-                    value={result.applicationKit.referralRequest}
-                    onChange={(value) => updateApplicationKit("referralRequest", value)}
-                    copy
-                  />
-                  <EditableField
-                    label="LinkedIn Connection Request"
-                    value={result.applicationKit.connectionRequest}
-                    onChange={(value) => updateApplicationKit("connectionRequest", value)}
-                    copy
-                  />
-                  <EditableField
-                    label="Interview Introduction Pitch"
-                    value={result.applicationKit.interviewIntroPitch}
-                    onChange={(value) =>
-                      updateApplicationKit("interviewIntroPitch", value)
-                    }
-                    copy
-                  />
-                  <EditableField
-                    label="30-Second Tell Me About Yourself"
-                    value={result.applicationKit.tellMeAboutYourself}
-                    onChange={(value) =>
-                      updateApplicationKit("tellMeAboutYourself", value)
-                    }
-                    copy
-                  />
-                </div>
-              </section>
-            )}
+              </div>
+            </aside>
           </div>
         </section>
       ) : null}
     </main>
-  );
-}
-
-function KeywordList({
-  title,
-  keywords,
-  emptyText,
-  variant,
-}: {
-  title: string;
-  keywords: string[];
-  emptyText: string;
-  variant: "match" | "missing";
-}) {
-  const visibleKeywords = Array.from(new Set(safeStringArray(keywords)));
-  const colorClass =
-    variant === "match"
-      ? "bg-emerald-50 text-emerald-900"
-      : "bg-amber-50 text-amber-900";
-
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-      <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {visibleKeywords.length > 0 ? (
-          visibleKeywords.map((keyword, keywordIndex) => (
-            <span
-              key={`${keyword}-${keywordIndex}`}
-              className={`rounded-md px-3 py-2 text-xs font-semibold ${colorClass}`}
-            >
-              {keyword}
-            </span>
-          ))
-        ) : (
-          <p className="text-sm text-zinc-500">{emptyText}</p>
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -4887,6 +4751,133 @@ function EditableField({
         }`}
       />
     </section>
+  );
+}
+
+function DocumentFrame({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+}) {
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)]">
+      <div className="mb-5 flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div>
+          <h3 className="text-lg font-semibold tracking-tight text-slate-950">
+            {title}
+          </h3>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">
+            {subtitle}
+          </p>
+        </div>
+        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+          Autosaved
+        </span>
+      </div>
+      {children}
+    </article>
+  );
+}
+
+function CompactAiSidebar({ result }: { result: TailoringResult }) {
+  const score = safeScore(result.score, 0);
+  const breakdown = safeMatchBreakdown(result.matchBreakdown, score);
+  const coach = normalizeCoachData(result.coach, {
+    score,
+    breakdown,
+    positioningStrategy: result.positioningStrategy || "",
+    missingKeywords: safeStringArray(result.missingKeywords),
+    improvementNotes: safeStringArray(result.improvementNotes),
+    riskFlags: safeStringArray(result.riskFlags),
+    rewrittenResume: result.rewrittenResume || "",
+    coverLetter: result.coverLetter || "",
+  });
+  const simulation = result.advancedAnalysis.recruiterSimulation;
+  const quickCritiques = [
+    ...safeStringArray(coach.topStrengths).slice(0, 2).map((item) => `Strength: ${item}`),
+    ...safeStringArray(coach.topGaps).slice(0, 2).map((item) => `Gap: ${item}`),
+  ];
+  const sectionCritiques = [
+    ["Header", coach.sectionCritique.headerContact],
+    ["Summary", coach.sectionCritique.professionalSummary],
+    ["Skills", coach.sectionCritique.skills],
+    ["Experience", coach.sectionCritique.experience],
+    ["Projects", coach.sectionCritique.projects],
+    ["Education", coach.sectionCritique.educationCertifications],
+    ["Cover Letter", coach.sectionCritique.coverLetter],
+  ] as const;
+
+  return (
+    <div className="sticky top-24 space-y-3">
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+          ATS Scores
+        </p>
+        <div className="mt-3 flex items-end gap-2">
+          <span className="text-4xl font-semibold tracking-tight text-slate-950">
+            {Math.round(score)}
+          </span>
+          <span className="pb-1 text-sm font-semibold text-slate-500">/100</span>
+        </div>
+        <div className="mt-3 grid gap-2">
+          <ScoreBar label="ATS readiness" score={breakdown.atsReadability} />
+          <ScoreBar label="Role fit" score={breakdown.roleFit} />
+          <ScoreBar label="Metrics" score={breakdown.metricStrength} />
+        </div>
+      </section>
+
+      <details open className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+          Recruiter Simulation
+        </summary>
+        <div className="mt-3 space-y-2">
+          <ScoreBar label="ATS screen" score={simulation.atsScreening.score} />
+          <ScoreBar label="Recruiter" score={simulation.recruiterReview.score} />
+          <ScoreBar label="Hiring manager" score={simulation.hiringManagerReview.score} />
+        </div>
+      </details>
+
+      <details open className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+          Quick Critique
+        </summary>
+        <CoachInlineList items={quickCritiques} />
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {sectionCritiques.map(([title, items], sectionIndex) => (
+            <details
+              key={`${title}-${sectionIndex}`}
+              className="rounded-md border border-slate-200 bg-slate-50 p-2"
+            >
+              <summary className="cursor-pointer list-none">
+                <p className="text-xs font-semibold text-slate-900">{title}</p>
+                <p className="mt-1 truncate text-[11px] leading-4 text-slate-500">
+                  {safeStringArray(items)[0] || "No detail yet."}
+                </p>
+              </summary>
+              <CoachInlineList items={items} />
+            </details>
+          ))}
+        </div>
+      </details>
+
+      <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+          Truth / Risk Flags
+        </summary>
+        <CoachInlineList items={safeStringArray(result.riskFlags)} />
+      </details>
+
+      <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+          Industry Alignment
+        </summary>
+        <CoachInlineList items={[coach.industryAlignment, result.industryFit]} />
+      </details>
+    </div>
   );
 }
 
@@ -4974,141 +4965,6 @@ function WeakBulletEditor({
   );
 }
 
-function AIResumeCoach({
-  result,
-}: {
-  result: TailoringResult;
-}) {
-  const score = safeScore(result.score, 0);
-  const matchBreakdown = safeMatchBreakdown(result.matchBreakdown, score);
-  const coach = normalizeCoachData(result.coach, {
-    score,
-    breakdown: matchBreakdown,
-    positioningStrategy: result.positioningStrategy || "",
-    missingKeywords: safeStringArray(result.missingKeywords),
-    improvementNotes: safeStringArray(result.improvementNotes),
-    riskFlags: safeStringArray(result.riskFlags),
-    rewrittenResume: result.rewrittenResume || "",
-    coverLetter: result.coverLetter || "",
-  });
-  const recommendedKeywords = safeStringArray(result.recommendedKeywords);
-  const riskFlags = safeStringArray(result.riskFlags);
-  const breakdownItems = [
-    ["Role fit", matchBreakdown.roleFit],
-    ["Industry fit", matchBreakdown.industryFit],
-    ["Required skills match", matchBreakdown.requiredSkillsMatch],
-    ["Preferred skills match", matchBreakdown.preferredSkillsMatch],
-    ["Metrics strength", matchBreakdown.metricStrength],
-    ["Seniority alignment", matchBreakdown.seniorityAlignment],
-    ["AI/project relevance", matchBreakdown.projectRelevance],
-    ["ATS readability", matchBreakdown.atsReadability],
-  ] as const;
-  const sectionCritiques = [
-    ["Header/contact", coach.sectionCritique.headerContact],
-    ["Professional summary", coach.sectionCritique.professionalSummary],
-    ["Skills", coach.sectionCritique.skills],
-    ["Experience", coach.sectionCritique.experience],
-    ["Projects", coach.sectionCritique.projects],
-    ["Education/certifications", coach.sectionCritique.educationCertifications],
-    ["Cover letter", coach.sectionCritique.coverLetter],
-  ] as const;
-
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-      <h2 className="text-sm font-semibold text-zinc-900">AI Resume Coach</h2>
-      <div className="mt-4 space-y-5">
-        <CoachBlock
-          title="Overall Recruiter Impression"
-          items={[coach.overallRecruiterImpression]}
-        />
-        <CoachBlock title="Why This Score" items={coach.whyThisScore} />
-        <section>
-          <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
-            Score Breakdown
-          </h3>
-          <div className="mt-3 grid gap-2">
-            {breakdownItems.map(([label, value], breakdownIndex) => (
-              <div
-                key={`${label}-${breakdownIndex}`}
-                className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
-              >
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium text-zinc-700">{label}</span>
-                  <span className="font-semibold text-zinc-950">
-                    {Math.round(value)}/100
-                  </span>
-                </div>
-                <div className="mt-2 h-2 rounded-full bg-zinc-200">
-                  <div
-                    className="h-2 rounded-full bg-teal-700"
-                    style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-        <CoachBlock
-          title="Role Positioning Recommendation"
-          items={[coach.rolePositioningRecommendation || result.positioningStrategy]}
-        />
-        <CoachBlock
-          title="Top 5 Strengths"
-          items={safeStringArray(coach.topStrengths).slice(0, 5)}
-        />
-        <CoachBlock
-          title="Top 5 Gaps"
-          items={safeStringArray(coach.topGaps).slice(0, 5)}
-        />
-        <CoachBlock
-          title="Keyword Recommendations"
-          items={recommendedKeywords}
-        />
-        <CoachBlock
-          title="Keyword Density Notes"
-          items={coach.keywordDensityNotes}
-        />
-        <CoachBlock title="ATS Risks" items={coach.atsRisks} />
-        <CoachBlock
-          title="Recruiter Readability"
-          items={[
-            `Recruiter readability score: ${coach.recruiterReadabilityScore}/100`,
-            result.recruiterReadability,
-          ]}
-        />
-        <CoachBlock title="Seniority Alignment" items={[coach.seniorityAlignment]} />
-        <CoachBlock title="Industry Alignment" items={[coach.industryAlignment]} />
-        <section>
-          <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
-            Section Critique
-          </h3>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {sectionCritiques.map(([title, items], sectionIndex) => (
-              <details
-                key={`${title}-${sectionIndex}`}
-                className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
-              >
-                <summary className="cursor-pointer list-none">
-                  <p className="text-sm font-semibold text-zinc-900">{title}</p>
-                  <p className="mt-1 truncate text-xs text-zinc-500">
-                    {safeStringArray(items)[0] || "No specific critique yet."}
-                  </p>
-                </summary>
-                <CoachInlineList items={items} />
-              </details>
-            ))}
-          </div>
-        </section>
-        <CoachBlock
-          title="Recruiter Objections"
-          items={coach.recruiterObjections}
-        />
-        <CoachBlock title="Truth / Risk Flags" items={riskFlags} />
-      </div>
-    </div>
-  );
-}
-
 function CoachInlineList({ items = [] }: { items?: readonly string[] | null }) {
   const safeItems = Array.isArray(items) ? items : [];
   const visibleItems = safeItems.filter(Boolean);
@@ -5167,55 +5023,12 @@ function AdvancedIntelligencePanel({
   analysis: AdvancedAnalysis;
   onReplaceBullet: (original: string, replacement: string) => void;
 }) {
-  const keyScores = [
-    ["Likelihood of Interview", analysis.keyScores.likelihoodOfInterview],
-    ["ATS Pass Probability", analysis.keyScores.atsPassProbability],
-    ["Executive Readiness", analysis.keyScores.executiveReadiness],
-    ["Technical Depth", analysis.keyScores.technicalDepth],
-    ["Leadership Strength", analysis.keyScores.leadershipStrength],
-    ["Industry Alignment", analysis.keyScores.industryAlignment],
-  ] as const;
-  const simulations = [
-    ["ATS Screening", analysis.recruiterSimulation.atsScreening],
-    ["Recruiter Review", analysis.recruiterSimulation.recruiterReview],
-    ["Hiring Manager Review", analysis.recruiterSimulation.hiringManagerReview],
-  ] as const;
-
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-      <h2 className="text-sm font-semibold text-zinc-900">
-        Recruiter Simulation
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 className="text-sm font-semibold text-slate-900">
+        Advanced Intelligence
       </h2>
-      <div className="mt-4 space-y-4">
-        <section className="space-y-2">
-          {keyScores.map(([label, score], scoreIndex) => (
-            <ScoreBar key={`${label}-${scoreIndex}`} label={label} score={score} />
-          ))}
-        </section>
-
-        <details open className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
-          <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
-            Review Simulation
-          </summary>
-          <div className="mt-3 space-y-3">
-            {simulations.map(([title, review], simulationIndex) => (
-              <div
-                key={`${title}-${simulationIndex}`}
-                className="rounded-md border border-zinc-200 bg-white p-3"
-              >
-                <ScoreBar label={title} score={review.score} />
-                <CoachBlock title="Strengths" items={review.strengths} />
-                <CoachBlock title="Weaknesses" items={review.weaknesses} />
-                <CoachBlock title="Likely Concerns" items={review.concerns} />
-                <CoachBlock
-                  title="Interview Probability"
-                  items={[review.interviewProbability]}
-                />
-              </div>
-            ))}
-          </div>
-        </details>
-
+      <div className="mt-4 space-y-3">
         <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
           <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
             AI Interview Prep
@@ -5460,7 +5273,7 @@ function ResumePreview({
     : "mt-1 text-sm font-medium text-zinc-500";
 
   return (
-    <article className="mt-5 max-h-[760px] overflow-auto rounded-md border border-zinc-200 bg-white text-zinc-850">
+    <article className="rounded-xl border border-slate-200 bg-white text-zinc-850 shadow-sm">
       <header className={headerClass}>
         <h4 className="text-2xl font-semibold tracking-tight">{resume.name}</h4>
         <p className={subtitleClass}>{resume.title}</p>
