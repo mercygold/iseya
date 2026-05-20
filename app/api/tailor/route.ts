@@ -25,6 +25,17 @@ type TailorRequest = {
     aggressiveOptimization?: boolean;
     positioningMode?: string;
   };
+  optimizationRequest?: {
+    action?: string;
+    sectionName?: string;
+    sectionText?: string;
+    fullResumeText?: string;
+  };
+};
+
+type OptimizationResponse = {
+  optimizedText: string;
+  warnings: string[];
 };
 
 type SectionCritique = {
@@ -1173,9 +1184,127 @@ async function callOpenAI(request: TailorRequest, apiKey: string) {
   return normalizeResponse(JSON.parse(content) as TailorResponse);
 }
 
+function optimizeTextLocally(request: TailorRequest): OptimizationResponse {
+  const optimization = request.optimizationRequest;
+  const action = optimization?.action || "Optimize this section";
+  const sourceText = stripMarkdown(optimization?.sectionText || "");
+  const cleanedLines = sourceText
+    .split(/\r?\n/)
+    .map((line) => stripMarkdown(line).replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const prefix =
+    action === "Strengthen Metrics"
+      ? "Verify before use: add a supported metric, scope, or outcome where your source material proves it."
+      : "";
+  const optimizedLines = cleanedLines.map((line) => {
+    let next = line
+      .replace(/^responsible for\s+/i, "Led ")
+      .replace(/^worked on\s+/i, "Advanced ")
+      .replace(/^helped\s+/i, "Supported ")
+      .replace(/^handled\s+/i, "Managed ");
+
+    if (action === "Shorten" && next.length > 150) {
+      next = `${next.slice(0, 147).replace(/\s+\S*$/, "")}.`;
+    }
+
+    return /[.!?]$/.test(next) ? next : `${next}.`;
+  });
+
+  return {
+    optimizedText: [prefix, ...optimizedLines].filter(Boolean).join("\n"),
+    warnings: [
+      "Local fallback used. Review carefully and verify any inferred scope before use.",
+    ],
+  };
+}
+
+async function callOpenAIOptimization(
+  request: TailorRequest,
+  apiKey: string,
+): Promise<OptimizationResponse> {
+  const optimization = request.optimizationRequest;
+
+  if (!optimization?.sectionText?.trim()) {
+    return { optimizedText: "", warnings: ["No section text was provided."] };
+  }
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: request.aiSettings?.model || process.env.OPENAI_MODEL || "gpt-4o-mini",
+      temperature: Math.max(
+        0,
+        Math.min(0.8, (request.aiSettings?.creativity ?? 25) / 100),
+      ),
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are Iseya, a truthful resume optimization assistant. Return only JSON with optimizedText and warnings. Optimize only the provided section or bullet. Do not add employers, degrees, certifications, years, tools, metrics, or achievements unless directly supported by the supplied resume/source text. If you infer a metric or scope, mark it exactly as 'AI suggestion - verify before use.' Use clean plain text with no markdown symbols.",
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            action: optimization.action || "Optimize this section",
+            sectionName: optimization.sectionName || "Resume section",
+            sectionText: optimization.sectionText,
+            fullResumeText: optimization.fullResumeText?.slice(0, 12000) || "",
+            masterResume: request.masterResume?.slice(0, 12000) || "",
+            jobDescription: request.jobDescription?.slice(0, 8000) || "",
+            targetRole: request.targetRole || "",
+            industryTarget: request.industryTarget || "General / ATS",
+            instruction:
+              "Return a revised version of only sectionText. Preserve truthfulness, keep the same basic content scope, improve recruiter readability and ATS clarity, and avoid markdown.",
+          }),
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI optimization failed with ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const content = data.choices?.[0]?.message?.content;
+
+  if (!content) {
+    throw new Error("OpenAI returned an empty optimization response.");
+  }
+
+  const parsed = JSON.parse(content) as Partial<OptimizationResponse>;
+
+  return {
+    optimizedText: stripMarkdown(parsed.optimizedText || optimization.sectionText),
+    warnings:
+      parsed.warnings?.map(stripMarkdown).filter(Boolean) ??
+      ["Review optimized text before use."],
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as TailorRequest;
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (body.optimizationRequest) {
+      if (!apiKey) {
+        return Response.json(optimizeTextLocally(body));
+      }
+
+      try {
+        return Response.json(await callOpenAIOptimization(body, apiKey));
+      } catch {
+        return Response.json(optimizeTextLocally(body));
+      }
+    }
 
     if (!body.masterResume || !body.jobDescription || !body.targetRole) {
       return Response.json(
@@ -1183,8 +1312,6 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-
-    const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
       return Response.json(localTailor(body));

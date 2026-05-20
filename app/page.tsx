@@ -240,6 +240,21 @@ type StructuredResume = {
   additionalSections: ResumeSection[];
 };
 
+type AiOptimizationAction =
+  | "Optimize Summary"
+  | "Improve Skills"
+  | "Rewrite Bullet"
+  | "Make More Executive"
+  | "Make More Technical"
+  | "Make More ATS-Friendly"
+  | "Shorten"
+  | "Strengthen Metrics"
+  | "Tailor to Industry"
+  | "Improve Recruiter Readability"
+  | "Optimize this section"
+  | "Rewrite this section"
+  | "Improve for selected industry";
+
 type UploadedSourceFile = {
   id: string;
   name: string;
@@ -2459,6 +2474,37 @@ function optimizeResumeBullet(value: string) {
     .replace(/^helped\s+/i, "Supported ");
 
   return optimizeResumeText(cleaned);
+}
+
+function formatSectionText(items: string[]) {
+  return items.map(cleanEditorText).filter(Boolean).join("\n");
+}
+
+function optimizationFallbackText(value: string, action: AiOptimizationAction) {
+  const lines = value
+    .split(/\r?\n/)
+    .map(cleanEditorText)
+    .filter(Boolean);
+  const optimized = lines.map((line) => {
+    if (action === "Rewrite Bullet" || action === "Strengthen Metrics") {
+      return optimizeResumeBullet(line);
+    }
+
+    if (action === "Shorten" && line.length > 150) {
+      return `${line.slice(0, 147).replace(/\s+\S*$/, "")}.`;
+    }
+
+    return optimizeResumeText(line);
+  });
+
+  if (action === "Strengthen Metrics") {
+    return [
+      "AI suggestion - verify before use: add only supported metric, scope, or outcome details.",
+      ...optimized,
+    ].join("\n");
+  }
+
+  return optimized.join("\n");
 }
 
 function extractContactInfoFromText(resumeText: string) {
@@ -5222,6 +5268,12 @@ export default function Home() {
                         <ModularResumeEditor
                           resumeText={result.rewrittenResume}
                           resetSourceText={masterResume}
+                          masterResume={masterResume}
+                          jobDescription={jobDescription}
+                          targetRole={targetRole}
+                          industryTarget={industryTarget}
+                          uploadedFiles={uploadedFiles}
+                          aiSettings={aiSettings}
                           personalBranding={personalBranding}
                           onPersonalBrandingChange={updatePersonalBranding}
                           onProfileImage={handleProfileImage}
@@ -5435,6 +5487,12 @@ function DocumentFrame({
 function ModularResumeEditor({
   resumeText,
   resetSourceText,
+  masterResume,
+  jobDescription,
+  targetRole,
+  industryTarget,
+  uploadedFiles,
+  aiSettings,
   personalBranding,
   onPersonalBrandingChange,
   onProfileImage,
@@ -5442,16 +5500,102 @@ function ModularResumeEditor({
 }: {
   resumeText: string;
   resetSourceText: string;
+  masterResume: string;
+  jobDescription: string;
+  targetRole: string;
+  industryTarget: IndustryTarget;
+  uploadedFiles: UploadedSourceFile[];
+  aiSettings: AiSettings;
   personalBranding: PersonalBranding;
   onPersonalBrandingChange: (field: keyof PersonalBranding, value: string) => void;
   onProfileImage: (file: File | undefined) => void;
   onResumeTextChange: (value: string) => void;
 }) {
+  const [optimizingKey, setOptimizingKey] = useState("");
+  const [optimizationStatus, setOptimizationStatus] = useState("");
   const structured = structuredResumeFromText(resumeText);
   const resetStructured = structuredResumeFromText(resetSourceText);
 
   function commit(next: StructuredResume) {
     onResumeTextChange(serializeStructuredResume(next, personalBranding));
+  }
+
+  async function optimizeWithBackend({
+    key,
+    action,
+    sectionName,
+    sectionText,
+  }: {
+    key: string;
+    action: AiOptimizationAction;
+    sectionName: string;
+    sectionText: string;
+  }) {
+    const cleaned = sectionText.trim();
+
+    if (!cleaned) {
+      setOptimizationStatus("Add content before optimizing this section.");
+      return "";
+    }
+
+    setOptimizingKey(key);
+    setOptimizationStatus(`Optimizing ${sectionName.toLowerCase()}...`);
+
+    try {
+      const response = await fetch("/api/tailor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          masterResume,
+          jobDescription,
+          targetRole,
+          industryTarget,
+          uploadedSourceMaterials: uploadedFiles.map((file) => ({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            extractionStatus: file.extractionStatus,
+            warnings: file.warnings,
+            extractedText: file.extractedText,
+          })),
+          currentEditedResume: resumeText,
+          aiSettings,
+          optimizationRequest: {
+            action,
+            sectionName,
+            sectionText: cleaned,
+            fullResumeText: resumeText,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Section optimization failed.");
+      }
+
+      const data = (await response.json()) as {
+        optimizedText?: string;
+        warnings?: string[];
+      };
+      const optimizedText =
+        data.optimizedText?.trim() || optimizationFallbackText(cleaned, action);
+      const warning = safeStringArray(data.warnings)[0];
+
+      setOptimizationStatus(
+        warning
+          ? `${sectionName} updated. ${warning}`
+          : `${sectionName} updated. Verify before use if new scope or metrics were inferred.`,
+      );
+      return optimizedText;
+    } catch {
+      const fallback = optimizationFallbackText(cleaned, action);
+      setOptimizationStatus(
+        `${sectionName} updated with local fallback. Verify before use.`,
+      );
+      return fallback;
+    } finally {
+      setOptimizingKey("");
+    }
   }
 
   function updateListField(field: keyof Pick<StructuredResume, "projects" | "education" | "certifications" | "publications" | "tools">, value: string) {
@@ -5478,26 +5622,133 @@ function ModularResumeEditor({
     });
   }
 
-  function optimizeSection(
-    field:
-      | "summary"
-      | "projects"
-      | "education"
-      | "certifications"
-      | "publications",
+  async function applySummaryAiAction(action: AiOptimizationAction) {
+    const optimized = await optimizeWithBackend({
+      key: `summary-${action}`,
+      action,
+      sectionName: "Professional Summary",
+      sectionText: structured.summary,
+    });
+
+    if (optimized) {
+      commit({ ...structured, summary: optimized.replace(/\n+/g, " ") });
+    }
+  }
+
+  async function applySkillsAiAction(action: AiOptimizationAction) {
+    const optimized = await optimizeWithBackend({
+      key: `skills-${action}`,
+      action,
+      sectionName: "Core Skills",
+      sectionText: structured.skills.join(", "),
+    });
+
+    if (optimized) {
+      commit({ ...structured, skills: splitResumeList(optimized) });
+    }
+  }
+
+  async function applyListAiAction(
+    field: keyof Pick<
+      StructuredResume,
+      "projects" | "education" | "certifications" | "publications" | "tools"
+    >,
+    title: string,
+    action: AiOptimizationAction,
   ) {
-    if (field === "summary") {
+    const optimized = await optimizeWithBackend({
+      key: `${field}-${action}`,
+      action,
+      sectionName: title,
+      sectionText: formatSectionText(structured[field]),
+    });
+
+    if (optimized) {
+      commit({ ...structured, [field]: splitResumeList(optimized) });
+    }
+  }
+
+  async function applyExperienceAiAction(action: AiOptimizationAction) {
+    const optimized = await optimizeWithBackend({
+      key: `experience-${action}`,
+      action,
+      sectionName: "Professional Experience",
+      sectionText: structured.experience
+        .flatMap((entry) => [
+          [entry.title, entry.company].filter(Boolean).join(" - "),
+          [entry.location, entry.dates].filter(Boolean).join(" | "),
+          ...entry.bullets,
+        ])
+        .filter(Boolean)
+        .join("\n"),
+    });
+
+    if (optimized) {
       commit({
         ...structured,
-        summary: optimizeResumeText(structured.summary),
+        experience: [
+          {
+            id: "experience-0",
+            title: "Professional Experience",
+            company: "",
+            location: "",
+            dates: "",
+            bullets: optimized
+              .split(/\r?\n/)
+              .map((line) => line.replace(/^[-*]\s+/, "").trim())
+              .filter(Boolean),
+          },
+        ],
       });
+    }
+  }
+
+  async function applyBulletAiAction(
+    entryIndex: number,
+    bulletIndex: number,
+    action: AiOptimizationAction,
+  ) {
+    const entry = structured.experience[entryIndex];
+    const bullet = entry?.bullets[bulletIndex] || "";
+    const optimized = await optimizeWithBackend({
+      key: `bullet-${entryIndex}-${bulletIndex}-${action}`,
+      action,
+      sectionName: "Experience Bullet",
+      sectionText: bullet,
+    });
+
+    if (optimized) {
+      updateExperienceBullet(
+        entryIndex,
+        bulletIndex,
+        optimized.split(/\r?\n/).filter(Boolean)[0] || optimized,
+      );
+    }
+  }
+
+  async function applyAdditionalSectionAiAction(
+    sectionIndex: number,
+    action: AiOptimizationAction,
+  ) {
+    const section = structured.additionalSections[sectionIndex];
+
+    if (!section) {
       return;
     }
 
-    commit({
-      ...structured,
-      [field]: structured[field].map(optimizeResumeText).filter(Boolean),
+    const optimized = await optimizeWithBackend({
+      key: `additional-${sectionIndex}-${action}`,
+      action,
+      sectionName: section.heading || "Additional Section",
+      sectionText: [...section.body, ...section.bullets].join("\n"),
     });
+
+    if (optimized) {
+      updateAdditionalSection(sectionIndex, {
+        body: optimized.split(/\r?\n/).map(cleanEditorText).filter(Boolean),
+        bullets: [],
+      });
+    }
   }
 
   function updateExperience(index: number, patch: Partial<ExperienceEntry>) {
@@ -5551,6 +5802,40 @@ function ModularResumeEditor({
 
   return (
     <div className="space-y-4">
+      <section className="rounded-xl border border-teal-100 bg-teal-50/60 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h4 className="text-sm font-semibold text-slate-950">
+              Continuous AI Optimization
+            </h4>
+            <p className="mt-1 text-xs leading-5 text-slate-600">
+              Improve one section or bullet at a time. Inferred suggestions should be verified before use.
+            </p>
+          </div>
+          <EditorActionButton
+            onClick={async () => {
+              const optimized = await optimizeWithBackend({
+                key: "full-resume-Optimize this section",
+                action: "Optimize this section",
+                sectionName: "Full Resume",
+                sectionText: resumeText,
+              });
+
+              if (optimized) {
+                onResumeTextChange(optimized);
+              }
+            }}
+          >
+            Optimize Full Resume
+          </EditorActionButton>
+        </div>
+        {optimizationStatus ? (
+          <p className="mt-3 rounded-md border border-teal-100 bg-white px-3 py-2 text-xs font-medium text-slate-700">
+            {optimizationStatus}
+          </p>
+        ) : null}
+      </section>
+
       <ModularSection title="Personal Branding & Contact">
         <div className="grid gap-3 md:grid-cols-2">
           <ContactField label="Full Name" value={personalBranding.fullName} onChange={(value) => onPersonalBrandingChange("fullName", value)} />
@@ -5586,8 +5871,10 @@ function ModularResumeEditor({
 
       <ModularSection
         title="Professional Summary"
-        onOptimize={() => optimizeSection("summary")}
+        onOptimize={() => applySummaryAiAction("Optimize Summary")}
         onReset={() => resetSection("summary")}
+        onAiAction={applySummaryAiAction}
+        isOptimizing={optimizingKey.startsWith("summary-")}
       >
         <textarea
           value={structured.summary}
@@ -5600,10 +5887,10 @@ function ModularResumeEditor({
 
       <ModularSection
         title="Core Skills"
-        onOptimize={() =>
-          commit({ ...structured, skills: uniqueStrings(structured.skills) })
-        }
+        onOptimize={() => applySkillsAiAction("Improve Skills")}
         onReset={() => resetSection("skills")}
+        onAiAction={applySkillsAiAction}
+        isOptimizing={optimizingKey.startsWith("skills-")}
       >
         <textarea
           value={structured.skills.join(", ")}
@@ -5616,16 +5903,10 @@ function ModularResumeEditor({
 
       <ModularSection
         title="Professional Experience"
-        onOptimize={() =>
-          commit({
-            ...structured,
-            experience: structured.experience.map((entry) => ({
-              ...entry,
-              bullets: entry.bullets.map(optimizeResumeBullet),
-            })),
-          })
-        }
+        onOptimize={() => applyExperienceAiAction("Optimize this section")}
         onReset={() => resetSection("experience")}
+        onAiAction={applyExperienceAiAction}
+        isOptimizing={optimizingKey.startsWith("experience-")}
       >
         <div className="space-y-3">
           {structured.experience.map((entry, entryIndex) => (
@@ -5657,8 +5938,14 @@ function ModularResumeEditor({
                       className="min-h-20 w-full resize-y rounded-md border border-slate-200 bg-white p-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
                     />
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <EditorActionButton onClick={() => updateExperienceBullet(entryIndex, bulletIndex, optimizeResumeBullet(bullet))}>
-                        Optimize Bullet
+                      <EditorActionButton onClick={() => applyBulletAiAction(entryIndex, bulletIndex, "Rewrite Bullet")}>
+                        Rewrite Bullet
+                      </EditorActionButton>
+                      <EditorActionButton onClick={() => applyBulletAiAction(entryIndex, bulletIndex, "Strengthen Metrics")}>
+                        Strengthen Metrics
+                      </EditorActionButton>
+                      <EditorActionButton onClick={() => applyBulletAiAction(entryIndex, bulletIndex, "Make More ATS-Friendly")}>
+                        Make ATS-Friendly
                       </EditorActionButton>
                       <EditorActionButton onClick={() => moveExperienceBullet(entryIndex, bulletIndex, -1)}>
                         Move Up
@@ -5717,30 +6004,22 @@ function ModularResumeEditor({
         </div>
       </ModularSection>
 
-      <ModularListSection title="AI & Automation Projects" value={structured.projects.join("\n")} onChange={(value) => updateListField("projects", value)} onOptimize={() => optimizeSection("projects")} onReset={() => resetSection("projects")} />
-      <ModularListSection title="Education" value={structured.education.join("\n")} onChange={(value) => updateListField("education", value)} onOptimize={() => optimizeSection("education")} onReset={() => resetSection("education")} />
-      <ModularListSection title="Certifications" value={structured.certifications.join("\n")} onChange={(value) => updateListField("certifications", value)} onOptimize={() => optimizeSection("certifications")} onReset={() => resetSection("certifications")} />
-      <ModularListSection title="Publications / Research" value={structured.publications.join("\n")} onChange={(value) => updateListField("publications", value)} onOptimize={() => optimizeSection("publications")} onReset={() => resetSection("publications")} />
-      <ModularListSection title="Tools / Technologies" value={structured.tools.join(", ")} onChange={(value) => updateListField("tools", value)} onOptimize={() => commit({ ...structured, tools: uniqueStrings(structured.tools) })} onReset={() => resetSection("tools")} />
+      <ModularListSection title="AI & Automation Projects" value={structured.projects.join("\n")} onChange={(value) => updateListField("projects", value)} onOptimize={() => applyListAiAction("projects", "AI & Automation Projects", "Optimize this section")} onReset={() => resetSection("projects")} onAiAction={(action) => applyListAiAction("projects", "AI & Automation Projects", action)} isOptimizing={optimizingKey.startsWith("projects-")} />
+      <ModularListSection title="Education" value={structured.education.join("\n")} onChange={(value) => updateListField("education", value)} onOptimize={() => applyListAiAction("education", "Education", "Optimize this section")} onReset={() => resetSection("education")} onAiAction={(action) => applyListAiAction("education", "Education", action)} isOptimizing={optimizingKey.startsWith("education-")} />
+      <ModularListSection title="Certifications" value={structured.certifications.join("\n")} onChange={(value) => updateListField("certifications", value)} onOptimize={() => applyListAiAction("certifications", "Certifications", "Optimize this section")} onReset={() => resetSection("certifications")} onAiAction={(action) => applyListAiAction("certifications", "Certifications", action)} isOptimizing={optimizingKey.startsWith("certifications-")} />
+      <ModularListSection title="Publications / Research" value={structured.publications.join("\n")} onChange={(value) => updateListField("publications", value)} onOptimize={() => applyListAiAction("publications", "Publications / Research", "Optimize this section")} onReset={() => resetSection("publications")} onAiAction={(action) => applyListAiAction("publications", "Publications / Research", action)} isOptimizing={optimizingKey.startsWith("publications-")} />
+      <ModularListSection title="Tools / Technologies" value={structured.tools.join(", ")} onChange={(value) => updateListField("tools", value)} onOptimize={() => applyListAiAction("tools", "Tools / Technologies", "Optimize this section")} onReset={() => resetSection("tools")} onAiAction={(action) => applyListAiAction("tools", "Tools / Technologies", action)} isOptimizing={optimizingKey.startsWith("tools-")} />
 
       <ModularSection
         title="Optional Additional Sections"
-        onOptimize={() =>
-          commit({
-            ...structured,
-            additionalSections: structured.additionalSections.map((section) => ({
-              ...section,
-              body: section.body.map(optimizeResumeText).filter(Boolean),
-              bullets: section.bullets.map(optimizeResumeBullet).filter(Boolean),
-            })),
-          })
-        }
+        onOptimize={() => applyAdditionalSectionAiAction(0, "Optimize this section")}
         onReset={() =>
           commit({
             ...structured,
             additionalSections: resetStructured.additionalSections,
           })
         }
+        isOptimizing={optimizingKey.startsWith("additional-")}
       >
         <div className="space-y-3">
           {structured.additionalSections.map((section, sectionIndex) => (
@@ -5766,6 +6045,17 @@ function ModularResumeEditor({
                 }
                 className="mt-3 min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
               />
+              <div className="mt-3 flex flex-wrap gap-2">
+                <EditorActionButton onClick={() => applyAdditionalSectionAiAction(sectionIndex, "Optimize this section")}>
+                  Optimize this section
+                </EditorActionButton>
+                <EditorActionButton onClick={() => applyAdditionalSectionAiAction(sectionIndex, "Rewrite this section")}>
+                  Rewrite this section
+                </EditorActionButton>
+                <EditorActionButton onClick={() => applyAdditionalSectionAiAction(sectionIndex, "Improve for selected industry")}>
+                  Improve for selected industry
+                </EditorActionButton>
+              </div>
             </div>
           ))}
           <button
@@ -5794,11 +6084,15 @@ function ModularSection({
   children,
   onOptimize,
   onReset,
+  onAiAction,
+  isOptimizing = false,
 }: {
   title: string;
   children: ReactNode;
   onOptimize?: () => void;
   onReset?: () => void;
+  onAiAction?: (action: AiOptimizationAction) => void;
+  isOptimizing?: boolean;
 }) {
   return (
     <details open className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -5812,7 +6106,19 @@ function ModularSection({
           </div>
           <div className="flex flex-wrap gap-2">
             {onOptimize ? (
-              <EditorActionButton onClick={onOptimize}>Optimize with AI</EditorActionButton>
+              <EditorActionButton onClick={onOptimize}>
+                {isOptimizing ? "Optimizing..." : "Optimize this section"}
+              </EditorActionButton>
+            ) : null}
+            {onAiAction ? (
+              <>
+                <EditorActionButton onClick={() => onAiAction("Rewrite this section")}>
+                  Rewrite this section
+                </EditorActionButton>
+                <EditorActionButton onClick={() => onAiAction("Improve for selected industry")}>
+                  Improve for selected industry
+                </EditorActionButton>
+              </>
             ) : null}
             {onReset ? (
               <EditorActionButton onClick={onReset}>Reset Section</EditorActionButton>
@@ -5820,6 +6126,26 @@ function ModularSection({
           </div>
         </div>
       </summary>
+      {onAiAction ? (
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+          {[
+            "Make More Executive",
+            "Make More Technical",
+            "Make More ATS-Friendly",
+            "Shorten",
+            "Strengthen Metrics",
+            "Tailor to Industry",
+            "Improve Recruiter Readability",
+          ].map((action, actionIndex) => (
+            <EditorActionButton
+              key={`${action}-${actionIndex}`}
+              onClick={() => onAiAction(action as AiOptimizationAction)}
+            >
+              {action}
+            </EditorActionButton>
+          ))}
+        </div>
+      ) : null}
       <div className="mt-4">{children}</div>
     </details>
   );
@@ -5831,15 +6157,25 @@ function ModularListSection({
   onChange,
   onOptimize,
   onReset,
+  onAiAction,
+  isOptimizing,
 }: {
   title: string;
   value: string;
   onChange: (value: string) => void;
   onOptimize: () => void;
   onReset: () => void;
+  onAiAction?: (action: AiOptimizationAction) => void;
+  isOptimizing?: boolean;
 }) {
   return (
-    <ModularSection title={title} onOptimize={onOptimize} onReset={onReset}>
+    <ModularSection
+      title={title}
+      onOptimize={onOptimize}
+      onReset={onReset}
+      onAiAction={onAiAction}
+      isOptimizing={isOptimizing}
+    >
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
