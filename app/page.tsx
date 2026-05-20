@@ -39,6 +39,7 @@ type TailoringResult = {
   atsReadiness: string;
   recruiterReadability: string;
   industryFit: string;
+  coach: CoachData;
 };
 
 type MatchBreakdown = {
@@ -50,6 +51,39 @@ type MatchBreakdown = {
   seniorityAlignment: number;
   projectRelevance: number;
   atsReadability: number;
+};
+
+type SectionCritique = {
+  headerContact: string[];
+  professionalSummary: string[];
+  skills: string[];
+  experience: string[];
+  projects: string[];
+  educationCertifications: string[];
+  coverLetter: string[];
+};
+
+type WeakBulletSuggestion = {
+  original: string;
+  issueType: string;
+  issue: string;
+  strongerVersion: string;
+};
+
+type CoachData = {
+  overallRecruiterImpression: string;
+  whyThisScore: string[];
+  topStrengths: string[];
+  topGaps: string[];
+  atsRisks: string[];
+  recruiterReadabilityScore: number;
+  seniorityAlignment: string;
+  industryAlignment: string;
+  keywordDensityNotes: string[];
+  rolePositioningRecommendation: string;
+  sectionCritique: SectionCritique;
+  weakBullets: WeakBulletSuggestion[];
+  recruiterObjections: string[];
 };
 
 type ResumeSection = {
@@ -99,6 +133,7 @@ type TailorApiResponse = {
   coverLetter: string;
   improvementNotes: string[];
   riskFlags: string[];
+  coaching?: CoachData;
 };
 
 const storageKey = "resume-agent-state-v2";
@@ -566,6 +601,39 @@ function buildLocalMatchBreakdown(score: number): MatchBreakdown {
   };
 }
 
+function safeScore(value: unknown, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function safeMatchBreakdown(value: unknown, fallbackScore: number): MatchBreakdown {
+  const fallback = buildLocalMatchBreakdown(fallbackScore);
+  const breakdown =
+    value && typeof value === "object" ? (value as Partial<MatchBreakdown>) : {};
+
+  return {
+    roleFit: safeScore(breakdown.roleFit, fallback.roleFit),
+    industryFit: safeScore(breakdown.industryFit, fallback.industryFit),
+    requiredSkillsMatch: safeScore(
+      breakdown.requiredSkillsMatch,
+      fallback.requiredSkillsMatch,
+    ),
+    preferredSkillsMatch: safeScore(
+      breakdown.preferredSkillsMatch,
+      fallback.preferredSkillsMatch,
+    ),
+    metricStrength: safeScore(breakdown.metricStrength, fallback.metricStrength),
+    seniorityAlignment: safeScore(
+      breakdown.seniorityAlignment,
+      fallback.seniorityAlignment,
+    ),
+    projectRelevance: safeScore(
+      breakdown.projectRelevance,
+      fallback.projectRelevance,
+    ),
+    atsReadability: safeScore(breakdown.atsReadability, fallback.atsReadability),
+  };
+}
+
 function scoreNotesFromBreakdown(breakdown: MatchBreakdown) {
   return [
     `Role fit: ${Math.round(breakdown.roleFit)}/100`,
@@ -579,8 +647,266 @@ function scoreNotesFromBreakdown(breakdown: MatchBreakdown) {
   ];
 }
 
+function emptySectionCritique(): SectionCritique {
+  return {
+    headerContact: [],
+    professionalSummary: [],
+    skills: [],
+    experience: [],
+    projects: [],
+    educationCertifications: [],
+    coverLetter: [],
+  };
+}
+
+function safeStringArray(value: unknown, fallback: string[] = []) {
+  return Array.isArray(value)
+    ? value.filter(
+        (item): item is string => typeof item === "string" && item.trim().length > 0,
+      )
+    : fallback;
+}
+
+function safeWeakBullets(value: unknown, fallback: WeakBulletSuggestion[] = []) {
+  return Array.isArray(value)
+    ? value.filter(
+        (bullet): bullet is WeakBulletSuggestion =>
+          Boolean(
+            bullet &&
+              typeof bullet === "object" &&
+              "original" in bullet &&
+              "strongerVersion" in bullet &&
+              typeof bullet.original === "string" &&
+              typeof bullet.strongerVersion === "string",
+          ),
+      )
+    : fallback;
+}
+
+function buildCoachData({
+  score,
+  breakdown,
+  positioningStrategy,
+  missingKeywords,
+  improvementNotes,
+  riskFlags,
+  rewrittenResume,
+  coverLetter,
+}: {
+  score: number;
+  breakdown: MatchBreakdown;
+  positioningStrategy: string;
+  missingKeywords: string[];
+  improvementNotes: string[];
+  riskFlags: string[];
+  rewrittenResume: string;
+  coverLetter: string;
+}): CoachData {
+  const parsedResume = parseResumePreview(rewrittenResume);
+  const hasEmail = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(rewrittenResume);
+  const hasPhone = /(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/.test(
+    rewrittenResume,
+  );
+  const hasProjects = parsedResume.sections.some((section) =>
+    /project/i.test(section.heading),
+  );
+  const weakBullets = detectWeakBullets(rewrittenResume).slice(0, 6);
+
+  return {
+    overallRecruiterImpression:
+      score >= 90
+        ? "Strong fit with clear role alignment and recruiter-readable positioning."
+        : score >= 75
+          ? "Credible fit, with a few proof points and keyword gaps to tighten before applying."
+          : "Some relevant experience is present, but the resume needs sharper evidence and closer role alignment.",
+    whyThisScore: scoreNotesFromBreakdown(breakdown),
+    topStrengths: [
+      "Relevant source material is available for truthful tailoring.",
+      "The resume can be positioned around role fit without inventing new experience.",
+      "Experience language can be tightened for recruiter readability and ATS scanning.",
+    ],
+    topGaps:
+      missingKeywords.length > 0
+        ? missingKeywords.slice(0, 5)
+        : ["No major keyword gaps detected from the provided job description."],
+    atsRisks: riskFlags.slice(0, 5),
+    recruiterReadabilityScore: Math.round(breakdown.atsReadability),
+    seniorityAlignment: `Seniority alignment is ${Math.round(breakdown.seniorityAlignment)}/100 based on title language, leadership signals, and scope described in the resume.`,
+    industryAlignment: `Industry alignment is ${Math.round(breakdown.industryFit)}/100 for the selected target based on the overlap between source material and job requirements.`,
+    keywordDensityNotes:
+      missingKeywords.length > 0
+        ? [
+            `Recommended keywords to add only where truthful: ${missingKeywords
+              .slice(0, 6)
+              .join(", ")}.`,
+            "Keep keyword use natural in the summary, skills, and strongest experience bullets.",
+          ]
+        : ["Keyword coverage is strong; avoid repeating terms unnaturally."],
+    rolePositioningRecommendation: positioningStrategy,
+    sectionCritique: {
+      headerContact: [
+        hasEmail || hasPhone
+          ? "Header has basic contact signal; confirm LinkedIn and location are included if appropriate."
+          : "Add direct contact details before exporting or applying.",
+      ],
+      professionalSummary: [
+        "Lead with the target role, strongest domain fit, and two to three recruiter-relevant strengths.",
+      ],
+      skills: [
+        "Keep skills grouped around the job description and remove unsupported tools.",
+      ],
+      experience: improvementNotes[0]
+        ? [improvementNotes[0]]
+        : ["Prioritize bullets that show action, scope, and measurable outcome."],
+      projects: [
+        hasProjects
+          ? "Project evidence is visible; connect it directly to the target role."
+          : "Add a projects section only if the source resume supports relevant project work.",
+      ],
+      educationCertifications: [
+        "Keep education and certifications concise, current, and directly relevant.",
+      ],
+      coverLetter: [
+        coverLetter.trim().length > 0
+          ? "Cover letter is available; keep it concise and aligned with the edited resume."
+          : "Generate a concise cover letter after the resume positioning is final.",
+      ],
+    },
+    weakBullets,
+    recruiterObjections:
+      missingKeywords.length > 0
+        ? [
+            `Recruiter may question missing evidence for ${missingKeywords
+              .slice(0, 4)
+              .join(", ")}.`,
+            "Claims should stay tied to source material and avoid unsupported tools or metrics.",
+          ]
+        : ["Recruiter objections are mostly around proof depth, not keyword coverage."],
+  };
+}
+
+function normalizeCoachData(
+  coach: Partial<CoachData> | undefined | null,
+  fallback: Omit<Parameters<typeof buildCoachData>[0], "rewrittenResume" | "coverLetter"> & {
+    rewrittenResume: string;
+    coverLetter: string;
+  },
+): CoachData {
+  const fallbackCoach = buildCoachData(fallback);
+  const sectionCritique = coach?.sectionCritique ?? emptySectionCritique();
+
+  return {
+    overallRecruiterImpression:
+      coach?.overallRecruiterImpression || fallbackCoach.overallRecruiterImpression,
+    whyThisScore: safeStringArray(coach?.whyThisScore, fallbackCoach.whyThisScore),
+    topStrengths: safeStringArray(coach?.topStrengths, fallbackCoach.topStrengths),
+    topGaps: safeStringArray(coach?.topGaps, fallbackCoach.topGaps),
+    atsRisks: safeStringArray(coach?.atsRisks, fallbackCoach.atsRisks),
+    recruiterReadabilityScore:
+      typeof coach?.recruiterReadabilityScore === "number"
+        ? Math.max(0, Math.min(100, Math.round(coach.recruiterReadabilityScore)))
+        : fallbackCoach.recruiterReadabilityScore,
+    seniorityAlignment: coach?.seniorityAlignment || fallbackCoach.seniorityAlignment,
+    industryAlignment: coach?.industryAlignment || fallbackCoach.industryAlignment,
+    keywordDensityNotes: safeStringArray(
+      coach?.keywordDensityNotes,
+      fallbackCoach.keywordDensityNotes,
+    ),
+    rolePositioningRecommendation:
+      coach?.rolePositioningRecommendation ||
+      fallbackCoach.rolePositioningRecommendation,
+    sectionCritique: {
+      headerContact: safeStringArray(
+        sectionCritique.headerContact,
+        fallbackCoach.sectionCritique.headerContact,
+      ),
+      professionalSummary: safeStringArray(
+        sectionCritique.professionalSummary,
+        fallbackCoach.sectionCritique.professionalSummary,
+      ),
+      skills: safeStringArray(
+        sectionCritique.skills,
+        fallbackCoach.sectionCritique.skills,
+      ),
+      experience: safeStringArray(
+        sectionCritique.experience,
+        fallbackCoach.sectionCritique.experience,
+      ),
+      projects: safeStringArray(
+        sectionCritique.projects,
+        fallbackCoach.sectionCritique.projects,
+      ),
+      educationCertifications: safeStringArray(
+        sectionCritique.educationCertifications,
+        fallbackCoach.sectionCritique.educationCertifications,
+      ),
+      coverLetter: safeStringArray(
+        sectionCritique.coverLetter,
+        fallbackCoach.sectionCritique.coverLetter,
+      ),
+    },
+    weakBullets: safeWeakBullets(coach?.weakBullets, fallbackCoach.weakBullets),
+    recruiterObjections: safeStringArray(
+      coach?.recruiterObjections,
+      fallbackCoach.recruiterObjections,
+    ),
+  };
+}
+
+function detectWeakBullets(resumeText: string): WeakBulletSuggestion[] {
+  return resumeText
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-*]\s+/, "").trim())
+    .filter((line) => line.length > 0)
+    .filter((line) =>
+      /\b(responsible for|helped|worked on|assisted|supported|handled|participated|managed|coordinated)\b/i.test(
+        line,
+      ),
+    )
+    .filter((line) => !/\$?\d[\d,.]*\+?%?/.test(line) || line.length < 95)
+    .slice(0, 8)
+    .map((line) => {
+      const lacksMetric = !/\$?\d[\d,.]*\+?%?/.test(line);
+      const issueType = /\b(responsible for|helped|worked on|assisted|participated)\b/i.test(
+        line,
+      )
+        ? "too_task_based"
+        : lacksMetric
+          ? "missing_metrics"
+          : "too_vague";
+
+      return {
+        original: line,
+        issueType,
+        issue: lacksMetric
+          ? "This bullet would be stronger with a supported outcome, scope, or measurable result."
+          : "This bullet can lead with impact more clearly.",
+        strongerVersion: line
+          .replace(/^responsible for\s+/i, "Owned ")
+          .replace(/^helped\s+/i, "Contributed to ")
+          .replace(/^worked on\s+/i, "Advanced ")
+          .replace(/^assisted\s+/i, "Supported ")
+          .replace(/^handled\s+/i, "Managed ")
+          .replace(/^participated in\s+/i, "Collaborated on ")
+          .replace(/\.$/, "") +
+          (lacksMetric
+            ? ", clarifying scope, stakeholders, and outcome using only verified source details."
+            : "."),
+      };
+    });
+}
+
 function resultFromApiResponse(response: TailorApiResponse): TailoringResult {
-  const parsed = parseResumePreview(response.tailoredResume);
+  const matchScore = safeScore(response.matchScore, 0);
+  const matchBreakdown = safeMatchBreakdown(response.matchBreakdown, matchScore);
+  const tailoredResume = response.tailoredResume || "";
+  const coverLetter = response.coverLetter || "";
+  const positioningStrategy = response.positioningStrategy || "";
+  const parsed = parseResumePreview(tailoredResume);
+  const missingKeywords = safeStringArray(response.missingKeywords);
+  const recommendedKeywords = safeStringArray(response.recommendedKeywords);
+  const improvementNotes = safeStringArray(response.improvementNotes);
+  const riskFlags = safeStringArray(response.riskFlags);
   const summarySection = parsed.sections.find(
     (section) => section.heading === "PROFESSIONAL SUMMARY",
   );
@@ -595,29 +921,75 @@ function resultFromApiResponse(response: TailorApiResponse): TailoringResult {
       .join(" | ")
       .split("|")
       .map((skill) => skill.trim())
-      .filter(Boolean) ?? response.recommendedKeywords;
+      .filter(Boolean) ?? recommendedKeywords;
+
+  const fallbackCoachInput = {
+    score: Math.round(matchScore),
+    breakdown: matchBreakdown,
+    positioningStrategy,
+    missingKeywords,
+    improvementNotes,
+    riskFlags,
+    rewrittenResume: tailoredResume,
+    coverLetter,
+  };
 
   return {
-    score: Math.round(response.matchScore),
+    score: Math.round(matchScore),
     matchedKeywords: [],
-    missingKeywords: response.missingKeywords,
-    recommendedKeywords: response.recommendedKeywords,
-    summary: summarySection?.body.join(" ") || response.positioningStrategy,
+    missingKeywords,
+    recommendedKeywords,
+    summary: summarySection?.body.join(" ") || positioningStrategy,
     skills,
-    bullets: highlightSection?.bullets ?? response.improvementNotes.slice(0, 4),
-    rewrittenResume: response.tailoredResume,
-    coverLetter: response.coverLetter,
-    scoreNotes: scoreNotesFromBreakdown(response.matchBreakdown),
-    matchBreakdown: response.matchBreakdown,
-    positioningStrategy: response.positioningStrategy,
-    improvementNotes: response.improvementNotes,
-    riskFlags: response.riskFlags,
-    topStrengths: response.recommendedKeywords.slice(0, 6),
-    gapsToFix: response.missingKeywords.slice(0, 6),
-    bulletImprovementSuggestions: response.improvementNotes,
-    atsReadiness: `ATS readability score: ${Math.round(response.matchBreakdown.atsReadability)}/100`,
-    recruiterReadability: `Recruiter readability is supported by role fit at ${Math.round(response.matchBreakdown.roleFit)}/100 and seniority alignment at ${Math.round(response.matchBreakdown.seniorityAlignment)}/100.`,
-    industryFit: `Industry fit score: ${Math.round(response.matchBreakdown.industryFit)}/100`,
+    bullets: highlightSection?.bullets ?? improvementNotes.slice(0, 4),
+    rewrittenResume: tailoredResume,
+    coverLetter,
+    scoreNotes: scoreNotesFromBreakdown(matchBreakdown),
+    matchBreakdown,
+    positioningStrategy,
+    improvementNotes,
+    riskFlags,
+    topStrengths: recommendedKeywords.slice(0, 6),
+    gapsToFix: missingKeywords.slice(0, 6),
+    bulletImprovementSuggestions: improvementNotes,
+    atsReadiness: `ATS readability score: ${Math.round(matchBreakdown.atsReadability)}/100`,
+    recruiterReadability: `Recruiter readability is supported by role fit at ${Math.round(matchBreakdown.roleFit)}/100 and seniority alignment at ${Math.round(matchBreakdown.seniorityAlignment)}/100.`,
+    industryFit: `Industry fit score: ${Math.round(matchBreakdown.industryFit)}/100`,
+    coach: normalizeCoachData(response.coaching, fallbackCoachInput),
+  };
+}
+
+function ensureTailoringResult(result: TailoringResult | null): TailoringResult | null {
+  if (!result) {
+    return null;
+  }
+
+  const score = safeScore(result.score, 0);
+  const matchBreakdown = safeMatchBreakdown(result.matchBreakdown, score);
+  const missingKeywords = safeStringArray(result.missingKeywords);
+  const recommendedKeywords = safeStringArray(result.recommendedKeywords);
+  const improvementNotes = safeStringArray(result.improvementNotes);
+  const riskFlags = safeStringArray(result.riskFlags);
+  const coach = normalizeCoachData(result.coach, {
+    score,
+    breakdown: matchBreakdown,
+    positioningStrategy: result.positioningStrategy || "",
+    missingKeywords,
+    improvementNotes,
+    riskFlags,
+    rewrittenResume: result.rewrittenResume || "",
+    coverLetter: result.coverLetter || "",
+  });
+
+  return {
+    ...result,
+    score,
+    missingKeywords,
+    recommendedKeywords,
+    improvementNotes,
+    riskFlags,
+    matchBreakdown,
+    coach,
   };
 }
 
@@ -649,10 +1021,7 @@ function buildTailoredResume(
   const role = titleCase(
     targetRole || firstMeaningfulLine(jobDescription, "Target Role"),
   );
-  const strongestKeywords = [
-    ...matchedKeywords,
-    ...missingKeywords.slice(0, 4),
-  ].slice(0, 12);
+  const strongestKeywords = matchedKeywords.slice(0, 12);
   const skills = Array.from(
     new Set([
       ...strongestKeywords,
@@ -694,6 +1063,7 @@ TAILORING NOTES
 
 SOURCE RESUME EXCERPT
 ${masterResume.trim()}`;
+  const matchBreakdown = buildLocalMatchBreakdown(scoreResult.score);
   const baseResult = {
     score: scoreResult.score,
     matchedKeywords,
@@ -704,7 +1074,7 @@ ${masterResume.trim()}`;
     bullets,
     rewrittenResume,
     scoreNotes: scoreResult.notes,
-    matchBreakdown: buildLocalMatchBreakdown(scoreResult.score),
+    matchBreakdown,
     positioningStrategy:
       "Position the candidate as a practical technical product leader who can translate business needs into delivery-ready product work.",
     improvementNotes: [
@@ -731,14 +1101,30 @@ ${masterResume.trim()}`;
     industryFit:
       "Industry fit is based on the overlap between the job description and the provided resume/source materials.",
   };
+  const coverLetter = buildCoverLetterFromInputs(
+    rewrittenResume,
+    targetRole,
+    jobDescription,
+  );
+  const coach = buildCoachData({
+    score: scoreResult.score,
+    breakdown: matchBreakdown,
+    positioningStrategy: baseResult.positioningStrategy,
+    missingKeywords,
+    improvementNotes: baseResult.improvementNotes,
+    riskFlags: baseResult.riskFlags,
+    rewrittenResume,
+    coverLetter,
+  });
 
   return {
     ...baseResult,
-    coverLetter: buildCoverLetterFromInputs(
-      rewrittenResume,
-      targetRole,
-      jobDescription,
-    ),
+    coverLetter,
+    coach: {
+      ...coach,
+      topStrengths:
+        matchedKeywords.length > 0 ? matchedKeywords.slice(0, 5) : coach.topStrengths,
+    },
   };
 }
 
@@ -1070,16 +1456,13 @@ async function createResumeDocxBlob(
 
 function extractContactInfo(resumeText: string) {
   const resume = parseResumePreview(resumeText);
-  const email =
-    resumeText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ??
-    "Not provided";
-  const phone =
-    resumeText.match(
-      /(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/,
-    )?.[0] ?? "Not provided";
-  const linkedIn =
-    resumeText.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/[^\s,)]+/i)?.[0] ??
-    "Not provided";
+  const email = resumeText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+  const phone = resumeText.match(
+    /(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/,
+  )?.[0];
+  const linkedIn = resumeText.match(
+    /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/[^\s,)]+/i,
+  )?.[0];
 
   return {
     name: resume.name,
@@ -1123,6 +1506,11 @@ async function createCoverLetterPdfBlob({
   const { Document, Page, StyleSheet, Text, View, pdf } = ReactPdf;
   const contact = extractContactInfo(resumeText);
   const lines = coverLetterLines(coverLetter, contact.name);
+  const contactLines = [
+    contact.email ? `Email: ${contact.email}` : "",
+    contact.phone ? `Phone: ${contact.phone}` : "",
+    contact.linkedIn ? `LinkedIn: ${contact.linkedIn}` : "",
+  ].filter(Boolean);
   const hasHeaderBand =
     template === "executive-navy" || template === "bold-leadership";
   const isModern =
@@ -1192,12 +1580,8 @@ async function createCoverLetterPdfBlob({
         { style: styles.header },
         createElement(Text, { style: styles.name }, contact.name),
         createElement(Text, { style: styles.title }, contact.title),
-        createElement(Text, { style: styles.contact }, `Email: ${contact.email}`),
-        createElement(Text, { style: styles.contact }, `Phone: ${contact.phone}`),
-        createElement(
-          Text,
-          { style: styles.contact },
-          `LinkedIn: ${contact.linkedIn}`,
+        ...contactLines.map((line) =>
+          createElement(Text, { key: line, style: styles.contact }, line),
         ),
       ),
       createElement(Text, { style: styles.date }, today),
@@ -1236,6 +1620,13 @@ async function createCoverLetterDocxBlob({
   } = Docx;
   const contact = extractContactInfo(resumeText);
   const lines = coverLetterLines(coverLetter, contact.name);
+  const contactLine = [
+    contact.email ? `Email: ${contact.email}` : "",
+    contact.phone ? `Phone: ${contact.phone}` : "",
+    contact.linkedIn ? `LinkedIn: ${contact.linkedIn}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
   const hasHeaderBand =
     template === "executive-navy" || template === "bold-leadership";
   const accentColor = stripHash(theme.accentHex);
@@ -1286,16 +1677,20 @@ async function createCoverLetterDocxBlob({
         }),
       ],
     }),
-    new Paragraph({
-      spacing: { after: 60 },
-      children: [
-        new TextRun({
-          text: `Email: ${contact.email} | Phone: ${contact.phone} | LinkedIn: ${contact.linkedIn}`,
-          color: textColor,
-          size: 18,
-        }),
-      ],
-    }),
+    ...(contactLine
+      ? [
+          new Paragraph({
+            spacing: { after: 60 },
+            children: [
+              new TextRun({
+                text: contactLine,
+                color: textColor,
+                size: 18,
+              }),
+            ],
+          }),
+        ]
+      : []),
     new Paragraph({
       alignment: "right",
       spacing: { before: 220, after: 260 },
@@ -1365,7 +1760,7 @@ export default function Home() {
               : "executive-navy",
           );
           setTheme(isThemeId(parsed.theme) ? parsed.theme : "deep-navy");
-          setResult(parsed.result ?? null);
+          setResult(ensureTailoringResult(parsed.result ?? null));
           setUploadedFiles(parsed.uploadedFiles ?? []);
         }
       } catch {
@@ -1573,6 +1968,38 @@ export default function Home() {
           }
         : current,
     );
+  }
+
+  function rewriteSuggestedBullet(original: string, strongerVersion: string) {
+    setResult((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const escapedOriginal = original.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const bulletPattern = new RegExp(`(^|\\n)([-*]\\s*)?${escapedOriginal}`, "m");
+      const rewrittenResume = bulletPattern.test(current.rewrittenResume)
+        ? current.rewrittenResume.replace(
+            bulletPattern,
+            (_match, prefix: string, bulletMarker: string | undefined) =>
+              `${prefix}${bulletMarker ?? ""}${strongerVersion}`,
+          )
+        : current.rewrittenResume;
+
+      return {
+        ...current,
+        rewrittenResume,
+        bullets: current.bullets.map((bullet) =>
+          bullet === original ? strongerVersion : bullet,
+        ),
+        coach: {
+          ...current.coach,
+          weakBullets: current.coach.weakBullets.filter(
+            (bullet) => bullet.original !== original,
+          ),
+        },
+      };
+    });
   }
 
   async function copyOutput() {
@@ -1958,7 +2385,10 @@ export default function Home() {
               emptyText="No major keyword gaps found."
               variant="missing"
             />
-            <AIResumeCoach result={result} />
+            <AIResumeCoach
+              result={result}
+              onRewriteBullet={rewriteSuggestedBullet}
+            />
           </aside>
 
           <div className="min-w-0 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
@@ -2204,39 +2634,209 @@ function KeywordList({
   );
 }
 
-function AIResumeCoach({ result }: { result: TailoringResult }) {
+function AIResumeCoach({
+  result,
+  onRewriteBullet,
+}: {
+  result: TailoringResult;
+  onRewriteBullet: (original: string, strongerVersion: string) => void;
+}) {
+  const score = safeScore(result.score, 0);
+  const matchBreakdown = safeMatchBreakdown(result.matchBreakdown, score);
+  const coach = normalizeCoachData(result.coach, {
+    score,
+    breakdown: matchBreakdown,
+    positioningStrategy: result.positioningStrategy || "",
+    missingKeywords: safeStringArray(result.missingKeywords),
+    improvementNotes: safeStringArray(result.improvementNotes),
+    riskFlags: safeStringArray(result.riskFlags),
+    rewrittenResume: result.rewrittenResume || "",
+    coverLetter: result.coverLetter || "",
+  });
+  const recommendedKeywords = safeStringArray(result.recommendedKeywords);
+  const riskFlags = safeStringArray(result.riskFlags);
+  const breakdownItems = [
+    ["Role fit", matchBreakdown.roleFit],
+    ["Industry fit", matchBreakdown.industryFit],
+    ["Required skills match", matchBreakdown.requiredSkillsMatch],
+    ["Preferred skills match", matchBreakdown.preferredSkillsMatch],
+    ["Metrics strength", matchBreakdown.metricStrength],
+    ["Seniority alignment", matchBreakdown.seniorityAlignment],
+    ["AI/project relevance", matchBreakdown.projectRelevance],
+    ["ATS readability", matchBreakdown.atsReadability],
+  ] as const;
+  const sectionCritiques = [
+    ["Header/contact", coach.sectionCritique.headerContact],
+    ["Professional summary", coach.sectionCritique.professionalSummary],
+    ["Skills", coach.sectionCritique.skills],
+    ["Experience", coach.sectionCritique.experience],
+    ["Projects", coach.sectionCritique.projects],
+    ["Education/certifications", coach.sectionCritique.educationCertifications],
+    ["Cover letter", coach.sectionCritique.coverLetter],
+  ] as const;
+
   return (
     <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
       <h2 className="text-sm font-semibold text-zinc-900">AI Resume Coach</h2>
       <div className="mt-4 space-y-5">
         <CoachBlock
-          title="Positioning Strategy"
-          items={[result.positioningStrategy]}
+          title="Overall Recruiter Impression"
+          items={[coach.overallRecruiterImpression]}
         />
-        <CoachBlock title="Top Strengths" items={result.topStrengths} />
-        <CoachBlock title="Gaps To Fix" items={result.gapsToFix} />
+        <CoachBlock title="Why This Score" items={coach.whyThisScore} />
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
+            Score Breakdown
+          </h3>
+          <div className="mt-3 grid gap-2">
+            {breakdownItems.map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+              >
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="font-medium text-zinc-700">{label}</span>
+                  <span className="font-semibold text-zinc-950">
+                    {Math.round(value)}/100
+                  </span>
+                </div>
+                <div className="mt-2 h-2 rounded-full bg-zinc-200">
+                  <div
+                    className="h-2 rounded-full bg-teal-700"
+                    style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+        <CoachBlock
+          title="Role Positioning Recommendation"
+          items={[coach.rolePositioningRecommendation || result.positioningStrategy]}
+        />
+        <CoachBlock
+          title="Top 5 Strengths"
+          items={safeStringArray(coach.topStrengths).slice(0, 5)}
+        />
+        <CoachBlock
+          title="Top 5 Gaps"
+          items={safeStringArray(coach.topGaps).slice(0, 5)}
+        />
         <CoachBlock
           title="Keyword Recommendations"
-          items={result.recommendedKeywords}
+          items={recommendedKeywords}
         />
         <CoachBlock
-          title="Bullet Improvement Suggestions"
-          items={result.bulletImprovementSuggestions}
+          title="Keyword Density Notes"
+          items={coach.keywordDensityNotes}
         />
-        <CoachBlock title="Truth / Risk Flags" items={result.riskFlags} />
-        <CoachBlock title="ATS Readiness" items={[result.atsReadiness]} />
+        <CoachBlock title="ATS Risks" items={coach.atsRisks} />
         <CoachBlock
           title="Recruiter Readability"
-          items={[result.recruiterReadability]}
+          items={[
+            `Recruiter readability score: ${coach.recruiterReadabilityScore}/100`,
+            result.recruiterReadability,
+          ]}
         />
-        <CoachBlock title="Industry Fit" items={[result.industryFit]} />
+        <CoachBlock title="Seniority Alignment" items={[coach.seniorityAlignment]} />
+        <CoachBlock title="Industry Alignment" items={[coach.industryAlignment]} />
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
+            Section Critique
+          </h3>
+          <div className="mt-3 space-y-3">
+            {sectionCritiques.map(([title, items]) => (
+              <div
+                key={title}
+                className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+              >
+                <p className="text-sm font-semibold text-zinc-900">{title}</p>
+                <CoachInlineList items={items} />
+              </div>
+            ))}
+          </div>
+        </section>
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
+            Weak Bullet Detection
+          </h3>
+          {safeWeakBullets(coach.weakBullets).length > 0 ? (
+            <div className="mt-3 space-y-3">
+              {safeWeakBullets(coach.weakBullets).map((bullet) => (
+                <div
+                  key={`${bullet.original}-${bullet.strongerVersion}`}
+                  className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                    {bullet.issueType.replace(/_/g, " ")}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-700">
+                    {bullet.issue}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">
+                    Current: {bullet.original}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-900">
+                    Stronger: {bullet.strongerVersion}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onRewriteBullet(bullet.original, bullet.strongerVersion)
+                    }
+                    className="mt-3 inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-100"
+                  >
+                    Rewrite Bullet
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-sm leading-6 text-zinc-500">
+              No weak bullets detected in the current tailored resume.
+            </p>
+          )}
+        </section>
+        <CoachBlock
+          title="Recruiter Objections"
+          items={coach.recruiterObjections}
+        />
+        <CoachBlock title="Truth / Risk Flags" items={riskFlags} />
       </div>
     </div>
   );
 }
 
-function CoachBlock({ title, items }: { title: string; items: string[] }) {
-  const visibleItems = items.filter(Boolean);
+function CoachInlineList({ items = [] }: { items?: readonly string[] | null }) {
+  const safeItems = Array.isArray(items) ? items : [];
+  const visibleItems = safeItems.filter(Boolean);
+
+  if (visibleItems.length === 0) {
+    return (
+      <p className="mt-2 text-sm leading-6 text-zinc-500">
+        No specific critique yet.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700">
+      {visibleItems.map((item) => (
+        <li key={item}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
+function CoachBlock({
+  title,
+  items = [],
+}: {
+  title: string;
+  items?: readonly string[] | null;
+}) {
+  const safeItems = Array.isArray(items) ? items : [];
+  const visibleItems = safeItems.filter(Boolean);
 
   return (
     <section>
