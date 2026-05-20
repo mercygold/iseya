@@ -1,6 +1,7 @@
 "use client";
 
 import { createElement, useEffect, useMemo, useRef, useState } from "react";
+import { isSupabaseBrowserConfigured } from "@/lib/supabaseClient";
 
 type TemplateId =
   | "executive-navy"
@@ -235,6 +236,12 @@ type SavedState = {
   aiSettings?: AiSettings;
 };
 
+type UsageStats = {
+  date: string;
+  aiGenerations: number;
+  exportsCreated: number;
+};
+
 type SavedResumeVersion = {
   id: string;
   name: string;
@@ -301,7 +308,9 @@ type TailorApiResponse = {
 
 const storageKey = "resume-agent-state-v2";
 const versionStorageKey = "iseya_resume_versions";
+const usageStorageKey = "iseya_usage_stats";
 const acceptedSourceFileTypes = ".pdf,.docx,.txt,.png,.jpg,.jpeg";
+const hasSupabaseConfig = isSupabaseBrowserConfigured();
 const industryTargets: IndustryTarget[] = [
   "AI / Technology",
   "SaaS",
@@ -889,6 +898,36 @@ function safeStringArray(value: unknown, fallback: string[] = []) {
         (item): item is string => typeof item === "string" && item.trim().length > 0,
       )
     : fallback;
+}
+
+function usageDateKey(date = new Date()) {
+  return date.toISOString().slice(0, 10);
+}
+
+function defaultUsageStats(): UsageStats {
+  return {
+    date: usageDateKey(),
+    aiGenerations: 0,
+    exportsCreated: 0,
+  };
+}
+
+function normalizeUsageStats(value: unknown): UsageStats {
+  if (!value || typeof value !== "object") {
+    return defaultUsageStats();
+  }
+
+  const candidate = value as Partial<UsageStats>;
+
+  if (candidate.date !== usageDateKey()) {
+    return defaultUsageStats();
+  }
+
+  return {
+    date: candidate.date,
+    aiGenerations: Math.max(0, Number(candidate.aiGenerations) || 0),
+    exportsCreated: Math.max(0, Number(candidate.exportsCreated) || 0),
+  };
 }
 
 function safeWeakBullets(value: unknown, fallback: WeakBulletSuggestion[] = []) {
@@ -2839,6 +2878,9 @@ export default function Home() {
   const [selectedVersionId, setSelectedVersionId] = useState("");
   const [compareVersionIds, setCompareVersionIds] = useState<string[]>([]);
   const [versionStatus, setVersionStatus] = useState("");
+  const [accountStatus, setAccountStatus] = useState("");
+  const [systemStatus, setSystemStatus] = useState("");
+  const [usageStats, setUsageStats] = useState<UsageStats>(defaultUsageStats);
   const [copyStatus, setCopyStatus] = useState("Copy");
   const [coverCopyStatus, setCoverCopyStatus] = useState("Copy Cover Letter");
   const [activeOutput, setActiveOutput] = useState<
@@ -2903,6 +2945,12 @@ export default function Home() {
 
           setSavedVersions(normalizedVersions);
         }
+
+        const savedUsageData = window.localStorage.getItem(usageStorageKey);
+
+        if (savedUsageData) {
+          setUsageStats(normalizeUsageStats(JSON.parse(savedUsageData)));
+        }
       } catch {
         window.localStorage.removeItem(storageKey);
       } finally {
@@ -2933,7 +2981,12 @@ export default function Home() {
       aiSettings,
     };
 
-    window.localStorage.setItem(storageKey, JSON.stringify(savedState));
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(savedState));
+    } catch {
+      // Storage can fail in private mode or when quota is full. User-facing
+      // save/load actions surface their own status messages.
+    }
   }, [
     hydrated,
     jobDescription,
@@ -2952,8 +3005,24 @@ export default function Home() {
       return;
     }
 
-    window.localStorage.setItem(versionStorageKey, JSON.stringify(savedVersions));
+    try {
+      window.localStorage.setItem(versionStorageKey, JSON.stringify(savedVersions));
+    } catch {
+      // Keep the in-memory version list active even if browser storage rejects it.
+    }
   }, [hydrated, savedVersions]);
+
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(usageStorageKey, JSON.stringify(usageStats));
+    } catch {
+      // Usage limits are advisory in local mode.
+    }
+  }, [hydrated, usageStats]);
 
   const extractedSourceText = useMemo(
     () =>
@@ -2984,6 +3053,35 @@ export default function Home() {
         .filter((version): version is SavedResumeVersion => Boolean(version)),
     [compareVersionIds, savedVersions],
   );
+
+  function trackUsage(kind: "aiGenerations" | "exportsCreated") {
+    setUsageStats((current) => {
+      const normalized =
+        current.date === usageDateKey() ? current : defaultUsageStats();
+
+      return {
+        ...normalized,
+        [kind]: normalized[kind] + 1,
+      };
+    });
+  }
+
+  function handleAccountPlaceholder(action: "Sign in" | "Sign up" | "Sign out") {
+    setAccountStatus(
+      hasSupabaseConfig
+        ? `${action} is ready for Supabase Auth wiring in the next phase.`
+        : `${action} will be enabled after Supabase environment variables are configured.`,
+    );
+  }
+
+  function openMyResumesPlaceholder() {
+    setAccountStatus(
+      hasSupabaseConfig
+        ? "My Resumes cloud sync is prepared. Local saved versions are still active in this phase."
+        : "My Resumes is using local saved versions until Supabase is configured.",
+    );
+    setSelectedVersionId((current) => current || savedVersions[0]?.id || "");
+  }
 
   function currentVersionSnapshot(
     id = versionId(),
@@ -3032,22 +3130,27 @@ export default function Home() {
       return;
     }
 
-    setMasterResume(version.masterResume);
-    setJobDescription(version.jobDescription);
-    setTargetRole(version.targetRole);
-    setIndustryTarget(version.industryTarget);
-    setTemplate(version.template);
-    setTheme(version.theme);
-    setResult(
-      ensureTailoringResult(
-        version.result,
-        version.industryTarget,
-        version.result.advancedAnalysis?.positioningMode ?? aiSettings.positioningMode,
-      ),
-    );
-    setUploadedFiles(version.uploadedFiles);
-    setActiveOutput("resume");
-    setVersionStatus(`Loaded ${version.name}.`);
+    try {
+      setMasterResume(version.masterResume);
+      setJobDescription(version.jobDescription);
+      setTargetRole(version.targetRole);
+      setIndustryTarget(version.industryTarget);
+      setTemplate(version.template);
+      setTheme(version.theme);
+      setResult(
+        ensureTailoringResult(
+          version.result,
+          version.industryTarget,
+          version.result.advancedAnalysis?.positioningMode ??
+            aiSettings.positioningMode,
+        ),
+      );
+      setUploadedFiles(version.uploadedFiles);
+      setActiveOutput("resume");
+      setVersionStatus(`Loaded ${version.name}.`);
+    } catch {
+      setVersionStatus("This saved version could not be loaded.");
+    }
   }
 
   function duplicateVersion(version: SavedResumeVersion | null) {
@@ -3159,9 +3262,10 @@ export default function Home() {
           jobDescription,
         ),
       );
+      trackUsage("aiGenerations");
     } catch {
       setTailorError(
-        "AI tailoring could not complete, so I used the local resume generator fallback.",
+        "AI tailoring could not complete. This can happen when the API key is missing or the AI service is unavailable, so I used the local resume generator fallback.",
       );
       setResult(
         buildTailoredResume(
@@ -3172,6 +3276,7 @@ export default function Home() {
           targetRole,
         ),
       );
+      trackUsage("aiGenerations");
     } finally {
       setIsTailoring(false);
     }
@@ -3198,6 +3303,7 @@ export default function Home() {
         ),
       };
     });
+    trackUsage("aiGenerations");
   }
 
   function generateLinkedInProfile() {
@@ -3219,6 +3325,7 @@ export default function Home() {
       };
     });
     setActiveOutput("linkedin");
+    trackUsage("aiGenerations");
   }
 
   function resetSavedResume() {
@@ -3258,6 +3365,12 @@ export default function Home() {
 
     if (uploadInputRef.current) {
       uploadInputRef.current.value = "";
+    }
+
+    if (nextFiles.some((file) => file.extractionStatus === "failed")) {
+      setSystemStatus(
+        "One or more files could not be fully extracted. Metadata was still saved for source tracking.",
+      );
     }
   }
 
@@ -3390,13 +3503,18 @@ export default function Home() {
       return;
     }
 
-    const blob = await createCoverLetterPdfBlob({
-      coverLetter: result.coverLetter,
-      resumeText: result.rewrittenResume,
-      template,
-      theme: previewTheme,
-    });
-    saveBlob(blob, coverLetterFileName(targetRole, "pdf"));
+    try {
+      const blob = await createCoverLetterPdfBlob({
+        coverLetter: result.coverLetter,
+        resumeText: result.rewrittenResume,
+        template,
+        theme: previewTheme,
+      });
+      saveBlob(blob, coverLetterFileName(targetRole, "pdf"));
+      trackUsage("exportsCreated");
+    } catch {
+      setSystemStatus("Cover letter PDF export failed. Try DOCX or refresh and retry.");
+    }
   }
 
   async function downloadCoverLetterDocx() {
@@ -3404,13 +3522,18 @@ export default function Home() {
       return;
     }
 
-    const blob = await createCoverLetterDocxBlob({
-      coverLetter: result.coverLetter,
-      resumeText: result.rewrittenResume,
-      template,
-      theme: previewTheme,
-    });
-    saveBlob(blob, coverLetterFileName(targetRole, "docx"));
+    try {
+      const blob = await createCoverLetterDocxBlob({
+        coverLetter: result.coverLetter,
+        resumeText: result.rewrittenResume,
+        template,
+        theme: previewTheme,
+      });
+      saveBlob(blob, coverLetterFileName(targetRole, "docx"));
+      trackUsage("exportsCreated");
+    } catch {
+      setSystemStatus("Cover letter DOCX export failed. Try PDF or refresh and retry.");
+    }
   }
 
   async function downloadResumePdf() {
@@ -3418,12 +3541,17 @@ export default function Home() {
       return;
     }
 
-    const blob = await createResumePdfBlob(
-      result.rewrittenResume,
-      template,
-      previewTheme,
-    );
-    saveBlob(blob, fileNameForRole(targetRole, "pdf"));
+    try {
+      const blob = await createResumePdfBlob(
+        result.rewrittenResume,
+        template,
+        previewTheme,
+      );
+      saveBlob(blob, fileNameForRole(targetRole, "pdf"));
+      trackUsage("exportsCreated");
+    } catch {
+      setSystemStatus("Resume PDF export failed. Try DOCX or refresh and retry.");
+    }
   }
 
   async function downloadResumeDocx() {
@@ -3431,12 +3559,17 @@ export default function Home() {
       return;
     }
 
-    const blob = await createResumeDocxBlob(
-      result.rewrittenResume,
-      template,
-      previewTheme,
-    );
-    saveBlob(blob, fileNameForRole(targetRole, "docx"));
+    try {
+      const blob = await createResumeDocxBlob(
+        result.rewrittenResume,
+        template,
+        previewTheme,
+      );
+      saveBlob(blob, fileNameForRole(targetRole, "docx"));
+      trackUsage("exportsCreated");
+    } catch {
+      setSystemStatus("Resume DOCX export failed. Try PDF or refresh and retry.");
+    }
   }
 
   async function downloadLinkedInKitPdf() {
@@ -3444,12 +3577,17 @@ export default function Home() {
       return;
     }
 
-    const blob = await createTextKitPdfBlob({
-      title: "LinkedIn Kit",
-      body: serializeLinkedInKit(result.linkedin),
-      theme: previewTheme,
-    });
-    saveBlob(blob, linkedinKitFileName(targetRole, "pdf"));
+    try {
+      const blob = await createTextKitPdfBlob({
+        title: "LinkedIn Kit",
+        body: serializeLinkedInKit(result.linkedin),
+        theme: previewTheme,
+      });
+      saveBlob(blob, linkedinKitFileName(targetRole, "pdf"));
+      trackUsage("exportsCreated");
+    } catch {
+      setSystemStatus("LinkedIn Kit PDF export failed. Try DOCX or retry.");
+    }
   }
 
   async function downloadLinkedInKitDocx() {
@@ -3457,12 +3595,17 @@ export default function Home() {
       return;
     }
 
-    const blob = await createTextKitDocxBlob({
-      title: "LinkedIn Kit",
-      body: serializeLinkedInKit(result.linkedin),
-      theme: previewTheme,
-    });
-    saveBlob(blob, linkedinKitFileName(targetRole, "docx"));
+    try {
+      const blob = await createTextKitDocxBlob({
+        title: "LinkedIn Kit",
+        body: serializeLinkedInKit(result.linkedin),
+        theme: previewTheme,
+      });
+      saveBlob(blob, linkedinKitFileName(targetRole, "docx"));
+      trackUsage("exportsCreated");
+    } catch {
+      setSystemStatus("LinkedIn Kit DOCX export failed. Try PDF or retry.");
+    }
   }
 
   function updateLinkedIn(field: keyof LinkedInKit, value: string | string[]) {
@@ -3510,7 +3653,50 @@ export default function Home() {
               output.
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex max-w-xl flex-col gap-3">
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleAccountPlaceholder("Sign in")}
+                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50"
+                >
+                  Sign in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAccountPlaceholder("Sign up")}
+                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50"
+                >
+                  Sign up
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAccountPlaceholder("Sign out")}
+                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50"
+                >
+                  Sign out
+                </button>
+                <button
+                  type="button"
+                  onClick={openMyResumesPlaceholder}
+                  className="inline-flex min-h-9 items-center justify-center rounded-md bg-zinc-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800"
+                >
+                  My Resumes
+                </button>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-zinc-500">
+                {hasSupabaseConfig
+                  ? "Supabase project config detected. Auth and cloud sync are prepared but not required yet."
+                  : "Local mode active. Add Supabase env vars later to enable accounts and cloud resumes."}
+              </p>
+              {accountStatus ? (
+                <p className="mt-2 text-xs font-medium text-teal-700">
+                  {accountStatus}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-3">
             <button
               type="button"
               onClick={resetSavedResume}
@@ -3542,6 +3728,7 @@ export default function Home() {
             >
               {isTailoring ? "AI is tailoring your resume..." : "Tailor Resume"}
             </button>
+            </div>
           </div>
         </div>
       </section>
@@ -3893,6 +4080,40 @@ export default function Home() {
           </section>
 
           <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-semibold text-zinc-900">Usage</h2>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                  AI generations used today
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-zinc-950">
+                  {usageStats.aiGenerations}
+                </p>
+              </div>
+              <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                  Exports created
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-zinc-950">
+                  {usageStats.exportsCreated}
+                </p>
+              </div>
+              <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                  Saved versions
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-zinc-950">
+                  {savedVersions.length}
+                </p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">
+              Usage is tracked locally for now and can be moved to Supabase
+              usage events when accounts are enabled.
+            </p>
+          </section>
+
+          <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
             <details open>
               <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
                 Saved Resume Versions
@@ -4143,6 +4364,14 @@ export default function Home() {
         <section className="mx-auto max-w-[96rem] px-5 pb-4 sm:px-8">
           <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">
             {tailorError}
+          </div>
+        </section>
+      ) : null}
+
+      {systemStatus ? (
+        <section className="mx-auto max-w-[96rem] px-5 pb-4 sm:px-8">
+          <div className="rounded-md border border-zinc-200 bg-white p-4 text-sm font-medium text-zinc-700">
+            {systemStatus}
           </div>
         </section>
       ) : null}

@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Iseya Resume Agent
 
-## Getting Started
+Iseya is a Next.js resume builder and AI career assistant. It supports resume tailoring, cover letters, PDF/DOCX exports, saved local resume versions, upload-based source materials, AI coaching, recruiter simulation, LinkedIn optimization, and application kit generation.
 
-First, run the development server:
+## Local Setup
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create a local environment file:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Add your server-only OpenAI key:
+
+```bash
+OPENAI_API_KEY=your_key_here
+```
+
+Do not prefix the OpenAI key with `NEXT_PUBLIC_`. The key is used only by `app/api/tailor/route.ts`.
+
+Optional Supabase project configuration for future account/cloud-save work:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open the localhost URL shown in the terminal. If port `3000` is already occupied, Next.js will choose the next available port.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Validation
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Before deploying, run:
 
-## Learn More
+```bash
+npm run lint
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Supabase Preparation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This phase adds Supabase-ready structure without requiring login:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `lib/supabaseClient.ts` reads browser-safe Supabase env vars.
+- `lib/supabaseServer.ts` prepares server-side Supabase REST configuration.
+- `supabase/schema.sql` defines `profiles`, `resume_versions`, `uploaded_sources`, and `usage_events` with basic RLS policies.
 
-## Deploy on Vercel
+When Supabase is not configured, the app continues using localStorage for drafts, saved versions, uploads metadata, and usage counters.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Vercel Deployment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Push the repository to GitHub.
+2. Import the project in Vercel.
+3. Add environment variables in Vercel Project Settings:
+   - `OPENAI_API_KEY`
+   - Optional: `OPENAI_MODEL`
+   - Optional: `NEXT_PUBLIC_SUPABASE_URL`
+   - Optional: `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Deploy.
+5. Confirm the production deployment can run `/api/tailor` and `/api/extract`.
+
+## Security Notes
+
+- `.env.local` and other `.env*` files are ignored by git.
+- `OPENAI_API_KEY` must remain server-only.
+- Do not create `NEXT_PUBLIC_OPENAI_API_KEY`.
+- Uploaded files are sent only to the app's backend extraction route, `/api/extract`.
+- Browser localStorage is convenient for MVP persistence but is not secure storage for secrets or sensitive documents.
+- Supabase RLS policies in `supabase/schema.sql` are intentionally basic and should be reviewed before production launch.
+
+## Usage Limits
+
+Local usage tracking currently counts:
+
+- AI generations used today
+- Exports created
+- Saved resume versions
+
+These counters are stored in localStorage for anonymous users. The `usage_events` table is prepared for future authenticated tracking and paid-plan enforcement. Stripe is not implemented in this phase.
