@@ -3953,7 +3953,6 @@ export default function Home() {
   const [usageStats, setUsageStats] = useState<UsageStats>(defaultUsageStats);
   const [activeOutput, setActiveOutput] = useState<OutputTab>("resume");
   const [hydrated, setHydrated] = useState(false);
-  const [logoFailed, setLogoFailed] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<Record<string, string>>({});
   const skipNextSave = useRef(false);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -4798,24 +4797,17 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <section className="iseya-header">
-        <div className="mx-auto flex max-w-[112rem] flex-col gap-5 px-5 py-5 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mx-auto flex max-w-[112rem] flex-col gap-5 px-5 py-6 sm:px-8 sm:py-7 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0 max-w-5xl">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              {logoFailed ? (
-                <span className="text-3xl font-bold tracking-[0.14em] text-[var(--iseya-white)] sm:text-4xl">
-                  ISEYA
-                </span>
-              ) : (
-                <Image
-                  src="/brand/iseya-logo2.png"
-                  alt="ISEYA"
-                  width={240}
-                  height={120}
-                  priority
-                  className="h-auto w-[150px] object-contain sm:w-[220px] lg:w-[240px]"
-                  onError={() => setLogoFailed(true)}
-                />
-              )}
+              <Image
+                src="/brand/iseya-logo2.png"
+                alt="ISEYA"
+                width={280}
+                height={140}
+                priority
+                className="h-auto w-[160px] object-contain sm:w-[240px] lg:w-[270px]"
+              />
               <p className="border-l-0 border-[var(--iseya-gold)] text-sm font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)] sm:border-l sm:pl-4 sm:text-base">
                 Beyond Resume. Positioning.
               </p>
@@ -4864,7 +4856,7 @@ export default function Home() {
         <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
           <label
             htmlFor="master-resume"
-            className="text-sm font-semibold text-zinc-900"
+            className="text-sm font-semibold text-[var(--iseya-navy)]"
           >
             Master Resume
           </label>
@@ -4962,7 +4954,7 @@ export default function Home() {
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-zinc-900">
+                        <p className="text-sm font-semibold text-[var(--iseya-navy)]">
                           {file.name}
                         </p>
                         <p className="mt-1 text-xs text-zinc-500">
@@ -5015,7 +5007,7 @@ export default function Home() {
           </div>
 
           <section className="mt-5 rounded-md border border-zinc-200 bg-zinc-50 p-4">
-            <h2 className="text-sm font-semibold text-zinc-900">
+            <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
               Source Materials
             </h2>
             <div className="mt-3 space-y-3 text-sm leading-6 text-zinc-700">
@@ -5078,7 +5070,7 @@ export default function Home() {
           <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
             <label
               htmlFor="target-role"
-              className="text-sm font-semibold text-zinc-900"
+              className="text-sm font-semibold text-[var(--iseya-navy)]"
             >
               Target Role
             </label>
@@ -5092,7 +5084,7 @@ export default function Home() {
 
             <label
               htmlFor="industry-target"
-              className="mt-5 block text-sm font-semibold text-zinc-900"
+              className="mt-5 block text-sm font-semibold text-[var(--iseya-navy)]"
             >
               Industry Target
             </label>
@@ -5112,7 +5104,7 @@ export default function Home() {
             </select>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-semibold text-zinc-900">
+              <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
                 Template
                 <select
                   value={template}
@@ -5127,7 +5119,7 @@ export default function Home() {
                 </select>
               </label>
 
-              <label className="block text-sm font-semibold text-zinc-900">
+              <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
                 Theme
                 <select
                   value={theme}
@@ -5152,11 +5144,11 @@ export default function Home() {
 
           <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
             <details>
-              <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+              <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
                 AI Model Settings
               </summary>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <label className="text-sm font-semibold text-zinc-900">
+                <label className="text-sm font-semibold text-[var(--iseya-navy)]">
                   Model
                   <select
                     value={aiSettings.model}
@@ -5173,7 +5165,7 @@ export default function Home() {
                     <option value="gpt-4.1-mini">gpt-4.1-mini</option>
                   </select>
                 </label>
-                <label className="text-sm font-semibold text-zinc-900">
+                <label className="text-sm font-semibold text-[var(--iseya-navy)]">
                   Positioning Mode
                   <select
                     value={aiSettings.positioningMode}
@@ -5192,7 +5184,7 @@ export default function Home() {
                     ))}
                   </select>
                 </label>
-                <label className="text-sm font-semibold text-zinc-900">
+                <label className="text-sm font-semibold text-[var(--iseya-navy)]">
                   Creativity: {aiSettings.creativity}
                   <input
                     type="range"
@@ -5208,7 +5200,7 @@ export default function Home() {
                     className="mt-2 w-full"
                   />
                 </label>
-                <label className="text-sm font-semibold text-zinc-900">
+                <label className="text-sm font-semibold text-[var(--iseya-navy)]">
                   ATS Strictness: {aiSettings.atsStrictness}
                   <input
                     type="range"
@@ -5224,7 +5216,7 @@ export default function Home() {
                     className="mt-2 w-full"
                   />
                 </label>
-                <label className="text-sm font-semibold text-zinc-900">
+                <label className="text-sm font-semibold text-[var(--iseya-navy)]">
                   Tone Style
                   <select
                     value={aiSettings.toneStyle}
@@ -5244,7 +5236,7 @@ export default function Home() {
                     </option>
                   </select>
                 </label>
-                <label className="flex items-center gap-3 text-sm font-semibold text-zinc-900">
+                <label className="flex items-center gap-3 text-sm font-semibold text-[var(--iseya-navy)]">
                   <input
                     type="checkbox"
                     checked={aiSettings.aggressiveOptimization}
@@ -5262,7 +5254,7 @@ export default function Home() {
           </section>
 
           <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-zinc-900">Usage</h2>
+            <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">Usage</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
@@ -5296,7 +5288,7 @@ export default function Home() {
 
           <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
             <details open>
-              <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+              <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
                 Saved Resume Versions
               </summary>
               <div className="mt-4 space-y-4">
@@ -5384,7 +5376,7 @@ export default function Home() {
                               className="mt-1"
                             />
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-semibold text-zinc-900">
+                              <p className="truncate text-sm font-semibold text-[var(--iseya-navy)]">
                                 {version.name}
                               </p>
                               <p className="mt-1 text-xs leading-5 text-zinc-600">
@@ -5435,7 +5427,7 @@ export default function Home() {
                               key={`${version.id}-${versionIndex}`}
                               className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
                             >
-                              <p className="text-sm font-semibold text-zinc-900">
+                              <p className="text-sm font-semibold text-[var(--iseya-navy)]">
                                 {version.name}
                               </p>
                               <dl className="mt-2 space-y-1 text-xs leading-5 text-zinc-600">
@@ -5527,7 +5519,7 @@ export default function Home() {
           <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
             <label
               htmlFor="job-description"
-              className="block text-sm font-semibold text-zinc-900"
+              className="block text-sm font-semibold text-[var(--iseya-navy)]"
             >
               Job Description
             </label>
@@ -5563,7 +5555,7 @@ export default function Home() {
           <div className="sticky top-0 z-30 mb-5 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
             <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
               <div>
-                <h2 className="text-base font-semibold text-[var(--iseya-navy)]">
+                <h2 className="text-base font-semibold text-[var(--iseya-gold)]">
                   AI Workspace
                 </h2>
                 <p className="mt-1 text-xs font-medium text-slate-500">
@@ -6011,7 +6003,7 @@ function EditableField({
   return (
     <section>
       <div className="flex items-center justify-between gap-3">
-        <h4 className="text-sm font-semibold text-zinc-900">{label}</h4>
+        <h4 className="text-sm font-semibold text-[var(--iseya-navy)]">{label}</h4>
         {copy ? <CopyTextButton label="Copy" text={value} /> : null}
       </div>
       <textarea
@@ -6045,9 +6037,6 @@ function DocumentFrame({
             {subtitle}
           </p>
         </div>
-        <span className="rounded-full bg-[#FFF8E6] px-3 py-1 text-xs font-semibold text-[var(--iseya-navy)] ring-1 ring-[var(--iseya-gold)]/40">
-          Autosaved
-        </span>
       </div>
       {children}
     </article>
@@ -6849,9 +6838,6 @@ function ModularSection({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h4 className="text-sm font-semibold text-[var(--iseya-navy)]">{title}</h4>
-            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
-              Autosaved
-            </p>
           </div>
           <div className="flex flex-wrap justify-end gap-2 sm:flex-nowrap">
             <span className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
@@ -7039,7 +7025,7 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
       </section>
 
       <details open className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+        <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
           Recruiter Simulation
         </summary>
         <div className="mt-3 space-y-2">
@@ -7050,7 +7036,7 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
       </details>
 
       <details open className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+        <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
           Quick Critique
         </summary>
         <CoachInlineList items={quickCritiques} />
@@ -7061,7 +7047,7 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
               className="rounded-md border border-slate-200 bg-slate-50 p-2"
             >
               <summary className="cursor-pointer list-none">
-                <p className="text-xs font-semibold text-slate-900">{title}</p>
+                <p className="text-xs font-semibold text-[var(--iseya-navy)]">{title}</p>
                 <p className="mt-1 truncate text-[11px] leading-4 text-slate-500">
                   {safeStringArray(items)[0] || "No detail yet."}
                 </p>
@@ -7073,14 +7059,14 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
       </details>
 
       <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+        <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
           Resume Integrity
         </summary>
         <CoachInlineList items={safeStringArray(result.riskFlags).map(userFacingGuidance)} />
       </details>
 
       <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-900">
+        <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
           Industry Alignment
         </summary>
         <CoachInlineList items={[coach.industryAlignment, result.industryFit]} />
@@ -7233,12 +7219,12 @@ function AdvancedIntelligencePanel({
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-semibold text-slate-900">
+      <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
         Career Intelligence
       </h2>
       <div className="mt-4 space-y-3">
         <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
-          <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+          <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             AI Interview Prep
           </summary>
           <div className="mt-3 space-y-4">
@@ -7271,7 +7257,7 @@ function AdvancedIntelligencePanel({
         </details>
 
         <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
-          <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+          <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             Gap Analysis
           </summary>
           <div className="mt-3 space-y-4">
@@ -7297,7 +7283,7 @@ function AdvancedIntelligencePanel({
         </details>
 
         <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
-          <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+          <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             Job Description Intelligence
           </summary>
           <div className="mt-3 space-y-4">
@@ -7340,7 +7326,7 @@ function AdvancedIntelligencePanel({
         </details>
 
         <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
-          <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+          <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             AI Achievement Improvement Engine
           </summary>
           <div className="mt-3 space-y-3">
@@ -7396,7 +7382,7 @@ function AdvancedIntelligencePanel({
         </details>
 
         <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
-          <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+          <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             AI Suggestions
           </summary>
           <CoachBlock title="Smart Suggestions" items={analysis.aiSuggestions} />
