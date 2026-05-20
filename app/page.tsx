@@ -5,16 +5,16 @@ import Image from "next/image";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 const focusRingClass =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4B321] focus-visible:ring-offset-2";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2";
 const buttonBaseClass =
   `inline-flex items-center justify-center rounded-md font-semibold transition duration-150 ease-out hover:shadow-md active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 ${focusRingClass}`;
 const buttonSizeSmClass = "min-h-8 px-3 py-1.5 text-xs";
 const buttonSizeMdClass = "min-h-10 px-4 py-2 text-sm";
-const primaryButtonClass = `${buttonBaseClass} border border-[#071B3A] bg-[#071B3A] text-white hover:border-[#F4B321] hover:bg-[#0B2A56]`;
-const secondaryButtonClass = `${buttonBaseClass} border border-[#071B3A]/25 bg-white text-[#071B3A] hover:border-[#F4B321] hover:bg-[#FFF8E6]`;
+const primaryButtonClass = `${buttonBaseClass} border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] text-white hover:border-[var(--iseya-gold)] hover:bg-[#001B4F]`;
+const secondaryButtonClass = `${buttonBaseClass} border border-[var(--iseya-border)] bg-[var(--iseya-white)] text-[var(--iseya-navy)] hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]`;
 const dangerButtonClass = `${buttonBaseClass} border border-red-200 bg-white text-red-700 hover:border-red-300 hover:bg-red-50`;
 const menuItemClass =
-  `block w-full rounded-md px-3 py-2 text-left font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[#071B3A] ${focusRingClass}`;
+  `block w-full rounded-md px-3 py-2 text-left font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)] ${focusRingClass}`;
 
 type TemplateId =
   | "executive-navy"
@@ -4796,13 +4796,13 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F9FC] text-[#1F2937]">
-      <section className="border-b border-[#F4B321]/20 bg-[#061A36]">
-        <div className="mx-auto flex max-w-[112rem] flex-col gap-6 px-5 py-7 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
+    <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
+      <section className="iseya-header">
+        <div className="mx-auto flex max-w-[112rem] flex-col gap-5 px-5 py-6 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-3xl">
             <div className="flex items-center">
               {logoFailed ? (
-                <span className="text-3xl font-bold tracking-[0.14em] text-white sm:text-4xl">
+                <span className="text-3xl font-bold tracking-[0.14em] text-[var(--iseya-white)] sm:text-4xl">
                   ISEYA
                 </span>
               ) : (
@@ -4812,12 +4812,12 @@ export default function Home() {
                   width={240}
                   height={120}
                   priority
-                  className="h-auto w-[140px] object-contain sm:w-[210px] lg:w-[240px]"
+                  className="h-auto w-[150px] object-contain sm:w-[220px] lg:w-[250px]"
                   onError={() => setLogoFailed(true)}
                 />
               )}
             </div>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-white/85">
+            <p className="mt-3 max-w-2xl text-base leading-7 text-white/85">
               Iseya helps you tailor resumes, cover letters, LinkedIn profiles,
               and career application materials.
             </p>
@@ -4827,14 +4827,14 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => handleAccountPlaceholder("Sign in")}
-                className={`border border-white/40 bg-transparent text-white hover:border-[#F4B321] hover:bg-[#F4B321] hover:text-[#061A36] ${buttonBaseClass} ${buttonSizeMdClass}`}
+                className={`border border-white/40 bg-transparent text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] ${buttonBaseClass} ${buttonSizeMdClass}`}
               >
                 Login / Sign up
               </button>
                 <button
                   type="button"
                   onClick={openMyResumesPlaceholder}
-                className={`border border-white/40 bg-transparent text-white hover:border-[#F4B321] hover:bg-[#F4B321] hover:text-[#061A36] ${buttonBaseClass} ${buttonSizeMdClass}`}
+                className={`border border-white/40 bg-transparent text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] ${buttonBaseClass} ${buttonSizeMdClass}`}
                 >
                   My Resumes
                 </button>
@@ -4844,7 +4844,7 @@ export default function Home() {
                   runWithFeedback("tailor", "Tailoring...", "Done", tailorResume)
                 }
                 disabled={!canTailor || isTailoring}
-                className={`${buttonBaseClass} ${buttonSizeMdClass} border border-[#F4B321] bg-[#F4B321] text-[#061A36] hover:border-white hover:bg-white disabled:bg-white/30 disabled:text-white/70`}
+                className={`${buttonBaseClass} ${buttonSizeMdClass} border border-[var(--iseya-gold)] bg-[var(--iseya-gold)] text-[var(--iseya-navy)] hover:border-white hover:bg-white disabled:bg-white/30 disabled:text-white/70`}
               >
                 {isTailoring ? "Tailoring..." : actionFeedback.tailor ?? "Tailor Resume"}
               </button>
@@ -4877,7 +4877,7 @@ export default function Home() {
           <section className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-sm font-semibold text-slate-950">
+                <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
                   Personal Branding & Contact
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -5561,7 +5561,7 @@ export default function Home() {
           <div className="sticky top-0 z-30 mb-5 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
             <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
               <div>
-                <h2 className="text-base font-semibold text-slate-950">
+                <h2 className="text-base font-semibold text-[var(--iseya-navy)]">
                   AI Workspace
                 </h2>
                 <p className="mt-1 text-xs font-medium text-slate-500">
@@ -5584,8 +5584,8 @@ export default function Home() {
                     }
                     className={`${buttonBaseClass} ${buttonSizeMdClass} ${
                       activeOutput === id
-                        ? "border border-[#071B3A] bg-[#071B3A] text-white hover:border-[#F4B321] hover:bg-[#0B2A56]"
-                        : "border border-[#071B3A]/25 bg-white text-[#071B3A] hover:border-[#F4B321] hover:bg-[#FFF8E6]"
+                        ? "border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] text-white hover:border-[var(--iseya-gold)] hover:bg-[#001B4F]"
+                        : "border border-[var(--iseya-border)] bg-[var(--iseya-white)] text-[var(--iseya-navy)] hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]"
                     }`}
                   >
                     {label}
@@ -5980,7 +5980,7 @@ function DocumentFrame({
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)]">
       <div className="mb-5 flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
         <div>
-          <h3 className="text-lg font-semibold tracking-tight text-slate-950">
+          <h3 className="text-lg font-semibold tracking-tight text-[var(--iseya-navy)]">
             {title}
           </h3>
           <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">
@@ -6459,7 +6459,7 @@ function ModularResumeEditor({
       <section className="rounded-xl border border-teal-100 bg-teal-50/60 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h4 className="text-sm font-semibold text-slate-950">
+            <h4 className="text-sm font-semibold text-[var(--iseya-navy)]">
               Continuous AI Optimization
             </h4>
             <p className="mt-1 text-xs leading-5 text-slate-600">
@@ -6790,7 +6790,7 @@ function ModularSection({
       <summary className="cursor-pointer list-none">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h4 className="text-sm font-semibold text-slate-950">{title}</h4>
+            <h4 className="text-sm font-semibold text-[var(--iseya-navy)]">{title}</h4>
             <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
               Autosaved
             </p>
@@ -6968,7 +6968,7 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
           ATS Scores
         </p>
         <div className="mt-3 flex items-end gap-2">
-          <span className="text-4xl font-semibold tracking-tight text-slate-950">
+          <span className="text-4xl font-semibold tracking-tight text-[var(--iseya-navy)]">
             {Math.round(score)}
           </span>
           <span className="pb-1 text-sm font-semibold text-slate-500">/100</span>
