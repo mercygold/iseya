@@ -641,6 +641,14 @@ function fileNameForRole(targetRole: string, extension: "pdf" | "docx") {
   return `${roleSlug}.${extension}`;
 }
 
+function coverLetterFileName(targetRole: string, extension: "pdf" | "docx") {
+  const roleSlug =
+    targetRole.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") ||
+    "cover-letter";
+
+  return `${roleSlug}-cover-letter.${extension}`;
+}
+
 function stripHash(color: string) {
   return color.replace("#", "");
 }
@@ -902,6 +910,262 @@ async function createResumeDocxBlob(
   return Packer.toBlob(document);
 }
 
+function extractContactInfo(resumeText: string) {
+  const resume = parseResumePreview(resumeText);
+  const email =
+    resumeText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ??
+    "Not provided";
+  const phone =
+    resumeText.match(
+      /(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/,
+    )?.[0] ?? "Not provided";
+  const linkedIn =
+    resumeText.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/[^\s,)]+/i)?.[0] ??
+    "Not provided";
+
+  return {
+    name: resume.name,
+    title: resume.title,
+    email,
+    phone,
+    linkedIn,
+  };
+}
+
+function coverLetterLines(coverLetter: string, name: string) {
+  const lines = coverLetter
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const hasGreeting = lines.some((line) => /^dear\b/i.test(line));
+  const hasSignature = lines.some((line) =>
+    /^(sincerely|regards|best regards),?$/i.test(line),
+  );
+  const nextLines = hasGreeting ? lines : ["Dear Hiring Team,", ...lines];
+
+  if (!hasSignature) {
+    nextLines.push("Sincerely,", name);
+  }
+
+  return nextLines;
+}
+
+async function createCoverLetterPdfBlob({
+  coverLetter,
+  resumeText,
+  template,
+  theme,
+}: {
+  coverLetter: string;
+  resumeText: string;
+  template: TemplateId;
+  theme: (typeof previewThemes)[ThemeId];
+}) {
+  const ReactPdf = await import("@react-pdf/renderer");
+  const { Document, Page, StyleSheet, Text, View, pdf } = ReactPdf;
+  const contact = extractContactInfo(resumeText);
+  const lines = coverLetterLines(coverLetter, contact.name);
+  const hasHeaderBand =
+    template === "executive-navy" || template === "bold-leadership";
+  const isModern =
+    template === "modern-product" || template === "tech-minimal";
+  const isAts = template === "ats-clean";
+  const today = new Date().toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const styles = StyleSheet.create({
+    page: {
+      padding: isAts || template === "tech-minimal" ? 42 : 48,
+      color: theme.textHex,
+      fontFamily: "Helvetica",
+      fontSize: 10.5,
+      lineHeight: 1.55,
+    },
+    header: {
+      backgroundColor: hasHeaderBand ? theme.headerHex : "#ffffff",
+      borderBottomColor: theme.accentHex,
+      borderBottomWidth: hasHeaderBand ? 0 : 2,
+      marginBottom: 22,
+      padding: hasHeaderBand ? 16 : 0,
+    },
+    name: {
+      color: hasHeaderBand ? "#ffffff" : theme.textHex,
+      fontSize: template === "bold-leadership" ? 24 : 21,
+      fontWeight: 700,
+      marginBottom: 4,
+    },
+    title: {
+      color: hasHeaderBand ? "#e5e7eb" : theme.accentHex,
+      fontSize: 10.5,
+      fontWeight: 600,
+      marginBottom: 7,
+    },
+    contact: {
+      color: hasHeaderBand ? "#e5e7eb" : theme.textHex,
+      fontSize: 9,
+      marginBottom: 2,
+    },
+    date: {
+      color: theme.textHex,
+      fontSize: 10.5,
+      marginBottom: 18,
+      textAlign: "right",
+    },
+    body: {
+      borderLeftColor: isModern ? theme.accentHex : "#ffffff",
+      borderLeftWidth: isModern ? 2 : 0,
+      paddingLeft: isModern ? 12 : 0,
+    },
+    paragraph: {
+      marginBottom: 10,
+    },
+  });
+
+  const documentNode = createElement(
+    Document,
+    null,
+    createElement(
+      Page,
+      { size: "LETTER", style: styles.page },
+      createElement(
+        View,
+        { style: styles.header },
+        createElement(Text, { style: styles.name }, contact.name),
+        createElement(Text, { style: styles.title }, contact.title),
+        createElement(Text, { style: styles.contact }, `Email: ${contact.email}`),
+        createElement(Text, { style: styles.contact }, `Phone: ${contact.phone}`),
+        createElement(
+          Text,
+          { style: styles.contact },
+          `LinkedIn: ${contact.linkedIn}`,
+        ),
+      ),
+      createElement(Text, { style: styles.date }, today),
+      createElement(
+        View,
+        { style: styles.body },
+        ...lines.map((line, index) =>
+          createElement(Text, { key: `${line}-${index}`, style: styles.paragraph }, line),
+        ),
+      ),
+    ),
+  );
+
+  return pdf(documentNode).toBlob();
+}
+
+async function createCoverLetterDocxBlob({
+  coverLetter,
+  resumeText,
+  template,
+  theme,
+}: {
+  coverLetter: string;
+  resumeText: string;
+  template: TemplateId;
+  theme: (typeof previewThemes)[ThemeId];
+}) {
+  const Docx = await import("docx");
+  const {
+    BorderStyle,
+    Document: DocxDocument,
+    Packer,
+    Paragraph,
+    ShadingType,
+    TextRun,
+  } = Docx;
+  const contact = extractContactInfo(resumeText);
+  const lines = coverLetterLines(coverLetter, contact.name);
+  const hasHeaderBand =
+    template === "executive-navy" || template === "bold-leadership";
+  const accentColor = stripHash(theme.accentHex);
+  const headerColor = stripHash(theme.headerHex);
+  const textColor = stripHash(theme.textHex);
+  const today = new Date().toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const children = [
+    new Paragraph({
+      shading: hasHeaderBand
+        ? {
+            type: ShadingType.CLEAR,
+            color: "auto",
+            fill: headerColor,
+          }
+        : undefined,
+      spacing: { after: 80 },
+      children: [
+        new TextRun({
+          text: contact.name,
+          bold: true,
+          color: hasHeaderBand ? "FFFFFF" : textColor,
+          size: template === "bold-leadership" ? 34 : 30,
+        }),
+      ],
+    }),
+    new Paragraph({
+      border: hasHeaderBand
+        ? undefined
+        : {
+            bottom: {
+              style: BorderStyle.SINGLE,
+              color: accentColor,
+              size: 8,
+              space: 1,
+            },
+          },
+      spacing: { after: 160 },
+      children: [
+        new TextRun({
+          text: contact.title,
+          bold: true,
+          color: hasHeaderBand ? "FFFFFF" : accentColor,
+          size: 21,
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: 60 },
+      children: [
+        new TextRun({
+          text: `Email: ${contact.email} | Phone: ${contact.phone} | LinkedIn: ${contact.linkedIn}`,
+          color: textColor,
+          size: 18,
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: "right",
+      spacing: { before: 220, after: 260 },
+      children: [new TextRun({ text: today, color: textColor, size: 21 })],
+    }),
+  ];
+
+  for (const [index, line] of lines.entries()) {
+    children.push(
+      new Paragraph({
+        spacing: { after: index === 0 ? 220 : 170 },
+        children: [new TextRun({ text: line, color: textColor, size: 22 })],
+      }),
+    );
+  }
+
+  const document = new DocxDocument({
+    sections: [
+      {
+        properties: {},
+        children,
+      },
+    ],
+  });
+
+  return Packer.toBlob(document);
+}
+
 export default function Home() {
   const [masterResume, setMasterResume] = useState(sampleResume);
   const [jobDescription, setJobDescription] = useState(sampleJob);
@@ -1138,25 +1402,32 @@ export default function Home() {
     }
   }
 
-  function downloadCoverLetterTxt() {
+  async function downloadCoverLetterPdf() {
     if (!result) {
       return;
     }
 
-    const fileName = `${
-      targetRole.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") ||
-      "cover-letter"
-    }-cover-letter.txt`;
-    const blob = new Blob([result.coverLetter], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const blob = await createCoverLetterPdfBlob({
+      coverLetter: result.coverLetter,
+      resumeText: result.rewrittenResume,
+      template,
+      theme: previewTheme,
+    });
+    saveBlob(blob, coverLetterFileName(targetRole, "pdf"));
+  }
 
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+  async function downloadCoverLetterDocx() {
+    if (!result) {
+      return;
+    }
+
+    const blob = await createCoverLetterDocxBlob({
+      coverLetter: result.coverLetter,
+      resumeText: result.rewrittenResume,
+      template,
+      theme: previewTheme,
+    });
+    saveBlob(blob, coverLetterFileName(targetRole, "docx"));
   }
 
   async function downloadResumePdf() {
@@ -1632,10 +1903,17 @@ export default function Home() {
                     </button>
                     <button
                       type="button"
-                      onClick={downloadCoverLetterTxt}
+                      onClick={downloadCoverLetterPdf}
                       className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
                     >
-                      Download Cover Letter TXT
+                      Download Cover Letter PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={downloadCoverLetterDocx}
+                      className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
+                    >
+                      Download Cover Letter DOCX
                     </button>
                   </div>
                 </div>
