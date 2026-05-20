@@ -10,7 +10,6 @@ const buttonBaseClass =
   `inline-flex items-center justify-center rounded-md font-semibold transition duration-150 ease-out hover:shadow-md active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 ${focusRingClass}`;
 const buttonSizeSmClass = "min-h-8 px-3 py-1.5 text-xs";
 const buttonSizeMdClass = "min-h-10 px-4 py-2 text-sm";
-const buttonSizeLgClass = "min-h-12 px-5 py-3 text-sm";
 const primaryButtonClass = `${buttonBaseClass} border border-[#071B3A] bg-[#071B3A] text-white hover:border-[#F4B321] hover:bg-[#0B2A56]`;
 const secondaryButtonClass = `${buttonBaseClass} border border-[#071B3A]/25 bg-white text-[#071B3A] hover:border-[#F4B321] hover:bg-[#FFF8E6]`;
 const dangerButtonClass = `${buttonBaseClass} border border-red-200 bg-white text-red-700 hover:border-red-300 hover:bg-red-50`;
@@ -4435,6 +4434,7 @@ export default function Home() {
     trackUsage("aiGenerations");
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function resetSavedResume() {
     skipNextSave.current = true;
     window.localStorage.removeItem(storageKey);
@@ -4797,101 +4797,63 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#F7F9FC] text-[#1F2937]">
-      <section className="border-b border-[#071B3A]/10 bg-white">
-        <div className="mx-auto flex max-w-[112rem] flex-col gap-7 px-5 py-7 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
+      <section className="border-b border-[#F4B321]/20 bg-[#061A36]">
+        <div className="mx-auto flex max-w-[112rem] flex-col gap-6 px-5 py-7 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-3xl">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center">
               {logoFailed ? (
-                <span className="text-2xl font-bold tracking-[0.14em] text-[#071B3A]">
+                <span className="text-3xl font-bold tracking-[0.14em] text-white sm:text-4xl">
                   ISEYA
                 </span>
               ) : (
                 <Image
                   src="/brand/iseya-logo.png"
                   alt="ISEYA"
-                  width={160}
-                  height={80}
+                  width={240}
+                  height={120}
                   priority
-                  className="h-12 w-auto sm:h-16"
+                  className="h-auto w-[140px] object-contain sm:w-[210px] lg:w-[240px]"
                   onError={() => setLogoFailed(true)}
                 />
               )}
-              <p className="border-l border-[#F4B321] pl-4 text-xs font-bold uppercase tracking-[0.18em] text-[#071B3A] sm:text-sm">
-                Beyond Resume. Positioning.
-              </p>
             </div>
-            <h1 className="mt-5 text-3xl font-semibold tracking-tight text-[#071B3A] sm:text-5xl">
-              AI career documents, tailored for the role.
-            </h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
+            <p className="mt-4 max-w-2xl text-base leading-7 text-white/85">
               Iseya helps you tailor resumes, cover letters, LinkedIn profiles,
-              and application kits with AI.
+              and career application materials.
             </p>
           </div>
-          <div className="flex max-w-2xl flex-col gap-3">
+          <div className="flex max-w-2xl flex-col gap-3 lg:items-end">
             <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
               <button
                 type="button"
                 onClick={() => handleAccountPlaceholder("Sign in")}
-                className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
+                className={`border border-white/40 bg-transparent text-white hover:border-[#F4B321] hover:bg-[#F4B321] hover:text-[#061A36] ${buttonBaseClass} ${buttonSizeMdClass}`}
               >
                 Login / Sign up
               </button>
                 <button
                   type="button"
                   onClick={openMyResumesPlaceholder}
-                className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
+                className={`border border-white/40 bg-transparent text-white hover:border-[#F4B321] hover:bg-[#F4B321] hover:text-[#061A36] ${buttonBaseClass} ${buttonSizeMdClass}`}
                 >
                   My Resumes
                 </button>
+              <button
+                type="button"
+                onClick={() =>
+                  runWithFeedback("tailor", "Tailoring...", "Done", tailorResume)
+                }
+                disabled={!canTailor || isTailoring}
+                className={`${buttonBaseClass} ${buttonSizeMdClass} border border-[#F4B321] bg-[#F4B321] text-[#061A36] hover:border-white hover:bg-white disabled:bg-white/30 disabled:text-white/70`}
+              >
+                {isTailoring ? "Tailoring..." : actionFeedback.tailor ?? "Tailor Resume"}
+              </button>
             </div>
             {accountStatus ? (
-              <p className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-600">
+              <p className="rounded-md border border-white/15 bg-white/10 p-3 text-xs font-medium text-white/80">
                 {accountStatus}
               </p>
             ) : null}
-            <div className="flex flex-wrap justify-start gap-3 lg:justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                resetSavedResume();
-                showActionFeedback("resetSavedResume", "Done");
-              }}
-              className={`${secondaryButtonClass} ${buttonSizeLgClass} rounded-lg`}
-            >
-              {actionFeedback.resetSavedResume ?? "Reset Saved Resume"}
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                runWithFeedback("generateCover", "Generating...", "Done", generateCoverLetter)
-              }
-              disabled={!canTailor}
-              className={`${secondaryButtonClass} ${buttonSizeLgClass} rounded-lg`}
-            >
-              {actionFeedback.generateCover ?? "Generate Cover Letter"}
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                runWithFeedback("generateLinkedIn", "Generating...", "Done", generateLinkedInProfile)
-              }
-              disabled={!canTailor}
-              className={`${secondaryButtonClass} ${buttonSizeLgClass} rounded-lg`}
-            >
-              {actionFeedback.generateLinkedIn ?? "Generate LinkedIn Profile"}
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                runWithFeedback("tailor", "Tailoring...", "Done", tailorResume)
-              }
-              disabled={!canTailor || isTailoring}
-              className={`${primaryButtonClass} ${buttonSizeLgClass} rounded-lg px-6`}
-            >
-              {isTailoring ? "Tailoring..." : actionFeedback.tailor ?? "Tailor Resume"}
-            </button>
-            </div>
           </div>
         </div>
       </section>
