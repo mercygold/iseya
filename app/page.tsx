@@ -2092,22 +2092,22 @@ async function createResumePdfBlob(
         createElement(Text, { style: styles.name }, resume.name),
         createElement(Text, { style: styles.title }, resume.title),
       ),
-      ...resume.sections.map((section) =>
+      ...resume.sections.map((section, sectionIndex) =>
         createElement(
           View,
-          { key: section.heading, style: styles.section },
+          { key: `${section.heading}-${sectionIndex}`, style: styles.section },
           createElement(Text, { style: styles.heading }, section.heading),
-          ...section.body.map((paragraph) =>
+          ...section.body.map((paragraph, paragraphIndex) =>
             createElement(
               Text,
-              { key: paragraph, style: styles.paragraph },
+              { key: `${paragraph}-${paragraphIndex}`, style: styles.paragraph },
               paragraph,
             ),
           ),
-          ...section.bullets.map((bullet) =>
+          ...section.bullets.map((bullet, bulletIndex) =>
             createElement(
               Text,
-              { key: bullet, style: styles.bullet },
+              { key: `${bullet}-${bulletIndex}`, style: styles.bullet },
               `- ${bullet}`,
             ),
           ),
@@ -2364,8 +2364,12 @@ async function createCoverLetterPdfBlob({
         { style: styles.header },
         createElement(Text, { style: styles.name }, contact.name),
         createElement(Text, { style: styles.title }, contact.title),
-        ...contactLines.map((line) =>
-          createElement(Text, { key: line, style: styles.contact }, line),
+        ...contactLines.map((line, lineIndex) =>
+          createElement(
+            Text,
+            { key: `${line}-${lineIndex}`, style: styles.contact },
+            line,
+          ),
         ),
       ),
       createElement(Text, { style: styles.date }, today),
@@ -3547,9 +3551,9 @@ export default function Home() {
                 {savedVersions.length > 0 ? (
                   <div className="space-y-3">
                     <div className="max-h-80 space-y-2 overflow-auto pr-1">
-                      {savedVersions.map((version) => (
+                      {savedVersions.map((version, versionIndex) => (
                         <div
-                          key={version.id}
+                          key={`${version.id}-${versionIndex}`}
                           className={`block cursor-pointer rounded-md border p-3 transition ${
                             selectedVersionId === version.id
                               ? "border-teal-300 bg-teal-50"
@@ -3612,9 +3616,9 @@ export default function Home() {
                           Compare Versions
                         </h3>
                         <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                          {comparedVersions.map((version) => (
+                          {comparedVersions.map((version, versionIndex) => (
                             <div
-                              key={version.id}
+                              key={`${version.id}-${versionIndex}`}
                               className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
                             >
                               <p className="text-sm font-semibold text-zinc-900">
@@ -3750,8 +3754,8 @@ export default function Home() {
                 />
               </div>
               <ul className="mt-4 space-y-2 text-sm text-zinc-600">
-                {result.scoreNotes.map((note) => (
-                  <li key={note}>{note}</li>
+                {safeStringArray(result.scoreNotes).map((note, noteIndex) => (
+                  <li key={`${note}-${noteIndex}`}>{note}</li>
                 ))}
               </ul>
             </div>
@@ -3995,6 +3999,7 @@ function KeywordList({
   emptyText: string;
   variant: "match" | "missing";
 }) {
+  const visibleKeywords = Array.from(new Set(safeStringArray(keywords)));
   const colorClass =
     variant === "match"
       ? "bg-emerald-50 text-emerald-900"
@@ -4004,10 +4009,10 @@ function KeywordList({
     <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
       <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
       <div className="mt-3 flex flex-wrap gap-2">
-        {keywords.length > 0 ? (
-          keywords.map((keyword) => (
+        {visibleKeywords.length > 0 ? (
+          visibleKeywords.map((keyword, keywordIndex) => (
             <span
-              key={keyword}
+              key={`${keyword}-${keywordIndex}`}
               className={`rounded-md px-3 py-2 text-xs font-semibold ${colorClass}`}
             >
               {keyword}
@@ -4076,9 +4081,9 @@ function AIResumeCoach({
             Score Breakdown
           </h3>
           <div className="mt-3 grid gap-2">
-            {breakdownItems.map(([label, value]) => (
+            {breakdownItems.map(([label, value], breakdownIndex) => (
               <div
-                key={label}
+                key={`${label}-${breakdownIndex}`}
                 className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
               >
                 <div className="flex items-center justify-between gap-3 text-sm">
@@ -4132,9 +4137,9 @@ function AIResumeCoach({
             Section Critique
           </h3>
           <div className="mt-3 space-y-3">
-            {sectionCritiques.map(([title, items]) => (
+            {sectionCritiques.map(([title, items], sectionIndex) => (
               <div
-                key={title}
+                key={`${title}-${sectionIndex}`}
                 className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
               >
                 <p className="text-sm font-semibold text-zinc-900">{title}</p>
@@ -4149,9 +4154,9 @@ function AIResumeCoach({
           </h3>
           {safeWeakBullets(coach.weakBullets).length > 0 ? (
             <div className="mt-3 space-y-3">
-              {safeWeakBullets(coach.weakBullets).map((bullet) => (
+              {safeWeakBullets(coach.weakBullets).map((bullet, bulletIndex) => (
                 <div
-                  key={`${bullet.original}-${bullet.strongerVersion}`}
+                  key={`${bullet.original}-${bullet.strongerVersion}-${bulletIndex}`}
                   className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
                 >
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
@@ -4208,8 +4213,8 @@ function CoachInlineList({ items = [] }: { items?: readonly string[] | null }) {
 
   return (
     <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700">
-      {visibleItems.map((item) => (
-        <li key={item}>{item}</li>
+      {visibleItems.map((item, itemIndex) => (
+        <li key={`${item}-${itemIndex}`}>{item}</li>
       ))}
     </ul>
   );
@@ -4232,8 +4237,8 @@ function CoachBlock({
       </h3>
       {visibleItems.length > 0 ? (
         <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-zinc-700">
-          {visibleItems.map((item) => (
-            <li key={item}>{item}</li>
+          {visibleItems.map((item, itemIndex) => (
+            <li key={`${item}-${itemIndex}`}>{item}</li>
           ))}
         </ul>
       ) : (
@@ -4273,8 +4278,8 @@ function AdvancedIntelligencePanel({
       </h2>
       <div className="mt-4 space-y-4">
         <section className="space-y-2">
-          {keyScores.map(([label, score]) => (
-            <ScoreBar key={label} label={label} score={score} />
+          {keyScores.map(([label, score], scoreIndex) => (
+            <ScoreBar key={`${label}-${scoreIndex}`} label={label} score={score} />
           ))}
         </section>
 
@@ -4283,8 +4288,11 @@ function AdvancedIntelligencePanel({
             Review Simulation
           </summary>
           <div className="mt-3 space-y-3">
-            {simulations.map(([title, review]) => (
-              <div key={title} className="rounded-md border border-zinc-200 bg-white p-3">
+            {simulations.map(([title, review], simulationIndex) => (
+              <div
+                key={`${title}-${simulationIndex}`}
+                className="rounded-md border border-zinc-200 bg-white p-3"
+              >
                 <ScoreBar label={title} score={review.score} />
                 <CoachBlock title="Strengths" items={review.strengths} />
                 <CoachBlock title="Weaknesses" items={review.weaknesses} />
@@ -4406,8 +4414,11 @@ function AdvancedIntelligencePanel({
           </summary>
           <div className="mt-3 space-y-3">
             {analysis.bulletImprovements.length > 0 ? (
-              analysis.bulletImprovements.map((bullet) => (
-                <div key={bullet.original} className="rounded-md border border-zinc-200 bg-white p-3">
+              analysis.bulletImprovements.map((bullet, bulletIndex) => (
+                <div
+                  key={`${bullet.original}-${bulletIndex}`}
+                  className="rounded-md border border-zinc-200 bg-white p-3"
+                >
                   <p className="text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
                     Improve Bullet
                   </p>
@@ -4546,9 +4557,9 @@ function ResumePreview({
       </header>
 
       <div className={bodyClass}>
-        {resume.sections.map((section) => (
+        {resume.sections.map((section, sectionIndex) => (
           <section
-            key={section.heading}
+            key={`${section.heading}-${sectionIndex}`}
             className={isModern ? "border-l-2 border-zinc-100 pl-4" : undefined}
           >
             <h5
@@ -4558,9 +4569,9 @@ function ResumePreview({
             </h5>
             {section.body.length > 0 ? (
               <div className="mt-3 space-y-2">
-                {section.body.map((paragraph) => (
+                {section.body.map((paragraph, paragraphIndex) => (
                   <p
-                    key={paragraph}
+                    key={`${paragraph}-${paragraphIndex}`}
                     className="text-sm leading-7 text-zinc-700"
                   >
                     {paragraph}
@@ -4570,8 +4581,8 @@ function ResumePreview({
             ) : null}
             {section.bullets.length > 0 ? (
               <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7 text-zinc-700">
-                {section.bullets.map((bullet) => (
-                  <li key={bullet}>{bullet}</li>
+                {section.bullets.map((bullet, bulletIndex) => (
+                  <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
                 ))}
               </ul>
             ) : null}
