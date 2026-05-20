@@ -4807,12 +4807,12 @@ export default function Home() {
                 </span>
               ) : (
                 <Image
-                  src="/brand/iseya-logo.png"
+                  src="/brand/iseya-logo2.png"
                   alt="ISEYA"
                   width={240}
                   height={120}
                   priority
-                  className="h-auto w-[150px] object-contain sm:w-[220px] lg:w-[250px]"
+                  className="h-auto w-[150px] object-contain sm:w-[220px] lg:w-[240px]"
                   onError={() => setLogoFailed(true)}
                 />
               )}
