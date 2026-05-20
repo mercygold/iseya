@@ -5,6 +5,8 @@ type UploadedSourceMaterial = {
   name: string;
   type: string;
   size?: number;
+  extractionStatus?: string;
+  warnings?: string[];
   extractedText?: string;
 };
 
@@ -413,8 +415,48 @@ function buildLocalCoaching({
   };
 }
 
+function sourceMaterialText(files: UploadedSourceMaterial[] = []) {
+  return files
+    .map((file) => file.extractedText?.trim())
+    .filter((text): text is string => Boolean(text))
+    .join("\n\n");
+}
+
+function sourceMaterialWarnings(
+  files: UploadedSourceMaterial[] = [],
+  masterResume = "",
+) {
+  const warnings = files.flatMap((file) =>
+    (file.warnings ?? []).map((warning) => `${file.name}: ${warning}`),
+  );
+  const sourceText = sourceMaterialText(files);
+  const masterEducation = masterResume.match(/\b(M\.?S\.?|B\.?S\.?|B\.?Tech|MBA|Ph\.?D\.?)\b/gi) ?? [];
+  const sourceEducation = sourceText.match(/\b(M\.?S\.?|B\.?S\.?|B\.?Tech|MBA|Ph\.?D\.?)\b/gi) ?? [];
+  const hasEducationMismatch =
+    masterEducation.length > 0 &&
+    sourceEducation.length > 0 &&
+    sourceEducation.some(
+      (degree) =>
+        !masterEducation.some(
+          (masterDegree) => normalizeText(masterDegree) === normalizeText(degree),
+        ),
+    );
+
+  if (hasEducationMismatch) {
+    warnings.push(
+      "Uploaded source materials may contain education details that differ from the master resume. Verify before using them.",
+    );
+  }
+
+  return warnings;
+}
+
 function localTailor(request: TailorRequest): TailorResponse {
-  const masterResume = request.currentEditedResume || request.masterResume || "";
+  const baseResume = request.currentEditedResume || request.masterResume || "";
+  const extractedSources = sourceMaterialText(request.uploadedSourceMaterials);
+  const masterResume = [baseResume, extractedSources]
+    .filter((text) => text.trim().length > 0)
+    .join("\n\nSUPPORTING SOURCE MATERIAL\n");
   const jobDescription = request.jobDescription || "";
   const targetRole = request.targetRole || firstMeaningfulLine(jobDescription, "Target Role");
   const role = titleCase(targetRole);
@@ -491,6 +533,10 @@ The attached resume highlights experience translating business goals into requir
 Sincerely,
 ${candidateName}`;
 
+  const sourceWarnings = sourceMaterialWarnings(
+    request.uploadedSourceMaterials,
+    request.masterResume || "",
+  );
   const resultWithoutCoaching = {
     matchScore,
     matchBreakdown: {
@@ -515,9 +561,16 @@ ${candidateName}`;
       "Keep bullets concise and focused on action, scope, and impact.",
     ],
     riskFlags:
-      missingKeywords.length > 0
-        ? [`Do not claim ${missingKeywords.slice(0, 3).join(", ")} unless the candidate can verify that experience.`]
-        : ["No major unsupported-claim risks detected."],
+      [
+        ...(missingKeywords.length > 0
+          ? [
+              `Do not claim ${missingKeywords
+                .slice(0, 3)
+                .join(", ")} unless the candidate can verify that experience.`,
+            ]
+          : ["No major unsupported-claim risks detected."]),
+        ...sourceWarnings,
+      ],
   };
 
   const coaching = buildLocalCoaching(resultWithoutCoaching);
@@ -638,6 +691,8 @@ async function callOpenAI(request: TailorRequest, apiKey: string) {
     name: file.name,
     type: file.type,
     size: file.size,
+    extractionStatus: file.extractionStatus,
+    warnings: file.warnings ?? [],
     extractedText: file.extractedText?.slice(0, 8000),
   }));
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -661,13 +716,13 @@ async function callOpenAI(request: TailorRequest, apiKey: string) {
         {
           role: "system",
           content:
-            "You are Iseya, a truthful senior resume strategist and recruiter-facing resume coach. Return only structured JSON that matches the schema. Do not fabricate employers, degrees, certifications, metrics, tools, keywords, or experience. Reframe only what is supported by the provided resume and source materials. Rewrite weak bullets without inventing metrics; include metrics only when directly supported. Use clean plain text with no markdown symbols.",
+            "You are Iseya, a truthful senior resume strategist and recruiter-facing resume coach. Return only structured JSON that matches the schema. Do not fabricate employers, degrees, certifications, metrics, tools, keywords, or experience. Treat uploaded materials as supporting source material, not as permission to invent. If uploaded materials conflict with the master resume, surface that in riskFlags and coaching.recruiterObjections. Reframe only what is supported by the provided resume and source materials. Rewrite weak bullets without inventing metrics; include metrics only when directly supported. Use clean plain text with no markdown symbols.",
         },
         {
           role: "user",
           content: JSON.stringify({
             task:
-              "Analyze the role, industry, required skills, preferred skills, tools, responsibilities, seniority, hidden hiring signals, ATS fit, recruiter readability, truthful candidate positioning, recruiter objections, section-by-section resume quality, weak bullets, keyword density, and role positioning. Generate a tailored resume, concise recruiter-ready cover letter, score breakdown, and detailed AI Resume Coach data. For weakBullets, include the original bullet, issue type, issue, and a stronger rewritten version grounded only in the source material.",
+              "Analyze the role, industry, required skills, preferred skills, tools, responsibilities, seniority, hidden hiring signals, ATS fit, recruiter readability, truthful candidate positioning, recruiter objections, section-by-section resume quality, weak bullets, keyword density, role positioning, and uploaded source materials. Use uploaded extracted text only when relevant and truthful. Generate a tailored resume, concise recruiter-ready cover letter, score breakdown, and detailed AI Resume Coach data. For weakBullets, include the original bullet, issue type, issue, and a stronger rewritten version grounded only in the source material.",
             industryTarget: request.industryTarget || "General / ATS",
             targetRole: request.targetRole || "",
             masterResume: request.masterResume || "",

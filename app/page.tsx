@@ -97,7 +97,19 @@ type UploadedSourceFile = {
   name: string;
   type: string;
   size: number;
+  extractionStatus?: ExtractionStatus;
+  warnings?: string[];
   extractedText?: string;
+};
+
+type ExtractionStatus = "extracted" | "metadata_only" | "unsupported" | "failed";
+
+type ExtractApiResponse = {
+  extractedText: string;
+  fileName: string;
+  fileType: string;
+  extractionStatus: ExtractionStatus;
+  warnings: string[];
 };
 
 type SavedState = {
@@ -137,9 +149,7 @@ type TailorApiResponse = {
 };
 
 const storageKey = "resume-agent-state-v2";
-const acceptedSourceFileTypes = ".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg";
-const extractLaterNote =
-  "File uploaded. Full AI extraction will be enabled when backend parsing is connected.";
+const acceptedSourceFileTypes = ".pdf,.docx,.txt,.png,.jpg,.jpeg";
 const industryTargets: IndustryTarget[] = [
   "AI / Technology",
   "Academic / Research",
@@ -1230,6 +1240,75 @@ function formatFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function extractionStatusLabel(status?: ExtractionStatus) {
+  if (status === "extracted") {
+    return "Text extracted";
+  }
+
+  if (status === "metadata_only") {
+    return "Metadata saved";
+  }
+
+  if (status === "unsupported") {
+    return "Unsupported for extraction";
+  }
+
+  if (status === "failed") {
+    return "Extraction failed";
+  }
+
+  return "Pending extraction";
+}
+
+async function extractUploadedFile(file: File): Promise<UploadedSourceFile> {
+  const baseFile = {
+    id: sourceFileId(file),
+    name: file.name,
+    type: sourceFileType(file),
+    size: file.size,
+  };
+  const formData = new FormData();
+
+  formData.append("file", file);
+
+  try {
+    const response = await fetch("/api/extract", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error("Extraction failed.");
+    }
+
+    const data = (await response.json()) as Partial<ExtractApiResponse>;
+
+    return {
+      ...baseFile,
+      name: data.fileName || baseFile.name,
+      type: data.fileType || baseFile.type,
+      extractedText: data.extractedText || undefined,
+      extractionStatus: data.extractionStatus || "failed",
+      warnings: safeStringArray(data.warnings),
+    };
+  } catch {
+    if (file.name.toLowerCase().endsWith(".txt")) {
+      return {
+        ...baseFile,
+        extractedText: await file.text(),
+        extractionStatus: "extracted",
+        warnings: ["Used browser TXT fallback because backend extraction was unavailable."],
+      };
+    }
+
+    return {
+      ...baseFile,
+      extractionStatus: "failed",
+      warnings: ["Text extraction failed. File metadata was saved for source tracking."],
+    };
+  }
+}
+
 async function createResumePdfBlob(
   resumeText: string,
   template: TemplateId,
@@ -1731,6 +1810,7 @@ export default function Home() {
   const [tailorError, setTailorError] = useState("");
   const [isTailoring, setIsTailoring] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedSourceFile[]>([]);
+  const [previewSourceFileId, setPreviewSourceFileId] = useState("");
   const [copyStatus, setCopyStatus] = useState("Copy");
   const [coverCopyStatus, setCoverCopyStatus] = useState("Copy Cover Letter");
   const [activeOutput, setActiveOutput] = useState<"resume" | "cover">("resume");
@@ -1842,6 +1922,8 @@ export default function Home() {
             name: file.name,
             type: file.type,
             size: file.size,
+            extractionStatus: file.extractionStatus,
+            warnings: file.warnings,
             extractedText: file.extractedText,
           })),
           currentEditedResume: result?.rewrittenResume,
@@ -1858,7 +1940,15 @@ export default function Home() {
       setTailorError(
         "AI tailoring could not complete, so I used the local resume generator fallback.",
       );
-      setResult(buildTailoredResume(masterResume, jobDescription, targetRole));
+      setResult(
+        buildTailoredResume(
+          [masterResume, extractedSourceText]
+            .filter((text) => text.trim().length > 0)
+            .join("\n\nSUPPORTING SOURCE MATERIAL\n"),
+          jobDescription,
+          targetRole,
+        ),
+      );
     } finally {
       setIsTailoring(false);
     }
@@ -1899,6 +1989,7 @@ export default function Home() {
     setResult(null);
     setTailorError("");
     setUploadedFiles([]);
+    setPreviewSourceFileId("");
     setActiveOutput("resume");
     setCopyStatus("Copy");
     setCoverCopyStatus("Copy Cover Letter");
@@ -1909,25 +2000,7 @@ export default function Home() {
       return;
     }
 
-    const nextFiles = await Promise.all(
-      Array.from(files).map(async (file): Promise<UploadedSourceFile> => {
-        const baseFile = {
-          id: sourceFileId(file),
-          name: file.name,
-          type: sourceFileType(file),
-          size: file.size,
-        };
-
-        if (file.name.toLowerCase().endsWith(".txt")) {
-          return {
-            ...baseFile,
-            extractedText: await file.text(),
-          };
-        }
-
-        return baseFile;
-      }),
-    );
+    const nextFiles = await Promise.all(Array.from(files).map(extractUploadedFile));
 
     setUploadedFiles((current) => {
       const byId = new Map(current.map((file) => [file.id, file]));
@@ -1946,6 +2019,7 @@ export default function Home() {
 
   function removeSourceFile(fileId: string) {
     setUploadedFiles((current) => current.filter((file) => file.id !== fileId));
+    setPreviewSourceFileId((current) => (current === fileId ? "" : current));
   }
 
   function updateResumeOutput(value: string) {
@@ -2167,9 +2241,9 @@ export default function Home() {
               Upload Resume / Supporting Files
             </label>
             <p className="mt-2 text-xs leading-5 text-zinc-500">
-              Accepts PDF, DOC, DOCX, TXT, PNG, JPG, and JPEG. TXT files are
-              extracted now; other files are saved as source metadata for later
-              backend parsing.
+              Accepts PDF, DOCX, TXT, PNG, JPG, and JPEG. TXT, DOCX, and
+              readable PDF files are extracted now; images are saved as source
+              metadata until OCR is connected.
             </p>
 
             {uploadedFiles.length > 0 ? (
@@ -2177,28 +2251,56 @@ export default function Home() {
                 {uploadedFiles.map((file) => (
                   <div
                     key={file.id}
-                    className="flex flex-col gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
                   >
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-900">
-                        {file.name}
-                      </p>
-                      <p className="mt-1 text-xs text-zinc-500">
-                        {file.type.toUpperCase()} | {formatFileSize(file.size)}
-                      </p>
-                      <p className="mt-1 text-xs text-zinc-500">
-                        {file.extractedText
-                          ? "TXT text extracted and available as source material."
-                          : extractLaterNote}
-                      </p>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-900">
+                          {file.name}
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          {file.type.toUpperCase()} | {formatFileSize(file.size)}
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          {extractionStatusLabel(file.extractionStatus)} |
+                          {" "}
+                          {(file.extractedText?.length ?? 0).toLocaleString()}
+                          {" "}
+                          characters
+                        </p>
+                        {safeStringArray(file.warnings).length > 0 ? (
+                          <p className="mt-1 text-xs leading-5 text-amber-700">
+                            {safeStringArray(file.warnings).join(" ")}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewSourceFileId((current) =>
+                              current === file.id ? "" : file.id,
+                            )
+                          }
+                          disabled={!file.extractedText}
+                          className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                        >
+                          Preview Extracted Text
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeSourceFile(file.id)}
+                          className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeSourceFile(file.id)}
-                      className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
-                    >
-                      Remove
-                    </button>
+                    {previewSourceFileId === file.id && file.extractedText ? (
+                      <pre className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap rounded-md border border-zinc-200 bg-white p-3 text-xs leading-5 text-zinc-600">
+                        {file.extractedText}
+                      </pre>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -2221,11 +2323,29 @@ export default function Home() {
               <div>
                 <p className="font-semibold text-zinc-800">Uploaded files</p>
                 {uploadedFiles.length > 0 ? (
-                  <ul className="mt-1 list-disc space-y-1 pl-5">
+                  <ul className="mt-1 space-y-2">
                     {uploadedFiles.map((file) => (
-                      <li key={file.id}>
-                        {file.name}
-                        {file.extractedText ? " - TXT extracted" : " - metadata saved"}
+                      <li
+                        key={file.id}
+                        className="rounded-md border border-zinc-200 bg-white p-3"
+                      >
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="font-semibold text-zinc-800">{file.name}</p>
+                            <p className="text-xs text-zinc-500">
+                              {file.type.toUpperCase()} |{" "}
+                              {extractionStatusLabel(file.extractionStatus)} |{" "}
+                              {(file.extractedText?.length ?? 0).toLocaleString()} chars
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeSourceFile(file.id)}
+                            className="inline-flex min-h-8 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -2236,7 +2356,7 @@ export default function Home() {
               {extractedSourceText ? (
                 <details className="rounded-md border border-zinc-200 bg-white p-3">
                   <summary className="text-sm font-semibold text-zinc-800">
-                    Extracted TXT source text
+                    Combined extracted source text
                   </summary>
                   <pre className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap text-xs leading-5 text-zinc-600">
                     {extractedSourceText}
