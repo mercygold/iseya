@@ -1,9 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createElement, useEffect, useMemo, useRef, useState } from "react";
 
-type TemplateId = "executive-navy" | "modern-product" | "ats-clean";
-type ThemeId = "deep-navy" | "modern-teal" | "minimal-black";
+type TemplateId =
+  | "executive-navy"
+  | "modern-product"
+  | "ats-clean"
+  | "consulting-classic"
+  | "tech-minimal"
+  | "bold-leadership";
+type ThemeId =
+  | "deep-navy"
+  | "modern-teal"
+  | "royal-blue"
+  | "emerald"
+  | "slate-gray"
+  | "minimal-black"
+  | "purple-executive";
 
 type TailoringResult = {
   score: number;
@@ -106,6 +119,9 @@ const previewThemes: Record<
     headerBg: string;
     headerText: string;
     subheadText: string;
+    accentHex: string;
+    headerHex: string;
+    textHex: string;
   }
 > = {
   "deep-navy": {
@@ -114,6 +130,9 @@ const previewThemes: Record<
     headerBg: "bg-[#0b1f3a]",
     headerText: "text-white",
     subheadText: "text-[#d8e4f2]",
+    accentHex: "#12345a",
+    headerHex: "#0b1f3a",
+    textHex: "#18181b",
   },
   "modern-teal": {
     accentText: "text-teal-700",
@@ -121,6 +140,39 @@ const previewThemes: Record<
     headerBg: "bg-teal-800",
     headerText: "text-white",
     subheadText: "text-teal-50",
+    accentHex: "#0f766e",
+    headerHex: "#115e59",
+    textHex: "#18181b",
+  },
+  "royal-blue": {
+    accentText: "text-blue-700",
+    accentBorder: "border-blue-200",
+    headerBg: "bg-blue-800",
+    headerText: "text-white",
+    subheadText: "text-blue-50",
+    accentHex: "#1d4ed8",
+    headerHex: "#1e40af",
+    textHex: "#18181b",
+  },
+  emerald: {
+    accentText: "text-emerald-700",
+    accentBorder: "border-emerald-200",
+    headerBg: "bg-emerald-800",
+    headerText: "text-white",
+    subheadText: "text-emerald-50",
+    accentHex: "#047857",
+    headerHex: "#065f46",
+    textHex: "#18181b",
+  },
+  "slate-gray": {
+    accentText: "text-slate-700",
+    accentBorder: "border-slate-300",
+    headerBg: "bg-slate-700",
+    headerText: "text-white",
+    subheadText: "text-slate-100",
+    accentHex: "#334155",
+    headerHex: "#334155",
+    textHex: "#18181b",
   },
   "minimal-black": {
     accentText: "text-zinc-800",
@@ -128,6 +180,19 @@ const previewThemes: Record<
     headerBg: "bg-zinc-900",
     headerText: "text-white",
     subheadText: "text-zinc-200",
+    accentHex: "#27272a",
+    headerHex: "#18181b",
+    textHex: "#18181b",
+  },
+  "purple-executive": {
+    accentText: "text-purple-800",
+    accentBorder: "border-purple-200",
+    headerBg: "bg-purple-900",
+    headerText: "text-white",
+    subheadText: "text-purple-100",
+    accentHex: "#6b21a8",
+    headerHex: "#581c87",
+    textHex: "#18181b",
   },
 };
 
@@ -143,6 +208,18 @@ const templates: Record<TemplateId, { label: string; description: string }> = {
   "ats-clean": {
     label: "ATS Clean",
     description: "Minimal preview optimized for straightforward scanning.",
+  },
+  "consulting-classic": {
+    label: "Consulting Classic",
+    description: "Traditional consulting-style preview with crisp section rules.",
+  },
+  "tech-minimal": {
+    label: "Tech Minimal",
+    description: "Lean technical preview with compact spacing and clear hierarchy.",
+  },
+  "bold-leadership": {
+    label: "Bold Leadership",
+    description: "High-impact preview with a stronger leadership-oriented header.",
   },
 };
 
@@ -544,6 +621,254 @@ function parseResumePreview(resumeText: string) {
   return { name, title, sections };
 }
 
+function fileNameForRole(targetRole: string, extension: "pdf" | "docx") {
+  const roleSlug =
+    targetRole.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") ||
+    "tailored-resume";
+
+  return `${roleSlug}.${extension}`;
+}
+
+function stripHash(color: string) {
+  return color.replace("#", "");
+}
+
+function saveBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function createResumePdfBlob(
+  resumeText: string,
+  template: TemplateId,
+  theme: (typeof previewThemes)[ThemeId],
+) {
+  const ReactPdf = await import("@react-pdf/renderer");
+  const { Document, Page, StyleSheet, Text, View, pdf } = ReactPdf;
+  const resume = parseResumePreview(resumeText);
+  const isAts = template === "ats-clean";
+  const hasHeaderBand =
+    template === "executive-navy" || template === "bold-leadership";
+  const isModern =
+    template === "modern-product" || template === "tech-minimal";
+  const pagePadding = template === "tech-minimal" || isAts ? 32 : 40;
+  const styles = StyleSheet.create({
+    page: {
+      padding: pagePadding,
+      color: theme.textHex,
+      fontFamily: "Helvetica",
+      fontSize: isAts ? 9.5 : 10,
+      lineHeight: 1.45,
+    },
+    header: {
+      backgroundColor: hasHeaderBand ? theme.headerHex : "#ffffff",
+      borderBottomColor: theme.accentHex,
+      borderBottomWidth: hasHeaderBand ? 0 : 2,
+      marginBottom: 18,
+      padding: hasHeaderBand ? 16 : 0,
+    },
+    name: {
+      color: hasHeaderBand ? "#ffffff" : theme.textHex,
+      fontSize: template === "bold-leadership" ? 24 : 20,
+      fontWeight: 700,
+      marginBottom: 4,
+    },
+    title: {
+      color: hasHeaderBand ? "#e5e7eb" : theme.accentHex,
+      fontSize: 10,
+      fontWeight: 600,
+    },
+    section: {
+      borderLeftColor: isModern ? theme.accentHex : "#ffffff",
+      borderLeftWidth: isModern ? 2 : 0,
+      marginBottom: isAts ? 10 : 13,
+      paddingLeft: isModern ? 8 : 0,
+    },
+    heading: {
+      borderBottomColor: theme.accentHex,
+      borderBottomWidth: 1,
+      color: theme.accentHex,
+      fontSize: 9,
+      fontWeight: 700,
+      letterSpacing: 0.8,
+      marginBottom: 6,
+      paddingBottom: 3,
+      textTransform: "uppercase",
+    },
+    paragraph: {
+      marginBottom: 4,
+    },
+    bullet: {
+      marginBottom: 3,
+      paddingLeft: 8,
+    },
+  });
+
+  const documentNode = createElement(
+    Document,
+    null,
+    createElement(
+      Page,
+      { size: "LETTER", style: styles.page },
+      createElement(
+        View,
+        { style: styles.header },
+        createElement(Text, { style: styles.name }, resume.name),
+        createElement(Text, { style: styles.title }, resume.title),
+      ),
+      ...resume.sections.map((section) =>
+        createElement(
+          View,
+          { key: section.heading, style: styles.section },
+          createElement(Text, { style: styles.heading }, section.heading),
+          ...section.body.map((paragraph) =>
+            createElement(
+              Text,
+              { key: paragraph, style: styles.paragraph },
+              paragraph,
+            ),
+          ),
+          ...section.bullets.map((bullet) =>
+            createElement(
+              Text,
+              { key: bullet, style: styles.bullet },
+              `- ${bullet}`,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  return pdf(documentNode).toBlob();
+}
+
+async function createResumeDocxBlob(
+  resumeText: string,
+  template: TemplateId,
+  theme: (typeof previewThemes)[ThemeId],
+) {
+  const Docx = await import("docx");
+  const {
+    BorderStyle,
+    Document: DocxDocument,
+    Packer,
+    Paragraph,
+    ShadingType,
+    TextRun,
+  } = Docx;
+  const resume = parseResumePreview(resumeText);
+  const hasHeaderBand =
+    template === "executive-navy" || template === "bold-leadership";
+  const isModern =
+    template === "modern-product" || template === "tech-minimal";
+  const accentColor = stripHash(theme.accentHex);
+  const headerColor = stripHash(theme.headerHex);
+  const textColor = stripHash(theme.textHex);
+  const children = [
+    new Paragraph({
+      shading: hasHeaderBand
+        ? {
+            type: ShadingType.CLEAR,
+            color: "auto",
+            fill: headerColor,
+          }
+        : undefined,
+      spacing: { after: 80 },
+      children: [
+        new TextRun({
+          text: resume.name,
+          bold: true,
+          color: hasHeaderBand ? "FFFFFF" : textColor,
+          size: template === "bold-leadership" ? 34 : 30,
+        }),
+      ],
+    }),
+    new Paragraph({
+      border: hasHeaderBand
+        ? undefined
+        : {
+            bottom: {
+              style: BorderStyle.SINGLE,
+              color: accentColor,
+              size: 8,
+              space: 1,
+            },
+          },
+      spacing: { after: 260 },
+      children: [
+        new TextRun({
+          text: resume.title,
+          bold: true,
+          color: hasHeaderBand ? "FFFFFF" : accentColor,
+          size: 21,
+        }),
+      ],
+    }),
+  ];
+
+  for (const section of resume.sections) {
+    children.push(
+      new Paragraph({
+        border: {
+          bottom: {
+            style: BorderStyle.SINGLE,
+            color: accentColor,
+            size: isModern ? 8 : 6,
+            space: 1,
+          },
+        },
+        spacing: { before: 120, after: 120 },
+        children: [
+          new TextRun({
+            text: section.heading,
+            bold: true,
+            color: accentColor,
+            size: 19,
+          }),
+        ],
+      }),
+    );
+
+    for (const paragraph of section.body) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 90 },
+          children: [new TextRun({ text: paragraph, color: textColor, size: 21 })],
+        }),
+      );
+    }
+
+    for (const bullet of section.bullets) {
+      children.push(
+        new Paragraph({
+          bullet: { level: 0 },
+          spacing: { after: 70 },
+          children: [new TextRun({ text: bullet, color: textColor, size: 21 })],
+        }),
+      );
+    }
+  }
+
+  const document = new DocxDocument({
+    sections: [
+      {
+        properties: {},
+        children,
+      },
+    ],
+  });
+
+  return Packer.toBlob(document);
+}
+
 export default function Home() {
   const [masterResume, setMasterResume] = useState(sampleResume);
   const [jobDescription, setJobDescription] = useState(sampleJob);
@@ -734,27 +1059,30 @@ export default function Home() {
     URL.revokeObjectURL(url);
   }
 
-  function downloadTxt() {
+  async function downloadResumePdf() {
     if (!result) {
       return;
     }
 
-    const fileName = `${
-      targetRole.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") ||
-      "tailored-resume"
-    }-${activeOutput}.txt`;
-    const output =
-      activeOutput === "cover" ? result.coverLetter : result.rewrittenResume;
-    const blob = new Blob([output], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const blob = await createResumePdfBlob(
+      result.rewrittenResume,
+      template,
+      previewTheme,
+    );
+    saveBlob(blob, fileNameForRole(targetRole, "pdf"));
+  }
 
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+  async function downloadResumeDocx() {
+    if (!result) {
+      return;
+    }
+
+    const blob = await createResumeDocxBlob(
+      result.rewrittenResume,
+      template,
+      previewTheme,
+    );
+    saveBlob(blob, fileNameForRole(targetRole, "docx"));
   }
 
   return (
@@ -860,7 +1188,11 @@ export default function Home() {
                 >
                   <option value="deep-navy">Deep Navy</option>
                   <option value="modern-teal">Modern Teal</option>
+                  <option value="royal-blue">Royal Blue</option>
+                  <option value="emerald">Emerald</option>
+                  <option value="slate-gray">Slate Gray</option>
                   <option value="minimal-black">Minimal Black</option>
+                  <option value="purple-executive">Purple Executive</option>
                 </select>
               </label>
             </div>
@@ -968,10 +1300,17 @@ export default function Home() {
                 </button>
                 <button
                   type="button"
-                  onClick={downloadTxt}
+                  onClick={downloadResumePdf}
                   className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
                 >
-                  Download TXT
+                  Download PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadResumeDocx}
+                  className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
+                >
+                  Download DOCX
                 </button>
               </div>
             </div>
