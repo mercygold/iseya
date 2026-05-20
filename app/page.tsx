@@ -36,6 +36,14 @@ type ResumeSection = {
   bullets: string[];
 };
 
+type UploadedSourceFile = {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  extractedText?: string;
+};
+
 type SavedState = {
   masterResume: string;
   jobDescription: string;
@@ -43,9 +51,13 @@ type SavedState = {
   template: TemplateId;
   theme: ThemeId;
   result: TailoringResult | null;
+  uploadedFiles?: UploadedSourceFile[];
 };
 
 const storageKey = "resume-agent-state-v2";
+const acceptedSourceFileTypes = ".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg";
+const extractLaterNote =
+  "File uploaded. Full AI extraction will be enabled when backend parsing is connected.";
 
 const keywordBank = [
   "AI",
@@ -645,6 +657,27 @@ function saveBlob(blob: Blob, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
+function sourceFileId(file: File) {
+  return `${file.name}-${file.size}-${file.lastModified}`;
+}
+
+function sourceFileType(file: File) {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  return extension ? `.${extension}` : file.type || "unknown";
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024) {
+    return `${size} B`;
+  }
+
+  if (size < 1024 * 1024) {
+    return `${Math.round(size / 1024)} KB`;
+  }
+
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 async function createResumePdfBlob(
   resumeText: string,
   template: TemplateId,
@@ -876,11 +909,13 @@ export default function Home() {
   const [template, setTemplate] = useState<TemplateId>("executive-navy");
   const [theme, setTheme] = useState<ThemeId>("deep-navy");
   const [result, setResult] = useState<TailoringResult | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedSourceFile[]>([]);
   const [copyStatus, setCopyStatus] = useState("Copy");
   const [coverCopyStatus, setCoverCopyStatus] = useState("Copy Cover Letter");
   const [activeOutput, setActiveOutput] = useState<"resume" | "cover">("resume");
   const [hydrated, setHydrated] = useState(false);
   const skipNextSave = useRef(false);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const previewTheme = previewThemes[theme];
 
   useEffect(() => {
@@ -900,6 +935,7 @@ export default function Home() {
           );
           setTheme(isThemeId(parsed.theme) ? parsed.theme : "deep-navy");
           setResult(parsed.result ?? null);
+          setUploadedFiles(parsed.uploadedFiles ?? []);
         }
       } catch {
         window.localStorage.removeItem(storageKey);
@@ -926,10 +962,29 @@ export default function Home() {
       template,
       theme,
       result,
+      uploadedFiles,
     };
 
     window.localStorage.setItem(storageKey, JSON.stringify(savedState));
-  }, [hydrated, jobDescription, masterResume, result, targetRole, template, theme]);
+  }, [
+    hydrated,
+    jobDescription,
+    masterResume,
+    result,
+    targetRole,
+    template,
+    theme,
+    uploadedFiles,
+  ]);
+
+  const extractedSourceText = useMemo(
+    () =>
+      uploadedFiles
+        .map((file) => file.extractedText?.trim())
+        .filter((text): text is string => Boolean(text))
+        .join("\n\n"),
+    [uploadedFiles],
+  );
 
   const canTailor = useMemo(
     () =>
@@ -978,9 +1033,54 @@ export default function Home() {
     setTemplate("executive-navy");
     setTheme("deep-navy");
     setResult(null);
+    setUploadedFiles([]);
     setActiveOutput("resume");
     setCopyStatus("Copy");
     setCoverCopyStatus("Copy Cover Letter");
+  }
+
+  async function handleSourceFiles(files: FileList | null) {
+    if (!files) {
+      return;
+    }
+
+    const nextFiles = await Promise.all(
+      Array.from(files).map(async (file): Promise<UploadedSourceFile> => {
+        const baseFile = {
+          id: sourceFileId(file),
+          name: file.name,
+          type: sourceFileType(file),
+          size: file.size,
+        };
+
+        if (file.name.toLowerCase().endsWith(".txt")) {
+          return {
+            ...baseFile,
+            extractedText: await file.text(),
+          };
+        }
+
+        return baseFile;
+      }),
+    );
+
+    setUploadedFiles((current) => {
+      const byId = new Map(current.map((file) => [file.id, file]));
+
+      for (const file of nextFiles) {
+        byId.set(file.id, file);
+      }
+
+      return Array.from(byId.values());
+    });
+
+    if (uploadInputRef.current) {
+      uploadInputRef.current.value = "";
+    }
+  }
+
+  function removeSourceFile(fileId: string) {
+    setUploadedFiles((current) => current.filter((file) => file.id !== fileId));
   }
 
   function updateResumeOutput(value: string) {
@@ -1145,6 +1245,102 @@ export default function Home() {
             className="mt-3 min-h-[420px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
             placeholder="Paste your master resume here..."
           />
+
+          <div className="mt-4 border-t border-zinc-200 pt-4">
+            <input
+              ref={uploadInputRef}
+              id="source-file-upload"
+              type="file"
+              multiple
+              accept={acceptedSourceFileTypes}
+              onChange={(event) => handleSourceFiles(event.target.files)}
+              className="sr-only"
+            />
+            <label
+              htmlFor="source-file-upload"
+              className="inline-flex min-h-10 cursor-pointer items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50"
+            >
+              Upload Resume / Supporting Files
+            </label>
+            <p className="mt-2 text-xs leading-5 text-zinc-500">
+              Accepts PDF, DOC, DOCX, TXT, PNG, JPG, and JPEG. TXT files are
+              extracted now; other files are saved as source metadata for later
+              backend parsing.
+            </p>
+
+            {uploadedFiles.length > 0 ? (
+              <div className="mt-4 space-y-2">
+                {uploadedFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    className="flex flex-col gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-900">
+                        {file.name}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {file.type.toUpperCase()} | {formatFileSize(file.size)}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {file.extractedText
+                          ? "TXT text extracted and available as source material."
+                          : extractLaterNote}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeSourceFile(file.id)}
+                      className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <section className="mt-5 rounded-md border border-zinc-200 bg-zinc-50 p-4">
+            <h2 className="text-sm font-semibold text-zinc-900">
+              Source Materials
+            </h2>
+            <div className="mt-3 space-y-3 text-sm leading-6 text-zinc-700">
+              <div>
+                <p className="font-semibold text-zinc-800">Pasted resume</p>
+                <p className="text-zinc-500">
+                  {masterResume.trim().length > 0
+                    ? `${masterResume.trim().length.toLocaleString()} characters available`
+                    : "No pasted resume text yet"}
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-zinc-800">Uploaded files</p>
+                {uploadedFiles.length > 0 ? (
+                  <ul className="mt-1 list-disc space-y-1 pl-5">
+                    {uploadedFiles.map((file) => (
+                      <li key={file.id}>
+                        {file.name}
+                        {file.extractedText ? " - TXT extracted" : " - metadata saved"}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-zinc-500">No uploaded files yet</p>
+                )}
+              </div>
+              {extractedSourceText ? (
+                <details className="rounded-md border border-zinc-200 bg-white p-3">
+                  <summary className="text-sm font-semibold text-zinc-800">
+                    Extracted TXT source text
+                  </summary>
+                  <pre className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap text-xs leading-5 text-zinc-600">
+                    {extractedSourceText}
+                  </pre>
+                </details>
+              ) : null}
+            </div>
+          </section>
         </div>
 
         <div className="space-y-5">
