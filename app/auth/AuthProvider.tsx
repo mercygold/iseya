@@ -99,6 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [supabase],
   );
 
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    void ensureUserProfile(user);
+  }, [ensureUserProfile, user]);
+
   const signUp = useCallback<AuthContextValue["signUp"]>(
     async ({ email, password, fullName, emailRedirectTo }) => {
       setError("");

@@ -509,32 +509,28 @@ const keywordBank = [
   "legal tech",
 ];
 
-const sampleResume = `ANU MERCYGOLD JOSHUA
-Technical Product Manager | IT Project Manager
+const sampleResume = `Jordan Taylor
+Product Manager
+jordan@example.com | City, State | linkedin.com/in/jordan-example
 
 SUMMARY
-Senior IT Project Manager and Technical Product Manager with 8+ years of experience across SaaS, fintech, AI/ML, enterprise platforms, and digital transformation. Skilled in product strategy, Agile delivery, stakeholder management, analytics, CRM, API integrations, and growth systems.
+Product Manager with experience coordinating SaaS product delivery, customer discovery, roadmap planning, stakeholder communication, analytics, and cross-functional execution. Skilled in translating business goals into clear product requirements and measurable launch plans.
 
 EXPERIENCE
-Principal Product Manager / IT Project Lead - Jormp LLC
-- Led digital platform and automation projects for SMB, SaaS, and service-based clients.
-- Managed product requirements, stakeholder communication, QA, implementation, and launch.
-- Built growth systems involving analytics, attribution, websites, CRM, and automation workflows.
+Product Manager - Example SaaS Company
+- Coordinated roadmap planning, discovery notes, sprint priorities, and launch readiness for a customer-facing workflow product.
+- Partnered with design, engineering, and customer success teams to clarify requirements and improve release quality.
+- Used product analytics and user feedback to identify adoption opportunities and prioritize improvements.
 
-Technical Product Owner - Investofly
-- Developed AI-powered investment assistant and equity crowdfunding product concepts.
-- Translated business goals into product requirements, user journeys, and delivery milestones.
-
-Product Manager - Japaul Gold & Ventures PLC
-- Supported blockchain/fintech product initiative connected to a $20M+ capital raise.
-- Coordinated stakeholders across technical, business, and executive teams.
+Associate Product Manager - Example Technology Studio
+- Supported user research, competitive analysis, feature documentation, and stakeholder updates for early-stage software products.
+- Helped define acceptance criteria, QA workflows, and release notes for iterative product launches.
 
 EDUCATION
-M.S. Innovation & Entrepreneurship - University of California, Irvine
-B.Tech. Transport Management & Technology - Federal University of Technology, Akure
+B.S. Business Administration - Example University
 
 CERTIFICATIONS
-Advanced Certified ScrumMaster, Google Project Management Certificate, AI Product Development, AI Ethics`;
+Product Management Certificate, Agile Foundations`;
 
 const sampleJob = `AI Product Manager
 
@@ -4125,6 +4121,23 @@ export default function Home() {
         applyCloudContent(data.content_json as CloudResumeContent);
         setCloudSaveStatus("Loaded saved workspace.");
       } else {
+        skipNextSave.current = true;
+        skipNextCloudSave.current = true;
+        applySavedState({
+          masterResume: sampleResume,
+          jobDescription: sampleJob,
+          targetRole: "AI Product Manager",
+          industryTarget: "AI / Technology",
+          template: "executive-navy",
+          theme: "deep-navy",
+          result: null,
+          uploadedFiles: [],
+          aiSettings: defaultAiSettings,
+          personalBranding: brandingFromResumeText(sampleResume),
+        });
+        setSavedVersions([]);
+        setSelectedVersionId("");
+        setCompareVersionIds([]);
         setCloudSaveStatus("Cloud workspace ready.");
       }
 
@@ -4136,10 +4149,10 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [applyCloudContent, authLoaded, authUser, cloudLoadedForUser, hydrated, supabase]);
+  }, [applyCloudContent, applySavedState, authLoaded, authUser, cloudLoadedForUser, hydrated, supabase]);
 
   useEffect(() => {
-    if (!hydrated) {
+    if (!hydrated || authUser) {
       return;
     }
 
@@ -4169,6 +4182,7 @@ export default function Home() {
     aiSettings,
     personalBranding,
     buildSavedState,
+    authUser,
   ]);
 
   useEffect(() => {
@@ -4210,6 +4224,7 @@ export default function Home() {
             .from("resumes")
             .update(payload)
             .eq("id", cloudResumeId)
+            .eq("user_id", activeUser.id)
             .select("id")
             .single()
         : activeSupabase.from("resumes").insert(payload).select("id").single();
@@ -4249,7 +4264,7 @@ export default function Home() {
   ]);
 
   useEffect(() => {
-    if (!hydrated) {
+    if (!hydrated || authUser) {
       return;
     }
 
@@ -4258,7 +4273,7 @@ export default function Home() {
     } catch {
       // Keep the in-memory version list active even if browser storage rejects it.
     }
-  }, [hydrated, savedVersions]);
+  }, [authUser, hydrated, savedVersions]);
 
   useEffect(() => {
     if (!hydrated) {

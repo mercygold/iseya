@@ -21,6 +21,7 @@ Add values to `.env.local`:
 ```bash
 OPENAI_API_KEY=your_key_here
 OPENAI_MODEL=gpt-4o-mini
+NEXT_PUBLIC_APP_URL=https://iseya.jormp.com
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_your_key
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_your_key
@@ -66,7 +67,8 @@ If you prefer the Supabase dashboard, create those buckets manually under Storag
 4. Confirm the email if your Supabase project requires confirmation.
 5. Visit `/login`, sign in, and confirm you are redirected to `/workspace`.
 6. Visit `/dashboard`; it should redirect to `/workspace`.
-7. Sign out from the account status in the ISEYA header.
+7. Use `Forgot password` on `/login`; the reset email should route through `/auth/callback?next=/reset-password`.
+8. Sign out from the account status in the ISEYA header.
 
 Protected routes:
 
@@ -74,6 +76,29 @@ Protected routes:
 - `/dashboard`
 
 Anonymous users can still use `/` with local browser persistence.
+
+## Supabase Email Branding
+
+Supabase controls the sender name and email template copy from the project dashboard. For production, update:
+
+Supabase Dashboard -> Authentication -> Emails -> Templates
+
+Recommended template updates:
+
+- Sender or brand name: `Iseya`
+- Confirm Signup subject: `Confirm your Iseya account`
+- Reset Password subject: `Reset your Iseya password`
+- Email copy should say `Iseya`, not `Supabase Auth`.
+
+Auth redirects should be configured in Supabase Authentication URL settings:
+
+- Site URL: `https://iseya.jormp.com`
+- Redirect URLs:
+  - `https://iseya.jormp.com/auth/callback`
+  - `https://iseya.jormp.com/auth/callback?next=/workspace`
+  - `https://iseya.jormp.com/auth/callback?next=/reset-password`
+  - `http://localhost:3000/auth/callback`
+  - `http://localhost:3001/auth/callback`
 
 ## Autosave Testing
 
@@ -93,6 +118,7 @@ Local fallback remains active when Supabase is not configured or when the user i
 3. Add environment variables in Vercel Project Settings:
    - `OPENAI_API_KEY`
    - optional `OPENAI_MODEL`
+   - `NEXT_PUBLIC_APP_URL`
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`

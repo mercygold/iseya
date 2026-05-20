@@ -104,6 +104,14 @@ export function getSupabasePublicConfigStatus() {
 }
 
 export function getAppBaseUrl() {
+  if (
+    process.env.NODE_ENV === "development" &&
+    typeof window !== "undefined" &&
+    allowedLocalOrigins.has(window.location.origin)
+  ) {
+    return window.location.origin;
+  }
+
   const configuredUrl = cleanEnvValue(process.env.NEXT_PUBLIC_APP_URL);
 
   if (configuredUrl) {
