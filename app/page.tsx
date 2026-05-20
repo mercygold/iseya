@@ -3608,6 +3608,44 @@ export default function Home() {
     }
   }
 
+  async function downloadActivePdf() {
+    if (activeOutput === "cover") {
+      await downloadCoverLetterPdf();
+      return;
+    }
+
+    if (activeOutput === "linkedin") {
+      await downloadLinkedInKitPdf();
+      return;
+    }
+
+    if (activeOutput === "application") {
+      setSystemStatus("Application Kit export is not available yet. Use Copy for now.");
+      return;
+    }
+
+    await downloadResumePdf();
+  }
+
+  async function downloadActiveDocx() {
+    if (activeOutput === "cover") {
+      await downloadCoverLetterDocx();
+      return;
+    }
+
+    if (activeOutput === "linkedin") {
+      await downloadLinkedInKitDocx();
+      return;
+    }
+
+    if (activeOutput === "application") {
+      setSystemStatus("Application Kit export is not available yet. Use Copy for now.");
+      return;
+    }
+
+    await downloadResumeDocx();
+  }
+
   function updateLinkedIn(field: keyof LinkedInKit, value: string | string[]) {
     setResult((current) =>
       current
@@ -3637,70 +3675,48 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-50 text-zinc-950">
-      <section className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-5 py-8 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
+    <main className="min-h-screen bg-[#f7f8fa] text-zinc-950">
+      <section className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-[112rem] flex-col gap-7 px-5 py-8 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-teal-700">
-              Resume Tailoring Agent MVP
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+              ISEYA
             </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
-              Tailor a resume to a target role
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
+              AI career documents, tailored for the role.
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
-              Paste a master resume and job description, then generate an
-              ATS-friendly resume, cover letter, keyword analysis, and editable
-              output.
+              Iseya helps you tailor resumes, cover letters, LinkedIn profiles,
+              and application kits with AI.
             </p>
           </div>
-          <div className="flex max-w-xl flex-col gap-3">
-            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleAccountPlaceholder("Sign in")}
-                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50"
-                >
-                  Sign in
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAccountPlaceholder("Sign up")}
-                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50"
-                >
-                  Sign up
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAccountPlaceholder("Sign out")}
-                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50"
-                >
-                  Sign out
-                </button>
+          <div className="flex max-w-2xl flex-col gap-3">
+            <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
+              <button
+                type="button"
+                onClick={() => handleAccountPlaceholder("Sign in")}
+                className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+              >
+                Login / Sign up
+              </button>
                 <button
                   type="button"
                   onClick={openMyResumesPlaceholder}
-                  className="inline-flex min-h-9 items-center justify-center rounded-md bg-zinc-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800"
+                className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                   My Resumes
                 </button>
-              </div>
-              <p className="mt-2 text-xs leading-5 text-zinc-500">
-                {hasSupabaseConfig
-                  ? "Supabase project config detected. Auth and cloud sync are prepared but not required yet."
-                  : "Local mode active. Add Supabase env vars later to enable accounts and cloud resumes."}
-              </p>
-              {accountStatus ? (
-                <p className="mt-2 text-xs font-medium text-teal-700">
-                  {accountStatus}
-                </p>
-              ) : null}
             </div>
-            <div className="flex flex-wrap gap-3">
+            {accountStatus ? (
+              <p className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-600">
+                {accountStatus}
+              </p>
+            ) : null}
+            <div className="flex flex-wrap justify-start gap-3 lg:justify-end">
             <button
               type="button"
               onClick={resetSavedResume}
-              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-50"
+              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
             >
               Reset Saved Resume
             </button>
@@ -3708,7 +3724,7 @@ export default function Home() {
               type="button"
               onClick={generateCoverLetter}
               disabled={!canTailor}
-              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
             >
               Generate Cover Letter
             </button>
@@ -3716,7 +3732,7 @@ export default function Home() {
               type="button"
               onClick={generateLinkedInProfile}
               disabled={!canTailor}
-              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
             >
               Generate LinkedIn Profile
             </button>
@@ -3724,7 +3740,7 @@ export default function Home() {
               type="button"
               onClick={tailorResume}
               disabled={!canTailor || isTailoring}
-              className="inline-flex min-h-12 items-center justify-center rounded-lg bg-zinc-950 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
+              className="inline-flex min-h-12 items-center justify-center rounded-lg bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
             >
               {isTailoring ? "AI is tailoring your resume..." : "Tailor Resume"}
             </button>
@@ -3733,7 +3749,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-[96rem] gap-5 px-5 py-6 sm:px-8 lg:grid-cols-[1fr_1fr]">
+      <section className="mx-auto grid max-w-[112rem] gap-5 px-5 py-6 sm:px-8 xl:grid-cols-[minmax(360px,0.92fr)_minmax(420px,1.08fr)]">
         <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
           <label
             htmlFor="master-resume"
@@ -4377,7 +4393,7 @@ export default function Home() {
       ) : null}
 
       {result ? (
-        <section className="mx-auto grid max-w-[112rem] gap-5 px-5 pb-10 sm:px-8 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <section className="mx-auto grid max-w-[112rem] gap-5 px-5 pb-10 sm:px-8 xl:grid-cols-[300px_minmax(0,1fr)]">
           <aside className="space-y-5">
             <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-semibold text-zinc-500">Match Score</p>
@@ -4414,7 +4430,6 @@ export default function Home() {
             />
             <AIResumeCoach
               result={result}
-              onRewriteBullet={rewriteSuggestedBullet}
             />
             <AdvancedIntelligencePanel
               analysis={result.advancedAnalysis}
@@ -4423,7 +4438,7 @@ export default function Home() {
           </aside>
 
           <div className="min-w-0 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-3 border-b border-zinc-200 pb-5 md:flex-row md:items-center md:justify-between">
+            <div className="sticky top-0 z-20 -mx-5 flex flex-col gap-3 border-b border-zinc-200 bg-white/95 px-5 pb-5 pt-1 backdrop-blur md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-zinc-950">
                   Tailored Output
@@ -4464,7 +4479,7 @@ export default function Home() {
                       : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
                   }`}
                 >
-                  LinkedIn Optimizer
+                  LinkedIn
                 </button>
                 <button
                   type="button"
@@ -4477,6 +4492,12 @@ export default function Home() {
                 >
                   Application Kit
                 </button>
+                <a
+                  href="#resume-preview"
+                  className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50"
+                >
+                  Preview
+                </a>
                 <button
                   type="button"
                   onClick={copyOutput}
@@ -4484,20 +4505,27 @@ export default function Home() {
                 >
                   {copyStatus}
                 </button>
-                <button
-                  type="button"
-                  onClick={downloadResumePdf}
-                  className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
-                >
-                  Download PDF
-                </button>
-                <button
-                  type="button"
-                  onClick={downloadResumeDocx}
-                  className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
-                >
-                  Download DOCX
-                </button>
+                <details className="relative">
+                  <summary className="inline-flex min-h-10 cursor-pointer list-none items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800">
+                    Download
+                  </summary>
+                  <div className="absolute right-0 z-30 mt-2 w-44 rounded-md border border-zinc-200 bg-white p-2 shadow-lg">
+                    <button
+                      type="button"
+                      onClick={downloadActivePdf}
+                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    >
+                      PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={downloadActiveDocx}
+                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    >
+                      DOCX
+                    </button>
+                  </div>
+                </details>
               </div>
             </div>
 
@@ -4546,6 +4574,10 @@ export default function Home() {
                 </div>
 
                 <section id="rewritten-resume">
+                  <WeakBulletEditor
+                    bullets={result.coach.weakBullets}
+                    onApply={rewriteSuggestedBullet}
+                  />
                   <div className="sticky top-0 z-10 -mx-5 border-y border-zinc-200 bg-white/95 px-5 py-3 backdrop-blur">
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-500">
@@ -4620,20 +4652,6 @@ export default function Home() {
                     >
                       {coverCopyStatus}
                     </button>
-                    <button
-                      type="button"
-                      onClick={downloadCoverLetterPdf}
-                      className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
-                    >
-                      Download Cover Letter PDF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={downloadCoverLetterDocx}
-                      className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
-                    >
-                      Download Cover Letter DOCX
-                    </button>
                   </div>
                 </div>
                 <textarea
@@ -4662,20 +4680,6 @@ export default function Home() {
                       label="Copy Recruiter Message"
                       text={result.linkedin.recruiterOutreachMessage}
                     />
-                    <button
-                      type="button"
-                      onClick={downloadLinkedInKitPdf}
-                      className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
-                    >
-                      Download LinkedIn Kit PDF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={downloadLinkedInKitDocx}
-                      className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
-                    >
-                      Download LinkedIn Kit DOCX
-                    </button>
                   </div>
                 </div>
                 <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -4886,12 +4890,94 @@ function EditableField({
   );
 }
 
+function WeakBulletEditor({
+  bullets,
+  onApply,
+}: {
+  bullets: WeakBulletSuggestion[];
+  onApply: (original: string, strongerVersion: string) => void;
+}) {
+  const visibleBullets = safeWeakBullets(bullets).slice(0, 4);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const selectedBullet =
+    selectedIndex === null ? null : visibleBullets[selectedIndex] ?? null;
+
+  if (visibleBullets.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-amber-950">
+            Weak Bullet Detection
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-amber-800">
+            Review suggested rewrites before applying them to the editable resume.
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <div className="space-y-2">
+          {visibleBullets.map((bullet, bulletIndex) => (
+            <button
+              key={`${bullet.original}-${bulletIndex}`}
+              type="button"
+              onClick={() => setSelectedIndex(bulletIndex)}
+              className={`block w-full rounded-md border p-3 text-left transition ${
+                selectedIndex === bulletIndex
+                  ? "border-amber-400 bg-white"
+                  : "border-amber-200 bg-amber-100/60 hover:bg-white"
+              }`}
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">
+                {bullet.issueType.replace(/_/g, " ")}
+              </p>
+              <p className="mt-1 max-h-12 overflow-hidden text-sm leading-6 text-amber-950">
+                {bullet.original}
+              </p>
+            </button>
+          ))}
+        </div>
+        <div className="rounded-md border border-amber-200 bg-white p-4">
+          {selectedBullet ? (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">
+                Improved bullet
+              </p>
+              <p className="mt-2 text-sm leading-6 text-zinc-700">
+                {selectedBullet.issue}
+              </p>
+              <p className="mt-3 rounded-md bg-zinc-50 p-3 text-sm leading-6 text-zinc-900">
+                {selectedBullet.strongerVersion}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  onApply(selectedBullet.original, selectedBullet.strongerVersion);
+                  setSelectedIndex(null);
+                }}
+                className="mt-3 inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+              >
+                Apply to Resume
+              </button>
+            </>
+          ) : (
+            <p className="text-sm leading-6 text-zinc-500">
+              Select a weak bullet to preview the improved version.
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function AIResumeCoach({
   result,
-  onRewriteBullet,
 }: {
   result: TailoringResult;
-  onRewriteBullet: (original: string, strongerVersion: string) => void;
 }) {
   const score = safeScore(result.score, 0);
   const matchBreakdown = safeMatchBreakdown(result.matchBreakdown, score);
@@ -4996,58 +5082,22 @@ function AIResumeCoach({
           <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
             Section Critique
           </h3>
-          <div className="mt-3 space-y-3">
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {sectionCritiques.map(([title, items], sectionIndex) => (
-              <div
+              <details
                 key={`${title}-${sectionIndex}`}
                 className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
               >
-                <p className="text-sm font-semibold text-zinc-900">{title}</p>
+                <summary className="cursor-pointer list-none">
+                  <p className="text-sm font-semibold text-zinc-900">{title}</p>
+                  <p className="mt-1 truncate text-xs text-zinc-500">
+                    {safeStringArray(items)[0] || "No specific critique yet."}
+                  </p>
+                </summary>
                 <CoachInlineList items={items} />
-              </div>
+              </details>
             ))}
           </div>
-        </section>
-        <section>
-          <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
-            Weak Bullet Detection
-          </h3>
-          {safeWeakBullets(coach.weakBullets).length > 0 ? (
-            <div className="mt-3 space-y-3">
-              {safeWeakBullets(coach.weakBullets).map((bullet, bulletIndex) => (
-                <div
-                  key={`${bullet.original}-${bullet.strongerVersion}-${bulletIndex}`}
-                  className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                    {bullet.issueType.replace(/_/g, " ")}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-700">
-                    {bullet.issue}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-500">
-                    Current: {bullet.original}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-900">
-                    Stronger: {bullet.strongerVersion}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onRewriteBullet(bullet.original, bullet.strongerVersion)
-                    }
-                    className="mt-3 inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-100"
-                  >
-                    Rewrite Bullet
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-2 text-sm leading-6 text-zinc-500">
-              No weak bullets detected in the current tailored resume.
-            </p>
-          )}
         </section>
         <CoachBlock
           title="Recruiter Objections"
