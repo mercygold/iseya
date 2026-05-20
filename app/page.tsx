@@ -8,7 +8,7 @@ const focusRingClass =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2";
 const buttonBaseClass =
   `inline-flex items-center justify-center rounded-md font-semibold transition duration-150 ease-out hover:shadow-md active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 ${focusRingClass}`;
-const buttonSizeSmClass = "min-h-9 px-3 py-2 text-xs";
+const buttonSizeSmClass = "min-h-9 px-3.5 py-2 text-xs";
 const buttonSizeMdClass = "min-h-10 px-4 py-2 text-sm";
 const primaryButtonClass = `${buttonBaseClass} border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]`;
 const secondaryButtonClass = `${buttonBaseClass} border border-[var(--iseya-border)] bg-[var(--iseya-white)] text-[var(--iseya-navy)] hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]`;
@@ -4883,7 +4883,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => updatePersonalBranding("profileImageDataUrl", "")}
-                  className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
+                  className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
                 >
                   Remove Image
                 </button>
@@ -4982,14 +4982,14 @@ export default function Home() {
                             )
                           }
                           disabled={!file.extractedText}
-                          className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
+                          className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
                         >
                           Preview Extracted Text
                         </button>
                         <FeedbackButton
                           onClick={() => removeSourceFile(file.id)}
                           doneLabel="Removed"
-                          className={`${dangerButtonClass} min-h-9 px-3 py-2 text-xs`}
+                          className={`${dangerButtonClass} ${buttonSizeSmClass}`}
                         >
                           Remove
                         </FeedbackButton>
@@ -5298,7 +5298,7 @@ export default function Home() {
                     activeLabel="Saving..."
                     doneLabel="Saved"
                     disabled={!result}
-                    className={`${primaryButtonClass} min-h-9 px-3 py-2 text-xs`}
+                    className={`${primaryButtonClass} ${buttonSizeSmClass}`}
                   >
                     Save Current Version
                   </FeedbackButton>
@@ -5306,7 +5306,7 @@ export default function Home() {
                     onClick={() => loadVersion(selectedVersion)}
                     doneLabel="Loaded"
                     disabled={!selectedVersion}
-                    className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
+                    className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
                   >
                     Load Version
                   </FeedbackButton>
@@ -5314,7 +5314,7 @@ export default function Home() {
                     onClick={() => duplicateVersion(selectedVersion)}
                     doneLabel="Duplicated"
                     disabled={!selectedVersion}
-                    className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
+                    className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
                   >
                     Duplicate Version
                   </FeedbackButton>
@@ -5322,7 +5322,7 @@ export default function Home() {
                     onClick={() => renameVersion(selectedVersion)}
                     doneLabel="Renamed"
                     disabled={!selectedVersion}
-                    className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
+                    className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
                   >
                     Rename Version
                   </FeedbackButton>
@@ -5330,7 +5330,7 @@ export default function Home() {
                     onClick={() => deleteVersion(selectedVersion)}
                     doneLabel="Removed"
                     disabled={!selectedVersion}
-                    className={`${dangerButtonClass} min-h-9 px-3 py-2 text-xs`}
+                    className={`${dangerButtonClass} ${buttonSizeSmClass}`}
                   >
                     Delete Version
                   </FeedbackButton>
@@ -5342,7 +5342,7 @@ export default function Home() {
                     }
                     doneLabel="Updated"
                     disabled={!selectedVersion}
-                    className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
+                    className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
                   >
                     Compare Versions
                   </FeedbackButton>
@@ -5730,12 +5730,12 @@ export default function Home() {
                         onClick={() =>
                           runWithFeedback("coverPanelGenerate", "Generating...", "Done", generateCoverLetter)
                         }
-                        className={`${primaryButtonClass} min-h-9 px-3 py-2 text-xs`}
+                        className={`${primaryButtonClass} ${buttonSizeSmClass}`}
                       >
 	                        {actionFeedback.coverPanelGenerate ?? "Generate Cover Letter"}
 	                      </button>
 	                      <details className="relative">
-	                        <summary className={`${secondaryButtonClass} min-h-9 cursor-pointer list-none px-3 py-2 text-xs`}>
+	                        <summary className={`${secondaryButtonClass} ${buttonSizeSmClass} cursor-pointer list-none`}>
 	                          {actionFeedback.coverExport ?? "Export Cover Letter"}
 	                        </summary>
 	                        <div className="absolute left-0 z-20 mt-2 w-44 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
@@ -5765,7 +5765,7 @@ export default function Home() {
                         onClick={() =>
                           runWithFeedback("linkedinPanelGenerate", "Generating...", "Done", generateLinkedInProfile)
                         }
-                        className={`${primaryButtonClass} min-h-9 px-3 py-2 text-xs`}
+                        className={`${primaryButtonClass} ${buttonSizeSmClass}`}
                       >
                         {actionFeedback.linkedinPanelGenerate ?? "Generate LinkedIn Profile"}
                       </button>
@@ -6549,7 +6549,7 @@ function ModularResumeEditor({
           <ContactField label="Website URL" value={personalBranding.websiteUrl} onChange={(value) => onPersonalBrandingChange("websiteUrl", value)} />
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <label className={`${secondaryButtonClass} min-h-9 cursor-pointer px-3 py-2 text-xs`}>
+          <label className={`${secondaryButtonClass} ${buttonSizeSmClass} cursor-pointer`}>
             Optional Profile Image
             <input
               type="file"
@@ -6562,7 +6562,7 @@ function ModularResumeEditor({
             <button
               type="button"
               onClick={() => onPersonalBrandingChange("profileImageDataUrl", "")}
-              className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
+              className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
             >
               Remove Image
             </button>
@@ -6624,7 +6624,7 @@ function ModularResumeEditor({
 	                  createEmptyExperience(current.length + structured.experience.length),
 	                ])
 	              }
-	              className={`${primaryButtonClass} min-h-9 px-3 py-2 text-xs`}
+	              className={`${primaryButtonClass} ${buttonSizeSmClass}`}
 	            >
 	              Add Experience
 	            </FeedbackButton>
@@ -6742,7 +6742,7 @@ function ModularResumeEditor({
 	                      [entry.id]: [...(current[entry.id] ?? []), ""],
 	                    }))
 	                  }
-	                  className={`${primaryButtonClass} min-h-9 px-3 py-2 text-xs`}
+	                  className={`${primaryButtonClass} ${buttonSizeSmClass}`}
 	                >
 	                  Add Achievement
 	                </FeedbackButton>
@@ -6807,7 +6807,7 @@ function ModularResumeEditor({
                 ],
               })
             }
-            className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
+            className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
           >
             Add Section
           </FeedbackButton>
@@ -6833,9 +6833,9 @@ function ModularSection({
   isOptimizing?: boolean;
 }) {
   return (
-    <details open className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <details open className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <summary className="cursor-pointer list-none">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h4 className="text-sm font-semibold text-[var(--iseya-navy)]">{title}</h4>
           </div>
@@ -6863,7 +6863,7 @@ function ModularSection({
           </div>
         </div>
       </summary>
-      <div className="mt-4">{children}</div>
+      <div className="mt-5">{children}</div>
     </details>
   );
 }
@@ -7143,7 +7143,7 @@ function WeakBulletEditor({
                   setSelectedIndex(null);
                 }}
                 doneLabel="Updated"
-                className={`mt-3 ${primaryButtonClass} min-h-9 px-3 py-2 text-xs`}
+                className={`mt-3 ${primaryButtonClass} ${buttonSizeSmClass}`}
               >
                 Apply to Resume
               </FeedbackButton>
