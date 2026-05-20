@@ -3666,44 +3666,6 @@ export default function Home() {
     }
   }
 
-  async function downloadActivePdf() {
-    if (activeOutput === "cover") {
-      await downloadCoverLetterPdf();
-      return;
-    }
-
-    if (activeOutput === "linkedin") {
-      await downloadLinkedInKitPdf();
-      return;
-    }
-
-    if (activeOutput === "application") {
-      await downloadApplicationKitPdf();
-      return;
-    }
-
-    await downloadResumePdf();
-  }
-
-  async function downloadActiveDocx() {
-    if (activeOutput === "cover") {
-      await downloadCoverLetterDocx();
-      return;
-    }
-
-    if (activeOutput === "linkedin") {
-      await downloadLinkedInKitDocx();
-      return;
-    }
-
-    if (activeOutput === "application") {
-      await downloadApplicationKitDocx();
-      return;
-    }
-
-    await downloadResumeDocx();
-  }
-
   function updateLinkedIn(field: keyof LinkedInKit, value: string | string[]) {
     setResult((current) =>
       current
@@ -4462,7 +4424,7 @@ export default function Home() {
                   Autosaved locally · Editing updates the active document immediately
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {[
                   ["resume", "Resume"],
                   ["cover", "Cover Letter"],
@@ -4477,7 +4439,7 @@ export default function Home() {
                         id as "resume" | "cover" | "linkedin" | "application",
                       )
                     }
-                    className={`inline-flex min-h-9 items-center justify-center rounded-md px-3 py-2 text-xs font-semibold transition ${
+                    className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition ${
                       activeOutput === id
                         ? "bg-slate-950 text-white hover:bg-slate-800"
                         : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
@@ -4488,42 +4450,84 @@ export default function Home() {
                 ))}
                 <a
                   href="#resume-preview"
-                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                   Preview
                 </a>
                 <button
                   type="button"
                   onClick={() => setActiveOutput("resume")}
-                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                   Edit Resume
                 </button>
                 <details className="relative">
-                  <summary className="inline-flex min-h-9 cursor-pointer list-none items-center justify-center rounded-md bg-teal-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-teal-800">
+                  <summary className="inline-flex min-h-10 cursor-pointer list-none items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800">
                     Export
                   </summary>
-                  <div className="absolute right-0 z-30 mt-2 w-40 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+                  <div className="absolute right-0 z-30 mt-2 w-64 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
                     <button
                       type="button"
-                      onClick={downloadActivePdf}
+                      onClick={downloadResumePdf}
                       className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
-                      PDF
+                      Resume PDF
                     </button>
                     <button
                       type="button"
-                      onClick={downloadActiveDocx}
+                      onClick={downloadResumeDocx}
                       className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
-                      DOCX
+                      Resume DOCX
+                    </button>
+                    <button
+                      type="button"
+                      onClick={downloadCoverLetterPdf}
+                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Cover Letter PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={downloadCoverLetterDocx}
+                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Cover Letter DOCX
+                    </button>
+                    <button
+                      type="button"
+                      onClick={downloadLinkedInKitPdf}
+                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      LinkedIn Kit PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={downloadLinkedInKitDocx}
+                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      LinkedIn Kit DOCX
+                    </button>
+                    <button
+                      type="button"
+                      onClick={downloadApplicationKitPdf}
+                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Application Kit PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={downloadApplicationKitDocx}
+                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Application Kit DOCX
                     </button>
                   </div>
                 </details>
                 <button
                   type="button"
                   onClick={saveCurrentVersion}
-                  className="inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                  className="inline-flex min-h-10 items-center justify-center rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   Save Version
                 </button>
