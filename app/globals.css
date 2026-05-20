@@ -27,6 +27,31 @@ textarea {
 
 button {
   touch-action: manipulation;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+button:not(:disabled):hover,
+summary:hover,
+label:has(input[type="file"]):hover {
+  box-shadow: 0 8px 20px rgb(7 27 58 / 10%);
+}
+
+button:focus-visible,
+summary:focus-visible,
+label:has(input[type="file"]):focus-within {
+  outline: 2px solid #F4B321;
+  outline-offset: 2px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 summary {

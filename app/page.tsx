@@ -1,7 +1,21 @@
 "use client";
 
 import { createElement, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import Image from "next/image";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
+
+const focusRingClass =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4B321] focus-visible:ring-offset-2";
+const buttonBaseClass =
+  `inline-flex items-center justify-center rounded-md font-semibold transition duration-150 ease-out hover:shadow-md active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 ${focusRingClass}`;
+const buttonSizeSmClass = "min-h-8 px-3 py-1.5 text-xs";
+const buttonSizeMdClass = "min-h-10 px-4 py-2 text-sm";
+const buttonSizeLgClass = "min-h-12 px-5 py-3 text-sm";
+const primaryButtonClass = `${buttonBaseClass} border border-[#071B3A] bg-[#071B3A] text-white hover:border-[#F4B321] hover:bg-[#0B2A56]`;
+const secondaryButtonClass = `${buttonBaseClass} border border-[#071B3A]/25 bg-white text-[#071B3A] hover:border-[#F4B321] hover:bg-[#FFF8E6]`;
+const dangerButtonClass = `${buttonBaseClass} border border-red-200 bg-white text-red-700 hover:border-red-300 hover:bg-red-50`;
+const menuItemClass =
+  `block w-full rounded-md px-3 py-2 text-left font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[#071B3A] ${focusRingClass}`;
 
 type TemplateId =
   | "executive-navy"
@@ -3940,8 +3954,11 @@ export default function Home() {
   const [usageStats, setUsageStats] = useState<UsageStats>(defaultUsageStats);
   const [activeOutput, setActiveOutput] = useState<OutputTab>("resume");
   const [hydrated, setHydrated] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState<Record<string, string>>({});
   const skipNextSave = useRef(false);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const feedbackTimers = useRef<Record<string, number>>({});
   const previewTheme = previewThemes[theme];
 
   useEffect(() => {
@@ -4084,6 +4101,13 @@ export default function Home() {
     }
   }, [hydrated, usageStats]);
 
+  useEffect(
+    () => () => {
+      Object.values(feedbackTimers.current).forEach((timer) => window.clearTimeout(timer));
+    },
+    [],
+  );
+
   const extractedSourceText = useMemo(
     () =>
       uploadedFiles
@@ -4124,6 +4148,35 @@ export default function Home() {
         [kind]: normalized[kind] + 1,
       };
     });
+  }
+
+  function showActionFeedback(key: string, label: string, duration = 1700) {
+    window.clearTimeout(feedbackTimers.current[key]);
+    setActionFeedback((current) => ({ ...current, [key]: label }));
+    feedbackTimers.current[key] = window.setTimeout(() => {
+      setActionFeedback((current) => {
+        const next = { ...current };
+        delete next[key];
+        return next;
+      });
+    }, duration);
+  }
+
+  async function runWithFeedback(
+    key: string,
+    activeLabel: string,
+    doneLabel: string,
+    action: () => void | Promise<void>,
+  ) {
+    showActionFeedback(key, activeLabel, 30000);
+
+    try {
+      await action();
+      showActionFeedback(key, doneLabel);
+    } catch (error) {
+      showActionFeedback(key, "Try again");
+      throw error;
+    }
   }
 
   function handleAccountPlaceholder(action: "Sign in" | "Sign up" | "Sign out") {
@@ -4743,17 +4796,34 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f8fa] text-zinc-950">
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-[112rem] flex-col gap-7 px-5 py-8 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
+    <main className="min-h-screen bg-[#F7F9FC] text-[#1F2937]">
+      <section className="border-b border-[#071B3A]/10 bg-white">
+        <div className="mx-auto flex max-w-[112rem] flex-col gap-7 px-5 py-7 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-              ISEYA
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
+            <div className="flex items-center gap-4">
+              {logoFailed ? (
+                <span className="text-2xl font-bold tracking-[0.14em] text-[#071B3A]">
+                  ISEYA
+                </span>
+              ) : (
+                <Image
+                  src="/brand/iseya-logo.png"
+                  alt="ISEYA"
+                  width={160}
+                  height={80}
+                  priority
+                  className="h-12 w-auto sm:h-16"
+                  onError={() => setLogoFailed(true)}
+                />
+              )}
+              <p className="border-l border-[#F4B321] pl-4 text-xs font-bold uppercase tracking-[0.18em] text-[#071B3A] sm:text-sm">
+                Beyond Resume. Positioning.
+              </p>
+            </div>
+            <h1 className="mt-5 text-3xl font-semibold tracking-tight text-[#071B3A] sm:text-5xl">
               AI career documents, tailored for the role.
             </h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
               Iseya helps you tailor resumes, cover letters, LinkedIn profiles,
               and application kits with AI.
             </p>
@@ -4763,14 +4833,14 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => handleAccountPlaceholder("Sign in")}
-                className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
               >
                 Login / Sign up
               </button>
                 <button
                   type="button"
                   onClick={openMyResumesPlaceholder}
-                className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
                 >
                   My Resumes
                 </button>
@@ -4783,34 +4853,43 @@ export default function Home() {
             <div className="flex flex-wrap justify-start gap-3 lg:justify-end">
             <button
               type="button"
-              onClick={resetSavedResume}
-              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+              onClick={() => {
+                resetSavedResume();
+                showActionFeedback("resetSavedResume", "Done");
+              }}
+              className={`${secondaryButtonClass} ${buttonSizeLgClass} rounded-lg`}
             >
-              Reset Saved Resume
+              {actionFeedback.resetSavedResume ?? "Reset Saved Resume"}
             </button>
             <button
               type="button"
-              onClick={generateCoverLetter}
+              onClick={() =>
+                runWithFeedback("generateCover", "Generating...", "Done", generateCoverLetter)
+              }
               disabled={!canTailor}
-              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+              className={`${secondaryButtonClass} ${buttonSizeLgClass} rounded-lg`}
             >
-              Generate Cover Letter
+              {actionFeedback.generateCover ?? "Generate Cover Letter"}
             </button>
             <button
               type="button"
-              onClick={generateLinkedInProfile}
+              onClick={() =>
+                runWithFeedback("generateLinkedIn", "Generating...", "Done", generateLinkedInProfile)
+              }
               disabled={!canTailor}
-              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+              className={`${secondaryButtonClass} ${buttonSizeLgClass} rounded-lg`}
             >
-              Generate LinkedIn Profile
+              {actionFeedback.generateLinkedIn ?? "Generate LinkedIn Profile"}
             </button>
             <button
               type="button"
-              onClick={tailorResume}
+              onClick={() =>
+                runWithFeedback("tailor", "Tailoring...", "Done", tailorResume)
+              }
               disabled={!canTailor || isTailoring}
-              className="inline-flex min-h-12 items-center justify-center rounded-lg bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
+              className={`${primaryButtonClass} ${buttonSizeLgClass} rounded-lg px-6`}
             >
-              {isTailoring ? "AI is tailoring your resume..." : "Tailor Resume"}
+              {isTailoring ? "Tailoring..." : actionFeedback.tailor ?? "Tailor Resume"}
             </button>
             </div>
           </div>
@@ -4848,7 +4927,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => updatePersonalBranding("profileImageDataUrl", "")}
-                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                  className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
                 >
                   Remove Image
                 </button>
@@ -4873,7 +4952,7 @@ export default function Home() {
                   className="h-16 w-16 rounded-full border border-slate-200 object-cover"
                 />
               ) : null}
-              <label className="inline-flex min-h-10 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-100">
+              <label className={`${secondaryButtonClass} ${buttonSizeMdClass} cursor-pointer`}>
                 Optional Profile Image
                 <input
                   type="file"
@@ -4900,7 +4979,7 @@ export default function Home() {
             />
             <label
               htmlFor="source-file-upload"
-              className="inline-flex min-h-10 cursor-pointer items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50"
+              className={`${secondaryButtonClass} ${buttonSizeMdClass} cursor-pointer`}
             >
               Upload Resume / Supporting Files
             </label>
@@ -4947,17 +5026,17 @@ export default function Home() {
                             )
                           }
                           disabled={!file.extractedText}
-                          className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                          className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
                         >
                           Preview Extracted Text
                         </button>
-                        <button
-                          type="button"
+                        <FeedbackButton
                           onClick={() => removeSourceFile(file.id)}
-                          className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                          doneLabel="Removed"
+                          className={`${dangerButtonClass} min-h-9 px-3 py-2 text-xs`}
                         >
                           Remove
-                        </button>
+                        </FeedbackButton>
                       </div>
                     </div>
                     {previewSourceFileId === file.id && file.extractedText ? (
@@ -5002,13 +5081,13 @@ export default function Home() {
                               {(file.extractedText?.length ?? 0).toLocaleString()} chars
                             </p>
                           </div>
-                          <button
-                            type="button"
+                          <FeedbackButton
                             onClick={() => removeSourceFile(file.id)}
-                            className="inline-flex min-h-8 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                            doneLabel="Removed"
+                            className={`${dangerButtonClass} ${buttonSizeSmClass}`}
                           >
                             Remove
-                          </button>
+                          </FeedbackButton>
                         </div>
                       </li>
                     ))}
@@ -5258,58 +5337,59 @@ export default function Home() {
               </summary>
               <div className="mt-4 space-y-4">
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
+                  <FeedbackButton
                     onClick={saveCurrentVersion}
+                    activeLabel="Saving..."
+                    doneLabel="Saved"
                     disabled={!result}
-                    className="inline-flex min-h-9 items-center justify-center rounded-md bg-zinc-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+                    className={`${primaryButtonClass} min-h-9 px-3 py-2 text-xs`}
                   >
                     Save Current Version
-                  </button>
-                  <button
-                    type="button"
+                  </FeedbackButton>
+                  <FeedbackButton
                     onClick={() => loadVersion(selectedVersion)}
+                    doneLabel="Loaded"
                     disabled={!selectedVersion}
-                    className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                    className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
                   >
                     Load Version
-                  </button>
-                  <button
-                    type="button"
+                  </FeedbackButton>
+                  <FeedbackButton
                     onClick={() => duplicateVersion(selectedVersion)}
+                    doneLabel="Duplicated"
                     disabled={!selectedVersion}
-                    className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                    className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
                   >
                     Duplicate Version
-                  </button>
-                  <button
-                    type="button"
+                  </FeedbackButton>
+                  <FeedbackButton
                     onClick={() => renameVersion(selectedVersion)}
+                    doneLabel="Renamed"
                     disabled={!selectedVersion}
-                    className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                    className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
                   >
                     Rename Version
-                  </button>
-                  <button
-                    type="button"
+                  </FeedbackButton>
+                  <FeedbackButton
                     onClick={() => deleteVersion(selectedVersion)}
+                    doneLabel="Removed"
                     disabled={!selectedVersion}
-                    className="inline-flex min-h-9 items-center justify-center rounded-md border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                    className={`${dangerButtonClass} min-h-9 px-3 py-2 text-xs`}
                   >
                     Delete Version
-                  </button>
-                  <button
-                    type="button"
+                  </FeedbackButton>
+                  <FeedbackButton
                     onClick={() =>
                       selectedVersion
                         ? toggleCompareVersion(selectedVersion.id)
                         : setVersionStatus("Select a saved version to compare.")
                     }
+                    doneLabel="Updated"
                     disabled={!selectedVersion}
-                    className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                    className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
                   >
                     Compare Versions
-                  </button>
+                  </FeedbackButton>
                 </div>
 
                 {versionStatus ? (
@@ -5540,10 +5620,10 @@ export default function Home() {
                     onClick={() =>
                       setActiveOutput(id as OutputTab)
                     }
-                    className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition ${
+                    className={`${buttonBaseClass} ${buttonSizeMdClass} ${
                       activeOutput === id
-                        ? "bg-slate-950 text-white hover:bg-slate-800"
-                        : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                        ? "border border-[#071B3A] bg-[#071B3A] text-white hover:border-[#F4B321] hover:bg-[#0B2A56]"
+                        : "border border-[#071B3A]/25 bg-white text-[#071B3A] hover:border-[#F4B321] hover:bg-[#FFF8E6]"
                     }`}
                   >
                     {label}
@@ -5552,75 +5632,75 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setActiveOutput("resume")}
-                  className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
                 >
                   Edit Resume
                 </button>
                 <details className="relative">
-                  <summary className="inline-flex min-h-10 cursor-pointer list-none items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800">
-                    Export
+                  <summary className={`${primaryButtonClass} ${buttonSizeMdClass} cursor-pointer list-none`}>
+                    {actionFeedback.exportMenu ?? "Export"}
                   </summary>
 	                  <div className="absolute right-0 z-30 mt-2 w-64 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
                     <button
                       type="button"
-                      onClick={downloadResumePdf}
-                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadResumePdf)}
+                      className={`${menuItemClass} text-sm`}
                     >
                       Resume PDF
                     </button>
                     <button
                       type="button"
-                      onClick={downloadResumeDocx}
-                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadResumeDocx)}
+                      className={`${menuItemClass} text-sm`}
                     >
                       Resume DOCX
                     </button>
                     <button
                       type="button"
-                      onClick={downloadCoverLetterPdf}
-                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadCoverLetterPdf)}
+                      className={`${menuItemClass} text-sm`}
                     >
                       Cover Letter PDF
                     </button>
 	                    <button
 	                      type="button"
-	                      onClick={downloadCoverLetterDocx}
-                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+	                      onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadCoverLetterDocx)}
+                      className={`${menuItemClass} text-sm`}
                     >
 	                      Cover Letter DOCX
 	                    </button>
 	                    <button
 	                      type="button"
-	                      onClick={downloadCoverLetterTxt}
-	                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+	                      onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadCoverLetterTxt)}
+	                      className={`${menuItemClass} text-sm`}
 	                    >
 	                      Cover Letter TXT
 	                    </button>
                     <button
                       type="button"
-                      onClick={downloadLinkedInKitPdf}
-                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadLinkedInKitPdf)}
+                      className={`${menuItemClass} text-sm`}
                     >
                       LinkedIn Kit PDF
                     </button>
                     <button
                       type="button"
-                      onClick={downloadLinkedInKitDocx}
-                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadLinkedInKitDocx)}
+                      className={`${menuItemClass} text-sm`}
                     >
                       LinkedIn Kit DOCX
                     </button>
                     <button
                       type="button"
-                      onClick={downloadApplicationKitPdf}
-                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadApplicationKitPdf)}
+                      className={`${menuItemClass} text-sm`}
                     >
                       Application Kit PDF
                     </button>
                     <button
                       type="button"
-                      onClick={downloadApplicationKitDocx}
-                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadApplicationKitDocx)}
+                      className={`${menuItemClass} text-sm`}
                     >
                       Application Kit DOCX
                     </button>
@@ -5628,10 +5708,10 @@ export default function Home() {
                 </details>
                 <button
                   type="button"
-                  onClick={saveCurrentVersion}
-                  className="inline-flex min-h-10 items-center justify-center rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  onClick={() => runWithFeedback("saveVersion", "Saving...", "Saved", saveCurrentVersion)}
+                  className={`${primaryButtonClass} ${buttonSizeMdClass}`}
                 >
-                  Save Version
+                  {actionFeedback.saveVersion ?? "Save Version"}
                 </button>
               </div>
             </div>
@@ -5691,23 +5771,25 @@ export default function Home() {
 	                    <div className="mb-4 flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={generateCoverLetter}
-                        className="inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                        onClick={() =>
+                          runWithFeedback("coverPanelGenerate", "Generating...", "Done", generateCoverLetter)
+                        }
+                        className={`${primaryButtonClass} min-h-9 px-3 py-2 text-xs`}
                       >
-	                        Generate Cover Letter
+	                        {actionFeedback.coverPanelGenerate ?? "Generate Cover Letter"}
 	                      </button>
 	                      <details className="relative">
-	                        <summary className="inline-flex min-h-9 cursor-pointer list-none items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
-	                          Export Cover Letter
+	                        <summary className={`${secondaryButtonClass} min-h-9 cursor-pointer list-none px-3 py-2 text-xs`}>
+	                          {actionFeedback.coverExport ?? "Export Cover Letter"}
 	                        </summary>
 	                        <div className="absolute left-0 z-20 mt-2 w-44 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
-	                          <button type="button" onClick={downloadCoverLetterPdf} className="block w-full rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+	                          <button type="button" onClick={() => runWithFeedback("coverExport", "Exporting...", "Exported", downloadCoverLetterPdf)} className={`${menuItemClass} text-xs`}>
 	                            PDF
 	                          </button>
-	                          <button type="button" onClick={downloadCoverLetterDocx} className="block w-full rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+	                          <button type="button" onClick={() => runWithFeedback("coverExport", "Exporting...", "Exported", downloadCoverLetterDocx)} className={`${menuItemClass} text-xs`}>
 	                            DOCX
 	                          </button>
-	                          <button type="button" onClick={downloadCoverLetterTxt} className="block w-full rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+	                          <button type="button" onClick={() => runWithFeedback("coverExport", "Exporting...", "Exported", downloadCoverLetterTxt)} className={`${menuItemClass} text-xs`}>
 	                            TXT
 	                          </button>
 	                        </div>
@@ -5724,10 +5806,12 @@ export default function Home() {
                     <div className="mb-4 flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={generateLinkedInProfile}
-                        className="inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                        onClick={() =>
+                          runWithFeedback("linkedinPanelGenerate", "Generating...", "Done", generateLinkedInProfile)
+                        }
+                        className={`${primaryButtonClass} min-h-9 px-3 py-2 text-xs`}
                       >
-                        Generate LinkedIn Profile
+                        {actionFeedback.linkedinPanelGenerate ?? "Generate LinkedIn Profile"}
                       </button>
                       <CopyTextButton label="Copy Headline" text={result.linkedin.headline} />
                       <CopyTextButton label="Copy About" text={result.linkedin.about} />
@@ -5799,9 +5883,73 @@ function CopyTextButton({ label, text }: { label: string; text: string }) {
     <button
       type="button"
       onClick={copyText}
-      className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50"
+      className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
     >
       {status}
+    </button>
+  );
+}
+
+function FeedbackButton({
+  children,
+  doneLabel = "Done",
+  activeLabel,
+  className,
+  onClick,
+  ...props
+}: Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onClick"> & {
+  children: ReactNode;
+  doneLabel?: string;
+  activeLabel?: string;
+  onClick?: () => void | Promise<void>;
+}) {
+  const [status, setStatus] = useState<ReactNode>(null);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current) {
+        window.clearTimeout(timerRef.current);
+      }
+    },
+    [],
+  );
+
+  function flash(label: ReactNode, duration = 1600) {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+    }
+
+    setStatus(label);
+    timerRef.current = window.setTimeout(() => setStatus(null), duration);
+  }
+
+  return (
+    <button
+      {...props}
+      type={props.type ?? "button"}
+      onClick={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (!onClick || props.disabled) {
+          return;
+        }
+
+        if (activeLabel) {
+          flash(activeLabel, 30000);
+        }
+
+        try {
+          await onClick();
+          flash(doneLabel);
+        } catch {
+          flash("Try again");
+        }
+      }}
+      className={className}
+    >
+      {status ?? children}
     </button>
   );
 }
@@ -6392,7 +6540,7 @@ function ModularResumeEditor({
           <ContactField label="Website URL" value={personalBranding.websiteUrl} onChange={(value) => onPersonalBrandingChange("websiteUrl", value)} />
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <label className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+          <label className={`${secondaryButtonClass} min-h-9 cursor-pointer px-3 py-2 text-xs`}>
             Optional Profile Image
             <input
               type="file"
@@ -6405,7 +6553,7 @@ function ModularResumeEditor({
             <button
               type="button"
               onClick={() => onPersonalBrandingChange("profileImageDataUrl", "")}
-              className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+              className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
             >
               Remove Image
             </button>
@@ -6459,18 +6607,18 @@ function ModularResumeEditor({
 	                ? "Edit each role directly. Changes update the preview and exports immediately."
 	                : "No experience added yet. Add your first role."}
 	            </p>
-	            <button
-	              type="button"
+	            <FeedbackButton
+	              doneLabel="Added"
 	              onClick={() =>
 	                setDraftExperiences((current) => [
 	                  ...current,
 	                  createEmptyExperience(current.length + structured.experience.length),
 	                ])
 	              }
-	              className="inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+	              className={`${primaryButtonClass} min-h-9 px-3 py-2 text-xs`}
 	            >
 	              Add Experience
-	            </button>
+	            </FeedbackButton>
 	          </div>
 	          {displayedExperience.map((entry, entryIndex) => (
 	            <div
@@ -6483,8 +6631,8 @@ function ModularResumeEditor({
 	                </p>
 	                <div className="flex flex-wrap gap-2">
 	                  <details className="relative">
-	                    <summary className="inline-flex min-h-8 cursor-pointer list-none items-center justify-center rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800">
-	                      Optimize
+	                    <summary className={`${primaryButtonClass} ${buttonSizeSmClass} cursor-pointer list-none`}>
+	                      {optimizingKey.startsWith(`experience-${entryIndex}-`) ? "Optimizing..." : "Optimize"}
 	                    </summary>
 	                    <div className="absolute right-0 z-20 mt-2 w-56 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
 	                      {[
@@ -6502,7 +6650,7 @@ function ModularResumeEditor({
 	                            event.preventDefault();
 	                            applySingleExperienceAiAction(entryIndex, action as AiOptimizationAction);
 	                          }}
-	                          className="block w-full rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+	                          className={`${menuItemClass} text-xs`}
 	                        >
 	                          {label}
 	                        </button>
@@ -6577,18 +6725,18 @@ function ModularResumeEditor({
                     </div>
                   </div>
                 ))}
-	                <button
-	                  type="button"
+	                <FeedbackButton
+	                  doneLabel="Added"
 	                  onClick={() =>
 	                    setDraftBulletsByExperience((current) => ({
 	                      ...current,
 	                      [entry.id]: [...(current[entry.id] ?? []), ""],
 	                    }))
 	                  }
-	                  className="inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+	                  className={`${primaryButtonClass} min-h-9 px-3 py-2 text-xs`}
 	                >
 	                  Add Achievement
-	                </button>
+	                </FeedbackButton>
               </div>
             </div>
           ))}
@@ -6639,8 +6787,8 @@ function ModularResumeEditor({
               />
             </div>
           ))}
-          <button
-            type="button"
+          <FeedbackButton
+            doneLabel="Added"
             onClick={() =>
               commit({
                 ...structured,
@@ -6650,10 +6798,10 @@ function ModularResumeEditor({
                 ],
               })
             }
-            className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+            className={`${secondaryButtonClass} min-h-9 px-3 py-2 text-xs`}
           >
             Add Section
-          </button>
+          </FeedbackButton>
         </div>
       </ModularSection>
     </div>
@@ -6740,7 +6888,7 @@ function AiActionsMenu({
   return (
     <details className="relative">
       <summary
-        className="inline-flex min-h-8 cursor-pointer list-none items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+        className={`${secondaryButtonClass} ${buttonSizeSmClass} cursor-pointer list-none`}
         onClick={(event) => event.stopPropagation()}
       >
         {isOptimizing ? "Optimizing..." : "AI Actions"}
@@ -6754,7 +6902,7 @@ function AiActionsMenu({
               event.preventDefault();
               onSelect(action);
             }}
-            className="block w-full rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+            className={`${menuItemClass} text-xs`}
           >
             {action}
           </button>
@@ -6804,25 +6952,22 @@ function EditorActionButton({
   variant = "secondary",
 }: {
   children: ReactNode;
-  onClick: () => void;
+  onClick: () => void | Promise<void>;
   variant?: "secondary" | "danger";
 }) {
   const className =
     variant === "danger"
-      ? "inline-flex min-h-8 items-center justify-center rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50"
-      : "inline-flex min-h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100";
+      ? `${dangerButtonClass} ${buttonSizeSmClass}`
+      : `${secondaryButtonClass} ${buttonSizeSmClass}`;
 
   return (
-    <button
-      type="button"
-      onClick={(event) => {
-        event.preventDefault();
-        onClick();
-      }}
+    <FeedbackButton
+      doneLabel={variant === "danger" ? "Removed" : "Updated"}
+      onClick={onClick}
       className={className}
     >
       {children}
-    </button>
+    </FeedbackButton>
   );
 }
 
@@ -6986,16 +7131,16 @@ function WeakBulletEditor({
               <p className="mt-3 rounded-md bg-zinc-50 p-3 text-sm leading-6 text-zinc-900">
                 {selectedBullet.strongerVersion}
               </p>
-              <button
-                type="button"
+              <FeedbackButton
                 onClick={() => {
                   onApply(selectedBullet.original, selectedBullet.strongerVersion);
                   setSelectedIndex(null);
                 }}
-                className="mt-3 inline-flex min-h-9 items-center justify-center rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                doneLabel="Updated"
+                className={`mt-3 ${primaryButtonClass} min-h-9 px-3 py-2 text-xs`}
               >
                 Apply to Resume
-              </button>
+              </FeedbackButton>
             </>
           ) : (
             <p className="text-sm leading-6 text-zinc-500">
@@ -7277,13 +7422,13 @@ function BulletVariantButton({
         {label}
       </p>
       <p className="mt-2 text-sm leading-6 text-zinc-800">{value}</p>
-      <button
-        type="button"
+      <FeedbackButton
         onClick={() => onReplaceBullet(original, value)}
-        className="mt-3 inline-flex min-h-8 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-100"
+        doneLabel="Updated"
+        className={`mt-3 ${secondaryButtonClass} ${buttonSizeSmClass}`}
       >
         Replace Achievement
-      </button>
+      </FeedbackButton>
     </div>
   );
 }
