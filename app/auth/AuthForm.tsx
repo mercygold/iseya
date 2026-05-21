@@ -33,6 +33,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
   const redirectedFrom = searchParams.get("redirectedFrom") || "/workspace";
   const isLogin = mode === "login";
+  const showAuthDebug =
+    process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_ISEYA_AUTH_DEBUG === "true";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -168,7 +170,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           {error || authError ? (
             <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
               <p>{error || authError}</p>
-              {process.env.NODE_ENV === "development" ? (
+              {showAuthDebug ? (
                 <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-red-800">
                   <div>
                     <dt className="font-semibold">Supabase URL present</dt>

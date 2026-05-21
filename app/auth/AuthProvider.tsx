@@ -37,7 +37,7 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const authNotConfiguredMessage = "Authentication is not configured.";
+const authNotConfiguredMessage = "Authentication is temporarily unavailable. Please try again later.";
 const incorrectCredentialsMessage = "Email or password is incorrect.";
 const unconfirmedEmailMessage = "Please confirm your email before signing in.";
 
@@ -93,6 +93,22 @@ function mapLoginError(error: unknown) {
   }
 
   return details.message || "Login failed. Please try again.";
+}
+
+function mapSignupError(error: unknown) {
+  const details = getAuthErrorDetails(error);
+  const normalized = `${details.code} ${details.message}`.toLowerCase();
+
+  if (
+    normalized.includes("invalid") ||
+    normalized.includes("credentials") ||
+    normalized.includes("password") ||
+    normalized.includes("email")
+  ) {
+    return incorrectCredentialsMessage;
+  }
+
+  return details.message || "Signup failed. Please try again.";
 }
 
 function mapAuthError(error: unknown, fallback: string) {
@@ -213,7 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return { needsEmailConfirmation: !data.session };
       } catch (signUpError) {
-        const message = mapAuthError(signUpError, "Signup failed. Please try again.");
+        const message = mapSignupError(signUpError);
         setError(message);
         throw new Error(message);
       } finally {

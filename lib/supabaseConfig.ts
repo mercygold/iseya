@@ -10,7 +10,9 @@ export type SupabaseConfigResult =
   | { ok: true; config: SupabasePublicConfig }
   | { ok: false; message: string; devMessage: string };
 
-const genericPublicConfigMessage = "Authentication is not configured.";
+const genericPublicConfigMessage = "Authentication is temporarily unavailable. Please try again later.";
+const showPublicConfigDebug =
+  process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_ISEYA_AUTH_DEBUG === "true";
 
 function cleanEnvValue(value: string | undefined) {
   const trimmed = value?.trim() ?? "";
@@ -45,10 +47,7 @@ function isLikelySecretKey(value: string) {
 function publicConfigError(devMessage: string): SupabaseConfigResult {
   return {
     ok: false,
-    message:
-      process.env.NODE_ENV === "development"
-        ? devMessage
-        : genericPublicConfigMessage,
+    message: showPublicConfigDebug ? devMessage : genericPublicConfigMessage,
     devMessage,
   };
 }
