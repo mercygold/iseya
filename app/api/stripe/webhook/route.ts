@@ -96,9 +96,15 @@ async function findProfile({
       .eq("id", userId)
       .maybeSingle();
 
+    logWebhook("Supabase profile lookup result.", {
+      lookup: "user_id",
+      lookupValueExists: true,
+      profileFound: Boolean(data),
+      error: Boolean(error),
+    });
+
     if (error) {
       logWebhookError("Profile lookup by user id failed.", {
-        userId,
         code: error.code,
         message: error.message,
       });
@@ -116,9 +122,15 @@ async function findProfile({
       .eq("stripe_customer_id", customerId)
       .maybeSingle();
 
+    logWebhook("Supabase profile lookup result.", {
+      lookup: "stripe_customer_id",
+      lookupValueExists: true,
+      profileFound: Boolean(data),
+      error: Boolean(error),
+    });
+
     if (error) {
       logWebhookError("Profile lookup by Stripe customer id failed.", {
-        customerId,
         code: error.code,
         message: error.message,
       });
@@ -177,25 +189,43 @@ async function updateProfileFromCheckoutSession(
   const userId = session.metadata?.user_id || session.client_reference_id;
   const customerId = stringId(session.customer);
   const subscriptionId = stringId(session.subscription);
-  const plan = session.metadata?.plan === "plus" ? "plus" : planFromPriceId(null);
+  const metadataPlan = session.metadata?.plan ?? null;
+  const plan = metadataPlan === "plus" ? "plus" : planFromPriceId(null);
+
+  logWebhook("checkout.session.completed received.", {
+    eventId,
+    mode: session.mode,
+    metadataPlan,
+    metadataUserIdExists: Boolean(userId),
+    customerExists: Boolean(customerId),
+    subscriptionExists: Boolean(subscriptionId),
+  });
+
   const { supabase, profile: foundProfile } = await findProfile({ userId, customerId });
 
   if (!supabase) {
     logWebhookError("Checkout session update skipped because Supabase is unavailable.", {
       eventId,
-      plan: session.metadata?.plan ?? null,
+      plan: metadataPlan,
     });
     return;
   }
 
   const profile = foundProfile ?? (await ensureProfileForCheckoutSession(supabase, session));
 
+  logWebhook("Checkout profile resolution result.", {
+    eventId,
+    metadataUserIdExists: Boolean(userId),
+    profileFound: Boolean(profile),
+    usedExistingProfile: Boolean(foundProfile),
+  });
+
   if (!profile) {
     logWebhookError("Checkout session update skipped because no profile was found.", {
       eventId,
-      userId: userId ?? null,
-      customerId,
-      plan: session.metadata?.plan ?? null,
+      metadataUserIdExists: Boolean(userId),
+      customerExists: Boolean(customerId),
+      plan: metadataPlan,
     });
     return;
   }
@@ -224,10 +254,17 @@ async function updateProfileFromCheckoutSession(
       })
       .eq("id", profile.id);
 
+    logWebhook("Supabase profile update result.", {
+      eventId,
+      plan: "plus",
+      profileMatched: true,
+      success: !error,
+      error: Boolean(error),
+    });
+
     if (error) {
       logWebhookError("Plus profile update failed.", {
         eventId,
-        profileId: profile.id,
         code: error.code,
         message: error.message,
       });
@@ -236,7 +273,6 @@ async function updateProfileFromCheckoutSession(
 
     logWebhook("Plus profile update succeeded.", {
       eventId,
-      profileId: profile.id,
       downloadsAdded: 5,
       optimizationCreditsAdded: 15,
       customerSaved: Boolean(customerId),
@@ -261,10 +297,17 @@ async function updateProfileFromCheckoutSession(
       })
       .eq("id", profile.id);
 
+    logWebhook("Supabase profile update result.", {
+      eventId,
+      plan: subscriptionPlan,
+      profileMatched: true,
+      success: !error,
+      error: Boolean(error),
+    });
+
     if (error) {
       logWebhookError("Subscription checkout profile update failed.", {
         eventId,
-        profileId: profile.id,
         code: error.code,
         message: error.message,
       });
@@ -273,7 +316,6 @@ async function updateProfileFromCheckoutSession(
 
     logWebhook("Subscription checkout profile update succeeded.", {
       eventId,
-      profileId: profile.id,
       plan: subscriptionPlan,
     });
   }
