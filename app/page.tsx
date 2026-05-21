@@ -3,6 +3,7 @@
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import type { Json } from "@/lib/database.types";
@@ -3981,6 +3982,7 @@ async function createTextKitDocxBlob({
 }
 
 export default function Home() {
+  const router = useRouter();
   const [masterResume, setMasterResume] = useState(sampleResume);
   const [jobDescription, setJobDescription] = useState(sampleJob);
   const [targetRole, setTargetRole] = useState("Product Manager");
@@ -4011,12 +4013,14 @@ export default function Home() {
   const [downloadsUsed, setDownloadsUsed] = useState(0);
   const [optimizationCreditsUsed, setOptimizationCreditsUsed] = useState(0);
   const [savedVersionsCount, setSavedVersionsCount] = useState(0);
+  const [subscriptionProfileLoaded, setSubscriptionProfileLoaded] = useState(false);
   const [activeOutput, setActiveOutput] = useState<OutputTab>("resume");
   const [hydrated, setHydrated] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<Record<string, string>>({});
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { user: authUser, loading: authLoading, logout } = useAuth();
   const authLoaded = !authLoading;
+  const authUserId = authUser?.id ?? "";
   const [cloudResumeId, setCloudResumeId] = useState<string | null>(null);
   const [cloudSaveStatus, setCloudSaveStatus] = useState("");
   const [cloudLoadedForUser, setCloudLoadedForUser] = useState("");
@@ -4024,12 +4028,19 @@ export default function Home() {
   const skipNextCloudSave = useRef(false);
   const lastAuthUserIdRef = useRef<string | null>(null);
   const cloudLoadInFlightUserRef = useRef<string | null>(null);
+  const billingRefreshAttemptedRef = useRef(false);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const feedbackTimers = useRef<Record<string, number>>({});
   const previewTheme = previewThemes[theme];
-  const currentPlanLabel = subscriptionLabel(subscriptionPlan);
+  const displayedSubscriptionPlan =
+    authUserId && !subscriptionProfileLoaded ? null : subscriptionPlan;
+  const currentPlanLabel = displayedSubscriptionPlan
+    ? subscriptionLabel(displayedSubscriptionPlan)
+    : "Loading plan...";
   const currentSubscriptionStatusLabel =
-    subscriptionPlan === "free"
+    !displayedSubscriptionPlan
+      ? "Loading"
+      : displayedSubscriptionPlan === "free"
       ? "Active"
       : subscriptionStatus
           .split("_")
@@ -4037,15 +4048,17 @@ export default function Home() {
           .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
           .join(" ") || "Active";
   const subscriptionRenewalLabel =
-    subscriptionPlan === "plus"
+    !displayedSubscriptionPlan
+      ? "Checking workspace"
+      : displayedSubscriptionPlan === "plus"
       ? "One-time credit pack"
-      : subscriptionPlan === "pro_monthly"
+      : displayedSubscriptionPlan === "pro_monthly"
         ? "Monthly renewal"
-        : subscriptionPlan === "pro_annual"
+        : displayedSubscriptionPlan === "pro_annual"
           ? "Annual renewal"
           : "No renewal";
   const subscriptionCardTone =
-    subscriptionPlan === "free"
+    !displayedSubscriptionPlan || displayedSubscriptionPlan === "free"
       ? "border-zinc-200 bg-white"
       : "border-[var(--iseya-gold)]/60 bg-[#FFF8E6]";
   const downloadLimit = planDownloadLimit(subscriptionPlan);
@@ -4137,6 +4150,67 @@ export default function Home() {
     theme,
     uploadedFiles,
   ]);
+
+  const refreshSubscriptionProfile = useCallback(async () => {
+    if (!authLoaded || !supabase || !authUserId) {
+      return;
+    }
+
+    const {
+      data: { user: liveUser },
+      error: liveUserError,
+    } = await supabase.auth.getUser();
+    const liveUserId = liveUser?.id ?? authUserId;
+
+    if (liveUserError || !liveUserId) {
+      console.log("Workspace live plan:", "auth_user_unavailable", "unknown");
+      console.log("LIVE PROFILE PLAN:", "auth_user_unavailable");
+      return;
+    }
+
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select(
+        "subscription_plan, subscription_status, resume_download_credits, optimization_credits, downloads_used, optimization_credits_used, saved_versions_count",
+      )
+      .eq("id", liveUserId)
+      .maybeSingle();
+
+    if (error) {
+      setSubscriptionProfileLoaded(true);
+      console.log("Workspace live plan:", "profile_fetch_error", "unknown");
+      console.log("LIVE PROFILE PLAN:", "profile_fetch_error");
+      return;
+    }
+
+    console.log(
+      "Workspace live plan:",
+      profile?.subscription_plan ?? null,
+      profile?.subscription_status ?? null,
+    );
+    console.log("LIVE PROFILE PLAN:", profile?.subscription_plan ?? null);
+
+    setSubscriptionProfileLoaded(true);
+
+    if (!profile) {
+      setSubscriptionPlan("free");
+      setSubscriptionStatus("free");
+      setResumeDownloadCredits(0);
+      setOptimizationCredits(0);
+      setDownloadsUsed(0);
+      setOptimizationCreditsUsed(0);
+      setSavedVersionsCount(0);
+      return;
+    }
+
+    setSubscriptionPlan(normalizeSubscriptionPlan(profile.subscription_plan));
+    setSubscriptionStatus(profile.subscription_status || "free");
+    setResumeDownloadCredits(profile.resume_download_credits ?? 0);
+    setOptimizationCredits(profile.optimization_credits ?? 0);
+    setDownloadsUsed(profile.downloads_used ?? 0);
+    setOptimizationCreditsUsed(profile.optimization_credits_used ?? 0);
+    setSavedVersionsCount(profile.saved_versions_count ?? 0);
+  }, [authLoaded, authUserId, supabase]);
 
   const applySavedState = useCallback((state: Partial<SavedState>) => {
     setMasterResume(state.masterResume ?? sampleResume);
@@ -4310,8 +4384,13 @@ export default function Home() {
   }, [applySavedState, authLoaded, authUser?.id, starterSavedState]);
 
   useEffect(() => {
-    if (!authLoaded || !supabase || !authUser) {
+    if (!authLoaded) {
+      return;
+    }
+
+    if (!supabase || !authUserId) {
       window.setTimeout(() => {
+        setSubscriptionProfileLoaded(false);
         setSubscriptionPlan("free");
         setSubscriptionStatus("free");
         setResumeDownloadCredits(0);
@@ -4324,40 +4403,14 @@ export default function Home() {
     }
 
     let cancelled = false;
-    const activeSupabase = supabase;
-    const activeUserId = authUser.id;
+    window.setTimeout(() => {
+      setSubscriptionProfileLoaded(false);
+    }, 0);
 
     async function loadSubscriptionProfile() {
-      const { data, error } = await activeSupabase
-        .from("profiles")
-        .select(
-          "subscription_plan, subscription_status, resume_download_credits, optimization_credits, downloads_used, optimization_credits_used, saved_versions_count",
-        )
-        .eq("id", activeUserId)
-        .maybeSingle();
-
-      if (cancelled) {
-        return;
+      if (!cancelled) {
+        await refreshSubscriptionProfile();
       }
-
-      if (error) {
-        setSubscriptionPlan("free");
-        setSubscriptionStatus("free");
-        setResumeDownloadCredits(0);
-        setOptimizationCredits(0);
-        setDownloadsUsed(0);
-        setOptimizationCreditsUsed(0);
-        setSavedVersionsCount(0);
-        return;
-      }
-
-      setSubscriptionPlan(normalizeSubscriptionPlan(data?.subscription_plan));
-      setSubscriptionStatus(data?.subscription_status || "free");
-      setResumeDownloadCredits(data?.resume_download_credits ?? 0);
-      setOptimizationCredits(data?.optimization_credits ?? 0);
-      setDownloadsUsed(data?.downloads_used ?? 0);
-      setOptimizationCreditsUsed(data?.optimization_credits_used ?? 0);
-      setSavedVersionsCount(data?.saved_versions_count ?? 0);
     }
 
     loadSubscriptionProfile();
@@ -4367,7 +4420,58 @@ export default function Home() {
       cancelled = true;
       window.clearInterval(refreshInterval);
     };
-  }, [authLoaded, authUser, supabase]);
+  }, [authLoaded, authUserId, refreshSubscriptionProfile, supabase]);
+
+  useEffect(() => {
+    if (!authLoaded || !authUserId || !supabase) {
+      return;
+    }
+
+    function refreshLiveProfile() {
+      void refreshSubscriptionProfile();
+    }
+
+    function refreshVisibleProfile() {
+      if (document.visibilityState === "visible") {
+        refreshLiveProfile();
+      }
+    }
+
+    window.addEventListener("focus", refreshLiveProfile);
+    document.addEventListener("visibilitychange", refreshVisibleProfile);
+
+    return () => {
+      window.removeEventListener("focus", refreshLiveProfile);
+      document.removeEventListener("visibilitychange", refreshVisibleProfile);
+    };
+  }, [authLoaded, authUserId, refreshSubscriptionProfile, supabase]);
+
+  useEffect(() => {
+    if (!authLoaded || !authUserId || !supabase || billingRefreshAttemptedRef.current) {
+      return;
+    }
+
+    const searchParams = new URLSearchParams(window.location.search);
+
+    if (searchParams.get("billing") !== "success") {
+      return;
+    }
+
+    billingRefreshAttemptedRef.current = true;
+    router.refresh();
+    const immediateTimer = window.setTimeout(() => {
+      setSubscriptionProfileLoaded(false);
+      void refreshSubscriptionProfile();
+    }, 0);
+    const retryTimer = window.setTimeout(() => {
+      void refreshSubscriptionProfile();
+    }, 1500);
+
+    return () => {
+      window.clearTimeout(immediateTimer);
+      window.clearTimeout(retryTimer);
+    };
+  }, [authLoaded, authUserId, refreshSubscriptionProfile, router, supabase]);
 
   useEffect(() => {
     if (isStarterPlan(subscriptionPlan) && isPremiumTemplate(template)) {
@@ -6230,7 +6334,16 @@ export default function Home() {
                   </button>
                 </div>
               </div>
-              {subscriptionPlan === "free" ? (
+              {!displayedSubscriptionPlan ? (
+                <div className="mt-5 border-t border-[var(--iseya-gold)]/30 pt-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-navy)]">
+                    Checking your subscription
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-slate-600">
+                    Fetching the latest plan from your workspace profile.
+                  </p>
+                </div>
+              ) : displayedSubscriptionPlan === "free" ? (
                 <div className="mt-5 border-t border-[var(--iseya-gold)]/30 pt-4">
                   <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-navy)]">
                     Allowance
@@ -6255,7 +6368,7 @@ export default function Home() {
                         Document exports remaining
                       </p>
                       <p className="mt-1 text-xl font-semibold text-[var(--iseya-navy)]">
-                        {isProPlan(subscriptionPlan) ? "Unlimited" : resumeDownloadCredits}
+                        {isProPlan(displayedSubscriptionPlan) ? "Unlimited" : resumeDownloadCredits}
                       </p>
                     </div>
                     <div className="rounded-lg border border-white/70 bg-white p-3">
@@ -6263,7 +6376,7 @@ export default function Home() {
                         Optimization credits remaining
                       </p>
                       <p className="mt-1 text-xl font-semibold text-[var(--iseya-navy)]">
-                        {isProPlan(subscriptionPlan) ? "Unlimited" : optimizationCredits}
+                        {isProPlan(displayedSubscriptionPlan) ? "Unlimited" : optimizationCredits}
                       </p>
                     </div>
                   </div>
