@@ -4072,6 +4072,18 @@ export default function Home() {
   const canSaveAnotherVersion =
     canUseSubscriptionFeature(subscriptionPlan, "savedVersions") &&
     (isProPlan(subscriptionPlan) || savedVersions.length < savedVersionLimit);
+  const dashboardActivity = [
+    savedVersions.length > 0
+      ? `Last version saved: ${savedVersions[0].name}`
+      : "",
+    effectiveDownloadsUsed > 0
+      ? `${effectiveDownloadsUsed} resume download${effectiveDownloadsUsed === 1 ? "" : "s"} used`
+      : "",
+    effectiveOptimizationCreditsUsed > 0
+      ? `${effectiveOptimizationCreditsUsed} optimization credit${effectiveOptimizationCreditsUsed === 1 ? "" : "s"} used`
+      : "",
+    result ? `Active document score: ${Math.round(result.score)}%` : "",
+  ].filter(Boolean);
 
   const buildSavedState = useCallback((): SavedState => {
     return {
@@ -5642,23 +5654,127 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-[112rem] gap-5 px-5 py-6 sm:px-8 xl:grid-cols-[minmax(360px,0.92fr)_minmax(420px,1.08fr)]">
-        <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+      <section className="mx-auto max-w-[112rem] px-5 pt-6 sm:px-8">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+                Workspace Dashboard
+              </p>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-3xl">
+                Career document command center
+              </h1>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                Track your plan, usage, saved resume versions, and document readiness from one workspace.
+              </p>
+            </div>
+            <div className="rounded-full border border-[var(--iseya-gold)]/40 bg-[#FFF8E6] px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-navy)]">
+              {cloudSaveStatus || "Live workspace"}
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MiniAnalyticsCard
+              label="Active plan"
+              value={currentPlanLabel}
+              detail={currentSubscriptionStatusLabel}
+            />
+            <MiniAnalyticsCard
+              label="Downloads used"
+              value={String(effectiveDownloadsUsed)}
+              detail={Number.isFinite(downloadLimit) ? `${downloadLimit} included` : "Unlimited"}
+              progress={downloadProgressPercent}
+            />
+            <MiniAnalyticsCard
+              label="Credits remaining"
+              value={isProPlan(subscriptionPlan) ? "Unlimited" : String(optimizationCredits)}
+              detail={Number.isFinite(optimizationLimit) ? `${effectiveOptimizationCreditsUsed} used` : "Unlimited optimization"}
+              progress={optimizationProgressPercent}
+            />
+            <MiniAnalyticsCard
+              label="Saved versions"
+              value={String(activeSavedVersionsCount)}
+              detail={Number.isFinite(savedVersionLimit) ? `${savedVersionLimit} max` : "Unlimited"}
+              progress={savedVersionProgressPercent}
+            />
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
+                Recent Activity
+              </h2>
+              {authLoading || (authUser && cloudSaveStatus.toLowerCase().includes("loading")) ? (
+                <div className="mt-4 space-y-2">
+                  <div className="h-3 w-4/5 animate-pulse rounded-full bg-slate-200" />
+                  <div className="h-3 w-3/5 animate-pulse rounded-full bg-slate-200" />
+                  <div className="h-3 w-2/3 animate-pulse rounded-full bg-slate-200" />
+                </div>
+              ) : dashboardActivity.length > 0 ? (
+                <ul className="mt-3 grid gap-2 text-sm leading-6 text-slate-700 sm:grid-cols-2">
+                  {dashboardActivity.map((activity, index) => (
+                    <li
+                      key={`${activity}-${index}`}
+                      className="rounded-lg border border-white bg-white p-3 shadow-sm"
+                    >
+                      {activity}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm leading-6 text-slate-500">
+                  No recent activity yet. Tailor a resume, export a document, or save a version to start building your history.
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
+                Optimization Usage
+              </h2>
+              {effectiveOptimizationCreditsUsed > 0 ? (
+                <div className="mt-3">
+                  <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
+                    <span>{effectiveOptimizationCreditsUsed} used</span>
+                    <span>{Number.isFinite(optimizationLimit) ? `${optimizationLimit} included` : "Unlimited"}</span>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-slate-200">
+                    <div
+                      className="h-2 rounded-full bg-[var(--iseya-gold)] transition-all"
+                      style={{ width: `${optimizationProgressPercent}%` }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm leading-6 text-slate-500">
+                  No optimization history yet. Use Tailor Resume or AI Actions to spend credits.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto grid max-w-[112rem] gap-6 px-5 py-6 sm:px-8 lg:py-8 xl:grid-cols-[minmax(360px,0.92fr)_minmax(420px,1.08fr)]">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition sm:p-6">
           <label
             htmlFor="master-resume"
-            className="text-sm font-semibold text-[var(--iseya-navy)]"
+            className="text-base font-semibold text-[var(--iseya-navy)]"
           >
             Master Resume
           </label>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Paste your source resume or start from the neutral starter draft.
+          </p>
           <textarea
             id="master-resume"
             value={masterResume}
             onChange={(event) => setMasterResume(event.target.value)}
-            className="mt-3 min-h-[420px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+            className="mt-4 min-h-[360px] w-full resize-y rounded-lg border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6] lg:min-h-[460px]"
             placeholder="Paste your master resume here..."
           />
 
-          <section className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <section className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
@@ -6990,6 +7106,38 @@ function FeedbackButton({
     >
       {status ?? children}
     </button>
+  );
+}
+
+function MiniAnalyticsCard({
+  label,
+  value,
+  detail,
+  progress,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  progress?: number;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 truncate text-2xl font-semibold text-[var(--iseya-navy)]">
+        {value}
+      </p>
+      <p className="mt-1 text-xs font-medium text-slate-500">{detail}</p>
+      {typeof progress === "number" ? (
+        <div className="mt-3 h-2 rounded-full bg-slate-200">
+          <div
+            className="h-2 rounded-full bg-[var(--iseya-gold)] transition-all"
+            style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
