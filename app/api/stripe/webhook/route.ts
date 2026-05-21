@@ -75,6 +75,10 @@ function appendEventId(current: string[] | null | undefined, eventId: string) {
   return Array.from(new Set([...(current ?? []), eventId]));
 }
 
+function checkoutSessionMarker(sessionId: string) {
+  return `checkout_session:${sessionId}`;
+}
+
 async function findProfile({
   userId,
   customerId,
@@ -278,14 +282,19 @@ async function updateProfileFromCheckoutSession(
     return;
   }
 
-  if (alreadyProcessed(profile, eventId)) {
+  const sessionMarker = checkoutSessionMarker(session.id);
+
+  if (alreadyProcessed(profile, eventId) || alreadyProcessed(profile, sessionMarker)) {
     logWebhook("Checkout session event already processed.", {
       eventId,
     });
     return;
   }
 
-  const processedEvents = appendEventId(profile.processed_stripe_event_ids, eventId);
+  const processedEvents = appendEventId(
+    appendEventId(profile.processed_stripe_event_ids, eventId),
+    sessionMarker,
+  );
 
   if (session.mode === "payment" && plan === "plus") {
     const { error } = await supabase
@@ -295,7 +304,7 @@ async function updateProfileFromCheckoutSession(
         subscription_status: "active",
         stripe_customer_id: customerId,
         stripe_subscription_id: null,
-        resume_download_credits: (profile.resume_download_credits ?? 0) + 5,
+        resume_download_credits: (profile.resume_download_credits ?? 0) + 3,
         optimization_credits: (profile.optimization_credits ?? 0) + 15,
         processed_stripe_event_ids: processedEvents,
       })
@@ -320,7 +329,7 @@ async function updateProfileFromCheckoutSession(
 
     logWebhook("Plus profile update succeeded.", {
       eventId,
-      downloadsAdded: 5,
+      downloadsAdded: 3,
       optimizationCreditsAdded: 15,
       customerSaved: Boolean(customerId),
     });

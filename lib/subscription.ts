@@ -43,7 +43,7 @@ export const pricingPlans: PricingPlan[] = [
       "Cover letter export",
       "Multiple saved resume versions",
       "Priority exports",
-      "Unlimited downloads",
+      "Unlimited document exports",
     ],
   },
   {
@@ -53,7 +53,7 @@ export const pricingPlans: PricingPlan[] = [
     priceLabel: "$1.99",
     description: "A lightweight paid pack for a focused application push.",
     included: [
-      "5 premium resume downloads",
+      "3 premium document exports",
       "15 optimization credits",
       "LinkedIn profile optimization access",
       "Cover letter exports",
@@ -70,7 +70,7 @@ export const pricingPlans: PricingPlan[] = [
     description: "Full monthly access for active job search workflows.",
     badge: "Most Popular",
     included: [
-      "Unlimited resume downloads",
+      "Unlimited document exports",
       "Advanced optimization",
       "LinkedIn positioning tools",
       "Cover letter generation/export",
@@ -167,7 +167,7 @@ export function planDownloadLimit(plan: SubscriptionPlanId) {
   }
 
   if (plan === "plus") {
-    return 5;
+    return 3;
   }
 
   return 1;

@@ -4104,7 +4104,7 @@ export default function Home() {
       ? `Last version saved: ${savedVersions[0].name}`
       : "",
     effectiveDownloadsUsed > 0
-      ? `${effectiveDownloadsUsed} resume download${effectiveDownloadsUsed === 1 ? "" : "s"} used`
+      ? `${effectiveDownloadsUsed} document export${effectiveDownloadsUsed === 1 ? "" : "s"} used`
       : "",
     effectiveOptimizationCreditsUsed > 0
       ? `${effectiveOptimizationCreditsUsed} optimization credit${effectiveOptimizationCreditsUsed === 1 ? "" : "s"} used`
@@ -4698,7 +4698,7 @@ export default function Home() {
         return true;
       }
 
-      setSystemStatus("You have used your Plus downloads. Upgrade to Pro for unlimited downloads.");
+      setSystemStatus("You have used your Plus document exports. Upgrade to Pro for unlimited exports.");
       return false;
     }
 
@@ -4706,7 +4706,7 @@ export default function Home() {
       return true;
     }
 
-    setSystemStatus("Starter includes 1 free resume download. Upgrade to Plus or Pro for more downloads.");
+    setSystemStatus("Starter includes 1 free resume download. Upgrade to Plus or Pro for premium document exports.");
     return false;
   }
 
@@ -5695,7 +5695,7 @@ export default function Home() {
               detail={currentSubscriptionStatusLabel}
             />
             <MiniAnalyticsCard
-              label="Downloads used"
+              label="Document exports used"
               value={String(effectiveDownloadsUsed)}
               detail={Number.isFinite(downloadLimit) ? `${downloadLimit} included` : "Unlimited"}
               progress={downloadProgressPercent}
@@ -6241,7 +6241,7 @@ export default function Home() {
                     <li>✓ Neutral starter workspace available</li>
                   </ul>
                   <p className="mt-3 text-xs leading-5 text-slate-600">
-                    Upgrade for LinkedIn optimization, cover letters, saved versions, and more downloads.
+                    Upgrade for LinkedIn optimization, cover letters, saved versions, and premium document exports.
                   </p>
                 </div>
               ) : (
@@ -6252,7 +6252,7 @@ export default function Home() {
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-lg border border-white/70 bg-white p-3">
                       <p className="text-xs font-semibold text-slate-500">
-                        Downloads remaining
+                        Document exports remaining
                       </p>
                       <p className="mt-1 text-xl font-semibold text-[var(--iseya-navy)]">
                         {isProPlan(subscriptionPlan) ? "Unlimited" : resumeDownloadCredits}
@@ -6294,7 +6294,7 @@ export default function Home() {
               </div>
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                  Resume downloads used
+                  Document exports used
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-zinc-950">
                   {effectiveDownloadsUsed}

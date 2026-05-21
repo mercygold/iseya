@@ -85,7 +85,7 @@ export default function PricingPage() {
             <p className="mt-4 text-base leading-8 text-slate-600">
               Choose the level of career workspace access that fits your job
               search. Free users can draft and edit; paid plans unlock more
-              downloads, optimization, saved versions, and application materials.
+              document exports, optimization, saved versions, and application materials.
             </p>
           </div>
 

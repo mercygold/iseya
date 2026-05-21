@@ -128,7 +128,7 @@ ISEYA has subscription scaffolding for:
 - Pro Monthly / $7.99 per month
 - Pro Annual / $69 per year
 
-The `/pricing` page shows the planned plan structure. Stripe checkout and webhooks are not active yet, so no real payments are charged. Subscription profile fields are stored on `profiles`, and the app uses feature checks so Starter users keep basic resume editing and one resume download while paid plans can unlock more downloads, saved versions, AI credits, cover letters, LinkedIn kits, and application kits.
+The `/pricing` page shows the plan structure. Subscription profile fields are stored on `profiles`, and the app uses feature checks so Starter users keep basic resume editing and one resume download while paid plans can unlock premium document exports, saved versions, AI credits, cover letters, LinkedIn kits, and application kits.
 
 ## Deployment To Vercel
 
