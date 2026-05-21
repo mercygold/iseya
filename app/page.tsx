@@ -6,6 +6,13 @@ import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import type { Json } from "@/lib/database.types";
+import {
+  canUseSubscriptionFeature,
+  subscriptionLabel,
+  normalizeSubscriptionPlan,
+  type SubscriptionFeature,
+  type SubscriptionPlanId,
+} from "@/lib/subscription";
 import { useAuth } from "./auth/AuthProvider";
 
 const focusRingClass =
@@ -534,7 +541,6 @@ const restrictedSeedDataPatterns = [
   new RegExp(["jos", "hua"].join(""), "i"),
   new RegExp(["949", "510", "1667"].join(""), "i"),
   new RegExp(["mercy", "gold", "96"].join(""), "i"),
-  new RegExp(["jor", "mp\\s+llc"].join(""), "i"),
   new RegExp(["inves", "tofly"].join(""), "i"),
   new RegExp(["ja", "paul"].join(""), "i"),
 ];
@@ -3978,6 +3984,8 @@ export default function Home() {
   const [accountStatus, setAccountStatus] = useState("");
   const [systemStatus, setSystemStatus] = useState("");
   const [usageStats, setUsageStats] = useState<UsageStats>(defaultUsageStats);
+  const [subscriptionPlan, setSubscriptionPlan] = useState<SubscriptionPlanId>("free");
+  const [subscriptionStatus, setSubscriptionStatus] = useState("free");
   const [activeOutput, setActiveOutput] = useState<OutputTab>("resume");
   const [hydrated, setHydrated] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<Record<string, string>>({});
@@ -3994,6 +4002,7 @@ export default function Home() {
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const feedbackTimers = useRef<Record<string, number>>({});
   const previewTheme = previewThemes[theme];
+  const currentPlanLabel = subscriptionLabel(subscriptionPlan);
 
   const buildSavedState = useCallback((): SavedState => {
     return {
@@ -4190,6 +4199,47 @@ export default function Home() {
       applySavedState(starterSavedState());
     }, 0);
   }, [applySavedState, authLoaded, authUser?.id, starterSavedState]);
+
+  useEffect(() => {
+    if (!authLoaded || !supabase || !authUser) {
+      window.setTimeout(() => {
+        setSubscriptionPlan("free");
+        setSubscriptionStatus("free");
+      }, 0);
+      return;
+    }
+
+    let cancelled = false;
+    const activeSupabase = supabase;
+    const activeUserId = authUser.id;
+
+    async function loadSubscriptionProfile() {
+      const { data, error } = await activeSupabase
+        .from("profiles")
+        .select("subscription_plan, subscription_status")
+        .eq("id", activeUserId)
+        .maybeSingle();
+
+      if (cancelled) {
+        return;
+      }
+
+      if (error) {
+        setSubscriptionPlan("free");
+        setSubscriptionStatus("free");
+        return;
+      }
+
+      setSubscriptionPlan(normalizeSubscriptionPlan(data?.subscription_plan));
+      setSubscriptionStatus(data?.subscription_status || "free");
+    }
+
+    loadSubscriptionProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoaded, authUser, supabase]);
 
   useEffect(() => {
     if (!hydrated || !authLoaded || !supabase || !authUser) {
@@ -4476,6 +4526,33 @@ export default function Home() {
     [compareVersionIds, savedVersions],
   );
 
+  function requireSubscriptionFeature(feature: SubscriptionFeature, label: string) {
+    if (canUseSubscriptionFeature(subscriptionPlan, feature)) {
+      return true;
+    }
+
+    setSystemStatus(
+      `${label} is prepared for ISEYA Pro. Payments are not active yet, so no charge will be made.`,
+    );
+    return false;
+  }
+
+  function openOutputTab(tab: OutputTab) {
+    if (tab === "cover" && !requireSubscriptionFeature("coverLetter", "Cover letters")) {
+      return;
+    }
+
+    if (tab === "linkedin" && !requireSubscriptionFeature("linkedinProfile", "LinkedIn profiles")) {
+      return;
+    }
+
+    if (tab === "application" && !requireSubscriptionFeature("applicationKit", "Application kits")) {
+      return;
+    }
+
+    setActiveOutput(tab);
+  }
+
   function trackUsage(kind: "aiGenerations" | "exportsCreated") {
     setUsageStats((current) => {
       const normalized =
@@ -4594,6 +4671,10 @@ export default function Home() {
   }
 
   async function saveCurrentVersion() {
+    if (!requireSubscriptionFeature("savedVersions", "Saved versions")) {
+      return;
+    }
+
     const snapshot = currentVersionSnapshot();
 
     if (!snapshot) {
@@ -4721,6 +4802,10 @@ export default function Home() {
   }
 
   async function tailorResume() {
+    if (!requireSubscriptionFeature("aiGenerations", "AI resume tailoring")) {
+      return;
+    }
+
     setActiveOutput("resume");
     setTailorError("");
     setIsTailoring(true);
@@ -4782,6 +4867,10 @@ export default function Home() {
   }
 
   function generateCoverLetter() {
+    if (!requireSubscriptionFeature("coverLetter", "Cover letters")) {
+      return;
+    }
+
     setActiveOutput("cover");
     setResult((current) => {
       const nextResult =
@@ -4804,6 +4893,10 @@ export default function Home() {
   }
 
   function generateLinkedInProfile() {
+    if (!requireSubscriptionFeature("linkedinProfile", "LinkedIn profile generation")) {
+      return;
+    }
+
     setResult((current) => {
       const nextResult =
         current ?? buildTailoredResume(masterResume, jobDescription, targetRole);
@@ -4986,6 +5079,10 @@ export default function Home() {
   }
 
   async function downloadCoverLetterPdf() {
+    if (!requireSubscriptionFeature("exports", "Exports")) {
+      return;
+    }
+
     if (!result) {
       return;
     }
@@ -5006,6 +5103,10 @@ export default function Home() {
   }
 
   async function downloadCoverLetterDocx() {
+    if (!requireSubscriptionFeature("exports", "Exports")) {
+      return;
+    }
+
     if (!result) {
       return;
     }
@@ -5026,6 +5127,10 @@ export default function Home() {
   }
 
   function downloadCoverLetterTxt() {
+    if (!requireSubscriptionFeature("exports", "Exports")) {
+      return;
+    }
+
     if (!result) {
       return;
     }
@@ -5042,6 +5147,10 @@ export default function Home() {
   }
 
   async function downloadResumePdf() {
+    if (!requireSubscriptionFeature("exports", "Exports")) {
+      return;
+    }
+
     if (!result) {
       return;
     }
@@ -5061,6 +5170,10 @@ export default function Home() {
   }
 
   async function downloadResumeDocx() {
+    if (!requireSubscriptionFeature("exports", "Exports")) {
+      return;
+    }
+
     if (!result) {
       return;
     }
@@ -5080,6 +5193,10 @@ export default function Home() {
   }
 
   async function downloadLinkedInKitPdf() {
+    if (!requireSubscriptionFeature("exports", "Exports")) {
+      return;
+    }
+
     if (!result) {
       return;
     }
@@ -5098,6 +5215,10 @@ export default function Home() {
   }
 
   async function downloadLinkedInKitDocx() {
+    if (!requireSubscriptionFeature("exports", "Exports")) {
+      return;
+    }
+
     if (!result) {
       return;
     }
@@ -5116,6 +5237,10 @@ export default function Home() {
   }
 
   async function downloadApplicationKitPdf() {
+    if (!requireSubscriptionFeature("exports", "Exports")) {
+      return;
+    }
+
     if (!result) {
       return;
     }
@@ -5134,6 +5259,10 @@ export default function Home() {
   }
 
   async function downloadApplicationKitDocx() {
+    if (!requireSubscriptionFeature("exports", "Exports")) {
+      return;
+    }
+
     if (!result) {
       return;
     }
@@ -5661,6 +5790,27 @@ export default function Home() {
           </section>
 
           <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+            <div className="mb-5 rounded-md border border-[var(--iseya-gold)]/40 bg-[#FFF8E6] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+                    Subscription
+                  </p>
+                  <h2 className="mt-1 text-sm font-semibold text-[var(--iseya-navy)]">
+                    {currentPlanLabel}
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Status: {subscriptionStatus}. Basic resume editing is available on Free.
+                  </p>
+                </div>
+                <Link
+                  href="/pricing"
+                  className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
+                >
+                  View Plans
+                </Link>
+              </div>
+            </div>
             <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">Usage</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
@@ -5981,9 +6131,7 @@ export default function Home() {
                   <button
                     key={id}
                     type="button"
-                    onClick={() =>
-                      setActiveOutput(id as OutputTab)
-                    }
+                    onClick={() => openOutputTab(id as OutputTab)}
                     className={`${buttonBaseClass} ${buttonSizeMdClass} ${
                       activeOutput === id
                         ? "border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]"
@@ -6115,6 +6263,10 @@ export default function Home() {
                           onPersonalBrandingChange={updatePersonalBranding}
                           onProfileImage={handleProfileImage}
                           onResumeTextChange={updateResumeOutput}
+                          canUseAiOptimization={canUseSubscriptionFeature(subscriptionPlan, "aiGenerations")}
+                          onUpgradeRequired={() =>
+                            requireSubscriptionFeature("aiGenerations", "AI section optimization")
+                          }
                         />
                       </div>
 	                      <div
@@ -6463,6 +6615,8 @@ function ModularResumeEditor({
   onPersonalBrandingChange,
   onProfileImage,
   onResumeTextChange,
+  canUseAiOptimization,
+  onUpgradeRequired,
 }: {
   resumeText: string;
   resetSourceText: string;
@@ -6476,6 +6630,8 @@ function ModularResumeEditor({
   onPersonalBrandingChange: (field: keyof PersonalBranding, value: string) => void;
   onProfileImage: (file: File | undefined) => void;
   onResumeTextChange: (value: string) => void;
+  canUseAiOptimization: boolean;
+  onUpgradeRequired: () => boolean;
 }) {
   const [optimizingKey, setOptimizingKey] = useState("");
   const [optimizationStatus, setOptimizationStatus] = useState("");
@@ -6504,6 +6660,12 @@ function ModularResumeEditor({
 
     if (!cleaned) {
       setOptimizationStatus("Add content before optimizing this section.");
+      return "";
+    }
+
+    if (!canUseAiOptimization) {
+      onUpgradeRequired();
+      setOptimizationStatus("AI section optimization is prepared for ISEYA Pro.");
       return "";
     }
 

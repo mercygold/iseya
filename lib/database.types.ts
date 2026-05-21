@@ -14,6 +14,10 @@ export type Database = {
           id: string;
           email: string | null;
           full_name: string | null;
+          subscription_status: string;
+          subscription_plan: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -21,6 +25,10 @@ export type Database = {
           id: string;
           email?: string | null;
           full_name?: string | null;
+          subscription_status?: string;
+          subscription_plan?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -28,6 +36,10 @@ export type Database = {
           id?: string;
           email?: string | null;
           full_name?: string | null;
+          subscription_status?: string;
+          subscription_plan?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -14,6 +14,10 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
   full_name text,
+  subscription_status text not null default 'free',
+  subscription_plan text not null default 'free',
+  stripe_customer_id text,
+  stripe_subscription_id text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -94,11 +98,19 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, full_name)
+  insert into public.profiles (
+    id,
+    email,
+    full_name,
+    subscription_status,
+    subscription_plan
+  )
   values (
     new.id,
     new.email,
-    coalesce(new.raw_user_meta_data->>'full_name', '')
+    coalesce(new.raw_user_meta_data->>'full_name', ''),
+    'free',
+    'free'
   )
   on conflict (id) do update
     set email = excluded.email,
@@ -282,6 +294,12 @@ create policy "ai_generations_delete_own"
 
 create index if not exists profiles_email_idx
   on public.profiles(email);
+
+create index if not exists profiles_subscription_plan_idx
+  on public.profiles(subscription_plan);
+
+create index if not exists profiles_stripe_customer_idx
+  on public.profiles(stripe_customer_id);
 
 create index if not exists resumes_user_id_idx
   on public.resumes(user_id);

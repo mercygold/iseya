@@ -25,9 +25,12 @@ NEXT_PUBLIC_APP_URL=https://iseya.jormp.com
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_your_key
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_your_key
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 ```
 
-`OPENAI_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are server-only. Do not create `NEXT_PUBLIC_OPENAI_API_KEY`, and do not commit real keys.
+`OPENAI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, and `STRIPE_WEBHOOK_SECRET` are server-only. Do not create `NEXT_PUBLIC_OPENAI_API_KEY`, and do not commit real keys.
 
 Run the app:
 
@@ -111,6 +114,16 @@ Auth redirects should be configured in Supabase Authentication URL settings:
 
 Local fallback remains active when Supabase is not configured or when the user is signed out.
 
+## Subscription Infrastructure
+
+ISEYA has subscription scaffolding for:
+
+- Free
+- Pro Monthly
+- Pro Annual
+
+The `/pricing` page is a placeholder. Stripe checkout and webhooks are not active yet, so no real payments are charged. Subscription profile fields are stored on `profiles`, and the app uses feature checks so Free accounts keep basic resume editing while Pro accounts can be granted exports, saved versions, AI credits, cover letters, LinkedIn kits, and application kits.
+
 ## Deployment To Vercel
 
 1. Push the repository to GitHub.
@@ -122,6 +135,9 @@ Local fallback remains active when Supabase is not configured or when the user i
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
+   - `STRIPE_SECRET_KEY`
+   - `STRIPE_WEBHOOK_SECRET`
+   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
 4. Deploy.
 5. Confirm `/login`, `/signup`, `/workspace`, `/api/tailor`, and `/api/extract` work in production.
 
