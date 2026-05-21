@@ -54,13 +54,9 @@ function publicConfigError(devMessage: string): SupabaseConfigResult {
   };
 }
 
-export function getSupabasePublicConfigFromEnv(env: {
-  NEXT_PUBLIC_SUPABASE_URL?: string;
-  NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
-  NEXT_PUBLIC_SUPABASE_ANON_KE?: string;
-}): SupabaseConfigResult {
-  const url = cleanEnvValue(env.NEXT_PUBLIC_SUPABASE_URL);
-  const anonKey = cleanEnvValue(env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+export function getSupabasePublicConfigStatus(): SupabaseConfigResult {
+  const url = cleanEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const anonKey = cleanEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
   if (!url) {
     return publicConfigError(
@@ -69,11 +65,8 @@ export function getSupabasePublicConfigFromEnv(env: {
   }
 
   if (!anonKey) {
-    const typoKey = cleanEnvValue(env.NEXT_PUBLIC_SUPABASE_ANON_KE);
     return publicConfigError(
-      typoKey
-        ? "Missing NEXT_PUBLIC_SUPABASE_ANON_KEY. Found NEXT_PUBLIC_SUPABASE_ANON_KE; rename it to NEXT_PUBLIC_SUPABASE_ANON_KEY, then restart or redeploy."
-        : "Missing NEXT_PUBLIC_SUPABASE_ANON_KEY. Add it in your environment variables, then restart or redeploy.",
+      "Missing NEXT_PUBLIC_SUPABASE_ANON_KEY. Add it in your environment variables, then restart or redeploy.",
     );
   }
 
@@ -95,12 +88,20 @@ export function getSupabasePublicConfigFromEnv(env: {
   };
 }
 
-export function getSupabasePublicConfigStatus() {
-  return getSupabasePublicConfigFromEnv({
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    NEXT_PUBLIC_SUPABASE_ANON_KE: process.env.NEXT_PUBLIC_SUPABASE_ANON_KE,
-  });
+export function getSupabasePublicEnvDebug() {
+  const url = cleanEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const anonKey = cleanEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+  return {
+    hasSupabaseUrl: Boolean(url),
+    hasSupabaseAnonKey: Boolean(anonKey),
+    supabaseUrlShapeOk: Boolean(url && isLikelySupabaseUrl(url)),
+    supabaseAnonKeyShapeOk: Boolean(anonKey && !/\s/.test(anonKey) && isLikelyPublishableKey(anonKey)),
+  };
+}
+
+export function getSupabasePublicConfigFromEnv() {
+  return getSupabasePublicEnvDebug();
 }
 
 export function getAppBaseUrl() {

@@ -14,6 +14,7 @@ import {
   createSupabaseBrowserClient,
   getSupabaseBrowserConfigMessage,
 } from "@/lib/supabaseClient";
+import { getSupabasePublicEnvDebug } from "@/lib/supabaseConfig";
 
 type AuthContextValue = {
   user: User | null;
@@ -21,6 +22,7 @@ type AuthContextValue = {
   loading: boolean;
   error: string;
   isConfigured: boolean;
+  publicEnvDebug: ReturnType<typeof getSupabasePublicEnvDebug>;
   signUp: (input: {
     email: string;
     password: string;
@@ -38,6 +40,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const publicEnvDebug = useMemo(() => getSupabasePublicEnvDebug(), []);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(() => Boolean(supabase));
@@ -293,6 +296,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       isConfigured: Boolean(supabase),
+      publicEnvDebug,
       signUp,
       login,
       logout,
@@ -300,7 +304,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updatePassword,
       clearError: () => setError(""),
     }),
-    [error, loading, login, logout, resetPassword, session, signUp, supabase, updatePassword, user],
+    [error, loading, login, logout, publicEnvDebug, resetPassword, session, signUp, supabase, updatePassword, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { getSupabasePublicConfigFromEnv } from "./lib/supabaseConfig";
+import { getSupabasePublicConfigStatus } from "./lib/supabaseConfig";
 
 const protectedRoutes = ["/dashboard", "/workspace"];
 const authRoutes = ["/login", "/signup"];
@@ -9,10 +9,7 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
-  const config = getSupabasePublicConfigFromEnv({
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  });
+  const config = getSupabasePublicConfigStatus();
 
   if (!config.ok) {
     if (isProtected) {
