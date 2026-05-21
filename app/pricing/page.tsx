@@ -1,8 +1,54 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import { pricingPlans } from "@/lib/subscription";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { pricingPlans, type SubscriptionPlanId } from "@/lib/subscription";
 
 export default function PricingPage() {
+  const router = useRouter();
+  const [checkoutPlan, setCheckoutPlan] = useState("");
+  const [checkoutStatus, setCheckoutStatus] = useState("");
+
+  async function startCheckout(planId: SubscriptionPlanId) {
+    if (planId === "free") {
+      return;
+    }
+
+    setCheckoutPlan(planId);
+    setCheckoutStatus("");
+
+    try {
+      const response = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: planId }),
+      });
+
+      if (response.status === 401) {
+        router.push("/login?redirectedFrom=/pricing");
+        return;
+      }
+
+      const data = (await response.json()) as { url?: string; error?: string };
+
+      if (!response.ok || !data.url) {
+        throw new Error(data.error || "Checkout could not be started.");
+      }
+
+      window.location.assign(data.url);
+    } catch (error) {
+      setCheckoutStatus(
+        error instanceof Error
+          ? error.message
+          : "Checkout could not be started.",
+      );
+    } finally {
+      setCheckoutPlan("");
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <header className="iseya-header text-white">
@@ -87,7 +133,8 @@ export default function PricingPage() {
 
                 <button
                   type="button"
-                  disabled={plan.id === "free"}
+                  disabled={plan.id === "free" || Boolean(checkoutPlan)}
+                  onClick={() => startCheckout(plan.id)}
                   className={`mt-8 min-h-11 w-full rounded-md border px-4 py-2 text-sm font-bold transition hover:shadow-md disabled:cursor-not-allowed disabled:hover:shadow-none ${
                     plan.id === "free"
                       ? "border-slate-200 bg-slate-100 text-slate-500"
@@ -96,11 +143,17 @@ export default function PricingPage() {
                       : "border-[var(--iseya-navy)] bg-white text-[var(--iseya-navy)] hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]"
                   }`}
                 >
-                  {planButtonLabel(plan.id)}
+                  {checkoutPlan === plan.id ? "Starting checkout..." : planButtonLabel(plan.id)}
                 </button>
               </section>
             ))}
           </div>
+
+          {checkoutStatus ? (
+            <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">
+              {checkoutStatus}
+            </p>
+          ) : null}
 
           <p className="mt-8 max-w-3xl text-sm leading-7 text-slate-600">
             Secure checkout powered by Stripe.

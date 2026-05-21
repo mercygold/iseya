@@ -28,6 +28,9 @@ SUPABASE_SERVICE_ROLE_KEY=sb_secret_your_key
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+STRIPE_PLUS_PRICE_ID=
+STRIPE_PRO_MONTHLY_PRICE_ID=
+STRIPE_PRO_ANNUAL_PRICE_ID=
 ```
 
 `OPENAI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, and `STRIPE_WEBHOOK_SECRET` are server-only. Do not create `NEXT_PUBLIC_OPENAI_API_KEY`, and do not commit real keys.
@@ -139,6 +142,9 @@ The `/pricing` page shows the planned plan structure. Stripe checkout and webhoo
    - `STRIPE_SECRET_KEY`
    - `STRIPE_WEBHOOK_SECRET`
    - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+   - `STRIPE_PLUS_PRICE_ID`
+   - `STRIPE_PRO_MONTHLY_PRICE_ID`
+   - `STRIPE_PRO_ANNUAL_PRICE_ID`
 4. Deploy.
 5. Confirm `/login`, `/signup`, `/workspace`, `/api/tailor`, and `/api/extract` work in production.
 
