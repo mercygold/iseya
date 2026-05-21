@@ -57,6 +57,10 @@ export async function POST(request: Request) {
 
   const stripe = new Stripe(stripeSecretKey);
   const appUrl = getAppBaseUrl();
+  const metadata = {
+    user_id: user.id,
+    plan: body.plan,
+  };
   const session = await stripe.checkout.sessions.create({
     mode: plan.mode,
     line_items: [
@@ -69,10 +73,18 @@ export async function POST(request: Request) {
     cancel_url: `${appUrl}/pricing`,
     customer_email: user.email ?? undefined,
     client_reference_id: user.id,
-    metadata: {
-      user_id: user.id,
-      plan: body.plan,
-    },
+    metadata,
+    ...(plan.mode === "subscription"
+      ? {
+          subscription_data: {
+            metadata,
+          },
+        }
+      : {
+          payment_intent_data: {
+            metadata,
+          },
+        }),
   });
 
   if (!session.url) {

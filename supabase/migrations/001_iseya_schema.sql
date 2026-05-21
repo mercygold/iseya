@@ -18,6 +18,9 @@ create table if not exists public.profiles (
   subscription_plan text not null default 'free',
   stripe_customer_id text,
   stripe_subscription_id text,
+  resume_download_credits integer not null default 0,
+  optimization_credits integer not null default 0,
+  processed_stripe_event_ids text[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
