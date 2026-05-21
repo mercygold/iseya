@@ -78,9 +78,11 @@ function appendEventId(current: string[] | null | undefined, eventId: string) {
 async function findProfile({
   userId,
   customerId,
+  email,
 }: {
   userId?: string | null;
   customerId?: string | null;
+  email?: string | null;
 }) {
   const supabase = createSupabaseServiceRoleClient();
 
@@ -141,7 +143,41 @@ async function findProfile({
     }
   }
 
+  if (email) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, resume_download_credits, optimization_credits, processed_stripe_event_ids")
+      .eq("email", email)
+      .maybeSingle();
+
+    logWebhook("Supabase profile lookup result.", {
+      lookup: "email",
+      lookupValueExists: true,
+      profileFound: Boolean(data),
+      error: Boolean(error),
+    });
+
+    if (error) {
+      logWebhookError("Profile lookup by email failed.", {
+        code: error.code,
+        message: error.message,
+      });
+    }
+
+    if (data) {
+      return { supabase, profile: data };
+    }
+  }
+
   return { supabase, profile: null };
+}
+
+function planFromMetadata(value: string | null | undefined): PaidPlan | null {
+  if (value === "plus" || value === "pro_monthly" || value === "pro_annual") {
+    return value;
+  }
+
+  return null;
 }
 
 function alreadyProcessed(profile: ProfileEntitlements, eventId: string) {
@@ -190,18 +226,28 @@ async function updateProfileFromCheckoutSession(
   const customerId = stringId(session.customer);
   const subscriptionId = stringId(session.subscription);
   const metadataPlan = session.metadata?.plan ?? null;
-  const plan = metadataPlan === "plus" ? "plus" : planFromPriceId(null);
+  const customerEmail =
+    session.metadata?.user_email ||
+    session.customer_details?.email ||
+    session.customer_email ||
+    null;
+  const plan = planFromMetadata(metadataPlan);
 
   logWebhook("checkout.session.completed received.", {
     eventId,
     mode: session.mode,
     metadataPlan,
     metadataUserIdExists: Boolean(userId),
+    metadataEmailExists: Boolean(customerEmail),
     customerExists: Boolean(customerId),
     subscriptionExists: Boolean(subscriptionId),
   });
 
-  const { supabase, profile: foundProfile } = await findProfile({ userId, customerId });
+  const { supabase, profile: foundProfile } = await findProfile({
+    userId,
+    customerId,
+    email: customerEmail,
+  });
 
   if (!supabase) {
     logWebhookError("Checkout session update skipped because Supabase is unavailable.", {
@@ -216,6 +262,7 @@ async function updateProfileFromCheckoutSession(
   logWebhook("Checkout profile resolution result.", {
     eventId,
     metadataUserIdExists: Boolean(userId),
+    metadataEmailExists: Boolean(customerEmail),
     profileFound: Boolean(profile),
     usedExistingProfile: Boolean(foundProfile),
   });
@@ -224,6 +271,7 @@ async function updateProfileFromCheckoutSession(
     logWebhookError("Checkout session update skipped because no profile was found.", {
       eventId,
       metadataUserIdExists: Boolean(userId),
+      metadataEmailExists: Boolean(customerEmail),
       customerExists: Boolean(customerId),
       plan: metadataPlan,
     });
@@ -233,7 +281,6 @@ async function updateProfileFromCheckoutSession(
   if (alreadyProcessed(profile, eventId)) {
     logWebhook("Checkout session event already processed.", {
       eventId,
-      profileId: profile.id,
     });
     return;
   }
@@ -280,11 +327,8 @@ async function updateProfileFromCheckoutSession(
     return;
   }
 
-  if (session.mode === "subscription") {
-    const subscriptionPlan =
-      session.metadata?.plan === "pro_monthly" || session.metadata?.plan === "pro_annual"
-        ? session.metadata.plan
-        : "pro_monthly";
+  if (session.mode === "subscription" && (plan === "pro_monthly" || plan === "pro_annual")) {
+    const subscriptionPlan = plan;
 
     const { error } = await supabase
       .from("profiles")
@@ -318,16 +362,25 @@ async function updateProfileFromCheckoutSession(
       eventId,
       plan: subscriptionPlan,
     });
+    return;
   }
+
+  logWebhookError("Checkout session completed with unsupported plan or mode.", {
+    eventId,
+    mode: session.mode,
+    metadataPlan,
+  });
 }
 
 async function updateProfileFromSubscription(eventId: string, subscription: Stripe.Subscription) {
   const customerId = stringId(subscription.customer);
   const subscriptionId = subscription.id;
   const priceId = subscription.items.data[0]?.price.id;
-  const plan = planFromPriceId(priceId) ?? "pro_monthly";
+  const metadataPlan = planFromMetadata(subscription.metadata?.plan);
+  const plan = metadataPlan ?? planFromPriceId(priceId) ?? "pro_monthly";
   const userId = subscription.metadata?.user_id;
-  const { supabase, profile } = await findProfile({ userId, customerId });
+  const userEmail = subscription.metadata?.user_email ?? null;
+  const { supabase, profile } = await findProfile({ userId, customerId, email: userEmail });
 
   if (!supabase || !profile || alreadyProcessed(profile, eventId)) {
     logWebhook("Subscription event skipped.", {
@@ -351,7 +404,6 @@ async function updateProfileFromSubscription(eventId: string, subscription: Stri
   if (error) {
     logWebhookError("Subscription profile update failed.", {
       eventId,
-      profileId: profile.id,
       code: error.code,
       message: error.message,
     });
@@ -360,7 +412,6 @@ async function updateProfileFromSubscription(eventId: string, subscription: Stri
 
   logWebhook("Subscription profile update succeeded.", {
     eventId,
-    profileId: profile.id,
     plan,
     status: subscription.status,
   });
@@ -381,7 +432,8 @@ async function updateProfileFromInvoice(
 ) {
   const customerId = stringId(invoice.customer);
   const subscriptionId = invoiceSubscriptionId(invoice);
-  const { supabase, profile } = await findProfile({ customerId });
+  const customerEmail = invoice.customer_email || null;
+  const { supabase, profile } = await findProfile({ customerId, email: customerEmail });
 
   if (!supabase || !profile || alreadyProcessed(profile, eventId)) {
     logWebhook("Invoice event skipped.", {
@@ -404,7 +456,6 @@ async function updateProfileFromInvoice(
   if (error) {
     logWebhookError("Invoice profile update failed.", {
       eventId,
-      profileId: profile.id,
       code: error.code,
       message: error.message,
     });
@@ -413,7 +464,6 @@ async function updateProfileFromInvoice(
 
   logWebhook("Invoice profile update succeeded.", {
     eventId,
-    profileId: profile.id,
     status,
   });
 }
