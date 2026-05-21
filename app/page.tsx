@@ -4253,9 +4253,11 @@ export default function Home() {
     }
 
     loadSubscriptionProfile();
+    const refreshInterval = window.setInterval(loadSubscriptionProfile, 7000);
 
     return () => {
       cancelled = true;
+      window.clearInterval(refreshInterval);
     };
   }, [authLoaded, authUser, supabase]);
 

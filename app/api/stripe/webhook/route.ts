@@ -22,6 +22,17 @@ function stripe() {
   return stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 }
 
+function logWebhook(message: string, details?: Record<string, string | number | boolean | null>) {
+  console.log("[stripe-webhook]", message, details ?? {});
+}
+
+function logWebhookError(
+  message: string,
+  details?: Record<string, string | number | boolean | null>,
+) {
+  console.error("[stripe-webhook]", message, details ?? {});
+}
+
 function priceIdForPlan(plan: PaidPlan) {
   const envByPlan: Record<PaidPlan, string> = {
     plus: "STRIPE_PLUS_PRICE_ID",
@@ -74,15 +85,24 @@ async function findProfile({
   const supabase = createSupabaseServiceRoleClient();
 
   if (!supabase) {
+    logWebhookError("Supabase service-role client is unavailable.");
     return { supabase: null, profile: null };
   }
 
   if (userId) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select("id, resume_download_credits, optimization_credits, processed_stripe_event_ids")
       .eq("id", userId)
       .maybeSingle();
+
+    if (error) {
+      logWebhookError("Profile lookup by user id failed.", {
+        userId,
+        code: error.code,
+        message: error.message,
+      });
+    }
 
     if (data) {
       return { supabase, profile: data };
@@ -90,11 +110,19 @@ async function findProfile({
   }
 
   if (customerId) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select("id, resume_download_credits, optimization_credits, processed_stripe_event_ids")
       .eq("stripe_customer_id", customerId)
       .maybeSingle();
+
+    if (error) {
+      logWebhookError("Profile lookup by Stripe customer id failed.", {
+        customerId,
+        code: error.code,
+        message: error.message,
+      });
+    }
 
     if (data) {
       return { supabase, profile: data };
@@ -108,6 +136,40 @@ function alreadyProcessed(profile: ProfileEntitlements, eventId: string) {
   return (profile.processed_stripe_event_ids ?? []).includes(eventId);
 }
 
+async function ensureProfileForCheckoutSession(
+  supabase: NonNullable<ReturnType<typeof createSupabaseServiceRoleClient>>,
+  session: Stripe.Checkout.Session,
+) {
+  const userId = session.metadata?.user_id || session.client_reference_id;
+
+  if (!userId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert(
+      {
+        id: userId,
+        email: session.metadata?.user_email || session.customer_email || null,
+      },
+      { onConflict: "id", ignoreDuplicates: true },
+    )
+    .select("id, resume_download_credits, optimization_credits, processed_stripe_event_ids")
+    .single();
+
+  if (error) {
+    logWebhookError("Profile upsert for checkout session failed.", {
+      userId,
+      code: error.code,
+      message: error.message,
+    });
+    return null;
+  }
+
+  return data;
+}
+
 async function updateProfileFromCheckoutSession(
   eventId: string,
   session: Stripe.Checkout.Session,
@@ -116,16 +178,40 @@ async function updateProfileFromCheckoutSession(
   const customerId = stringId(session.customer);
   const subscriptionId = stringId(session.subscription);
   const plan = session.metadata?.plan === "plus" ? "plus" : planFromPriceId(null);
-  const { supabase, profile } = await findProfile({ userId, customerId });
+  const { supabase, profile: foundProfile } = await findProfile({ userId, customerId });
 
-  if (!supabase || !profile || alreadyProcessed(profile, eventId)) {
+  if (!supabase) {
+    logWebhookError("Checkout session update skipped because Supabase is unavailable.", {
+      eventId,
+      plan: session.metadata?.plan ?? null,
+    });
+    return;
+  }
+
+  const profile = foundProfile ?? (await ensureProfileForCheckoutSession(supabase, session));
+
+  if (!profile) {
+    logWebhookError("Checkout session update skipped because no profile was found.", {
+      eventId,
+      userId: userId ?? null,
+      customerId,
+      plan: session.metadata?.plan ?? null,
+    });
+    return;
+  }
+
+  if (alreadyProcessed(profile, eventId)) {
+    logWebhook("Checkout session event already processed.", {
+      eventId,
+      profileId: profile.id,
+    });
     return;
   }
 
   const processedEvents = appendEventId(profile.processed_stripe_event_ids, eventId);
 
   if (session.mode === "payment" && plan === "plus") {
-    await supabase
+    const { error } = await supabase
       .from("profiles")
       .update({
         subscription_plan: "plus",
@@ -137,6 +223,24 @@ async function updateProfileFromCheckoutSession(
         processed_stripe_event_ids: processedEvents,
       })
       .eq("id", profile.id);
+
+    if (error) {
+      logWebhookError("Plus profile update failed.", {
+        eventId,
+        profileId: profile.id,
+        code: error.code,
+        message: error.message,
+      });
+      return;
+    }
+
+    logWebhook("Plus profile update succeeded.", {
+      eventId,
+      profileId: profile.id,
+      downloadsAdded: 5,
+      optimizationCreditsAdded: 15,
+      customerSaved: Boolean(customerId),
+    });
     return;
   }
 
@@ -146,7 +250,7 @@ async function updateProfileFromCheckoutSession(
         ? session.metadata.plan
         : "pro_monthly";
 
-    await supabase
+    const { error } = await supabase
       .from("profiles")
       .update({
         subscription_plan: subscriptionPlan,
@@ -156,6 +260,22 @@ async function updateProfileFromCheckoutSession(
         processed_stripe_event_ids: processedEvents,
       })
       .eq("id", profile.id);
+
+    if (error) {
+      logWebhookError("Subscription checkout profile update failed.", {
+        eventId,
+        profileId: profile.id,
+        code: error.code,
+        message: error.message,
+      });
+      return;
+    }
+
+    logWebhook("Subscription checkout profile update succeeded.", {
+      eventId,
+      profileId: profile.id,
+      plan: subscriptionPlan,
+    });
   }
 }
 
@@ -168,10 +288,14 @@ async function updateProfileFromSubscription(eventId: string, subscription: Stri
   const { supabase, profile } = await findProfile({ userId, customerId });
 
   if (!supabase || !profile || alreadyProcessed(profile, eventId)) {
+    logWebhook("Subscription event skipped.", {
+      eventId,
+      reason: !supabase ? "missing_supabase" : !profile ? "missing_profile" : "already_processed",
+    });
     return;
   }
 
-  await supabase
+  const { error } = await supabase
     .from("profiles")
     .update({
       subscription_plan: subscription.status === "canceled" ? "free" : plan,
@@ -181,6 +305,23 @@ async function updateProfileFromSubscription(eventId: string, subscription: Stri
       processed_stripe_event_ids: appendEventId(profile.processed_stripe_event_ids, eventId),
     })
     .eq("id", profile.id);
+
+  if (error) {
+    logWebhookError("Subscription profile update failed.", {
+      eventId,
+      profileId: profile.id,
+      code: error.code,
+      message: error.message,
+    });
+    return;
+  }
+
+  logWebhook("Subscription profile update succeeded.", {
+    eventId,
+    profileId: profile.id,
+    plan,
+    status: subscription.status,
+  });
 }
 
 function invoiceSubscriptionId(invoice: Stripe.Invoice) {
@@ -201,10 +342,14 @@ async function updateProfileFromInvoice(
   const { supabase, profile } = await findProfile({ customerId });
 
   if (!supabase || !profile || alreadyProcessed(profile, eventId)) {
+    logWebhook("Invoice event skipped.", {
+      eventId,
+      reason: !supabase ? "missing_supabase" : !profile ? "missing_profile" : "already_processed",
+    });
     return;
   }
 
-  await supabase
+  const { error } = await supabase
     .from("profiles")
     .update({
       subscription_status: status,
@@ -213,6 +358,22 @@ async function updateProfileFromInvoice(
       processed_stripe_event_ids: appendEventId(profile.processed_stripe_event_ids, eventId),
     })
     .eq("id", profile.id);
+
+  if (error) {
+    logWebhookError("Invoice profile update failed.", {
+      eventId,
+      profileId: profile.id,
+      code: error.code,
+      message: error.message,
+    });
+    return;
+  }
+
+  logWebhook("Invoice profile update succeeded.", {
+    eventId,
+    profileId: profile.id,
+    status,
+  });
 }
 
 export async function POST(request: Request) {
@@ -221,10 +382,12 @@ export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
 
   if (!stripeClient || !webhookSecret) {
+    logWebhookError("Webhook is not configured.");
     return Response.json({ error: "Webhook is not configured." }, { status: 503 });
   }
 
   if (!signature) {
+    logWebhookError("Webhook request missing Stripe signature.");
     return Response.json({ error: "Missing Stripe signature." }, { status: 400 });
   }
 
@@ -234,8 +397,14 @@ export async function POST(request: Request) {
   try {
     event = stripeClient.webhooks.constructEvent(rawBody, signature, webhookSecret);
   } catch {
+    logWebhookError("Webhook signature verification failed.");
     return Response.json({ error: "Invalid Stripe signature." }, { status: 400 });
   }
+
+  logWebhook("Event received.", {
+    eventId: event.id,
+    type: event.type,
+  });
 
   switch (event.type) {
     case "checkout.session.completed":

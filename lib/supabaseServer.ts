@@ -5,7 +5,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   cleanSupabaseEnvValue,
   getSupabasePublicConfigStatus,
-  isLikelySupabaseServiceRoleKey,
   type SupabasePublicConfig,
 } from "./supabaseConfig";
 
@@ -62,7 +61,7 @@ export function createSupabaseServiceRoleClient(): SupabaseClient | null {
     !publicConfig.ok ||
     !serviceRoleKey ||
     /\s/.test(serviceRoleKey) ||
-    !isLikelySupabaseServiceRoleKey(serviceRoleKey)
+    serviceRoleKey.startsWith("sb_publishable_")
   ) {
     return null;
   }
