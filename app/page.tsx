@@ -4072,6 +4072,33 @@ export default function Home() {
   const canSaveAnotherVersion =
     canUseSubscriptionFeature(subscriptionPlan, "savedVersions") &&
     (isProPlan(subscriptionPlan) || savedVersions.length < savedVersionLimit);
+  const hasCoverLetterAccess = canUseSubscriptionFeature(subscriptionPlan, "coverLetter");
+  const hasLinkedInAccess = canUseSubscriptionFeature(subscriptionPlan, "linkedinProfile");
+  const hasApplicationKitAccess = canUseSubscriptionFeature(subscriptionPlan, "applicationKit");
+  const premiumPreviewResult = useMemo(
+    () => buildTailoredResume(sampleResume, sampleJob, "Product Manager"),
+    [],
+  );
+  const premiumPreviewPackage = useMemo(
+    () =>
+      buildApplicationPackage({
+        resumeText: premiumPreviewResult.rewrittenResume,
+        targetRole: "Product Manager",
+        industryTarget: "General / ATS",
+        jobDescription: sampleJob,
+        coach: premiumPreviewResult.coach,
+      }),
+    [premiumPreviewResult],
+  );
+  const panelCoverLetter = hasCoverLetterAccess
+    ? result?.coverLetter ?? premiumPreviewResult.coverLetter
+    : premiumPreviewResult.coverLetter;
+  const panelLinkedIn = hasLinkedInAccess
+    ? result?.linkedin ?? premiumPreviewPackage.linkedin
+    : premiumPreviewPackage.linkedin;
+  const panelApplicationKit = hasApplicationKitAccess
+    ? result?.applicationKit ?? premiumPreviewPackage.applicationKit
+    : premiumPreviewPackage.applicationKit;
   const dashboardActivity = [
     savedVersions.length > 0
       ? `Last version saved: ${savedVersions[0].name}`
@@ -4702,18 +4729,6 @@ export default function Home() {
   }
 
   function openOutputTab(tab: OutputTab) {
-    if (tab === "cover" && !requireSubscriptionFeature("coverLetter", "Cover letters")) {
-      return;
-    }
-
-    if (tab === "linkedin" && !requireSubscriptionFeature("linkedinProfile", "LinkedIn profiles")) {
-      return;
-    }
-
-    if (tab === "application" && !requireSubscriptionFeature("applicationKit", "Application kits")) {
-      return;
-    }
-
     setActiveOutput(tab);
   }
 
@@ -6694,9 +6709,9 @@ export default function Home() {
                   ["preview", "Preview"],
                 ].map(([id, label]) => {
                   const locked =
-                    (id === "cover" && !canUseSubscriptionFeature(subscriptionPlan, "coverLetter")) ||
-                    (id === "linkedin" && !canUseSubscriptionFeature(subscriptionPlan, "linkedinProfile")) ||
-                    (id === "application" && !canUseSubscriptionFeature(subscriptionPlan, "applicationKit"));
+                    (id === "cover" && !hasCoverLetterAccess) ||
+                    (id === "linkedin" && !hasLinkedInAccess) ||
+                    (id === "application" && !hasApplicationKitAccess);
 
                   return (
                   <button
@@ -6742,51 +6757,58 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadCoverLetterPdf)}
-                      className={`${menuItemClass} text-sm`}
+                      disabled={!hasCoverLetterAccess}
+                      className={`${menuItemClass} text-sm disabled:cursor-not-allowed disabled:opacity-55`}
                     >
-                      Cover Letter PDF
+                      {hasCoverLetterAccess ? "Cover Letter PDF" : "🔒 Cover Letter PDF"}
                     </button>
 	                    <button
 	                      type="button"
 	                      onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadCoverLetterDocx)}
-                      className={`${menuItemClass} text-sm`}
+                      disabled={!hasCoverLetterAccess}
+                      className={`${menuItemClass} text-sm disabled:cursor-not-allowed disabled:opacity-55`}
                     >
-	                      Cover Letter DOCX
+	                      {hasCoverLetterAccess ? "Cover Letter DOCX" : "🔒 Cover Letter DOCX"}
 	                    </button>
 	                    <button
 	                      type="button"
 	                      onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadCoverLetterTxt)}
-	                      className={`${menuItemClass} text-sm`}
+                        disabled={!hasCoverLetterAccess}
+	                      className={`${menuItemClass} text-sm disabled:cursor-not-allowed disabled:opacity-55`}
 	                    >
-	                      Cover Letter TXT
+	                      {hasCoverLetterAccess ? "Cover Letter TXT" : "🔒 Cover Letter TXT"}
 	                    </button>
                     <button
                       type="button"
                       onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadLinkedInKitPdf)}
-                      className={`${menuItemClass} text-sm`}
+                      disabled={!hasLinkedInAccess}
+                      className={`${menuItemClass} text-sm disabled:cursor-not-allowed disabled:opacity-55`}
                     >
-                      LinkedIn Kit PDF
+                      {hasLinkedInAccess ? "LinkedIn Kit PDF" : "🔒 LinkedIn Kit PDF"}
                     </button>
                     <button
                       type="button"
                       onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadLinkedInKitDocx)}
-                      className={`${menuItemClass} text-sm`}
+                      disabled={!hasLinkedInAccess}
+                      className={`${menuItemClass} text-sm disabled:cursor-not-allowed disabled:opacity-55`}
                     >
-                      LinkedIn Kit DOCX
+                      {hasLinkedInAccess ? "LinkedIn Kit DOCX" : "🔒 LinkedIn Kit DOCX"}
                     </button>
                     <button
                       type="button"
                       onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadApplicationKitPdf)}
-                      className={`${menuItemClass} text-sm`}
+                      disabled={!hasApplicationKitAccess}
+                      className={`${menuItemClass} text-sm disabled:cursor-not-allowed disabled:opacity-55`}
                     >
-                      Application Kit PDF
+                      {hasApplicationKitAccess ? "Application Kit PDF" : "🔒 Application Kit PDF"}
                     </button>
                     <button
                       type="button"
                       onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadApplicationKitDocx)}
-                      className={`${menuItemClass} text-sm`}
+                      disabled={!hasApplicationKitAccess}
+                      className={`${menuItemClass} text-sm disabled:cursor-not-allowed disabled:opacity-55`}
                     >
-                      Application Kit DOCX
+                      {hasApplicationKitAccess ? "Application Kit DOCX" : "🔒 Application Kit DOCX"}
                     </button>
                   </div>
                 </details>
@@ -6868,16 +6890,20 @@ export default function Home() {
                   </DocumentFrame>
 	                ) : activeOutput === "cover" ? (
 	                  <DocumentFrame title="Cover Letter" subtitle="Editable letter">
+                      {!hasCoverLetterAccess ? <PremiumPreviewBanner /> : null}
 	                    <div className="mb-4 flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() =>
                           runWithFeedback("coverPanelGenerate", "Generating...", "Done", generateCoverLetter)
                         }
+                        disabled={!hasCoverLetterAccess}
                         className={`${primaryButtonClass} ${buttonSizeSmClass}`}
                       >
-	                        {actionFeedback.coverPanelGenerate ?? "Generate Cover Letter"}
+	                        {actionFeedback.coverPanelGenerate ??
+                          (hasCoverLetterAccess ? "Generate Cover Letter" : "🔒 Generate Cover Letter")}
 	                      </button>
+                      {hasCoverLetterAccess ? (
 	                      <details className="relative">
 	                        <summary className={`${secondaryButtonClass} ${buttonSizeSmClass} cursor-pointer list-none`}>
 	                          {actionFeedback.coverExport ?? "Export Cover Letter"}
@@ -6894,41 +6920,66 @@ export default function Home() {
 	                          </button>
 	                        </div>
 	                      </details>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
+                        >
+                          🔒 Export Cover Letter
+                        </button>
+                      )}
                     </div>
                     <textarea
-                      value={result.coverLetter}
-                      onChange={(event) => updateCoverLetter(event.target.value)}
-                      className="min-h-[640px] w-full resize-y rounded-xl border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                      value={panelCoverLetter}
+                      readOnly={!hasCoverLetterAccess}
+                      onChange={(event) => {
+                        if (hasCoverLetterAccess) {
+                          updateCoverLetter(event.target.value);
+                        }
+                      }}
+                      className={`min-h-[640px] w-full resize-y rounded-xl border border-slate-200 p-5 text-sm leading-7 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6] ${
+                        hasCoverLetterAccess
+                          ? "bg-white text-slate-800"
+                          : "cursor-not-allowed bg-slate-50 text-slate-600"
+                      }`}
                     />
                   </DocumentFrame>
                 ) : activeOutput === "linkedin" ? (
                   <DocumentFrame title="LinkedIn Optimizer" subtitle="Profile kit">
+                    {!hasLinkedInAccess ? <PremiumPreviewBanner /> : null}
                     <div className="mb-4 flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() =>
                           runWithFeedback("linkedinPanelGenerate", "Generating...", "Done", generateLinkedInProfile)
                         }
+                        disabled={!hasLinkedInAccess}
                         className={`${primaryButtonClass} ${buttonSizeSmClass}`}
                       >
-                        {actionFeedback.linkedinPanelGenerate ?? "Generate LinkedIn Profile"}
+                        {actionFeedback.linkedinPanelGenerate ??
+                          (hasLinkedInAccess ? "Generate LinkedIn Profile" : "🔒 Generate LinkedIn Profile")}
                       </button>
-                      <CopyTextButton label="Copy Headline" text={result.linkedin.headline} />
-                      <CopyTextButton label="Copy About" text={result.linkedin.about} />
-                      <CopyTextButton
-                        label="Copy Recruiter Message"
-                        text={result.linkedin.recruiterOutreachMessage}
-                      />
+                      {hasLinkedInAccess ? (
+                        <>
+                          <CopyTextButton label="Copy Headline" text={panelLinkedIn.headline} />
+                          <CopyTextButton label="Copy About" text={panelLinkedIn.about} />
+                          <CopyTextButton
+                            label="Copy Recruiter Message"
+                            text={panelLinkedIn.recruiterOutreachMessage}
+                          />
+                        </>
+                      ) : null}
                     </div>
                     <div className="grid gap-4 lg:grid-cols-2">
-                      <EditableField label="LinkedIn Headline" value={result.linkedin.headline} onChange={(value) => updateLinkedIn("headline", value)} />
-                      <EditableField label="Open-To-Work Positioning" value={result.linkedin.openToWorkPositioning} onChange={(value) => updateLinkedIn("openToWorkPositioning", value)} />
-                      <EditableField label="LinkedIn About Section" value={result.linkedin.about} onChange={(value) => updateLinkedIn("about", value)} tall />
-                      <EditableField label="Featured Projects Summary" value={result.linkedin.featuredProjects} onChange={(value) => updateLinkedIn("featuredProjects", value)} tall />
-                      <EditableField label="Top Skills List" value={result.linkedin.topSkills.join(", ")} onChange={(value) => updateLinkedIn("topSkills", value.split(",").map((item) => item.trim()).filter(Boolean))} />
-                      <EditableField label="Recruiter Keyword List" value={result.linkedin.recruiterKeywords.join(", ")} onChange={(value) => updateLinkedIn("recruiterKeywords", value.split(",").map((item) => item.trim()).filter(Boolean))} />
-                      <EditableField label="Short Networking Message" value={result.linkedin.networkingMessage} onChange={(value) => updateLinkedIn("networkingMessage", value)} />
-                      <EditableField label="Recruiter Outreach Message" value={result.linkedin.recruiterOutreachMessage} onChange={(value) => updateLinkedIn("recruiterOutreachMessage", value)} />
+                      <EditableField disabled={!hasLinkedInAccess} label="LinkedIn Headline" value={panelLinkedIn.headline} onChange={(value) => updateLinkedIn("headline", value)} />
+                      <EditableField disabled={!hasLinkedInAccess} label="Open-To-Work Positioning" value={panelLinkedIn.openToWorkPositioning} onChange={(value) => updateLinkedIn("openToWorkPositioning", value)} />
+                      <EditableField disabled={!hasLinkedInAccess} label="LinkedIn About Section" value={panelLinkedIn.about} onChange={(value) => updateLinkedIn("about", value)} tall />
+                      <EditableField disabled={!hasLinkedInAccess} label="Featured Projects Summary" value={panelLinkedIn.featuredProjects} onChange={(value) => updateLinkedIn("featuredProjects", value)} tall />
+                      <EditableField disabled={!hasLinkedInAccess} label="Top Skills List" value={panelLinkedIn.topSkills.join(", ")} onChange={(value) => updateLinkedIn("topSkills", value.split(",").map((item) => item.trim()).filter(Boolean))} />
+                      <EditableField disabled={!hasLinkedInAccess} label="Recruiter Keyword List" value={panelLinkedIn.recruiterKeywords.join(", ")} onChange={(value) => updateLinkedIn("recruiterKeywords", value.split(",").map((item) => item.trim()).filter(Boolean))} />
+                      <EditableField disabled={!hasLinkedInAccess} label="Short Networking Message" value={panelLinkedIn.networkingMessage} onChange={(value) => updateLinkedIn("networkingMessage", value)} />
+                      <EditableField disabled={!hasLinkedInAccess} label="Recruiter Outreach Message" value={panelLinkedIn.recruiterOutreachMessage} onChange={(value) => updateLinkedIn("recruiterOutreachMessage", value)} />
                     </div>
                   </DocumentFrame>
                 ) : activeOutput === "preview" ? (
@@ -6945,13 +6996,14 @@ export default function Home() {
                   </DocumentFrame>
                 ) : (
                   <DocumentFrame title="Application Kit" subtitle="Outreach package">
+                    {!hasApplicationKitAccess ? <PremiumPreviewBanner /> : null}
                     <div className="grid gap-4 lg:grid-cols-2">
-                      <EditableField label="Short Recruiter Email" value={result.applicationKit.recruiterEmail} onChange={(value) => updateApplicationKit("recruiterEmail", value)} copy />
-                      <EditableField label="Follow-Up Email" value={result.applicationKit.followUpEmail} onChange={(value) => updateApplicationKit("followUpEmail", value)} copy />
-                      <EditableField label="Referral Request Message" value={result.applicationKit.referralRequest} onChange={(value) => updateApplicationKit("referralRequest", value)} copy />
-                      <EditableField label="LinkedIn Connection Request" value={result.applicationKit.connectionRequest} onChange={(value) => updateApplicationKit("connectionRequest", value)} copy />
-                      <EditableField label="Interview Introduction Pitch" value={result.applicationKit.interviewIntroPitch} onChange={(value) => updateApplicationKit("interviewIntroPitch", value)} copy />
-                      <EditableField label="30-Second Tell Me About Yourself" value={result.applicationKit.tellMeAboutYourself} onChange={(value) => updateApplicationKit("tellMeAboutYourself", value)} copy />
+                      <EditableField disabled={!hasApplicationKitAccess} label="Short Recruiter Email" value={panelApplicationKit.recruiterEmail} onChange={(value) => updateApplicationKit("recruiterEmail", value)} copy />
+                      <EditableField disabled={!hasApplicationKitAccess} label="Follow-Up Email" value={panelApplicationKit.followUpEmail} onChange={(value) => updateApplicationKit("followUpEmail", value)} copy />
+                      <EditableField disabled={!hasApplicationKitAccess} label="Referral Request Message" value={panelApplicationKit.referralRequest} onChange={(value) => updateApplicationKit("referralRequest", value)} copy />
+                      <EditableField disabled={!hasApplicationKitAccess} label="LinkedIn Connection Request" value={panelApplicationKit.connectionRequest} onChange={(value) => updateApplicationKit("connectionRequest", value)} copy />
+                      <EditableField disabled={!hasApplicationKitAccess} label="Interview Introduction Pitch" value={panelApplicationKit.interviewIntroPitch} onChange={(value) => updateApplicationKit("interviewIntroPitch", value)} copy />
+                      <EditableField disabled={!hasApplicationKitAccess} label="30-Second Tell Me About Yourself" value={panelApplicationKit.tellMeAboutYourself} onChange={(value) => updateApplicationKit("tellMeAboutYourself", value)} copy />
                     </div>
                   </DocumentFrame>
                 )}
@@ -7042,6 +7094,27 @@ function CopyTextButton({ label, text }: { label: string; text: string }) {
     >
       {status}
     </button>
+  );
+}
+
+function PremiumPreviewBanner() {
+  return (
+    <div className="mb-5 rounded-xl border border-[var(--iseya-gold)]/45 bg-[#FFF8E6] p-4 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="rounded-full bg-[var(--iseya-navy)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+          Premium Preview
+        </span>
+        <p className="text-sm font-semibold text-[var(--iseya-navy)]">
+          Preview only. Upgrade to Plus or Pro to personalize, copy, and export this material.
+        </p>
+      </div>
+      <Link
+        href="/pricing"
+        className={`${primaryButtonClass} ${buttonSizeSmClass} mt-3`}
+      >
+        Upgrade to personalize and export
+      </Link>
+    </div>
   );
 }
 
@@ -7168,24 +7241,35 @@ function EditableField({
   onChange,
   tall = false,
   copy = false,
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   tall?: boolean;
   copy?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <section>
       <div className="flex items-center justify-between gap-3">
         <h4 className="text-sm font-semibold text-[var(--iseya-navy)]">{label}</h4>
-        {copy ? <CopyTextButton label="Copy" text={value} /> : null}
+        {copy && !disabled ? <CopyTextButton label="Copy" text={value} /> : null}
       </div>
       <textarea
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={`mt-3 w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6] ${
+        disabled={disabled}
+        onChange={(event) => {
+          if (!disabled) {
+            onChange(event.target.value);
+          }
+        }}
+        className={`mt-3 w-full resize-y rounded-md border border-zinc-300 p-4 text-sm leading-6 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6] ${
           tall ? "min-h-56" : "min-h-32"
+        } ${
+          disabled
+            ? "cursor-not-allowed bg-slate-50 text-slate-600"
+            : "bg-white text-zinc-800"
         }`}
       />
     </section>

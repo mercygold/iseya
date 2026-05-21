@@ -102,10 +102,12 @@ const plusFeatures = new Set<SubscriptionFeature>([
   "basicResumeBuilder",
   "exports",
   "premiumTemplates",
+  "advancedExports",
   "savedVersions",
   "aiGenerations",
   "coverLetter",
   "linkedinProfile",
+  "applicationKit",
 ]);
 
 const proFeatures = new Set<SubscriptionFeature>([
