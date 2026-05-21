@@ -511,30 +511,31 @@ const keywordBank = [
 
 const sampleResume = `Jordan Taylor
 Product Manager
-jordan@example.com | City, State | linkedin.com/in/jordan-example
+jordan@example.com | 555-0100 | City, State
 
 SUMMARY
-Product Manager with experience coordinating SaaS product delivery, customer discovery, roadmap planning, stakeholder communication, analytics, and cross-functional execution. Skilled in translating business goals into clear product requirements and measurable launch plans.
+Write a 3-4 line professional summary here. Focus on your target role, strongest skills, relevant industries, and the outcomes you can confidently discuss in interviews.
 
 EXPERIENCE
-Product Manager - Example SaaS Company
-- Coordinated roadmap planning, discovery notes, sprint priorities, and launch readiness for a customer-facing workflow product.
-- Partnered with design, engineering, and customer success teams to clarify requirements and improve release quality.
-- Used product analytics and user feedback to identify adoption opportunities and prioritize improvements.
+Role Title - Company Name
+City, State | Start Month Year - End Month Year
+- Add 3-5 measurable achievements for this role.
+- Describe the scope, tools, stakeholders, and outcome you can verify.
+- Replace this placeholder with a concise impact statement.
 
-Associate Product Manager - Example Technology Studio
-- Supported user research, competitive analysis, feature documentation, and stakeholder updates for early-stage software products.
-- Helped define acceptance criteria, QA workflows, and release notes for iterative product launches.
+PROJECTS
+Project Name
+- Add a short project summary, your role, tools used, and a verified outcome.
 
 EDUCATION
-B.S. Business Administration - Example University
+Degree or Certificate - School or Organization
 
 CERTIFICATIONS
-Product Management Certificate, Agile Foundations`;
+Add relevant certifications, credentials, or training here.`;
 
-const sampleJob = `AI Product Manager
+const sampleJob = `Paste the target job description here.
 
-We are looking for an AI Product Manager to lead the development of AI-powered workflow automation products. The ideal candidate has experience with SaaS products, Agile delivery, stakeholder management, analytics, customer discovery, roadmap planning, API integrations, and cross-functional collaboration. Experience with LLMs, prompt engineering, responsible AI, product metrics, and enterprise software is preferred.`;
+Include the role title, company priorities, required skills, preferred skills, tools, responsibilities, seniority signals, and any keywords you want ISEYA to consider while tailoring your resume.`;
 
 const previewThemes: Record<
   ThemeId,
@@ -3966,6 +3967,8 @@ export default function Home() {
   const [cloudLoadedForUser, setCloudLoadedForUser] = useState("");
   const skipNextSave = useRef(false);
   const skipNextCloudSave = useRef(false);
+  const lastAuthUserIdRef = useRef<string | null>(null);
+  const cloudLoadInFlightUserRef = useRef<string | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const feedbackTimers = useRef<Record<string, number>>({});
   const previewTheme = previewThemes[theme];
@@ -4038,15 +4041,45 @@ export default function Home() {
           .filter((version): version is SavedResumeVersion => Boolean(version))
       : [];
 
-    if (cloudVersions.length > 0) {
-      setSavedVersions(cloudVersions);
-      setSelectedVersionId((current) => current || cloudVersions[0]?.id || "");
-    }
+    setSavedVersions(cloudVersions);
+    setSelectedVersionId((current) => current || cloudVersions[0]?.id || "");
   }, [applySavedState]);
 
+  const starterSavedState = useCallback(
+    (): SavedState => ({
+      masterResume: sampleResume,
+      jobDescription: sampleJob,
+      targetRole: "Product Manager",
+      industryTarget: "General / ATS",
+      template: "executive-navy",
+      theme: "deep-navy",
+      result: null,
+      uploadedFiles: [],
+      aiSettings: defaultAiSettings,
+      personalBranding: {
+        ...brandingFromResumeText(sampleResume),
+        fullName: "Jordan Taylor",
+        professionalTitle: "Product Manager",
+        email: "jordan@example.com",
+        phone: "555-0100",
+        location: "City, State",
+      },
+    }),
+    [],
+  );
+
   useEffect(() => {
+    if (!authLoaded) {
+      return;
+    }
+
     window.setTimeout(() => {
       try {
+        if (authUser) {
+          setHydrated(true);
+          return;
+        }
+
         const saved = window.localStorage.getItem(storageKey);
 
         if (saved) {
@@ -4078,7 +4111,37 @@ export default function Home() {
         setHydrated(true);
       }
     }, 0);
-  }, [applySavedState]);
+  }, [applySavedState, authLoaded, authUser]);
+
+  useEffect(() => {
+    if (!authLoaded) {
+      return;
+    }
+
+    const nextUserId = authUser?.id ?? null;
+
+    if (lastAuthUserIdRef.current === nextUserId) {
+      return;
+    }
+
+    lastAuthUserIdRef.current = nextUserId;
+
+    window.setTimeout(() => {
+      skipNextSave.current = true;
+      skipNextCloudSave.current = true;
+      setCloudResumeId(null);
+      setCloudLoadedForUser("");
+      setCloudSaveStatus(nextUserId ? "Loading your workspace..." : "");
+      setSavedVersions([]);
+      setSelectedVersionId("");
+      setCompareVersionIds([]);
+      setPreviewSourceFileId("");
+      setUploadedFiles([]);
+      setResult(null);
+      setTailorError("");
+      applySavedState(starterSavedState());
+    }, 0);
+  }, [applySavedState, authLoaded, authUser?.id, starterSavedState]);
 
   useEffect(() => {
     if (!hydrated || !authLoaded || !supabase || !authUser) {
@@ -4089,9 +4152,14 @@ export default function Home() {
       return;
     }
 
+    if (cloudLoadInFlightUserRef.current === authUser.id) {
+      return;
+    }
+
     const activeSupabase = supabase;
     const activeUser = authUser;
     let cancelled = false;
+    cloudLoadInFlightUserRef.current = activeUser.id;
 
     async function loadCloudResume() {
       setCloudSaveStatus("Loading saved workspace...");
@@ -4109,8 +4177,9 @@ export default function Home() {
       }
 
       if (error) {
-        setCloudSaveStatus("Cloud resume load failed. Local draft is still available.");
+        setCloudSaveStatus("Cloud resume load failed. Please refresh or try again.");
         setCloudLoadedForUser(activeUser.id);
+        cloudLoadInFlightUserRef.current = null;
         return;
       }
 
@@ -4121,35 +4190,58 @@ export default function Home() {
         applyCloudContent(data.content_json as CloudResumeContent);
         setCloudSaveStatus("Loaded saved workspace.");
       } else {
+        const starterState = starterSavedState();
+        const starterContent = {
+          ...starterState,
+          savedVersions: [],
+        } satisfies CloudResumeContent;
+        const { data: starterResume, error: starterError } = await activeSupabase
+          .from("resumes")
+          .insert({
+            user_id: activeUser.id,
+            title: starterState.targetRole,
+            target_role: starterState.targetRole,
+            content_json: starterContent as Json,
+            template: starterState.template,
+            theme: starterState.theme,
+          })
+          .select("id")
+          .single();
+
+        if (cancelled) {
+          return;
+        }
+
+        if (starterError) {
+          setCloudSaveStatus("Could not create your starter workspace yet.");
+          setCloudLoadedForUser(activeUser.id);
+          cloudLoadInFlightUserRef.current = null;
+          return;
+        }
+
         skipNextSave.current = true;
         skipNextCloudSave.current = true;
-        applySavedState({
-          masterResume: sampleResume,
-          jobDescription: sampleJob,
-          targetRole: "AI Product Manager",
-          industryTarget: "AI / Technology",
-          template: "executive-navy",
-          theme: "deep-navy",
-          result: null,
-          uploadedFiles: [],
-          aiSettings: defaultAiSettings,
-          personalBranding: brandingFromResumeText(sampleResume),
-        });
+        setCloudResumeId(starterResume.id);
+        applySavedState(starterState);
         setSavedVersions([]);
         setSelectedVersionId("");
         setCompareVersionIds([]);
-        setCloudSaveStatus("Cloud workspace ready.");
+        setCloudSaveStatus("Starter workspace created.");
       }
 
       setCloudLoadedForUser(activeUser.id);
+      cloudLoadInFlightUserRef.current = null;
     }
 
     loadCloudResume();
 
     return () => {
       cancelled = true;
+      if (cloudLoadInFlightUserRef.current === activeUser.id) {
+        cloudLoadInFlightUserRef.current = null;
+      }
     };
-  }, [applyCloudContent, applySavedState, authLoaded, authUser, cloudLoadedForUser, hydrated, supabase]);
+  }, [applyCloudContent, applySavedState, authLoaded, authUser, cloudLoadedForUser, hydrated, starterSavedState, supabase]);
 
   useEffect(() => {
     if (!hydrated || authUser) {
@@ -4392,8 +4484,13 @@ export default function Home() {
 
     setCloudResumeId(null);
     setCloudLoadedForUser("");
+    cloudLoadInFlightUserRef.current = null;
     setCloudSaveStatus("");
-    setAccountStatus("Signed out. Local workspace remains available.");
+    setSavedVersions([]);
+    setSelectedVersionId("");
+    setCompareVersionIds([]);
+    applySavedState(starterSavedState());
+    setAccountStatus("Signed out. Neutral starter workspace is ready.");
   }
 
   function openMyResumesPlaceholder() {
@@ -4668,18 +4765,11 @@ export default function Home() {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function resetSavedResume() {
+    const starterState = starterSavedState();
     skipNextSave.current = true;
     window.localStorage.removeItem(storageKey);
-    setMasterResume(sampleResume);
-    setPersonalBranding(brandingFromResumeText(sampleResume));
-    setJobDescription(sampleJob);
-    setTargetRole("AI Product Manager");
-    setIndustryTarget("AI / Technology");
-    setTemplate("executive-navy");
-    setTheme("deep-navy");
-    setResult(null);
+    applySavedState(starterState);
     setTailorError("");
-    setUploadedFiles([]);
     setPreviewSourceFileId("");
     setActiveOutput("resume");
   }
