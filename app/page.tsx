@@ -4061,6 +4061,17 @@ export default function Home() {
     ? Math.min(100, Math.round((effectiveOptimizationCreditsUsed / Math.max(1, optimizationLimit)) * 100))
     : 100;
   const activeSavedVersionsCount = authUser ? savedVersionsCount : savedVersions.length;
+  const savedVersionLimit = isProPlan(subscriptionPlan)
+    ? Infinity
+    : subscriptionPlan === "plus"
+      ? 5
+      : 0;
+  const savedVersionProgressPercent = Number.isFinite(savedVersionLimit)
+    ? Math.min(100, Math.round((activeSavedVersionsCount / Math.max(1, savedVersionLimit)) * 100))
+    : 100;
+  const canSaveAnotherVersion =
+    canUseSubscriptionFeature(subscriptionPlan, "savedVersions") &&
+    (isProPlan(subscriptionPlan) || savedVersions.length < savedVersionLimit);
 
   const buildSavedState = useCallback((): SavedState => {
     return {
@@ -4170,6 +4181,7 @@ export default function Home() {
       : [];
 
     setSavedVersions(cloudVersions);
+    setSavedVersionsCount(cloudVersions.length);
     setSelectedVersionId((current) => current || cloudVersions[0]?.id || "");
   }, [applySavedState, starterSavedState]);
 
@@ -4526,7 +4538,7 @@ export default function Home() {
 
       setCloudResumeId(data.id);
       setCloudSaveStatus("Autosaved to your account.");
-    }, 1200);
+    }, 60000);
 
     return () => {
       window.clearTimeout(timeout);
@@ -4878,6 +4890,15 @@ export default function Home() {
       return;
     }
 
+    if (!canSaveAnotherVersion) {
+      setVersionStatus(
+        subscriptionPlan === "plus"
+          ? "Plus includes up to 5 saved versions. Delete one or upgrade to Pro for unlimited history."
+          : "Saved versions are locked on Starter. Upgrade to Plus or Pro to save history.",
+      );
+      return;
+    }
+
     const snapshot = currentVersionSnapshot();
 
     if (!snapshot) {
@@ -4943,6 +4964,15 @@ export default function Home() {
 
   function duplicateVersion(version: SavedResumeVersion | null) {
     if (!requireSubscriptionFeature("savedVersions", "Saved versions")) {
+      return;
+    }
+
+    if (!canSaveAnotherVersion) {
+      setVersionStatus(
+        subscriptionPlan === "plus"
+          ? "Plus includes up to 5 saved versions. Delete one or upgrade to Pro before duplicating."
+          : "Saved versions are locked on Starter. Upgrade to Plus or Pro to duplicate versions.",
+      );
       return;
     }
 
@@ -6158,11 +6188,13 @@ export default function Home() {
                 <div className="mt-3 h-2 rounded-full bg-slate-200">
                   <div
                     className="h-2 rounded-full bg-[var(--iseya-gold)]"
-                    style={{ width: canUseSubscriptionFeature(subscriptionPlan, "savedVersions") ? "100%" : "0%" }}
+                    style={{ width: `${savedVersionProgressPercent}%` }}
                   />
                 </div>
                 <p className="mt-2 text-[11px] font-medium text-slate-500">
-                  {canUseSubscriptionFeature(subscriptionPlan, "savedVersions") ? "Enabled" : "Locked"}
+                  {Number.isFinite(savedVersionLimit)
+                    ? `${savedVersionLimit} included`
+                    : "Unlimited"}
                 </p>
               </div>
             </div>
@@ -6175,9 +6207,48 @@ export default function Home() {
             <details open>
               <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
                 {canUseSubscriptionFeature(subscriptionPlan, "savedVersions") ? "" : "🔒 "}
-                Saved Resume Versions
+                Version History
               </summary>
-              <div className="mt-4 space-y-4">
+              <div className="mt-4 space-y-5">
+                <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-[var(--iseya-navy)]">
+                        Saved Resume Versions
+                      </h3>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        Save role-specific drafts, restore older versions, or duplicate a version for a new target.
+                      </p>
+                    </div>
+                    <FeedbackButton
+                      onClick={saveCurrentVersion}
+                      activeLabel="Saving..."
+                      doneLabel="Saved"
+                      disabled={!result || !canSaveAnotherVersion}
+                      className={`${primaryButtonClass} ${buttonSizeSmClass}`}
+                    >
+                      {canUseSubscriptionFeature(subscriptionPlan, "savedVersions")
+                        ? "Save Version"
+                        : "🔒 Save Version"}
+                    </FeedbackButton>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                      <span>{activeSavedVersionsCount} saved</span>
+                      <span>
+                        {Number.isFinite(savedVersionLimit)
+                          ? `${savedVersionLimit} max`
+                          : "Unlimited"}
+                      </span>
+                    </div>
+                    <div className="mt-2 h-2 rounded-full bg-slate-200">
+                      <div
+                        className="h-2 rounded-full bg-[var(--iseya-gold)]"
+                        style={{ width: `${savedVersionProgressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
                 {!canUseSubscriptionFeature(subscriptionPlan, "savedVersions") ? (
                   <div className="rounded-md border border-[var(--iseya-gold)]/30 bg-[#FFF8E6] p-3 text-xs font-medium text-[var(--iseya-navy)]">
                     Saved versions are unlocked with Plus and Pro plans.
@@ -6187,15 +6258,6 @@ export default function Home() {
                   </div>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
-                  <FeedbackButton
-                    onClick={saveCurrentVersion}
-                    activeLabel="Saving..."
-                    doneLabel="Saved"
-                    disabled={!result || !canUseSubscriptionFeature(subscriptionPlan, "savedVersions")}
-                    className={`${primaryButtonClass} ${buttonSizeSmClass}`}
-                  >
-                    {canUseSubscriptionFeature(subscriptionPlan, "savedVersions") ? "Save Current Version" : "🔒 Save Current Version"}
-                  </FeedbackButton>
                   <FeedbackButton
                     onClick={() => loadVersion(selectedVersion)}
                     doneLabel="Loaded"
@@ -6250,14 +6312,14 @@ export default function Home() {
 
                 {savedVersions.length > 0 ? (
                   <div className="space-y-3">
-                    <div className="max-h-80 space-y-2 overflow-auto pr-1">
+                    <div className="grid max-h-96 gap-3 overflow-auto pr-1">
                       {savedVersions.map((version, versionIndex) => (
                         <div
                           key={`${version.id}-${versionIndex}`}
-                          className={`block cursor-pointer rounded-md border p-3 transition ${
+                          className={`block cursor-pointer rounded-xl border p-4 transition ${
                             selectedVersionId === version.id
-                              ? "border-[var(--iseya-gold)] bg-[#FFF8E6]"
-                              : "border-zinc-200 bg-zinc-50 hover:bg-white"
+                              ? "border-[var(--iseya-gold)] bg-[#FFF8E6] shadow-sm"
+                              : "border-zinc-200 bg-white hover:border-[var(--iseya-gold)]/60"
                           }`}
                           onClick={() => setSelectedVersionId(version.id)}
                         >
@@ -6270,9 +6332,19 @@ export default function Home() {
                               className="mt-1"
                             />
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-semibold text-[var(--iseya-navy)]">
-                                {version.name}
-                              </p>
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-[var(--iseya-navy)]">
+                                    {version.name}
+                                  </p>
+                                  <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
+                                    {templates[version.template].label}
+                                  </p>
+                                </div>
+                                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                                  {formatVersionDate(version.createdAt)}
+                                </span>
+                              </div>
                               <p className="mt-1 text-xs leading-5 text-zinc-600">
                                 {version.targetRole} |{" "}
                                 {readableIndustryName(version.industryTarget)}
@@ -6282,7 +6354,6 @@ export default function Home() {
                               </p>
                               <p className="mt-1 text-xs text-zinc-500">
                                 Score {Math.round(version.matchScore)}% |{" "}
-                                {templates[version.template].label} |{" "}
                                 {version.theme
                                   .split("-")
                                   .map(
@@ -6292,10 +6363,51 @@ export default function Home() {
                                   .join(" ")}
                               </p>
                               <p className="mt-1 text-xs text-zinc-500">
-                                Created {formatVersionDate(version.createdAt)} |
                                 Updated {formatVersionDate(version.updatedAt)}
                               </p>
-                              <label className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-zinc-700">
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    loadVersion(version);
+                                  }}
+                                  className={`${primaryButtonClass} ${buttonSizeSmClass}`}
+                                >
+                                  Restore
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    renameVersion(version);
+                                  }}
+                                  className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
+                                >
+                                  Rename
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    duplicateVersion(version);
+                                  }}
+                                  className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
+                                >
+                                  Duplicate
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    deleteVersion(version);
+                                  }}
+                                  className={`${dangerButtonClass} ${buttonSizeSmClass}`}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                              <label className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-zinc-700">
                                 <input
                                   type="checkbox"
                                   checked={compareVersionIds.includes(version.id)}
@@ -6565,7 +6677,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => runWithFeedback("saveVersion", "Saving...", "Saved", saveCurrentVersion)}
-                  disabled={!canUseSubscriptionFeature(subscriptionPlan, "savedVersions")}
+                  disabled={!canSaveAnotherVersion}
                   className={`${primaryButtonClass} ${buttonSizeMdClass}`}
                 >
                   {actionFeedback.saveVersion ??
