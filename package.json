@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:user-isolation": "node scripts/check-user-isolation.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

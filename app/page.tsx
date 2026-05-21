@@ -514,28 +514,46 @@ Product Manager
 jordan@example.com | 555-0100 | City, State
 
 SUMMARY
-Write a 3-4 line professional summary here. Focus on your target role, strongest skills, relevant industries, and the outcomes you can confidently discuss in interviews.
+Write a 3-4 line professional summary here...
 
 EXPERIENCE
 Role Title - Company Name
 City, State | Start Month Year - End Month Year
 - Add 3-5 measurable achievements for this role.
-- Describe the scope, tools, stakeholders, and outcome you can verify.
+- Describe the scope, tools, stakeholders, and outcomes.
 - Replace this placeholder with a concise impact statement.
-
-PROJECTS
-Project Name
-- Add a short project summary, your role, tools used, and a verified outcome.
-
-EDUCATION
-Degree or Certificate - School or Organization
-
-CERTIFICATIONS
-Add relevant certifications, credentials, or training here.`;
+`;
 
 const sampleJob = `Paste the target job description here.
 
 Include the role title, company priorities, required skills, preferred skills, tools, responsibilities, seniority signals, and any keywords you want ISEYA to consider while tailoring your resume.`;
+
+const restrictedSeedDataPatterns = [
+  new RegExp(`\\b${["a", "nu"].join("")}\\b`, "i"),
+  new RegExp(["mercy", "gold"].join(""), "i"),
+  new RegExp(["jos", "hua"].join(""), "i"),
+  new RegExp(["949", "510", "1667"].join(""), "i"),
+  new RegExp(["mercy", "gold", "96"].join(""), "i"),
+  new RegExp(["jor", "mp\\s+llc"].join(""), "i"),
+  new RegExp(["inves", "tofly"].join(""), "i"),
+  new RegExp(["ja", "paul"].join(""), "i"),
+];
+
+function containsRestrictedSeedData(value: unknown): boolean {
+  if (typeof value === "string") {
+    return restrictedSeedDataPatterns.some((pattern) => pattern.test(value));
+  }
+
+  if (Array.isArray(value)) {
+    return value.some((item) => containsRestrictedSeedData(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.values(value).some((item) => containsRestrictedSeedData(item));
+  }
+
+  return false;
+}
 
 const previewThemes: Record<
   ThemeId,
@@ -3019,6 +3037,10 @@ function inferCompanyName(jobDescription: string) {
 }
 
 function normalizeSavedVersion(version: Partial<SavedResumeVersion>) {
+  if (containsRestrictedSeedData(version)) {
+    return null;
+  }
+
   const result = ensureTailoringResult(
     version.result ?? null,
     isIndustryTarget(version.industryTarget) ? version.industryTarget : "General / ATS",
@@ -3935,12 +3957,12 @@ async function createTextKitDocxBlob({
 export default function Home() {
   const [masterResume, setMasterResume] = useState(sampleResume);
   const [jobDescription, setJobDescription] = useState(sampleJob);
-  const [targetRole, setTargetRole] = useState("AI Product Manager");
+  const [targetRole, setTargetRole] = useState("Product Manager");
   const [personalBranding, setPersonalBranding] = useState<PersonalBranding>(() =>
     brandingFromResumeText(sampleResume),
   );
   const [industryTarget, setIndustryTarget] =
-    useState<IndustryTarget>("AI / Technology");
+    useState<IndustryTarget>("General / ATS");
   const [template, setTemplate] = useState<TemplateId>("executive-navy");
   const [theme, setTheme] = useState<ThemeId>("deep-navy");
   const [aiSettings, setAiSettings] = useState<AiSettings>(defaultAiSettings);
@@ -4032,19 +4054,6 @@ export default function Home() {
     setUploadedFiles(state.uploadedFiles ?? []);
   }, []);
 
-  const applyCloudContent = useCallback((content: CloudResumeContent) => {
-    applySavedState(content);
-
-    const cloudVersions = Array.isArray(content.savedVersions)
-      ? content.savedVersions
-          .map(normalizeSavedVersion)
-          .filter((version): version is SavedResumeVersion => Boolean(version))
-      : [];
-
-    setSavedVersions(cloudVersions);
-    setSelectedVersionId((current) => current || cloudVersions[0]?.id || "");
-  }, [applySavedState]);
-
   const starterSavedState = useCallback(
     (): SavedState => ({
       masterResume: sampleResume,
@@ -4068,6 +4077,35 @@ export default function Home() {
     [],
   );
 
+  const starterCloudContent = useCallback(
+    (): CloudResumeContent => ({
+      ...starterSavedState(),
+      savedVersions: [],
+    }),
+    [starterSavedState],
+  );
+
+  const applyCloudContent = useCallback((content: CloudResumeContent) => {
+    if (containsRestrictedSeedData(content)) {
+      applySavedState(starterSavedState());
+      setSavedVersions([]);
+      setSelectedVersionId("");
+      setCompareVersionIds([]);
+      return;
+    }
+
+    applySavedState(content);
+
+    const cloudVersions = Array.isArray(content.savedVersions)
+      ? content.savedVersions
+          .map(normalizeSavedVersion)
+          .filter((version): version is SavedResumeVersion => Boolean(version))
+      : [];
+
+    setSavedVersions(cloudVersions);
+    setSelectedVersionId((current) => current || cloudVersions[0]?.id || "");
+  }, [applySavedState, starterSavedState]);
+
   useEffect(() => {
     if (!authLoaded) {
       return;
@@ -4084,7 +4122,12 @@ export default function Home() {
 
         if (saved) {
           const parsed = JSON.parse(saved) as Partial<SavedState>;
-          applySavedState(parsed);
+          if (containsRestrictedSeedData(parsed)) {
+            window.localStorage.removeItem(storageKey);
+            applySavedState(starterSavedState());
+          } else {
+            applySavedState(parsed);
+          }
         }
 
         const savedVersionData = window.localStorage.getItem(versionStorageKey);
@@ -4093,11 +4136,16 @@ export default function Home() {
           const parsedVersions = JSON.parse(savedVersionData) as Array<
             Partial<SavedResumeVersion>
           >;
-          const normalizedVersions = parsedVersions
-            .map(normalizeSavedVersion)
-            .filter((version): version is SavedResumeVersion => Boolean(version));
+          if (containsRestrictedSeedData(parsedVersions)) {
+            window.localStorage.removeItem(versionStorageKey);
+            setSavedVersions([]);
+          } else {
+            const normalizedVersions = parsedVersions
+              .map(normalizeSavedVersion)
+              .filter((version): version is SavedResumeVersion => Boolean(version));
 
-          setSavedVersions(normalizedVersions);
+            setSavedVersions(normalizedVersions);
+          }
         }
 
         const savedUsageData = window.localStorage.getItem(usageStorageKey);
@@ -4111,7 +4159,7 @@ export default function Home() {
         setHydrated(true);
       }
     }, 0);
-  }, [applySavedState, authLoaded, authUser]);
+  }, [applySavedState, authLoaded, authUser, starterSavedState]);
 
   useEffect(() => {
     if (!authLoaded) {
@@ -4166,7 +4214,7 @@ export default function Home() {
 
       const { data, error } = await activeSupabase
         .from("resumes")
-        .select("id, content_json")
+        .select("id, user_id, content_json")
         .eq("user_id", activeUser.id)
         .order("updated_at", { ascending: false })
         .limit(1)
@@ -4183,7 +4231,12 @@ export default function Home() {
         return;
       }
 
-      if (data?.content_json && typeof data.content_json === "object") {
+      if (
+        data?.content_json &&
+        typeof data.content_json === "object" &&
+        data.user_id === activeUser.id &&
+        !containsRestrictedSeedData(data.content_json)
+      ) {
         skipNextSave.current = true;
         skipNextCloudSave.current = true;
         setCloudResumeId(data.id);
@@ -4191,22 +4244,29 @@ export default function Home() {
         setCloudSaveStatus("Loaded saved workspace.");
       } else {
         const starterState = starterSavedState();
-        const starterContent = {
-          ...starterState,
-          savedVersions: [],
-        } satisfies CloudResumeContent;
-        const { data: starterResume, error: starterError } = await activeSupabase
-          .from("resumes")
-          .insert({
-            user_id: activeUser.id,
-            title: starterState.targetRole,
-            target_role: starterState.targetRole,
-            content_json: starterContent as Json,
-            template: starterState.template,
-            theme: starterState.theme,
-          })
-          .select("id")
-          .single();
+        const starterContent = starterCloudContent();
+        const starterPayload = {
+          user_id: activeUser.id,
+          title: starterState.targetRole,
+          target_role: starterState.targetRole,
+          content_json: starterContent as Json,
+          template: starterState.template,
+          theme: starterState.theme,
+        };
+        const starterQuery = data?.id && data.user_id === activeUser.id
+          ? activeSupabase
+              .from("resumes")
+              .update(starterPayload)
+              .eq("id", data.id)
+              .eq("user_id", activeUser.id)
+              .select("id")
+              .single()
+          : activeSupabase
+              .from("resumes")
+              .insert(starterPayload)
+              .select("id")
+              .single();
+        const { data: starterResume, error: starterError } = await starterQuery;
 
         if (cancelled) {
           return;
@@ -4226,7 +4286,7 @@ export default function Home() {
         setSavedVersions([]);
         setSelectedVersionId("");
         setCompareVersionIds([]);
-        setCloudSaveStatus("Starter workspace created.");
+        setCloudSaveStatus(data?.id ? "Starter workspace restored." : "Starter workspace created.");
       }
 
       setCloudLoadedForUser(activeUser.id);
@@ -4241,7 +4301,7 @@ export default function Home() {
         cloudLoadInFlightUserRef.current = null;
       }
     };
-  }, [applyCloudContent, applySavedState, authLoaded, authUser, cloudLoadedForUser, hydrated, starterSavedState, supabase]);
+  }, [applyCloudContent, applySavedState, authLoaded, authUser, cloudLoadedForUser, hydrated, starterCloudContent, starterSavedState, supabase]);
 
   useEffect(() => {
     if (!hydrated || authUser) {
@@ -4489,6 +4549,8 @@ export default function Home() {
     setSavedVersions([]);
     setSelectedVersionId("");
     setCompareVersionIds([]);
+    window.localStorage.removeItem(storageKey);
+    window.localStorage.removeItem(versionStorageKey);
     applySavedState(starterSavedState());
     setAccountStatus("Signed out. Neutral starter workspace is ready.");
   }
