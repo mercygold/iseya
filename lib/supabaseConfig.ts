@@ -10,8 +10,7 @@ export type SupabaseConfigResult =
   | { ok: true; config: SupabasePublicConfig }
   | { ok: false; message: string; devMessage: string };
 
-const genericPublicConfigMessage =
-  "Supabase account access is not configured. Contact support if this continues.";
+const genericPublicConfigMessage = "Authentication is not configured.";
 
 function cleanEnvValue(value: string | undefined) {
   const trimmed = value?.trim() ?? "";

@@ -37,6 +37,72 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const authNotConfiguredMessage = "Authentication is not configured.";
+const incorrectCredentialsMessage = "Email or password is incorrect.";
+const unconfirmedEmailMessage = "Please confirm your email before signing in.";
+
+type AuthErrorDetails = {
+  message: string;
+  code: string;
+  status?: number;
+};
+
+function getAuthErrorDetails(error: unknown): AuthErrorDetails {
+  if (error instanceof Error) {
+    const authError = error as Error & { code?: unknown; status?: unknown };
+    return {
+      message: error.message,
+      code: typeof authError.code === "string" ? authError.code : "",
+      status: typeof authError.status === "number" ? authError.status : undefined,
+    };
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const authError = error as { message?: unknown; code?: unknown; status?: unknown };
+    return {
+      message: typeof authError.message === "string" ? authError.message : "",
+      code: typeof authError.code === "string" ? authError.code : "",
+      status: typeof authError.status === "number" ? authError.status : undefined,
+    };
+  }
+
+  return {
+    message: typeof error === "string" ? error : "",
+    code: "",
+  };
+}
+
+function mapLoginError(error: unknown) {
+  const details = getAuthErrorDetails(error);
+  const normalized = `${details.code} ${details.message}`.toLowerCase();
+
+  if (
+    normalized.includes("email not confirmed") ||
+    normalized.includes("email_not_confirmed") ||
+    normalized.includes("not confirmed")
+  ) {
+    return unconfirmedEmailMessage;
+  }
+
+  if (
+    normalized.includes("invalid login credentials") ||
+    normalized.includes("invalid_credentials") ||
+    normalized.includes("invalid_grant")
+  ) {
+    return incorrectCredentialsMessage;
+  }
+
+  return details.message || "Login failed. Please try again.";
+}
+
+function mapAuthError(error: unknown, fallback: string) {
+  const details = getAuthErrorDetails(error);
+  return details.message || fallback;
+}
+
+function isConfirmedAuthUser(authUser: User | null) {
+  return Boolean(authUser?.email_confirmed_at || authUser?.confirmed_at);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -59,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (sessionError) {
-        setError(sessionError.message);
+        setError(mapAuthError(sessionError, "Unable to restore your session."));
       }
 
       setSession(data.session);
@@ -115,7 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError("");
 
       if (!supabase) {
-        const message = getSupabaseBrowserConfigMessage();
+        const message = authNotConfiguredMessage;
         setError(message);
         throw new Error(message);
       }
@@ -147,10 +213,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return { needsEmailConfirmation: !data.session };
       } catch (signUpError) {
-        const message =
-          signUpError instanceof Error ? signUpError.message : "Signup failed. Please try again.";
+        const message = mapAuthError(signUpError, "Signup failed. Please try again.");
         setError(message);
-        throw signUpError;
+        throw new Error(message);
       } finally {
         setLoading(false);
       }
@@ -163,7 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError("");
 
       if (!supabase) {
-        const message = getSupabaseBrowserConfigMessage();
+        const message = authNotConfiguredMessage;
         setError(message);
         throw new Error(message);
       }
@@ -180,14 +245,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw loginError;
         }
 
+        if (data.user && !data.session && !isConfirmedAuthUser(data.user)) {
+          throw new Error(unconfirmedEmailMessage);
+        }
+
         setSession(data.session);
         setUser(data.user);
         await ensureUserProfile(data.user);
       } catch (loginError) {
-        const message =
-          loginError instanceof Error ? loginError.message : "Login failed. Please try again.";
+        const message = mapLoginError(loginError);
         setError(message);
-        throw loginError;
+        throw new Error(message);
       } finally {
         setLoading(false);
       }
@@ -199,7 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError("");
 
     if (!supabase) {
-      const message = getSupabaseBrowserConfigMessage();
+      const message = authNotConfiguredMessage;
       setError(message);
       throw new Error(message);
     }
@@ -216,10 +284,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       setUser(null);
     } catch (logoutError) {
-      const message =
-        logoutError instanceof Error ? logoutError.message : "Logout failed. Please try again.";
+      const message = mapAuthError(logoutError, "Logout failed. Please try again.");
       setError(message);
-      throw logoutError;
+      throw new Error(message);
     } finally {
       setLoading(false);
     }
@@ -230,7 +297,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError("");
 
       if (!supabase) {
-        const message = getSupabaseBrowserConfigMessage();
+        const message = authNotConfiguredMessage;
         setError(message);
         throw new Error(message);
       }
@@ -246,10 +313,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw resetError;
         }
       } catch (resetError) {
-        const message =
-          resetError instanceof Error ? resetError.message : "Password reset failed. Please try again.";
+        const message = mapAuthError(resetError, "Password reset failed. Please try again.");
         setError(message);
-        throw resetError;
+        throw new Error(message);
       } finally {
         setLoading(false);
       }
@@ -262,7 +328,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError("");
 
       if (!supabase) {
-        const message = getSupabaseBrowserConfigMessage();
+        const message = authNotConfiguredMessage;
         setError(message);
         throw new Error(message);
       }
@@ -276,12 +342,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw updateError;
         }
       } catch (updateError) {
-        const message =
-          updateError instanceof Error
-            ? updateError.message
-            : "Password update failed. Please request a new reset link.";
+        const message = mapAuthError(updateError, "Password update failed. Please request a new reset link.");
         setError(message);
-        throw updateError;
+        throw new Error(message);
       } finally {
         setLoading(false);
       }
