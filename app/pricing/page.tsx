@@ -34,7 +34,10 @@ export default function PricingPage() {
       const data = (await response.json()) as { url?: string; error?: string };
 
       if (!response.ok || !data.url) {
-        throw new Error(data.error || "Checkout could not be started.");
+        throw new Error(
+          data.error ||
+            "Checkout is temporarily unavailable. Please try again shortly.",
+        );
       }
 
       window.location.assign(data.url);
@@ -42,7 +45,7 @@ export default function PricingPage() {
       setCheckoutStatus(
         error instanceof Error
           ? error.message
-          : "Checkout could not be started.",
+          : "Checkout is temporarily unavailable. Please try again shortly.",
       );
     } finally {
       setCheckoutPlan("");

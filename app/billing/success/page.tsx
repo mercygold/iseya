@@ -5,8 +5,7 @@ export default function BillingSuccessPage() {
   return (
     <InfoPageShell title="Checkout Complete" eyebrow="Billing">
       <p>
-        Your checkout was completed successfully. Your ISEYA workspace will
-        update after Stripe confirms the payment.
+        Payment received. Your workspace is being updated.
       </p>
       <p>
         If your plan does not update immediately, refresh your workspace in a

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">ISEYA Plus checkout banner</title>
+  <desc id="desc">A deep navy and gold banner describing ISEYA Plus benefits.</desc>
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F8CA56"/>
+      <stop offset="1" stop-color="#F4B321"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="24" stdDeviation="26" flood-color="#020814" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="900" fill="#061A36"/>
+  <path d="M1190 0h410v900h-525c160-210 200-518 115-900z" fill="#0A254E" opacity="0.72"/>
+  <path d="M0 690c235-70 460-52 675 54 244 120 512 128 925 5v151H0z" fill="#081F43" opacity="0.86"/>
+  <rect x="96" y="86" width="1408" height="728" rx="44" fill="#FFFFFF" opacity="0.055"/>
+  <rect x="96" y="86" width="1408" height="728" rx="44" fill="none" stroke="#F4B321" stroke-opacity="0.45" stroke-width="3"/>
+  <g filter="url(#shadow)">
+    <rect x="175" y="172" width="1250" height="556" rx="34" fill="#FFFFFF"/>
+  </g>
+  <rect x="175" y="172" width="1250" height="556" rx="34" fill="#FFFFFF"/>
+  <rect x="175" y="172" width="1250" height="96" rx="34" fill="#061A36"/>
+  <rect x="175" y="234" width="1250" height="34" fill="#061A36"/>
+  <text x="240" y="234" fill="#F4B321" font-family="Inter, Arial, sans-serif" font-size="44" font-weight="800" letter-spacing="6">ISEYA PLUS</text>
+  <text x="240" y="363" fill="#061A36" font-family="Inter, Arial, sans-serif" font-size="74" font-weight="850">$1.99 one-time</text>
+  <text x="240" y="426" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="600">A focused upgrade for polished career documents.</text>
+  <g font-family="Inter, Arial, sans-serif" font-size="33" font-weight="720" fill="#061A36">
+    <g transform="translate(248 516)">
+      <circle cx="0" cy="-10" r="18" fill="url(#gold)"/>
+      <path d="M-8-10l6 7 12-15" fill="none" stroke="#061A36" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="40" y="0">5 premium resume downloads</text>
+    </g>
+    <g transform="translate(248 586)">
+      <circle cx="0" cy="-10" r="18" fill="url(#gold)"/>
+      <path d="M-8-10l6 7 12-15" fill="none" stroke="#061A36" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="40" y="0">15 optimization credits</text>
+    </g>
+    <g transform="translate(848 516)">
+      <circle cx="0" cy="-10" r="18" fill="url(#gold)"/>
+      <path d="M-8-10l6 7 12-15" fill="none" stroke="#061A36" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="40" y="0">LinkedIn + cover letter tools</text>
+    </g>
+    <g transform="translate(848 586)">
+      <circle cx="0" cy="-10" r="18" fill="url(#gold)"/>
+      <path d="M-8-10l6 7 12-15" fill="none" stroke="#061A36" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="40" y="0">Saved resume versions</text>
+    </g>
+  </g>
+  <rect x="240" y="652" width="355" height="12" rx="6" fill="#F4B321"/>
+  <text x="1030" y="690" fill="#64748B" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="4">CAREER POSITIONING</text>
+</svg>

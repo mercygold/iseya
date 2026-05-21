@@ -3986,6 +3986,8 @@ export default function Home() {
   const [usageStats, setUsageStats] = useState<UsageStats>(defaultUsageStats);
   const [subscriptionPlan, setSubscriptionPlan] = useState<SubscriptionPlanId>("free");
   const [subscriptionStatus, setSubscriptionStatus] = useState("free");
+  const [resumeDownloadCredits, setResumeDownloadCredits] = useState(0);
+  const [optimizationCredits, setOptimizationCredits] = useState(0);
   const [activeOutput, setActiveOutput] = useState<OutputTab>("resume");
   const [hydrated, setHydrated] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<Record<string, string>>({});
@@ -4003,6 +4005,14 @@ export default function Home() {
   const feedbackTimers = useRef<Record<string, number>>({});
   const previewTheme = previewThemes[theme];
   const currentPlanLabel = subscriptionLabel(subscriptionPlan);
+  const currentSubscriptionStatusLabel =
+    subscriptionPlan === "free"
+      ? "Active"
+      : subscriptionStatus
+          .split("_")
+          .filter(Boolean)
+          .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+          .join(" ") || "Active";
 
   const buildSavedState = useCallback((): SavedState => {
     return {
@@ -4205,6 +4215,8 @@ export default function Home() {
       window.setTimeout(() => {
         setSubscriptionPlan("free");
         setSubscriptionStatus("free");
+        setResumeDownloadCredits(0);
+        setOptimizationCredits(0);
       }, 0);
       return;
     }
@@ -4216,7 +4228,9 @@ export default function Home() {
     async function loadSubscriptionProfile() {
       const { data, error } = await activeSupabase
         .from("profiles")
-        .select("subscription_plan, subscription_status")
+        .select(
+          "subscription_plan, subscription_status, resume_download_credits, optimization_credits",
+        )
         .eq("id", activeUserId)
         .maybeSingle();
 
@@ -4227,11 +4241,15 @@ export default function Home() {
       if (error) {
         setSubscriptionPlan("free");
         setSubscriptionStatus("free");
+        setResumeDownloadCredits(0);
+        setOptimizationCredits(0);
         return;
       }
 
       setSubscriptionPlan(normalizeSubscriptionPlan(data?.subscription_plan));
       setSubscriptionStatus(data?.subscription_status || "free");
+      setResumeDownloadCredits(data?.resume_download_credits ?? 0);
+      setOptimizationCredits(data?.optimization_credits ?? 0);
     }
 
     loadSubscriptionProfile();
@@ -5808,7 +5826,7 @@ export default function Home() {
                     Plan: {currentPlanLabel}
                   </h2>
                   <p className="mt-1 text-xs text-slate-600">
-                    Status: {subscriptionPlan === "free" ? "Active" : subscriptionStatus}
+                    Status: {currentSubscriptionStatusLabel}
                   </p>
                 </div>
                 <Link
@@ -5832,7 +5850,17 @@ export default function Home() {
                     Upgrade for LinkedIn optimization, cover letters, saved versions, and more downloads.
                   </p>
                 </div>
-              ) : null}
+              ) : (
+                <div className="mt-4 border-t border-[var(--iseya-gold)]/30 pt-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-navy)]">
+                    Available
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs font-medium text-slate-700">
+                    <li>Downloads remaining: {resumeDownloadCredits}</li>
+                    <li>Optimization credits remaining: {optimizationCredits}</li>
+                  </ul>
+                </div>
+              )}
             </div>
             <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">Usage</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">

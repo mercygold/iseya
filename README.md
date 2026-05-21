@@ -21,7 +21,7 @@ Add values to `.env.local`:
 ```bash
 OPENAI_API_KEY=your_key_here
 OPENAI_MODEL=gpt-4o-mini
-NEXT_PUBLIC_APP_URL=https://iseya.jormp.com
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_your_key
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_your_key
@@ -34,6 +34,8 @@ STRIPE_PRO_ANNUAL_PRICE_ID=
 ```
 
 `OPENAI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, and `STRIPE_WEBHOOK_SECRET` are server-only. Do not create `NEXT_PUBLIC_OPENAI_API_KEY`, and do not commit real keys.
+
+For production, set `NEXT_PUBLIC_APP_URL` to `https://iseya.jormp.com`. For local Stripe checkout testing, keep it as `http://localhost:3000` or the local port you are using.
 
 Run the app:
 
