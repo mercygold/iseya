@@ -1,4 +1,4 @@
-export type SubscriptionPlanId = "free" | "pro_monthly" | "pro_annual";
+export type SubscriptionPlanId = "free" | "plus" | "pro_monthly" | "pro_annual";
 
 export type SubscriptionFeature =
   | "basicResumeBuilder"
@@ -15,48 +15,94 @@ export type PricingPlan = {
   cadence: string;
   priceLabel: string;
   description: string;
-  features: string[];
-  highlighted?: boolean;
+  included: string[];
+  excluded?: string[];
+  badge?: string;
 };
 
 export const pricingPlans: PricingPlan[] = [
   {
     id: "free",
-    name: "Free",
+    name: "Starter",
     cadence: "Starter",
-    priceLabel: "$0",
-    description: "Basic resume building for drafting and editing your core profile.",
-    features: ["Basic resume builder", "Neutral starter workspace", "Manual editing"],
+    priceLabel: "Free",
+    description: "Create and edit a clean resume workspace before upgrading.",
+    included: [
+      "1 free resume download",
+      "Basic resume editing",
+      "Neutral starter workspace",
+      "Standard resume templates",
+      "Manual editing",
+      "Save workspace draft",
+    ],
+    excluded: [
+      "LinkedIn optimization copy/export",
+      "Cover letter export",
+      "Multiple saved resume versions",
+      "Priority exports",
+      "Unlimited downloads",
+    ],
+  },
+  {
+    id: "plus",
+    name: "Plus",
+    cadence: "One-time",
+    priceLabel: "$1.99",
+    description: "A lightweight paid pack for a focused application push.",
+    included: [
+      "5 premium resume downloads",
+      "15 optimization credits",
+      "LinkedIn profile optimization access",
+      "Cover letter exports",
+      "Saved resume versions",
+      "Can repurchase anytime",
+    ],
+    excluded: ["Unlimited monthly access", "Annual savings"],
   },
   {
     id: "pro_monthly",
     name: "Pro Monthly",
     cadence: "Monthly",
-    priceLabel: "Coming soon",
-    description: "Full career workspace access with exports, AI credits, and saved versions.",
-    highlighted: true,
-    features: [
-      "PDF and DOCX exports",
-      "Saved resume versions",
-      "AI tailoring credits",
-      "Cover letters",
-      "LinkedIn profile kit",
-      "Application kit",
+    priceLabel: "$7.99/month",
+    description: "Full monthly access for active job search workflows.",
+    badge: "Most Popular",
+    included: [
+      "Unlimited resume downloads",
+      "Advanced optimization",
+      "LinkedIn positioning tools",
+      "Cover letter generation/export",
+      "Premium templates",
+      "Saved resume library",
+      "Full workspace access",
+      "Cancel anytime",
     ],
   },
   {
     id: "pro_annual",
     name: "Pro Annual",
     cadence: "Annual",
-    priceLabel: "Coming soon",
-    description: "Annual Pro access prepared for future Stripe subscription activation.",
-    features: [
+    priceLabel: "$69/year",
+    description: "Best value for users actively applying across the year.",
+    badge: "Best Value",
+    included: [
       "Everything in Pro Monthly",
-      "Annual billing foundation",
-      "Future priority usage limits",
+      "Annual discounted pricing",
+      "Full workspace access all year",
+      "Best value for active job seekers",
+      "Priority exports",
+      "Saved resume library",
     ],
   },
 ];
+
+const plusFeatures = new Set<SubscriptionFeature>([
+  "basicResumeBuilder",
+  "exports",
+  "savedVersions",
+  "aiGenerations",
+  "coverLetter",
+  "linkedinProfile",
+]);
 
 const proFeatures = new Set<SubscriptionFeature>([
   "basicResumeBuilder",
@@ -71,7 +117,7 @@ const proFeatures = new Set<SubscriptionFeature>([
 const freeFeatures = new Set<SubscriptionFeature>(["basicResumeBuilder"]);
 
 export function normalizeSubscriptionPlan(plan: string | null | undefined): SubscriptionPlanId {
-  if (plan === "pro_monthly" || plan === "pro_annual") {
+  if (plan === "plus" || plan === "pro_monthly" || plan === "pro_annual") {
     return plan;
   }
 
@@ -83,9 +129,17 @@ export function isProPlan(plan: SubscriptionPlanId) {
 }
 
 export function canUseSubscriptionFeature(plan: SubscriptionPlanId, feature: SubscriptionFeature) {
-  return isProPlan(plan) ? proFeatures.has(feature) : freeFeatures.has(feature);
+  if (isProPlan(plan)) {
+    return proFeatures.has(feature);
+  }
+
+  if (plan === "plus") {
+    return plusFeatures.has(feature);
+  }
+
+  return freeFeatures.has(feature);
 }
 
 export function subscriptionLabel(plan: SubscriptionPlanId) {
-  return pricingPlans.find((pricingPlan) => pricingPlan.id === plan)?.name ?? "Free";
+  return pricingPlans.find((pricingPlan) => pricingPlan.id === plan)?.name ?? "Starter";
 }

@@ -118,11 +118,12 @@ Local fallback remains active when Supabase is not configured or when the user i
 
 ISEYA has subscription scaffolding for:
 
-- Free
-- Pro Monthly
-- Pro Annual
+- Starter / Free
+- Plus / $1.99 one-time
+- Pro Monthly / $7.99 per month
+- Pro Annual / $69 per year
 
-The `/pricing` page is a placeholder. Stripe checkout and webhooks are not active yet, so no real payments are charged. Subscription profile fields are stored on `profiles`, and the app uses feature checks so Free accounts keep basic resume editing while Pro accounts can be granted exports, saved versions, AI credits, cover letters, LinkedIn kits, and application kits.
+The `/pricing` page shows the planned plan structure. Stripe checkout and webhooks are not active yet, so no real payments are charged. Subscription profile fields are stored on `profiles`, and the app uses feature checks so Starter users keep basic resume editing and one resume download while paid plans can unlock more downloads, saved versions, AI credits, cover letters, LinkedIn kits, and application kits.
 
 ## Deployment To Vercel
 

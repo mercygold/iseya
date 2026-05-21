@@ -4527,6 +4527,14 @@ export default function Home() {
   );
 
   function requireSubscriptionFeature(feature: SubscriptionFeature, label: string) {
+    if (
+      subscriptionPlan === "free" &&
+      feature === "exports" &&
+      usageStats.exportsCreated < 1
+    ) {
+      return true;
+    }
+
     if (canUseSubscriptionFeature(subscriptionPlan, feature)) {
       return true;
     }
@@ -5797,10 +5805,10 @@ export default function Home() {
                     Subscription
                   </p>
                   <h2 className="mt-1 text-sm font-semibold text-[var(--iseya-navy)]">
-                    {currentPlanLabel}
+                    Plan: {currentPlanLabel}
                   </h2>
                   <p className="mt-1 text-xs text-slate-600">
-                    Status: {subscriptionStatus}. Basic resume editing is available on Free.
+                    Status: {subscriptionPlan === "free" ? "Active" : subscriptionStatus}
                   </p>
                 </div>
                 <Link
@@ -5810,12 +5818,27 @@ export default function Home() {
                   View Plans
                 </Link>
               </div>
+              {subscriptionPlan === "free" ? (
+                <div className="mt-4 border-t border-[var(--iseya-gold)]/30 pt-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-navy)]">
+                    Allowance
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs font-medium text-slate-700">
+                    <li>✓ 1 free resume download included</li>
+                    <li>✓ Basic resume editing available</li>
+                    <li>✓ Neutral starter workspace available</li>
+                  </ul>
+                  <p className="mt-3 text-xs leading-5 text-slate-600">
+                    Upgrade for LinkedIn optimization, cover letters, saved versions, and more downloads.
+                  </p>
+                </div>
+              ) : null}
             </div>
             <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">Usage</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                  AI generations used today
+                  AI generations used
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-zinc-950">
                   {usageStats.aiGenerations}
@@ -5823,7 +5846,7 @@ export default function Home() {
               </div>
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                  Exports created
+                  Resume downloads used
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-zinc-950">
                   {usageStats.exportsCreated}
