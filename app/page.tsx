@@ -4029,6 +4029,7 @@ export default function Home() {
   const lastAuthUserIdRef = useRef<string | null>(null);
   const cloudLoadInFlightUserRef = useRef<string | null>(null);
   const billingRefreshAttemptedRef = useRef(false);
+  const subscriptionFetchFailedRef = useRef(false);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const feedbackTimers = useRef<Record<string, number>>({});
   const previewTheme = previewThemes[theme];
@@ -4153,7 +4154,7 @@ export default function Home() {
 
   const refreshSubscriptionProfile = useCallback(async () => {
     if (!authLoaded || !supabase || !authUserId) {
-      return;
+      return false;
     }
 
     const {
@@ -4165,13 +4166,13 @@ export default function Home() {
     if (liveUserError || !liveUserId) {
       console.log("Workspace live plan:", "auth_user_unavailable", "unknown");
       console.log("LIVE PROFILE PLAN:", "auth_user_unavailable");
-      return;
+      return false;
     }
 
     const { data: profile, error } = await supabase
       .from("profiles")
       .select(
-        "subscription_plan, subscription_status, resume_download_credits, optimization_credits, downloads_used, optimization_credits_used, saved_versions_count",
+        "id, email, subscription_plan, subscription_status, stripe_customer_id, stripe_subscription_id, resume_download_credits, optimization_credits",
       )
       .eq("id", liveUserId)
       .maybeSingle();
@@ -4180,7 +4181,8 @@ export default function Home() {
       setSubscriptionProfileLoaded(true);
       console.log("Workspace live plan:", "profile_fetch_error", "unknown");
       console.log("LIVE PROFILE PLAN:", "profile_fetch_error");
-      return;
+      console.log("Workspace profile fetch error:", error.message);
+      return false;
     }
 
     console.log(
@@ -4190,6 +4192,7 @@ export default function Home() {
     );
     console.log("LIVE PROFILE PLAN:", profile?.subscription_plan ?? null);
 
+    subscriptionFetchFailedRef.current = false;
     setSubscriptionProfileLoaded(true);
 
     if (!profile) {
@@ -4200,17 +4203,18 @@ export default function Home() {
       setDownloadsUsed(0);
       setOptimizationCreditsUsed(0);
       setSavedVersionsCount(0);
-      return;
+      return true;
     }
 
     setSubscriptionPlan(normalizeSubscriptionPlan(profile.subscription_plan));
     setSubscriptionStatus(profile.subscription_status || "free");
     setResumeDownloadCredits(profile.resume_download_credits ?? 0);
     setOptimizationCredits(profile.optimization_credits ?? 0);
-    setDownloadsUsed(profile.downloads_used ?? 0);
-    setOptimizationCreditsUsed(profile.optimization_credits_used ?? 0);
-    setSavedVersionsCount(profile.saved_versions_count ?? 0);
-  }, [authLoaded, authUserId, supabase]);
+    setDownloadsUsed(0);
+    setOptimizationCreditsUsed(0);
+    setSavedVersionsCount(savedVersions.length);
+    return true;
+  }, [authLoaded, authUserId, savedVersions.length, supabase]);
 
   const applySavedState = useCallback((state: Partial<SavedState>) => {
     setMasterResume(state.masterResume ?? sampleResume);
@@ -4390,6 +4394,7 @@ export default function Home() {
 
     if (!supabase || !authUserId) {
       window.setTimeout(() => {
+        subscriptionFetchFailedRef.current = false;
         setSubscriptionProfileLoaded(false);
         setSubscriptionPlan("free");
         setSubscriptionStatus("free");
@@ -4403,18 +4408,26 @@ export default function Home() {
     }
 
     let cancelled = false;
+    subscriptionFetchFailedRef.current = false;
     window.setTimeout(() => {
       setSubscriptionProfileLoaded(false);
     }, 0);
 
     async function loadSubscriptionProfile() {
-      if (!cancelled) {
-        await refreshSubscriptionProfile();
+      if (cancelled || subscriptionFetchFailedRef.current) {
+        return;
+      }
+
+      const ok = await refreshSubscriptionProfile();
+
+      if (!ok) {
+        subscriptionFetchFailedRef.current = true;
+        window.clearInterval(refreshInterval);
       }
     }
 
-    loadSubscriptionProfile();
     const refreshInterval = window.setInterval(loadSubscriptionProfile, 7000);
+    loadSubscriptionProfile();
 
     return () => {
       cancelled = true;
@@ -4428,6 +4441,7 @@ export default function Home() {
     }
 
     function refreshLiveProfile() {
+      subscriptionFetchFailedRef.current = false;
       void refreshSubscriptionProfile();
     }
 
@@ -4458,6 +4472,7 @@ export default function Home() {
     }
 
     billingRefreshAttemptedRef.current = true;
+    subscriptionFetchFailedRef.current = false;
     router.refresh();
     const immediateTimer = window.setTimeout(() => {
       setSubscriptionProfileLoaded(false);
