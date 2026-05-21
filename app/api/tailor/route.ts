@@ -1,3 +1,6 @@
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { isProPlan, normalizeSubscriptionPlan } from "@/lib/subscription";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -1291,12 +1294,49 @@ async function callOpenAIOptimization(
   };
 }
 
+async function canUseOptimizationEndpoint() {
+  const supabase = await createSupabaseServerClient();
+
+  if (!supabase) {
+    return false;
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return false;
+  }
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("subscription_plan, optimization_credits")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const plan = normalizeSubscriptionPlan(data?.subscription_plan);
+
+  if (isProPlan(plan)) {
+    return true;
+  }
+
+  return plan === "plus" && (data?.optimization_credits ?? 0) > 0;
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as TailorRequest;
     const apiKey = process.env.OPENAI_API_KEY;
 
     if (body.optimizationRequest) {
+      if (!(await canUseOptimizationEndpoint())) {
+        return Response.json(
+          { error: "AI optimization is locked for this plan." },
+          { status: 403 },
+        );
+      }
+
       if (!apiKey) {
         return Response.json(optimizeTextLocally(body));
       }

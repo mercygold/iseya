@@ -1,8 +1,11 @@
-export type SubscriptionPlanId = "free" | "plus" | "pro_monthly" | "pro_annual";
+export type SubscriptionPlanId = "free" | "starter" | "plus" | "pro_monthly" | "pro_annual";
 
 export type SubscriptionFeature =
   | "basicResumeBuilder"
   | "exports"
+  | "advancedExports"
+  | "premiumTemplates"
+  | "priorityProcessing"
   | "savedVersions"
   | "aiGenerations"
   | "coverLetter"
@@ -98,6 +101,7 @@ export const pricingPlans: PricingPlan[] = [
 const plusFeatures = new Set<SubscriptionFeature>([
   "basicResumeBuilder",
   "exports",
+  "premiumTemplates",
   "savedVersions",
   "aiGenerations",
   "coverLetter",
@@ -107,6 +111,9 @@ const plusFeatures = new Set<SubscriptionFeature>([
 const proFeatures = new Set<SubscriptionFeature>([
   "basicResumeBuilder",
   "exports",
+  "advancedExports",
+  "premiumTemplates",
+  "priorityProcessing",
   "savedVersions",
   "aiGenerations",
   "coverLetter",
@@ -117,6 +124,10 @@ const proFeatures = new Set<SubscriptionFeature>([
 const freeFeatures = new Set<SubscriptionFeature>(["basicResumeBuilder"]);
 
 export function normalizeSubscriptionPlan(plan: string | null | undefined): SubscriptionPlanId {
+  if (plan === "starter") {
+    return "free";
+  }
+
   if (plan === "plus" || plan === "pro_monthly" || plan === "pro_annual") {
     return plan;
   }
@@ -126,6 +137,10 @@ export function normalizeSubscriptionPlan(plan: string | null | undefined): Subs
 
 export function isProPlan(plan: SubscriptionPlanId) {
   return plan === "pro_monthly" || plan === "pro_annual";
+}
+
+export function isStarterPlan(plan: SubscriptionPlanId) {
+  return plan === "free" || plan === "starter";
 }
 
 export function canUseSubscriptionFeature(plan: SubscriptionPlanId, feature: SubscriptionFeature) {
@@ -142,4 +157,28 @@ export function canUseSubscriptionFeature(plan: SubscriptionPlanId, feature: Sub
 
 export function subscriptionLabel(plan: SubscriptionPlanId) {
   return pricingPlans.find((pricingPlan) => pricingPlan.id === plan)?.name ?? "Starter";
+}
+
+export function planDownloadLimit(plan: SubscriptionPlanId) {
+  if (isProPlan(plan)) {
+    return Infinity;
+  }
+
+  if (plan === "plus") {
+    return 5;
+  }
+
+  return 1;
+}
+
+export function planOptimizationLimit(plan: SubscriptionPlanId) {
+  if (isProPlan(plan)) {
+    return Infinity;
+  }
+
+  if (plan === "plus") {
+    return 15;
+  }
+
+  return 0;
 }

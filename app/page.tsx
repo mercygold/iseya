@@ -8,6 +8,10 @@ import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import type { Json } from "@/lib/database.types";
 import {
   canUseSubscriptionFeature,
+  isProPlan,
+  isStarterPlan,
+  planDownloadLimit,
+  planOptimizationLimit,
   subscriptionLabel,
   normalizeSubscriptionPlan,
   type SubscriptionFeature,
@@ -329,6 +333,8 @@ type UsageStats = {
   date: string;
   aiGenerations: number;
   exportsCreated: number;
+  downloadsUsed: number;
+  optimizationCreditsUsed: number;
 };
 
 type SavedResumeVersion = {
@@ -782,6 +788,16 @@ const templates: Record<TemplateId, TemplateProfile> = {
   },
 };
 
+const standardTemplateIds = new Set<TemplateId>([
+  "executive-navy",
+  "modern-product",
+  "ats-clean",
+]);
+
+function isPremiumTemplate(template: TemplateId) {
+  return !standardTemplateIds.has(template);
+}
+
 function isTemplateId(value: unknown): value is TemplateId {
   return typeof value === "string" && value in templates;
 }
@@ -1221,6 +1237,8 @@ function defaultUsageStats(): UsageStats {
     date: usageDateKey(),
     aiGenerations: 0,
     exportsCreated: 0,
+    downloadsUsed: 0,
+    optimizationCreditsUsed: 0,
   };
 }
 
@@ -1239,6 +1257,8 @@ function normalizeUsageStats(value: unknown): UsageStats {
     date: candidate.date,
     aiGenerations: Math.max(0, Number(candidate.aiGenerations) || 0),
     exportsCreated: Math.max(0, Number(candidate.exportsCreated) || 0),
+    downloadsUsed: Math.max(0, Number(candidate.downloadsUsed) || 0),
+    optimizationCreditsUsed: Math.max(0, Number(candidate.optimizationCreditsUsed) || 0),
   };
 }
 
@@ -3988,6 +4008,9 @@ export default function Home() {
   const [subscriptionStatus, setSubscriptionStatus] = useState("free");
   const [resumeDownloadCredits, setResumeDownloadCredits] = useState(0);
   const [optimizationCredits, setOptimizationCredits] = useState(0);
+  const [downloadsUsed, setDownloadsUsed] = useState(0);
+  const [optimizationCreditsUsed, setOptimizationCreditsUsed] = useState(0);
+  const [savedVersionsCount, setSavedVersionsCount] = useState(0);
   const [activeOutput, setActiveOutput] = useState<OutputTab>("resume");
   const [hydrated, setHydrated] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<Record<string, string>>({});
@@ -4025,6 +4048,19 @@ export default function Home() {
     subscriptionPlan === "free"
       ? "border-zinc-200 bg-white"
       : "border-[var(--iseya-gold)]/60 bg-[#FFF8E6]";
+  const downloadLimit = planDownloadLimit(subscriptionPlan);
+  const optimizationLimit = planOptimizationLimit(subscriptionPlan);
+  const effectiveDownloadsUsed = authUser ? downloadsUsed : usageStats.downloadsUsed;
+  const effectiveOptimizationCreditsUsed = authUser
+    ? optimizationCreditsUsed
+    : usageStats.optimizationCreditsUsed;
+  const downloadProgressPercent = Number.isFinite(downloadLimit)
+    ? Math.min(100, Math.round((effectiveDownloadsUsed / Math.max(1, downloadLimit)) * 100))
+    : 100;
+  const optimizationProgressPercent = Number.isFinite(optimizationLimit)
+    ? Math.min(100, Math.round((effectiveOptimizationCreditsUsed / Math.max(1, optimizationLimit)) * 100))
+    : 100;
+  const activeSavedVersionsCount = authUser ? savedVersionsCount : savedVersions.length;
 
   const buildSavedState = useCallback((): SavedState => {
     return {
@@ -4229,6 +4265,9 @@ export default function Home() {
         setSubscriptionStatus("free");
         setResumeDownloadCredits(0);
         setOptimizationCredits(0);
+        setDownloadsUsed(0);
+        setOptimizationCreditsUsed(0);
+        setSavedVersionsCount(0);
       }, 0);
       return;
     }
@@ -4241,7 +4280,7 @@ export default function Home() {
       const { data, error } = await activeSupabase
         .from("profiles")
         .select(
-          "subscription_plan, subscription_status, resume_download_credits, optimization_credits",
+          "subscription_plan, subscription_status, resume_download_credits, optimization_credits, downloads_used, optimization_credits_used, saved_versions_count",
         )
         .eq("id", activeUserId)
         .maybeSingle();
@@ -4255,6 +4294,9 @@ export default function Home() {
         setSubscriptionStatus("free");
         setResumeDownloadCredits(0);
         setOptimizationCredits(0);
+        setDownloadsUsed(0);
+        setOptimizationCreditsUsed(0);
+        setSavedVersionsCount(0);
         return;
       }
 
@@ -4262,6 +4304,9 @@ export default function Home() {
       setSubscriptionStatus(data?.subscription_status || "free");
       setResumeDownloadCredits(data?.resume_download_credits ?? 0);
       setOptimizationCredits(data?.optimization_credits ?? 0);
+      setDownloadsUsed(data?.downloads_used ?? 0);
+      setOptimizationCreditsUsed(data?.optimization_credits_used ?? 0);
+      setSavedVersionsCount(data?.saved_versions_count ?? 0);
     }
 
     loadSubscriptionProfile();
@@ -4272,6 +4317,15 @@ export default function Home() {
       window.clearInterval(refreshInterval);
     };
   }, [authLoaded, authUser, supabase]);
+
+  useEffect(() => {
+    if (isStarterPlan(subscriptionPlan) && isPremiumTemplate(template)) {
+      window.setTimeout(() => {
+        setTemplate("executive-navy");
+        setSystemStatus("Premium template locked on Starter. Executive Navy is selected.");
+      }, 0);
+    }
+  }, [subscriptionPlan, template]);
 
   useEffect(() => {
     if (!hydrated || !authLoaded || !supabase || !authUser) {
@@ -4559,21 +4613,67 @@ export default function Home() {
   );
 
   function requireSubscriptionFeature(feature: SubscriptionFeature, label: string) {
-    if (
-      subscriptionPlan === "free" &&
-      feature === "exports" &&
-      usageStats.exportsCreated < 1
-    ) {
-      return true;
-    }
-
     if (canUseSubscriptionFeature(subscriptionPlan, feature)) {
       return true;
     }
 
     setSystemStatus(
-      `${label} is prepared for ISEYA Pro. Payments are not active yet, so no charge will be made.`,
+      `${label} is locked on Starter. Upgrade to Plus or Pro to unlock it.`,
     );
+    return false;
+  }
+
+  function requireTemplateAccess(nextTemplate: TemplateId) {
+    if (!isPremiumTemplate(nextTemplate) || canUseSubscriptionFeature(subscriptionPlan, "premiumTemplates")) {
+      return true;
+    }
+
+    setSystemStatus("Premium templates are locked on Starter. Upgrade to Plus or Pro to unlock them.");
+    return false;
+  }
+
+  function requireDownloadAccess(label: string, advanced = false) {
+    if (advanced && !canUseSubscriptionFeature(subscriptionPlan, "advancedExports")) {
+      setSystemStatus(`${label} is an advanced export. Upgrade to Plus or Pro to unlock it.`);
+      return false;
+    }
+
+    if (isProPlan(subscriptionPlan)) {
+      return true;
+    }
+
+    if (subscriptionPlan === "plus") {
+      if (resumeDownloadCredits > 0) {
+        return true;
+      }
+
+      setSystemStatus("You have used your Plus downloads. Upgrade to Pro for unlimited downloads.");
+      return false;
+    }
+
+    if (effectiveDownloadsUsed < 1) {
+      return true;
+    }
+
+    setSystemStatus("Starter includes 1 free resume download. Upgrade to Plus or Pro for more downloads.");
+    return false;
+  }
+
+  function requireOptimizationAccess(label: string) {
+    if (isProPlan(subscriptionPlan)) {
+      return true;
+    }
+
+    if (subscriptionPlan === "plus") {
+      if (optimizationCredits > 0) {
+        return true;
+      }
+
+      setSystemStatus("You have used your Plus optimization credits. Upgrade to Pro for unlimited optimization.");
+      return false;
+    }
+
+    setSystemStatus(`${label} is locked on Starter. Upgrade to Plus or Pro to unlock AI optimization.`);
     return false;
   }
 
@@ -4593,26 +4693,89 @@ export default function Home() {
     setActiveOutput(tab);
   }
 
-  function trackUsage(kind: "aiGenerations" | "exportsCreated") {
+  function syncProfileUsage(next: {
+    downloadsUsed?: number;
+    optimizationCreditsUsed?: number;
+    savedVersionsCount?: number;
+    resumeDownloadCredits?: number;
+    optimizationCredits?: number;
+  }) {
+    if (!supabase || !authUser) {
+      return;
+    }
+
+    void supabase
+      .from("profiles")
+      .update({
+        ...(typeof next.downloadsUsed === "number" ? { downloads_used: next.downloadsUsed } : {}),
+        ...(typeof next.optimizationCreditsUsed === "number"
+          ? { optimization_credits_used: next.optimizationCreditsUsed }
+          : {}),
+        ...(typeof next.savedVersionsCount === "number"
+          ? { saved_versions_count: next.savedVersionsCount }
+          : {}),
+        ...(typeof next.resumeDownloadCredits === "number"
+          ? { resume_download_credits: next.resumeDownloadCredits }
+          : {}),
+        ...(typeof next.optimizationCredits === "number"
+          ? { optimization_credits: next.optimizationCredits }
+          : {}),
+      })
+      .eq("id", authUser.id);
+  }
+
+  function trackUsage(kind: "aiGenerations" | "exportsCreated" | "optimizationCreditsUsed") {
     setUsageStats((current) => {
       const normalized =
         current.date === usageDateKey() ? current : defaultUsageStats();
+      const nextDownloads =
+        kind === "exportsCreated" ? normalized.downloadsUsed + 1 : normalized.downloadsUsed;
+      const nextOptimization =
+        kind === "optimizationCreditsUsed"
+          ? normalized.optimizationCreditsUsed + 1
+          : normalized.optimizationCreditsUsed;
 
       return {
         ...normalized,
-        [kind]: normalized[kind] + 1,
+        aiGenerations:
+          kind === "aiGenerations" || kind === "optimizationCreditsUsed"
+            ? normalized.aiGenerations + 1
+            : normalized.aiGenerations,
+        exportsCreated:
+          kind === "exportsCreated" ? normalized.exportsCreated + 1 : normalized.exportsCreated,
+        downloadsUsed: nextDownloads,
+        optimizationCreditsUsed: nextOptimization,
       };
     });
 
+    if (kind === "exportsCreated") {
+      const nextDownloadsUsed = downloadsUsed + 1;
+      const nextCredits = subscriptionPlan === "plus" ? Math.max(0, resumeDownloadCredits - 1) : resumeDownloadCredits;
+      setDownloadsUsed(nextDownloadsUsed);
+      setResumeDownloadCredits(nextCredits);
+      syncProfileUsage({ downloadsUsed: nextDownloadsUsed, resumeDownloadCredits: nextCredits });
+    }
+
+    if (kind === "optimizationCreditsUsed") {
+      const nextOptimizationUsed = optimizationCreditsUsed + 1;
+      const nextCredits = subscriptionPlan === "plus" ? Math.max(0, optimizationCredits - 1) : optimizationCredits;
+      setOptimizationCreditsUsed(nextOptimizationUsed);
+      setOptimizationCredits(nextCredits);
+      syncProfileUsage({
+        optimizationCreditsUsed: nextOptimizationUsed,
+        optimizationCredits: nextCredits,
+      });
+    }
+
     if (supabase && authUser) {
-      if (kind === "aiGenerations") {
+      if (kind === "aiGenerations" || kind === "optimizationCreditsUsed") {
         void supabase.from("ai_generations").insert({
           user_id: authUser.id,
           resume_id: cloudResumeId,
-          prompt_type: "tailor_resume",
+          prompt_type: kind === "optimizationCreditsUsed" ? "section_optimization" : "tailor_resume",
           tokens_used: 0,
         });
-      } else {
+      } else if (kind === "exportsCreated") {
         void supabase.from("exports").insert({
           user_id: authUser.id,
           resume_id: cloudResumeId,
@@ -4725,6 +4888,9 @@ export default function Home() {
     setSavedVersions((current) => [snapshot, ...current]);
     setSelectedVersionId(snapshot.id);
     setVersionStatus("Current resume version saved.");
+    const nextSavedVersionsCount = savedVersionsCount + 1;
+    setSavedVersionsCount(nextSavedVersionsCount);
+    syncProfileUsage({ savedVersionsCount: nextSavedVersionsCount });
 
     if (!supabase || !authUser || !cloudResumeId) {
       return;
@@ -4776,6 +4942,10 @@ export default function Home() {
   }
 
   function duplicateVersion(version: SavedResumeVersion | null) {
+    if (!requireSubscriptionFeature("savedVersions", "Saved versions")) {
+      return;
+    }
+
     if (!version) {
       setVersionStatus("Select a saved version to duplicate.");
       return;
@@ -4792,6 +4962,9 @@ export default function Home() {
 
     setSavedVersions((current) => [duplicate, ...current]);
     setSelectedVersionId(duplicate.id);
+    const nextSavedVersionsCount = savedVersionsCount + 1;
+    setSavedVersionsCount(nextSavedVersionsCount);
+    syncProfileUsage({ savedVersionsCount: nextSavedVersionsCount });
     setVersionStatus("Version duplicated.");
   }
 
@@ -4830,6 +5003,9 @@ export default function Home() {
     setSavedVersions((current) => current.filter((item) => item.id !== version.id));
     setCompareVersionIds((current) => current.filter((id) => id !== version.id));
     setSelectedVersionId((current) => (current === version.id ? "" : current));
+    const nextSavedVersionsCount = Math.max(0, savedVersionsCount - 1);
+    setSavedVersionsCount(nextSavedVersionsCount);
+    syncProfileUsage({ savedVersionsCount: nextSavedVersionsCount });
     setVersionStatus("Version deleted.");
   }
 
@@ -4842,7 +5018,7 @@ export default function Home() {
   }
 
   async function tailorResume() {
-    if (!requireSubscriptionFeature("aiGenerations", "AI resume tailoring")) {
+    if (!requireOptimizationAccess("AI resume tailoring")) {
       return;
     }
 
@@ -4886,7 +5062,7 @@ export default function Home() {
           jobDescription,
         ),
       );
-      trackUsage("aiGenerations");
+      trackUsage("optimizationCreditsUsed");
     } catch {
       setTailorError(
         "AI tailoring could not complete, so I used a safe resume generation fallback and kept your draft editable.",
@@ -4900,7 +5076,7 @@ export default function Home() {
           targetRole,
         ),
       );
-      trackUsage("aiGenerations");
+      trackUsage("optimizationCreditsUsed");
     } finally {
       setIsTailoring(false);
     }
@@ -4908,6 +5084,10 @@ export default function Home() {
 
   function generateCoverLetter() {
     if (!requireSubscriptionFeature("coverLetter", "Cover letters")) {
+      return;
+    }
+
+    if (!requireOptimizationAccess("Cover letter generation")) {
       return;
     }
 
@@ -4929,11 +5109,15 @@ export default function Home() {
         ),
       };
     });
-    trackUsage("aiGenerations");
+    trackUsage("optimizationCreditsUsed");
   }
 
   function generateLinkedInProfile() {
     if (!requireSubscriptionFeature("linkedinProfile", "LinkedIn profile generation")) {
+      return;
+    }
+
+    if (!requireOptimizationAccess("LinkedIn profile generation")) {
       return;
     }
 
@@ -4955,7 +5139,7 @@ export default function Home() {
       };
     });
     setActiveOutput("linkedin");
-    trackUsage("aiGenerations");
+    trackUsage("optimizationCreditsUsed");
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -5119,7 +5303,7 @@ export default function Home() {
   }
 
   async function downloadCoverLetterPdf() {
-    if (!requireSubscriptionFeature("exports", "Exports")) {
+    if (!requireDownloadAccess("Cover letter PDF export", true)) {
       return;
     }
 
@@ -5143,7 +5327,7 @@ export default function Home() {
   }
 
   async function downloadCoverLetterDocx() {
-    if (!requireSubscriptionFeature("exports", "Exports")) {
+    if (!requireDownloadAccess("Cover letter DOCX export", true)) {
       return;
     }
 
@@ -5167,7 +5351,7 @@ export default function Home() {
   }
 
   function downloadCoverLetterTxt() {
-    if (!requireSubscriptionFeature("exports", "Exports")) {
+    if (!requireDownloadAccess("Cover letter TXT export", true)) {
       return;
     }
 
@@ -5187,7 +5371,7 @@ export default function Home() {
   }
 
   async function downloadResumePdf() {
-    if (!requireSubscriptionFeature("exports", "Exports")) {
+    if (!requireDownloadAccess("Resume export")) {
       return;
     }
 
@@ -5210,7 +5394,7 @@ export default function Home() {
   }
 
   async function downloadResumeDocx() {
-    if (!requireSubscriptionFeature("exports", "Exports")) {
+    if (!requireDownloadAccess("Resume export")) {
       return;
     }
 
@@ -5233,7 +5417,7 @@ export default function Home() {
   }
 
   async function downloadLinkedInKitPdf() {
-    if (!requireSubscriptionFeature("exports", "Exports")) {
+    if (!requireDownloadAccess("LinkedIn Kit PDF export", true)) {
       return;
     }
 
@@ -5255,7 +5439,7 @@ export default function Home() {
   }
 
   async function downloadLinkedInKitDocx() {
-    if (!requireSubscriptionFeature("exports", "Exports")) {
+    if (!requireDownloadAccess("LinkedIn Kit DOCX export", true)) {
       return;
     }
 
@@ -5277,7 +5461,7 @@ export default function Home() {
   }
 
   async function downloadApplicationKitPdf() {
-    if (!requireSubscriptionFeature("exports", "Exports")) {
+    if (!requireDownloadAccess("Application Kit PDF export", true)) {
       return;
     }
 
@@ -5299,7 +5483,7 @@ export default function Home() {
   }
 
   async function downloadApplicationKitDocx() {
-    if (!requireSubscriptionFeature("exports", "Exports")) {
+    if (!requireDownloadAccess("Application Kit DOCX export", true)) {
       return;
     }
 
@@ -5684,14 +5868,27 @@ export default function Home() {
                 Template
                 <select
                   value={template}
-                  onChange={(event) => setTemplate(event.target.value as TemplateId)}
+                  onChange={(event) => {
+                    const nextTemplate = event.target.value as TemplateId;
+
+                    if (requireTemplateAccess(nextTemplate)) {
+                      setTemplate(nextTemplate);
+                    }
+                  }}
                   className="mt-3 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                 >
-                  {Object.entries(templates).map(([id, item]) => (
+                  {Object.entries(templates).map(([id, item]) => {
+                    const templateId = id as TemplateId;
+                    const locked =
+                      isPremiumTemplate(templateId) &&
+                      !canUseSubscriptionFeature(subscriptionPlan, "premiumTemplates");
+
+                    return (
                     <option key={id} value={id}>
-                      {item.label}
+                      {locked ? "🔒 " : ""}{item.label}{locked ? " (Plus)" : ""}
                     </option>
-                  ))}
+                    );
+                  })}
                 </select>
               </label>
 
@@ -5715,6 +5912,9 @@ export default function Home() {
 
             <p className="mt-3 text-sm text-zinc-500">
               {templates[template].description}
+              {isPremiumTemplate(template) && isStarterPlan(subscriptionPlan)
+                ? " Premium preview locked on Starter."
+                : ""}
             </p>
           </div>
 
@@ -5894,7 +6094,7 @@ export default function Home() {
                         Downloads remaining
                       </p>
                       <p className="mt-1 text-xl font-semibold text-[var(--iseya-navy)]">
-                        {resumeDownloadCredits}
+                        {isProPlan(subscriptionPlan) ? "Unlimited" : resumeDownloadCredits}
                       </p>
                     </div>
                     <div className="rounded-lg border border-white/70 bg-white p-3">
@@ -5902,7 +6102,7 @@ export default function Home() {
                         Optimization credits remaining
                       </p>
                       <p className="mt-1 text-xl font-semibold text-[var(--iseya-navy)]">
-                        {optimizationCredits}
+                        {isProPlan(subscriptionPlan) ? "Unlimited" : optimizationCredits}
                       </p>
                     </div>
                   </div>
@@ -5916,10 +6116,19 @@ export default function Home() {
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                  AI generations used
+                  Optimization credits used
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-zinc-950">
-                  {usageStats.aiGenerations}
+                  {effectiveOptimizationCreditsUsed}
+                </p>
+                <div className="mt-3 h-2 rounded-full bg-slate-200">
+                  <div
+                    className="h-2 rounded-full bg-[var(--iseya-gold)]"
+                    style={{ width: `${optimizationProgressPercent}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-[11px] font-medium text-slate-500">
+                  {Number.isFinite(optimizationLimit) ? `${optimizationLimit} included` : "Unlimited"}
                 </p>
               </div>
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
@@ -5927,7 +6136,16 @@ export default function Home() {
                   Resume downloads used
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-zinc-950">
-                  {usageStats.exportsCreated}
+                  {effectiveDownloadsUsed}
+                </p>
+                <div className="mt-3 h-2 rounded-full bg-slate-200">
+                  <div
+                    className="h-2 rounded-full bg-[var(--iseya-gold)]"
+                    style={{ width: `${downloadProgressPercent}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-[11px] font-medium text-slate-500">
+                  {Number.isFinite(downloadLimit) ? `${downloadLimit} included` : "Unlimited"}
                 </p>
               </div>
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
@@ -5935,7 +6153,16 @@ export default function Home() {
                   Saved versions
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-zinc-950">
-                  {savedVersions.length}
+                  {activeSavedVersionsCount}
+                </p>
+                <div className="mt-3 h-2 rounded-full bg-slate-200">
+                  <div
+                    className="h-2 rounded-full bg-[var(--iseya-gold)]"
+                    style={{ width: canUseSubscriptionFeature(subscriptionPlan, "savedVersions") ? "100%" : "0%" }}
+                  />
+                </div>
+                <p className="mt-2 text-[11px] font-medium text-slate-500">
+                  {canUseSubscriptionFeature(subscriptionPlan, "savedVersions") ? "Enabled" : "Locked"}
                 </p>
               </div>
             </div>
@@ -5947,18 +6174,27 @@ export default function Home() {
           <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
             <details open>
               <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
+                {canUseSubscriptionFeature(subscriptionPlan, "savedVersions") ? "" : "🔒 "}
                 Saved Resume Versions
               </summary>
               <div className="mt-4 space-y-4">
+                {!canUseSubscriptionFeature(subscriptionPlan, "savedVersions") ? (
+                  <div className="rounded-md border border-[var(--iseya-gold)]/30 bg-[#FFF8E6] p-3 text-xs font-medium text-[var(--iseya-navy)]">
+                    Saved versions are unlocked with Plus and Pro plans.
+                    <Link href="/pricing" className="ml-2 font-bold underline">
+                      Upgrade
+                    </Link>
+                  </div>
+                ) : null}
                 <div className="flex flex-wrap gap-2">
                   <FeedbackButton
                     onClick={saveCurrentVersion}
                     activeLabel="Saving..."
                     doneLabel="Saved"
-                    disabled={!result}
+                    disabled={!result || !canUseSubscriptionFeature(subscriptionPlan, "savedVersions")}
                     className={`${primaryButtonClass} ${buttonSizeSmClass}`}
                   >
-                    Save Current Version
+                    {canUseSubscriptionFeature(subscriptionPlan, "savedVersions") ? "Save Current Version" : "🔒 Save Current Version"}
                   </FeedbackButton>
                   <FeedbackButton
                     onClick={() => loadVersion(selectedVersion)}
@@ -6228,7 +6464,13 @@ export default function Home() {
                   ["linkedin", "LinkedIn"],
                   ["application", "Application Kit"],
                   ["preview", "Preview"],
-                ].map(([id, label]) => (
+                ].map(([id, label]) => {
+                  const locked =
+                    (id === "cover" && !canUseSubscriptionFeature(subscriptionPlan, "coverLetter")) ||
+                    (id === "linkedin" && !canUseSubscriptionFeature(subscriptionPlan, "linkedinProfile")) ||
+                    (id === "application" && !canUseSubscriptionFeature(subscriptionPlan, "applicationKit"));
+
+                  return (
                   <button
                     key={id}
                     type="button"
@@ -6239,9 +6481,10 @@ export default function Home() {
                         : "border border-[var(--iseya-border)] bg-[var(--iseya-white)] text-[var(--iseya-navy)] hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]"
                     }`}
                   >
-                    {label}
+                    {locked ? "🔒 " : ""}{label}
                   </button>
-                ))}
+                  );
+                })}
                 <button
                   type="button"
                   onClick={() => setActiveOutput("resume")}
@@ -6322,9 +6565,13 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => runWithFeedback("saveVersion", "Saving...", "Saved", saveCurrentVersion)}
+                  disabled={!canUseSubscriptionFeature(subscriptionPlan, "savedVersions")}
                   className={`${primaryButtonClass} ${buttonSizeMdClass}`}
                 >
-                  {actionFeedback.saveVersion ?? "Save Version"}
+                  {actionFeedback.saveVersion ??
+                    (canUseSubscriptionFeature(subscriptionPlan, "savedVersions")
+                      ? "Save Version"
+                      : "🔒 Save Version")}
                 </button>
               </div>
             </div>
@@ -6364,15 +6611,23 @@ export default function Home() {
                           onPersonalBrandingChange={updatePersonalBranding}
                           onProfileImage={handleProfileImage}
                           onResumeTextChange={updateResumeOutput}
-                          canUseAiOptimization={canUseSubscriptionFeature(subscriptionPlan, "aiGenerations")}
-                          onUpgradeRequired={() =>
-                            requireSubscriptionFeature("aiGenerations", "AI section optimization")
+                          canUseAiOptimization={
+                            isProPlan(subscriptionPlan) ||
+                            (subscriptionPlan === "plus" && optimizationCredits > 0)
                           }
+                          onUpgradeRequired={() =>
+                            requireOptimizationAccess("AI section optimization")
+                          }
+                          onOptimizationUsed={() => trackUsage("optimizationCreditsUsed")}
                         />
                       </div>
-	                      <div
+                      <div
 	                        id="resume-preview"
-	                        className="min-w-0 scroll-mt-28 xl:sticky xl:top-24 xl:max-h-[calc(100vh-9rem)] xl:self-start xl:overflow-auto xl:pr-1"
+	                        className={`min-w-0 scroll-mt-28 xl:sticky xl:top-24 xl:max-h-[calc(100vh-9rem)] xl:self-start xl:overflow-auto xl:pr-1 ${
+                            isPremiumTemplate(template) && isStarterPlan(subscriptionPlan)
+                              ? "blur-[1.5px]"
+                              : ""
+                          }`}
 	                      >
                         <ResumePreview
                           resumeText={result.rewrittenResume}
@@ -6718,6 +6973,7 @@ function ModularResumeEditor({
   onResumeTextChange,
   canUseAiOptimization,
   onUpgradeRequired,
+  onOptimizationUsed,
 }: {
   resumeText: string;
   resetSourceText: string;
@@ -6733,6 +6989,7 @@ function ModularResumeEditor({
   onResumeTextChange: (value: string) => void;
   canUseAiOptimization: boolean;
   onUpgradeRequired: () => boolean;
+  onOptimizationUsed: () => void;
 }) {
   const [optimizingKey, setOptimizingKey] = useState("");
   const [optimizationStatus, setOptimizationStatus] = useState("");
@@ -6818,12 +7075,14 @@ function ModularResumeEditor({
           ? `${sectionName} updated. ${warning}`
           : `${sectionName} updated. Verify before use if new scope or metrics were inferred.`,
       );
+      onOptimizationUsed();
       return optimizedText;
     } catch {
       const fallback = optimizationFallbackText(cleaned, action);
       setOptimizationStatus(
         `${sectionName} updated with local fallback. Verify before use.`,
       );
+      onOptimizationUsed();
       return fallback;
     } finally {
       setOptimizingKey("");

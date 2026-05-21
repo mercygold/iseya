@@ -20,6 +20,9 @@ export type Database = {
           stripe_subscription_id: string | null;
           resume_download_credits: number;
           optimization_credits: number;
+          downloads_used: number;
+          optimization_credits_used: number;
+          saved_versions_count: number;
           processed_stripe_event_ids: string[];
           created_at: string;
           updated_at: string;
@@ -34,6 +37,9 @@ export type Database = {
           stripe_subscription_id?: string | null;
           resume_download_credits?: number;
           optimization_credits?: number;
+          downloads_used?: number;
+          optimization_credits_used?: number;
+          saved_versions_count?: number;
           processed_stripe_event_ids?: string[];
           created_at?: string;
           updated_at?: string;
@@ -48,6 +54,9 @@ export type Database = {
           stripe_subscription_id?: string | null;
           resume_download_credits?: number;
           optimization_credits?: number;
+          downloads_used?: number;
+          optimization_credits_used?: number;
+          saved_versions_count?: number;
           processed_stripe_event_ids?: string[];
           created_at?: string;
           updated_at?: string;
