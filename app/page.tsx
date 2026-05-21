@@ -4013,6 +4013,18 @@ export default function Home() {
           .filter(Boolean)
           .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
           .join(" ") || "Active";
+  const subscriptionRenewalLabel =
+    subscriptionPlan === "plus"
+      ? "One-time credit pack"
+      : subscriptionPlan === "pro_monthly"
+        ? "Monthly renewal"
+        : subscriptionPlan === "pro_annual"
+          ? "Annual renewal"
+          : "No renewal";
+  const subscriptionCardTone =
+    subscriptionPlan === "free"
+      ? "border-zinc-200 bg-white"
+      : "border-[var(--iseya-gold)]/60 bg-[#FFF8E6]";
 
   const buildSavedState = useCallback((): SavedState => {
     return {
@@ -5818,28 +5830,47 @@ export default function Home() {
           </section>
 
           <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="mb-5 rounded-md border border-[var(--iseya-gold)]/40 bg-[#FFF8E6] p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className={`mb-5 rounded-xl border p-5 shadow-sm ${subscriptionCardTone}`}>
+              <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
-                    Subscription
-                  </p>
-                  <h2 className="mt-1 text-sm font-semibold text-[var(--iseya-navy)]">
-                    Plan: {currentPlanLabel}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+                      Subscription
+                    </p>
+                    <span className="rounded-full border border-[var(--iseya-gold)]/50 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--iseya-navy)]">
+                      Active Plan
+                    </span>
+                  </div>
+                  <h2 className="mt-3 text-lg font-semibold text-[var(--iseya-navy)]">
+                    {currentPlanLabel}
                   </h2>
-                  <p className="mt-1 text-xs text-slate-600">
-                    Status: {currentSubscriptionStatusLabel}
-                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold">
+                    <span className="rounded-full bg-[var(--iseya-navy)] px-3 py-1 text-white">
+                      {currentSubscriptionStatusLabel}
+                    </span>
+                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-600">
+                      {subscriptionRenewalLabel}
+                    </span>
+                  </div>
                 </div>
-                <Link
-                  href="/pricing"
-                  className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
-                >
-                  View Plans
-                </Link>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href="/pricing"
+                    className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
+                  >
+                    View Plans
+                  </Link>
+                  <button
+                    type="button"
+                    disabled
+                    className={`${secondaryButtonClass} ${buttonSizeSmClass} disabled:cursor-not-allowed disabled:opacity-60`}
+                  >
+                    Manage Billing
+                  </button>
+                </div>
               </div>
               {subscriptionPlan === "free" ? (
-                <div className="mt-4 border-t border-[var(--iseya-gold)]/30 pt-4">
+                <div className="mt-5 border-t border-[var(--iseya-gold)]/30 pt-4">
                   <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-navy)]">
                     Allowance
                   </p>
@@ -5853,16 +5884,33 @@ export default function Home() {
                   </p>
                 </div>
               ) : (
-                <div className="mt-4 border-t border-[var(--iseya-gold)]/30 pt-4">
+                <div className="mt-5 border-t border-[var(--iseya-gold)]/30 pt-4">
                   <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-navy)]">
-                    Available
+                    Available Credits
                   </p>
-                  <ul className="mt-2 space-y-1 text-xs font-medium text-slate-700">
-                    <li>Downloads remaining: {resumeDownloadCredits}</li>
-                    <li>Optimization credits remaining: {optimizationCredits}</li>
-                  </ul>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border border-white/70 bg-white p-3">
+                      <p className="text-xs font-semibold text-slate-500">
+                        Downloads remaining
+                      </p>
+                      <p className="mt-1 text-xl font-semibold text-[var(--iseya-navy)]">
+                        {resumeDownloadCredits}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-white/70 bg-white p-3">
+                      <p className="text-xs font-semibold text-slate-500">
+                        Optimization credits remaining
+                      </p>
+                      <p className="mt-1 text-xl font-semibold text-[var(--iseya-navy)]">
+                        {optimizationCredits}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
+              <p className="mt-4 text-xs leading-5 text-slate-500">
+                Billing history coming soon.
+              </p>
             </div>
             <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">Usage</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">

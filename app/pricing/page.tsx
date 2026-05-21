@@ -34,19 +34,12 @@ export default function PricingPage() {
       const data = (await response.json()) as { url?: string; error?: string };
 
       if (!response.ok || !data.url) {
-        throw new Error(
-          data.error ||
-            "Checkout is temporarily unavailable. Please try again shortly.",
-        );
+        throw new Error(safeCheckoutMessage(data.error));
       }
 
       window.location.assign(data.url);
     } catch (error) {
-      setCheckoutStatus(
-        error instanceof Error
-          ? error.message
-          : "Checkout is temporarily unavailable. Please try again shortly.",
-      );
+      setCheckoutStatus(safeCheckoutMessage(error instanceof Error ? error.message : ""));
     } finally {
       setCheckoutPlan("");
     }
@@ -146,7 +139,14 @@ export default function PricingPage() {
                       : "border-[var(--iseya-navy)] bg-white text-[var(--iseya-navy)] hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]"
                   }`}
                 >
-                  {checkoutPlan === plan.id ? "Starting checkout..." : planButtonLabel(plan.id)}
+                  {checkoutPlan === plan.id ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Redirecting to Checkout...
+                    </span>
+                  ) : (
+                    planButtonLabel(plan.id)
+                  )}
                 </button>
               </section>
             ))}
@@ -165,6 +165,32 @@ export default function PricingPage() {
       </section>
     </main>
   );
+}
+
+function safeCheckoutMessage(message?: string) {
+  const fallback = "Checkout is temporarily unavailable. Please try again shortly.";
+  const technicalPatterns = [
+    "stripe",
+    "secret",
+    "price id",
+    "webhook",
+    "environment",
+    "env",
+    "api key",
+    "configured",
+    "configuration",
+  ];
+  const normalized = message?.trim() ?? "";
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (technicalPatterns.some((pattern) => normalized.toLowerCase().includes(pattern))) {
+    return fallback;
+  }
+
+  return normalized;
 }
 
 function planButtonLabel(planId: string) {
