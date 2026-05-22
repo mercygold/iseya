@@ -24,7 +24,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
     resetPassword,
     loading,
     error: authError,
-    publicEnvDebug,
     clearError,
   } = useAuth();
   const [email, setEmail] = useState("");
@@ -40,8 +39,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const isLogin = mode === "login";
   const useInstitutionSignup = enableInstitutionAccess && signupPath === "institution";
   const signupEmail = useInstitutionSignup ? schoolEmail : email;
-  const showAuthDebug =
-    process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_ISEYA_AUTH_DEBUG === "true";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -234,26 +231,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
           {error || authError ? (
             <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
               <p>{error || authError}</p>
-              {showAuthDebug ? (
-                <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-red-800">
-                  <div>
-                    <dt className="font-semibold">Supabase URL present</dt>
-                    <dd>{publicEnvDebug.hasSupabaseUrl ? "yes" : "no"}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-semibold">Anon key present</dt>
-                    <dd>{publicEnvDebug.hasSupabaseAnonKey ? "yes" : "no"}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-semibold">URL shape</dt>
-                    <dd>{publicEnvDebug.supabaseUrlShapeOk ? "valid" : "invalid"}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-semibold">Anon key shape</dt>
-                    <dd>{publicEnvDebug.supabaseAnonKeyShapeOk ? "valid" : "invalid"}</dd>
-                  </div>
-                </dl>
-              ) : null}
             </div>
           ) : null}
           {status ? (

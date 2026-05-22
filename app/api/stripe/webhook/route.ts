@@ -23,7 +23,8 @@ function stripe() {
 }
 
 function logWebhook(message: string, details?: Record<string, string | number | boolean | null>) {
-  console.log("[stripe-webhook]", message, details ?? {});
+  void message;
+  void details;
 }
 
 function logWebhookError(

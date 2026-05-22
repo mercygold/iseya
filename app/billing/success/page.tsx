@@ -41,7 +41,8 @@ function appendProcessedMarker(current: string[] | null | undefined, marker: str
 }
 
 function logBillingSuccess(message: string, details?: Record<string, string | boolean | null>) {
-  console.log("[billing-success]", message, details ?? {});
+  void message;
+  void details;
 }
 
 function logBillingSuccessError(

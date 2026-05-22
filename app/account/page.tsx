@@ -181,7 +181,7 @@ export default function AccountPage() {
       }
 
       if (error || !data) {
-        console.log("Account profile fetch error:", error?.message ?? "profile_not_found");
+        console.error("Unable to load account profile.", error?.message ?? "profile_not_found");
         setStatus("Unable to load account details right now.");
         setPageLoading(false);
         return;
@@ -214,7 +214,7 @@ export default function AccountPage() {
       }
 
       if (usageError) {
-        console.log("Account usage fetch error:", usageError.message);
+        console.error("Unable to load account usage.", usageError.message);
       }
 
       if (!cancelled) {

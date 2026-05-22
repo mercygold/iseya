@@ -4166,8 +4166,6 @@ export default function Home() {
     const liveUserId = liveUser?.id ?? authUserId;
 
     if (liveUserError || !liveUserId) {
-      console.log("Workspace live plan:", "auth_user_unavailable", "unknown");
-      console.log("LIVE PROFILE PLAN:", "auth_user_unavailable");
       return false;
     }
 
@@ -4181,18 +4179,9 @@ export default function Home() {
 
     if (error) {
       setSubscriptionProfileLoaded(true);
-      console.log("Workspace live plan:", "profile_fetch_error", "unknown");
-      console.log("LIVE PROFILE PLAN:", "profile_fetch_error");
-      console.log("Workspace profile fetch error:", error.message);
+      console.error("Unable to refresh workspace subscription profile.", error.message);
       return false;
     }
-
-    console.log(
-      "Workspace live plan:",
-      profile?.subscription_plan ?? null,
-      profile?.subscription_status ?? null,
-    );
-    console.log("LIVE PROFILE PLAN:", profile?.subscription_plan ?? null);
 
     subscriptionFetchFailedRef.current = false;
     setSubscriptionProfileLoaded(true);

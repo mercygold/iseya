@@ -11,8 +11,6 @@ export type SupabaseConfigResult =
   | { ok: false; message: string; devMessage: string };
 
 const genericPublicConfigMessage = "Authentication is temporarily unavailable. Please try again later.";
-const showPublicConfigDebug =
-  process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_ISEYA_AUTH_DEBUG === "true";
 
 function cleanEnvValue(value: string | undefined) {
   const trimmed = value?.trim() ?? "";
@@ -44,11 +42,11 @@ function isLikelySecretKey(value: string) {
   return value.startsWith("sb_secret_");
 }
 
-function publicConfigError(devMessage: string): SupabaseConfigResult {
+function publicConfigError(): SupabaseConfigResult {
   return {
     ok: false,
-    message: showPublicConfigDebug ? devMessage : genericPublicConfigMessage,
-    devMessage,
+    message: genericPublicConfigMessage,
+    devMessage: genericPublicConfigMessage,
   };
 }
 
@@ -57,27 +55,19 @@ export function getSupabasePublicConfigStatus(): SupabaseConfigResult {
   const anonKey = cleanEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
   if (!url) {
-    return publicConfigError(
-      "Missing NEXT_PUBLIC_SUPABASE_URL. Add it in your environment variables, then restart or redeploy.",
-    );
+    return publicConfigError();
   }
 
   if (!anonKey) {
-    return publicConfigError(
-      "Missing NEXT_PUBLIC_SUPABASE_ANON_KEY. Add it in your environment variables, then restart or redeploy.",
-    );
+    return publicConfigError();
   }
 
   if (!isLikelySupabaseUrl(url)) {
-    return publicConfigError(
-      "NEXT_PUBLIC_SUPABASE_URL is malformed. It must start with https:// and end with .supabase.co.",
-    );
+    return publicConfigError();
   }
 
   if (/\s/.test(anonKey) || !isLikelyPublishableKey(anonKey)) {
-    return publicConfigError(
-      "NEXT_PUBLIC_SUPABASE_ANON_KEY is malformed. It must start with sb_publishable_.",
-    );
+    return publicConfigError();
   }
 
   return {
