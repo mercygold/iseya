@@ -118,6 +118,18 @@ function isConfirmedAuthUser(authUser: User | null) {
   return Boolean(authUser?.email_confirmed_at || authUser?.confirmed_at);
 }
 
+function isTransientSessionError(error: unknown) {
+  const details = getAuthErrorDetails(error);
+  const normalized = `${details.code} ${details.message}`.toLowerCase();
+
+  return (
+    normalized.includes("jwt issued at future") ||
+    normalized.includes("failed to fetch") ||
+    normalized.includes("fetch failed") ||
+    normalized.includes("network")
+  );
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [user, setUser] = useState<User | null>(null);
@@ -130,21 +142,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const activeSupabase = supabase;
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data, error: sessionError }) => {
-      if (!mounted) {
-        return;
-      }
+    async function restoreSession(hasRetried = false) {
+      let retryScheduled = false;
 
-      if (sessionError) {
+      try {
+        const { data, error: sessionError } = await activeSupabase.auth.getSession();
+
+        if (!mounted) {
+          return;
+        }
+
+        if (sessionError) {
+          if (!hasRetried && isTransientSessionError(sessionError)) {
+            retryScheduled = true;
+            window.setTimeout(() => {
+              void restoreSession(true);
+            }, 1500);
+            return;
+          }
+
+          setError(mapAuthError(sessionError, "Unable to restore your session."));
+        }
+
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
+      } catch (sessionError) {
+        if (!mounted) {
+          return;
+        }
+
+        if (!hasRetried && isTransientSessionError(sessionError)) {
+          retryScheduled = true;
+          window.setTimeout(() => {
+            void restoreSession(true);
+          }, 1500);
+          return;
+        }
+
         setError(mapAuthError(sessionError, "Unable to restore your session."));
+      } finally {
+        if (mounted && !retryScheduled) {
+          setLoading(false);
+        }
       }
+    }
 
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    });
+    void restoreSession();
 
     const {
       data: { subscription },

@@ -3983,6 +3983,17 @@ async function createTextKitDocxBlob({
   return Packer.toBlob(document);
 }
 
+function isTransientSessionError(error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error && "message" in error
+        ? String((error as { message?: unknown }).message ?? "")
+        : String(error ?? "");
+
+  return /jwt issued at future|failed to fetch|fetch failed|network|session|auth/i.test(message);
+}
+
 export default function Home() {
   const router = useRouter();
   const [masterResume, setMasterResume] = useState(sampleResume);
@@ -4156,13 +4167,33 @@ export default function Home() {
       return false;
     }
 
-    const {
-      data: { user: liveUser },
-      error: liveUserError,
-    } = await supabase.auth.getUser();
-    const liveUserId = liveUser?.id ?? authUserId;
+    let liveUserId = authUserId;
 
-    if (liveUserError || !liveUserId) {
+    try {
+      const {
+        data: { user: liveUser },
+        error: liveUserError,
+      } = await supabase.auth.getUser();
+
+      if (liveUserError) {
+        if (isTransientSessionError(liveUserError)) {
+          return false;
+        }
+
+        console.error("Unable to refresh workspace session.", liveUserError.message);
+        return false;
+      }
+
+      liveUserId = liveUser?.id ?? authUserId;
+    } catch (sessionError) {
+      if (!isTransientSessionError(sessionError)) {
+        console.error("Unable to refresh workspace session.", sessionError);
+      }
+
+      return false;
+    }
+
+    if (!liveUserId) {
       return false;
     }
 
@@ -4175,13 +4206,21 @@ export default function Home() {
       .maybeSingle();
 
     if (error) {
-      setSubscriptionProfileLoaded(true);
-      console.error("Unable to refresh workspace subscription profile.", error.message);
+      if (!isTransientSessionError(error)) {
+        console.error("Unable to refresh workspace subscription profile.", error.message);
+      }
+
       return false;
     }
 
     subscriptionFetchFailedRef.current = false;
     setSubscriptionProfileLoaded(true);
+    setSystemStatus((current) =>
+      current === "Reconnecting to your workspace..." ||
+      current === "We could not refresh your session. Your current workspace remains available."
+        ? ""
+        : current,
+    );
 
     if (!profile) {
       setSubscriptionPlan("free");
@@ -4419,6 +4458,8 @@ export default function Home() {
     }
 
     let cancelled = false;
+    let retryAttempted = false;
+    let retryTimer: number | undefined;
     subscriptionFetchFailedRef.current = false;
     window.setTimeout(() => {
       setSubscriptionProfileLoaded(false);
@@ -4432,7 +4473,18 @@ export default function Home() {
       const ok = await refreshSubscriptionProfile();
 
       if (!ok) {
+        if (!retryAttempted) {
+          retryAttempted = true;
+          setSystemStatus("Reconnecting to your workspace...");
+          retryTimer = window.setTimeout(() => {
+            void loadSubscriptionProfile();
+          }, 1500);
+          return;
+        }
+
         subscriptionFetchFailedRef.current = true;
+        setSubscriptionProfileLoaded(true);
+        setSystemStatus("We could not refresh your session. Your current workspace remains available.");
         window.clearInterval(refreshInterval);
       }
     }
@@ -4442,6 +4494,9 @@ export default function Home() {
 
     return () => {
       cancelled = true;
+      if (retryTimer) {
+        window.clearTimeout(retryTimer);
+      }
       window.clearInterval(refreshInterval);
     };
   }, [authLoaded, authUserId, refreshSubscriptionProfile, supabase]);

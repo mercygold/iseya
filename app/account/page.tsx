@@ -93,6 +93,17 @@ function progressPercent(used: number, limit: number) {
   return Math.min(100, Math.max(0, Math.round((used / limit) * 100)));
 }
 
+function isTransientSessionError(error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error && "message" in error
+        ? String((error as { message?: unknown }).message ?? "")
+        : String(error ?? "");
+
+  return /jwt issued at future|failed to fetch|fetch failed|network|session|auth/i.test(message);
+}
+
 function UsageBar({
   label,
   used,
@@ -159,7 +170,7 @@ export default function AccountPage() {
 
     let cancelled = false;
 
-    async function loadAccount() {
+    async function loadAccount(hasRetried = false) {
       if (!supabase || !user) {
         setStatus("Account data is temporarily unavailable.");
         setPageLoading(false);
@@ -168,25 +179,53 @@ export default function AccountPage() {
 
       setPageLoading(true);
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(
-          "id, email, full_name, created_at, subscription_plan, subscription_status, resume_download_credits, optimization_credits",
-        )
-        .eq("id", user.id)
-        .maybeSingle();
+      let profileResult: {
+        data: Profile | null;
+        error: { message?: string } | Error | null;
+      };
+
+      try {
+        profileResult = await supabase
+          .from("profiles")
+          .select(
+            "id, email, full_name, created_at, subscription_plan, subscription_status, resume_download_credits, optimization_credits",
+          )
+          .eq("id", user.id)
+          .maybeSingle();
+      } catch (profileError) {
+        profileResult = {
+          data: null,
+          error: profileError as Error,
+        };
+      }
+
+      const { data, error } = profileResult;
 
       if (cancelled) {
         return;
       }
 
       if (error || !data) {
-        console.error("Unable to load account profile.", error?.message ?? "profile_not_found");
-        setStatus("Unable to load account details right now.");
+        if (!hasRetried && isTransientSessionError(error)) {
+          setStatus("Reconnecting to your account...");
+          window.setTimeout(() => {
+            if (!cancelled) {
+              void loadAccount(true);
+            }
+          }, 1500);
+          return;
+        }
+
+        if (!isTransientSessionError(error)) {
+          console.error("Unable to load account profile.", error?.message ?? "profile_not_found");
+        }
+
+        setStatus("Unable to refresh account details right now. Your session may need a refresh.");
         setPageLoading(false);
         return;
       }
 
+      setStatus((current) => (current === "Reconnecting to your account..." ? "" : current));
       setProfile(data);
 
       if (enableInstitutionAccess) {
