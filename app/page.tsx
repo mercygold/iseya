@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import type { Json } from "@/lib/database.types";
+import { enableInstitutionAccess } from "@/lib/featureFlags";
 import {
   canUseSubscriptionFeature,
   isProPlan,
@@ -4014,6 +4015,7 @@ export default function Home() {
   const [optimizationCreditsUsed, setOptimizationCreditsUsed] = useState(0);
   const [savedVersionsCount, setSavedVersionsCount] = useState(0);
   const [subscriptionProfileLoaded, setSubscriptionProfileLoaded] = useState(false);
+  const [organizationName, setOrganizationName] = useState("");
   const [activeOutput, setActiveOutput] = useState<OutputTab>("resume");
   const [hydrated, setHydrated] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<Record<string, string>>({});
@@ -4203,6 +4205,7 @@ export default function Home() {
       setDownloadsUsed(0);
       setOptimizationCreditsUsed(0);
       setSavedVersionsCount(0);
+      setOrganizationName("");
       return true;
     }
 
@@ -4213,6 +4216,15 @@ export default function Home() {
     setDownloadsUsed(0);
     setOptimizationCreditsUsed(0);
     setSavedVersionsCount(savedVersions.length);
+    if (enableInstitutionAccess) {
+      const response = await fetch("/api/institution/verify");
+      const data = (await response.json().catch(() => ({}))) as {
+        organization?: { name?: string } | null;
+      };
+      setOrganizationName(data.organization?.name ?? "Institution Access");
+    } else {
+      setOrganizationName("");
+    }
     return true;
   }, [authLoaded, authUserId, savedVersions.length, supabase]);
 
@@ -4403,6 +4415,7 @@ export default function Home() {
         setDownloadsUsed(0);
         setOptimizationCreditsUsed(0);
         setSavedVersionsCount(0);
+        setOrganizationName("");
       }, 0);
       return;
     }
@@ -5733,17 +5746,12 @@ export default function Home() {
           <div className="flex max-w-2xl flex-col gap-3 lg:items-end">
             <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
               {authUser ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setAccountStatus(
-                      `Signed in as ${authUser.email ?? "your ISEYA account"}.`,
-                    )
-                  }
+                <Link
+                  href="/account"
                   className={`border border-white/40 bg-transparent text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] ${buttonBaseClass} ${buttonSizeMdClass}`}
                 >
                   My Account
-                </button>
+                </Link>
               ) : (
                 <Link
                   href="/login"
@@ -6400,6 +6408,19 @@ export default function Home() {
               <p className="mt-4 text-xs leading-5 text-slate-500">
                 Billing history coming soon.
               </p>
+              {enableInstitutionAccess && organizationName ? (
+                <div className="mt-4 rounded-xl border border-[var(--iseya-gold)]/40 bg-white p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
+                    Institution Access
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-[var(--iseya-navy)]">
+                    {organizationName}
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-slate-600">
+                    Status: Active · Plan access provided by institution
+                  </p>
+                </div>
+              ) : null}
             </div>
             <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">Usage</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">

@@ -18,6 +18,9 @@ export type Database = {
           subscription_plan: string;
           stripe_customer_id: string | null;
           stripe_subscription_id: string | null;
+          organization_id: string | null;
+          organization_access_type: string | null;
+          organization_verified_at: string | null;
           resume_download_credits: number;
           optimization_credits: number;
           downloads_used: number;
@@ -35,6 +38,9 @@ export type Database = {
           subscription_plan?: string;
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
+          organization_id?: string | null;
+          organization_access_type?: string | null;
+          organization_verified_at?: string | null;
           resume_download_credits?: number;
           optimization_credits?: number;
           downloads_used?: number;
@@ -52,6 +58,9 @@ export type Database = {
           subscription_plan?: string;
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
+          organization_id?: string | null;
+          organization_access_type?: string | null;
+          organization_verified_at?: string | null;
           resume_download_credits?: number;
           optimization_credits?: number;
           downloads_used?: number;
@@ -60,6 +69,50 @@ export type Database = {
           processed_stripe_event_ids?: string[];
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      organizations: {
+        Row: {
+          id: string;
+          name: string;
+          type: string;
+          email_domain: string;
+          access_code: string;
+          plan: string;
+          seats_allowed: number;
+          seats_used: number;
+          status: string;
+          start_date: string | null;
+          end_date: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          type?: string;
+          email_domain: string;
+          access_code: string;
+          plan?: string;
+          seats_allowed?: number;
+          seats_used?: number;
+          status?: string;
+          start_date?: string | null;
+          end_date?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          type?: string;
+          email_domain?: string;
+          access_code?: string;
+          plan?: string;
+          seats_allowed?: number;
+          seats_used?: number;
+          status?: string;
+          start_date?: string | null;
+          end_date?: string | null;
+          created_at?: string;
         };
       };
       resumes: {

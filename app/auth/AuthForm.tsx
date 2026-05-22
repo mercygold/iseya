@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { useAuth } from "./AuthProvider";
+import { enableInstitutionAccess } from "@/lib/featureFlags";
 import { getAuthRedirectUrl } from "@/lib/supabaseConfig";
 
 type AuthMode = "login" | "signup";
+type SignupPath = "individual" | "institution";
 
 type AuthFormProps = {
   mode: AuthMode;
@@ -28,11 +30,16 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [signupPath, setSignupPath] = useState<SignupPath>("individual");
+  const [schoolEmail, setSchoolEmail] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
 
   const redirectedFrom = searchParams.get("redirectedFrom") || "/workspace";
   const isLogin = mode === "login";
+  const useInstitutionSignup = enableInstitutionAccess && signupPath === "institution";
+  const signupEmail = useInstitutionSignup ? schoolEmail : email;
   const showAuthDebug =
     process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_ISEYA_AUTH_DEBUG === "true";
 
@@ -51,15 +58,32 @@ export default function AuthForm({ mode }: AuthFormProps) {
       }
 
       const { needsEmailConfirmation } = await signUp({
-        email,
+        email: signupEmail,
         password,
         fullName,
         emailRedirectTo: getAuthRedirectUrl("/workspace"),
       });
 
       if (needsEmailConfirmation) {
-        setStatus("Check your email to confirm your account, then return to ISEYA.");
+        setStatus(
+          useInstitutionSignup
+            ? "Check your school email to confirm your account. Institution access can be applied after you sign in."
+            : "Check your email to confirm your account, then return to ISEYA.",
+        );
         return;
+      }
+
+      if (useInstitutionSignup) {
+        const response = await fetch("/api/institution/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ schoolEmail, accessCode }),
+        });
+        const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+        if (!response.ok) {
+          throw new Error(data.error || "Institution access could not be verified.");
+        }
       }
 
       router.replace("/workspace");
@@ -131,28 +155,68 @@ export default function AuthForm({ mode }: AuthFormProps) {
           className="rounded-xl border border-[var(--iseya-border)] bg-white p-6 shadow-sm"
         >
           {!isLogin ? (
-            <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
-              Full name
-              <input
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
-                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
-                autoComplete="name"
-              />
-            </label>
+            <>
+              {enableInstitutionAccess ? (
+                <div className="mb-5 grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 sm:grid-cols-2">
+                  {[
+                    ["individual", "Individual"],
+                    ["institution", "Student / Institution Access"],
+                  ].map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setSignupPath(id as SignupPath)}
+                      className={`rounded-md px-3 py-2 text-sm font-bold transition ${
+                        signupPath === id
+                          ? "bg-[var(--iseya-navy)] text-white"
+                          : "bg-white text-[var(--iseya-navy)] hover:bg-[#FFF8E6]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                Full name
+                <input
+                  value={fullName}
+                  onChange={(event) => setFullName(event.target.value)}
+                  className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                  autoComplete="name"
+                />
+              </label>
+            </>
           ) : null}
 
           <label className="mt-4 block text-sm font-semibold text-[var(--iseya-navy)]">
-            Email
+            {useInstitutionSignup && !isLogin ? "School email" : "Email"}
             <input
               type="email"
               required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={useInstitutionSignup && !isLogin ? schoolEmail : email}
+              onChange={(event) =>
+                useInstitutionSignup && !isLogin
+                  ? setSchoolEmail(event.target.value)
+                  : setEmail(event.target.value)
+              }
               className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
               autoComplete="email"
             />
           </label>
+
+          {!isLogin && useInstitutionSignup ? (
+            <label className="mt-4 block text-sm font-semibold text-[var(--iseya-navy)]">
+              Institution access code
+              <input
+                required
+                value={accessCode}
+                onChange={(event) => setAccessCode(event.target.value)}
+                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                autoComplete="off"
+              />
+            </label>
+          ) : null}
 
           <label className="mt-4 block text-sm font-semibold text-[var(--iseya-navy)]">
             Password
