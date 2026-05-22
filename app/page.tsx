@@ -5789,7 +5789,7 @@ export default function Home() {
               </p>
             </div>
             <p className="mt-3 max-w-none text-base leading-7 text-white/85 lg:whitespace-nowrap">
-              Iseya helps you tailor resumes, cover letters, LinkedIn profiles, and career application materials.
+              Tailored resumes, cover letters, LinkedIn positioning, and career materials in one structured workspace.
             </p>
           </div>
           <div className="flex max-w-2xl flex-col gap-3 lg:items-end">
@@ -5866,10 +5866,10 @@ export default function Home() {
                 Beyond resume. Positioning.
               </p>
               <h1 className="mt-3 max-w-4xl text-3xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-5xl">
-                Turn your career story into a focused application package.
+                Build role-ready career materials with a clearer strategy.
               </h1>
               <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
-                Build a tailored resume, cover letter, LinkedIn profile, and application kit from one private workspace designed for students, job seekers, and career transitions.
+                ISEYA helps you tailor your resume, shape a concise cover letter, refine your LinkedIn positioning, and organize application materials around the roles you want.
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
@@ -5895,8 +5895,8 @@ export default function Home() {
             <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
               {[
                 "Secure checkout powered by Stripe",
-                "Private workspace",
-                "Built for students, job seekers, and career transitions",
+                "Private career workspace",
+                "Structured workflow for students, job seekers, and career transitions",
               ].map((item) => (
                 <div
                   key={item}

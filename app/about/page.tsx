@@ -5,10 +5,10 @@ export default function AboutPage() {
     <InfoPageShell title="About ISEYA" eyebrow="About">
       <InfoSection title="Career positioning built for modern applicants">
         <p>
-          ISEYA is an AI-powered career positioning product by Jormp LLC. It
-          helps users create tailored resumes, cover letters, LinkedIn profiles,
-          and career application materials with a focus on clarity, accuracy,
-          and professional presentation.
+          ISEYA is a career positioning product by Jormp LLC. It helps users
+          create tailored resumes, cover letters, LinkedIn profiles, and career
+          application materials with a focus on clarity, accuracy, and
+          professional presentation.
         </p>
         <p>
           The product is designed for applicants who want to translate their
