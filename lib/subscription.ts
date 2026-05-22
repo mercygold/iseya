@@ -23,6 +23,46 @@ export type PricingPlan = {
   badge?: string;
 };
 
+export type PlanEntitlements = {
+  premiumExports: number;
+  optimizationCredits: number;
+  savedVersions: number;
+  exportCadence: "one-time" | "monthly" | "annual" | "none";
+};
+
+export const planEntitlements: Record<SubscriptionPlanId, PlanEntitlements> = {
+  free: {
+    premiumExports: 1,
+    optimizationCredits: 0,
+    savedVersions: 0,
+    exportCadence: "none",
+  },
+  starter: {
+    premiumExports: 1,
+    optimizationCredits: 0,
+    savedVersions: 0,
+    exportCadence: "none",
+  },
+  plus: {
+    premiumExports: 3,
+    optimizationCredits: 15,
+    savedVersions: 5,
+    exportCadence: "one-time",
+  },
+  pro_monthly: {
+    premiumExports: 7,
+    optimizationCredits: 200,
+    savedVersions: Infinity,
+    exportCadence: "monthly",
+  },
+  pro_annual: {
+    premiumExports: 120,
+    optimizationCredits: 300,
+    savedVersions: Infinity,
+    exportCadence: "annual",
+  },
+};
+
 export const pricingPlans: PricingPlan[] = [
   {
     id: "free",
@@ -43,7 +83,7 @@ export const pricingPlans: PricingPlan[] = [
       "Cover letter export",
       "Multiple saved resume versions",
       "Priority exports",
-      "Unlimited document exports",
+      "Additional premium document exports",
     ],
   },
   {
@@ -70,12 +110,12 @@ export const pricingPlans: PricingPlan[] = [
     description: "Full monthly access for active job search workflows.",
     badge: "Most Popular",
     included: [
-      "Unlimited document exports",
-      "Advanced optimization",
+      "7 premium document exports per month",
+      "200 optimization credits",
       "LinkedIn positioning tools",
       "Cover letter generation/export",
       "Premium templates",
-      "Saved resume library",
+      "Unlimited saved resume versions",
       "Full workspace access",
       "Cancel anytime",
     ],
@@ -89,11 +129,13 @@ export const pricingPlans: PricingPlan[] = [
     badge: "Best Value",
     included: [
       "Everything in Pro Monthly",
+      "120 premium document exports yearly allocation",
+      "300 optimization credits",
       "Annual discounted pricing",
       "Full workspace access all year",
       "Best value for active job seekers",
       "Priority exports",
-      "Saved resume library",
+      "Unlimited saved resume versions",
     ],
   },
 ];
@@ -162,25 +204,17 @@ export function subscriptionLabel(plan: SubscriptionPlanId) {
 }
 
 export function planDownloadLimit(plan: SubscriptionPlanId) {
-  if (isProPlan(plan)) {
-    return Infinity;
-  }
-
-  if (plan === "plus") {
-    return 3;
-  }
-
-  return 1;
+  return planEntitlements[plan].premiumExports;
 }
 
 export function planOptimizationLimit(plan: SubscriptionPlanId) {
-  if (isProPlan(plan)) {
-    return Infinity;
-  }
+  return planEntitlements[plan].optimizationCredits;
+}
 
-  if (plan === "plus") {
-    return 15;
-  }
+export function planSavedVersionLimit(plan: SubscriptionPlanId) {
+  return planEntitlements[plan].savedVersions;
+}
 
-  return 0;
+export function planExportCadence(plan: SubscriptionPlanId) {
+  return planEntitlements[plan].exportCadence;
 }

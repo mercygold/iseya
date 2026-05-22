@@ -8,10 +8,10 @@ import { useAuth } from "../auth/AuthProvider";
 import { enableInstitutionAccess } from "@/lib/featureFlags";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import {
-  isProPlan,
   normalizeSubscriptionPlan,
   planDownloadLimit,
   planOptimizationLimit,
+  planSavedVersionLimit,
   subscriptionLabel,
   type SubscriptionPlanId,
 } from "@/lib/subscription";
@@ -234,19 +234,21 @@ export default function AccountPage() {
   const statusLabel = formatStatus(profile?.subscription_status, plan);
   const exportLimit = planDownloadLimit(plan);
   const optimizationLimit = planOptimizationLimit(plan);
-  const exportsRemaining = isProPlan(plan)
-    ? Infinity
-    : profile?.resume_download_credits ?? (plan === "plus" ? 3 : 1);
-  const optimizationRemaining = isProPlan(plan)
-    ? Infinity
-    : profile?.optimization_credits ?? (plan === "plus" ? 15 : 0);
+  const exportsRemaining =
+    plan === "pro_monthly" || plan === "pro_annual"
+      ? profile?.resume_download_credits || exportLimit
+      : profile?.resume_download_credits ?? exportLimit;
+  const optimizationRemaining =
+    plan === "pro_monthly" || plan === "pro_annual"
+      ? profile?.optimization_credits || optimizationLimit
+      : profile?.optimization_credits ?? optimizationLimit;
   const exportsUsed = Number.isFinite(exportLimit)
     ? Math.max(0, exportLimit - (Number(exportsRemaining) || 0))
     : usage.downloadsUsed;
   const optimizationUsed = Number.isFinite(optimizationLimit)
     ? Math.max(0, optimizationLimit - (Number(optimizationRemaining) || 0))
     : usage.optimizationCreditsUsed;
-  const savedVersionLimit = isProPlan(plan) ? Infinity : plan === "plus" ? 5 : 0;
+  const savedVersionLimit = planSavedVersionLimit(plan);
   const emailVerified = Boolean(user?.email_confirmed_at || user?.confirmed_at);
 
   async function signOut() {
@@ -338,11 +340,11 @@ export default function AccountPage() {
                   ) : null}
                   <InfoItem
                     label="Document exports remaining"
-                    value={Number.isFinite(exportsRemaining) ? String(exportsRemaining) : "Unlimited"}
+                    value={String(exportsRemaining)}
                   />
                   <InfoItem
                     label="Optimization credits remaining"
-                    value={Number.isFinite(optimizationRemaining) ? String(optimizationRemaining) : "Unlimited"}
+                    value={String(optimizationRemaining)}
                   />
                   <InfoItem label="Saved versions" value={String(usage.savedVersionsCount)} />
                   <InfoItem label="Account created" value={formatDate(profile.created_at)} />

@@ -14,6 +14,7 @@ import {
   isStarterPlan,
   planDownloadLimit,
   planOptimizationLimit,
+  planSavedVersionLimit,
   subscriptionLabel,
   normalizeSubscriptionPlan,
   type SubscriptionFeature,
@@ -4077,17 +4078,13 @@ export default function Home() {
     ? Math.min(100, Math.round((effectiveOptimizationCreditsUsed / Math.max(1, optimizationLimit)) * 100))
     : 100;
   const activeSavedVersionsCount = authUser ? savedVersionsCount : savedVersions.length;
-  const savedVersionLimit = isProPlan(subscriptionPlan)
-    ? Infinity
-    : subscriptionPlan === "plus"
-      ? 5
-      : 0;
+  const savedVersionLimit = planSavedVersionLimit(subscriptionPlan);
   const savedVersionProgressPercent = Number.isFinite(savedVersionLimit)
     ? Math.min(100, Math.round((activeSavedVersionsCount / Math.max(1, savedVersionLimit)) * 100))
     : 100;
   const canSaveAnotherVersion =
     canUseSubscriptionFeature(subscriptionPlan, "savedVersions") &&
-    (isProPlan(subscriptionPlan) || savedVersions.length < savedVersionLimit);
+    (!Number.isFinite(savedVersionLimit) || savedVersions.length < savedVersionLimit);
   const hasCoverLetterAccess = canUseSubscriptionFeature(subscriptionPlan, "coverLetter");
   const hasLinkedInAccess = canUseSubscriptionFeature(subscriptionPlan, "linkedinProfile");
   const hasApplicationKitAccess = canUseSubscriptionFeature(subscriptionPlan, "applicationKit");
@@ -4198,10 +4195,22 @@ export default function Home() {
       return true;
     }
 
-    setSubscriptionPlan(normalizeSubscriptionPlan(profile.subscription_plan));
+    const nextPlan = normalizeSubscriptionPlan(profile.subscription_plan);
+    const defaultDownloadCredits = planDownloadLimit(nextPlan);
+    const defaultOptimizationCredits = planOptimizationLimit(nextPlan);
+
+    setSubscriptionPlan(nextPlan);
     setSubscriptionStatus(profile.subscription_status || "free");
-    setResumeDownloadCredits(profile.resume_download_credits ?? 0);
-    setOptimizationCredits(profile.optimization_credits ?? 0);
+    setResumeDownloadCredits(
+      isProPlan(nextPlan) && !profile.resume_download_credits
+        ? defaultDownloadCredits
+        : profile.resume_download_credits ?? defaultDownloadCredits,
+    );
+    setOptimizationCredits(
+      isProPlan(nextPlan) && !profile.optimization_credits
+        ? defaultOptimizationCredits
+        : profile.optimization_credits ?? defaultOptimizationCredits,
+    );
     setDownloadsUsed(0);
     setOptimizationCreditsUsed(0);
     setSavedVersionsCount(savedVersions.length);
@@ -4810,16 +4819,12 @@ export default function Home() {
       return false;
     }
 
-    if (isProPlan(subscriptionPlan)) {
-      return true;
-    }
-
-    if (subscriptionPlan === "plus") {
+    if (canUseSubscriptionFeature(subscriptionPlan, "exports")) {
       if (resumeDownloadCredits > 0) {
         return true;
       }
 
-      setSystemStatus("You have used your Plus document exports. Upgrade to Pro for unlimited exports.");
+      setSystemStatus("You have used your available document exports. Upgrade or renew your plan for more exports.");
       return false;
     }
 
@@ -4832,16 +4837,12 @@ export default function Home() {
   }
 
   function requireOptimizationAccess(label: string) {
-    if (isProPlan(subscriptionPlan)) {
-      return true;
-    }
-
-    if (subscriptionPlan === "plus") {
+    if (canUseSubscriptionFeature(subscriptionPlan, "aiGenerations")) {
       if (optimizationCredits > 0) {
         return true;
       }
 
-      setSystemStatus("You have used your Plus optimization credits. Upgrade to Pro for unlimited optimization.");
+      setSystemStatus("You have used your available optimization credits. Upgrade or renew your plan for more credits.");
       return false;
     }
 
@@ -4910,7 +4911,9 @@ export default function Home() {
 
     if (kind === "exportsCreated") {
       const nextDownloadsUsed = downloadsUsed + 1;
-      const nextCredits = subscriptionPlan === "plus" ? Math.max(0, resumeDownloadCredits - 1) : resumeDownloadCredits;
+      const nextCredits = canUseSubscriptionFeature(subscriptionPlan, "exports")
+        ? Math.max(0, resumeDownloadCredits - 1)
+        : resumeDownloadCredits;
       setDownloadsUsed(nextDownloadsUsed);
       setResumeDownloadCredits(nextCredits);
       syncProfileUsage({ downloadsUsed: nextDownloadsUsed, resumeDownloadCredits: nextCredits });
@@ -4918,7 +4921,9 @@ export default function Home() {
 
     if (kind === "optimizationCreditsUsed") {
       const nextOptimizationUsed = optimizationCreditsUsed + 1;
-      const nextCredits = subscriptionPlan === "plus" ? Math.max(0, optimizationCredits - 1) : optimizationCredits;
+      const nextCredits = canUseSubscriptionFeature(subscriptionPlan, "aiGenerations")
+        ? Math.max(0, optimizationCredits - 1)
+        : optimizationCredits;
       setOptimizationCreditsUsed(nextOptimizationUsed);
       setOptimizationCredits(nextCredits);
       syncProfileUsage({
@@ -5041,7 +5046,7 @@ export default function Home() {
     if (!canSaveAnotherVersion) {
       setVersionStatus(
         subscriptionPlan === "plus"
-          ? "Plus includes up to 5 saved versions. Delete one or upgrade to Pro for unlimited history."
+          ? "Plus includes up to 5 saved versions. Delete one or upgrade to Pro for unlimited saved versions."
           : "Saved versions are locked on Starter. Upgrade to Plus or Pro to save history.",
       );
       return;
@@ -5118,7 +5123,7 @@ export default function Home() {
     if (!canSaveAnotherVersion) {
       setVersionStatus(
         subscriptionPlan === "plus"
-          ? "Plus includes up to 5 saved versions. Delete one or upgrade to Pro before duplicating."
+          ? "Plus includes up to 5 saved versions. Delete one or upgrade to Pro for unlimited saved versions."
           : "Saved versions are locked on Starter. Upgrade to Plus or Pro to duplicate versions.",
       );
       return;
@@ -5818,8 +5823,8 @@ export default function Home() {
             />
             <MiniAnalyticsCard
               label="Credits remaining"
-              value={isProPlan(subscriptionPlan) ? "Unlimited" : String(optimizationCredits)}
-              detail={Number.isFinite(optimizationLimit) ? `${effectiveOptimizationCreditsUsed} used` : "Unlimited optimization"}
+              value={String(optimizationCredits)}
+              detail={`${effectiveOptimizationCreditsUsed} used of ${optimizationLimit}`}
               progress={optimizationProgressPercent}
             />
             <MiniAnalyticsCard
@@ -5867,7 +5872,7 @@ export default function Home() {
                 <div className="mt-3">
                   <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
                     <span>{effectiveOptimizationCreditsUsed} used</span>
-                    <span>{Number.isFinite(optimizationLimit) ? `${optimizationLimit} included` : "Unlimited"}</span>
+                    <span>{optimizationLimit} included</span>
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-slate-200">
                     <div
@@ -6380,7 +6385,7 @@ export default function Home() {
                         Document exports remaining
                       </p>
                       <p className="mt-1 text-xl font-semibold text-[var(--iseya-navy)]">
-                        {isProPlan(displayedSubscriptionPlan) ? "Unlimited" : resumeDownloadCredits}
+                        {resumeDownloadCredits}
                       </p>
                     </div>
                     <div className="rounded-lg border border-white/70 bg-white p-3">
@@ -6388,7 +6393,7 @@ export default function Home() {
                         Optimization credits remaining
                       </p>
                       <p className="mt-1 text-xl font-semibold text-[var(--iseya-navy)]">
-                        {isProPlan(displayedSubscriptionPlan) ? "Unlimited" : optimizationCredits}
+                        {optimizationCredits}
                       </p>
                     </div>
                   </div>
@@ -6427,7 +6432,7 @@ export default function Home() {
                   />
                 </div>
                 <p className="mt-2 text-[11px] font-medium text-slate-500">
-                  {Number.isFinite(optimizationLimit) ? `${optimizationLimit} included` : "Unlimited"}
+                  {optimizationLimit} included
                 </p>
               </div>
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
@@ -6444,7 +6449,7 @@ export default function Home() {
                   />
                 </div>
                 <p className="mt-2 text-[11px] font-medium text-slate-500">
-                  {Number.isFinite(downloadLimit) ? `${downloadLimit} included` : "Unlimited"}
+                  {downloadLimit} included
                 </p>
               </div>
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
@@ -7000,8 +7005,8 @@ export default function Home() {
                           onProfileImage={handleProfileImage}
                           onResumeTextChange={updateResumeOutput}
                           canUseAiOptimization={
-                            isProPlan(subscriptionPlan) ||
-                            (subscriptionPlan === "plus" && optimizationCredits > 0)
+                            canUseSubscriptionFeature(subscriptionPlan, "aiGenerations") &&
+                            optimizationCredits > 0
                           }
                           onUpgradeRequired={() =>
                             requireOptimizationAccess("AI section optimization")
