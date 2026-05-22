@@ -182,7 +182,6 @@ async function reconcileCheckoutSession(sessionId: string) {
 
     const marker = checkoutSessionMarker(session.id);
     const processed = profile.processed_stripe_event_ids ?? [];
-    const alreadyProcessed = processed.includes(marker);
     const commonUpdate = {
       subscription_plan: plan,
       subscription_status: "active",
@@ -191,10 +190,10 @@ async function reconcileCheckoutSession(sessionId: string) {
       processed_stripe_event_ids: appendProcessedMarker(processed, marker),
     };
     const plusCredits =
-      plan === "plus" && !alreadyProcessed
+      plan === "plus"
         ? {
-            resume_download_credits: (profile.resume_download_credits ?? 0) + 3,
-            optimization_credits: (profile.optimization_credits ?? 0) + 15,
+            resume_download_credits: 3,
+            optimization_credits: 15,
           }
         : {};
 
@@ -209,7 +208,7 @@ async function reconcileCheckoutSession(sessionId: string) {
     logBillingSuccess("Checkout session reconciliation update result.", {
       plan,
       success: !error,
-      creditedPlus: Boolean(Object.keys(plusCredits).length),
+      normalizedPlus: Boolean(Object.keys(plusCredits).length),
     });
 
     if (error) {

@@ -304,8 +304,8 @@ async function updateProfileFromCheckoutSession(
         subscription_status: "active",
         stripe_customer_id: customerId,
         stripe_subscription_id: null,
-        resume_download_credits: (profile.resume_download_credits ?? 0) + 3,
-        optimization_credits: (profile.optimization_credits ?? 0) + 15,
+        resume_download_credits: 3,
+        optimization_credits: 15,
         processed_stripe_event_ids: processedEvents,
       })
       .eq("id", profile.id);
@@ -329,8 +329,8 @@ async function updateProfileFromCheckoutSession(
 
     logWebhook("Plus profile update succeeded.", {
       eventId,
-      downloadsAdded: 3,
-      optimizationCreditsAdded: 15,
+      documentExports: 3,
+      optimizationCredits: 15,
       customerSaved: Boolean(customerId),
     });
     return;
