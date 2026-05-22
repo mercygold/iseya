@@ -21,6 +21,8 @@ export type Database = {
           organization_id: string | null;
           organization_access_type: string | null;
           organization_verified_at: string | null;
+          role: string | null;
+          app_role: string | null;
           resume_download_credits: number;
           optimization_credits: number;
           downloads_used: number;
@@ -41,6 +43,8 @@ export type Database = {
           organization_id?: string | null;
           organization_access_type?: string | null;
           organization_verified_at?: string | null;
+          role?: string | null;
+          app_role?: string | null;
           resume_download_credits?: number;
           optimization_credits?: number;
           downloads_used?: number;
@@ -61,6 +65,8 @@ export type Database = {
           organization_id?: string | null;
           organization_access_type?: string | null;
           organization_verified_at?: string | null;
+          role?: string | null;
+          app_role?: string | null;
           resume_download_credits?: number;
           optimization_credits?: number;
           downloads_used?: number;
