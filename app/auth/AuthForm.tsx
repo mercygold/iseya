@@ -58,7 +58,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
         email: signupEmail,
         password,
         fullName,
-        emailRedirectTo: getAuthRedirectUrl("/workspace"),
+        emailRedirectTo: getAuthRedirectUrl(redirectedFrom),
       });
 
       if (needsEmailConfirmation) {
@@ -83,7 +83,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
         }
       }
 
-      router.replace("/workspace");
+      router.replace(redirectedFrom);
       router.refresh();
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Authentication failed. Please try again.");
@@ -111,7 +111,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <section className="bg-[var(--iseya-navy)] px-5 py-8 text-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-6">
+        <div className="mx-auto flex max-w-6xl flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <Link href="/" className="inline-flex items-center gap-4">
             <Image
               src="/brand/iseya-logo2.png"
@@ -125,12 +125,17 @@ export default function AuthForm({ mode }: AuthFormProps) {
               Beyond Resume. Positioning.
             </span>
           </Link>
-          <Link
-            href="/"
-            className="rounded-md border border-white/40 px-4 py-2 text-sm font-semibold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]"
-          >
-            Resume Builder
-          </Link>
+          <nav className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm font-semibold text-white/80 sm:justify-end">
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/">
+              Resume Builder
+            </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
+              Pricing
+            </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/contact">
+              Contact
+            </Link>
+          </nav>
         </div>
       </section>
 
@@ -261,7 +266,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           <p className="mt-5 text-center text-sm text-slate-600">
             {isLogin ? "Need an account?" : "Already have an account?"}{" "}
             <Link
-              href={isLogin ? "/signup" : "/login"}
+              href={`${isLogin ? "/signup" : "/login"}?redirectedFrom=${encodeURIComponent(redirectedFrom)}`}
               className="font-bold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] underline-offset-4"
             >
               {isLogin ? "Sign up" : "Login"}

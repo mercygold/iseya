@@ -2,17 +2,42 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "../auth/AuthProvider";
 import { pricingPlans, type SubscriptionPlanId } from "@/lib/subscription";
 
 export default function PricingPage() {
+  return (
+    <Suspense fallback={<PricingLoading />}>
+      <PricingContent />
+    </Suspense>
+  );
+}
+
+function PricingLoading() {
+  return (
+    <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
+      <section className="px-5 py-10 sm:px-8 sm:py-14">
+        <div className="mx-auto max-w-[82rem] rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+          <p className="text-sm font-semibold text-[var(--iseya-navy)]">Loading pricing...</p>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function PricingContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user, loading: authLoading } = useAuth();
   const [checkoutPlan, setCheckoutPlan] = useState("");
   const [checkoutStatus, setCheckoutStatus] = useState("");
+  const attemptedCheckoutRef = useRef("");
 
-  async function startCheckout(planId: SubscriptionPlanId) {
+  const startCheckout = useCallback(async (planId: SubscriptionPlanId) => {
     if (planId === "free") {
+      router.push(user ? "/workspace" : "/signup");
       return;
     }
 
@@ -27,7 +52,7 @@ export default function PricingPage() {
       });
 
       if (response.status === 401) {
-        router.push("/login?redirectedFrom=/pricing");
+        router.push(`/login?redirectedFrom=${encodeURIComponent(`/pricing?checkout=${planId}`)}`);
         return;
       }
 
@@ -43,7 +68,24 @@ export default function PricingPage() {
     } finally {
       setCheckoutPlan("");
     }
-  }
+  }, [router, user]);
+
+  useEffect(() => {
+    const requestedPlan = searchParams.get("checkout");
+
+    if (
+      authLoading ||
+      !user ||
+      !requestedPlan ||
+      attemptedCheckoutRef.current === requestedPlan ||
+      !["plus", "pro_monthly", "pro_annual"].includes(requestedPlan)
+    ) {
+      return;
+    }
+
+    attemptedCheckoutRef.current = requestedPlan;
+    void startCheckout(requestedPlan as SubscriptionPlanId);
+  }, [authLoading, searchParams, startCheckout, user]);
 
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
@@ -63,8 +105,11 @@ export default function PricingPage() {
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/">
               Resume Builder
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/about">
-              About
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
+              Pricing
+            </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href={user ? "/account" : "/login"}>
+              Login / Sign up
             </Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/contact">
               Contact
@@ -129,11 +174,11 @@ export default function PricingPage() {
 
                 <button
                   type="button"
-                  disabled={plan.id === "free" || Boolean(checkoutPlan)}
+                  disabled={Boolean(checkoutPlan)}
                   onClick={() => startCheckout(plan.id)}
                   className={`mt-8 min-h-11 w-full rounded-md border px-4 py-2 text-sm font-bold transition hover:shadow-md disabled:cursor-not-allowed disabled:hover:shadow-none ${
                     plan.id === "free"
-                      ? "border-slate-200 bg-slate-100 text-slate-500"
+                      ? "border-[var(--iseya-navy)] bg-white text-[var(--iseya-navy)] hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]"
                       : plan.badge
                       ? "border-[var(--iseya-navy)] bg-[var(--iseya-navy)] text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]"
                       : "border-[var(--iseya-navy)] bg-white text-[var(--iseya-navy)] hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]"
@@ -163,7 +208,29 @@ export default function PricingPage() {
           </p>
         </div>
       </section>
+      <PricingFooter />
     </main>
+  );
+}
+
+function PricingFooter() {
+  return (
+    <footer className="border-t border-[color-mix(in_srgb,var(--iseya-gold)_28%,var(--iseya-navy))] bg-[var(--iseya-navy)] text-white">
+      <div className="mx-auto flex max-w-[82rem] flex-col gap-3 px-5 py-6 text-center sm:px-8 md:flex-row md:items-center md:justify-between md:text-left">
+        <p className="text-sm font-semibold text-white/85">ISEYA by Jormp LLC.</p>
+        <nav className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm font-semibold text-white/80 md:justify-end">
+          <Link className="transition hover:text-[var(--iseya-gold)]" href="/terms">
+            Terms
+          </Link>
+          <Link className="transition hover:text-[var(--iseya-gold)]" href="/privacy">
+            Privacy
+          </Link>
+          <Link className="transition hover:text-[var(--iseya-gold)]" href="/contact">
+            Contact
+          </Link>
+        </nav>
+      </div>
+    </footer>
   );
 }
 
@@ -195,7 +262,7 @@ function safeCheckoutMessage(message?: string) {
 
 function planButtonLabel(planId: string) {
   if (planId === "free") {
-    return "Current Plan";
+    return "Start Free";
   }
 
   if (planId === "plus") {

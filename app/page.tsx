@@ -5738,6 +5738,17 @@ export default function Home() {
             </p>
           </div>
           <div className="flex max-w-2xl flex-col gap-3 lg:items-end">
+            <nav className="flex flex-wrap justify-start gap-x-4 gap-y-2 text-sm font-semibold text-white/80 lg:justify-end">
+              <a className="transition hover:text-[var(--iseya-gold)]" href="#resume-builder">
+                Resume Builder
+              </a>
+              <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
+                Pricing
+              </Link>
+              <Link className="transition hover:text-[var(--iseya-gold)]" href="/contact">
+                Contact
+              </Link>
+            </nav>
             <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
               {authUser ? (
                 <Link
@@ -5754,13 +5765,15 @@ export default function Home() {
                   Login / Sign up
                 </Link>
               )}
-                <button
-                  type="button"
-                  onClick={openMyResumesPlaceholder}
-                className={`border border-white/40 bg-transparent text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] ${buttonBaseClass} ${buttonSizeMdClass}`}
-                >
-                  My Resumes
-                </button>
+              {authUser ? (
+                  <button
+                    type="button"
+                    onClick={openMyResumesPlaceholder}
+                    className={`border border-white/40 bg-transparent text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] ${buttonBaseClass} ${buttonSizeMdClass}`}
+                  >
+                    My Resumes
+                  </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() =>
@@ -5790,7 +5803,59 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[112rem] px-5 pt-6 sm:px-8">
+      <section className="mx-auto max-w-[112rem] px-5 py-6 sm:px-8 sm:py-8">
+        <div className="overflow-hidden rounded-3xl border border-[var(--iseya-gold)]/30 bg-white shadow-sm">
+          <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:p-10">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
+                Beyond resume. Positioning.
+              </p>
+              <h1 className="mt-3 max-w-4xl text-3xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-5xl">
+                Turn your career story into a focused application package.
+              </h1>
+              <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
+                Build a tailored resume, cover letter, LinkedIn profile, and application kit from one private workspace designed for students, job seekers, and career transitions.
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <Link
+                  href={authUser ? "/workspace" : "/signup"}
+                  className={`${primaryButtonClass} ${buttonSizeMdClass}`}
+                >
+                  Start Free
+                </Link>
+                <Link
+                  href="/pricing"
+                  className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
+                >
+                  View Pricing
+                </Link>
+                <a
+                  href="#resume-builder"
+                  className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
+                >
+                  Build Resume
+                </a>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              {[
+                "Secure checkout powered by Stripe",
+                "Private workspace",
+                "Built for students, job seekers, and career transitions",
+              ].map((item) => (
+                <div
+                  key={item}
+                  className="rounded-2xl border border-slate-200 bg-[var(--iseya-soft-bg)] p-4 text-sm font-semibold leading-6 text-[var(--iseya-navy)]"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="resume-builder" className="mx-auto max-w-[112rem] px-5 pt-1 sm:px-8">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -6400,7 +6465,7 @@ export default function Home() {
                 </div>
               )}
               <p className="mt-4 text-xs leading-5 text-slate-500">
-                Billing history coming soon.
+                Billing history will appear here after invoice records are available.
               </p>
               {enableInstitutionAccess && organizationName ? (
                 <div className="mt-4 rounded-xl border border-[var(--iseya-gold)]/40 bg-white p-4">
@@ -7163,9 +7228,8 @@ export default function Home() {
 
 function IseyaFooter() {
   const footerLinks = [
-    ["About", "/about"],
-    ["Privacy Policy", "/privacy"],
-    ["Terms of Use", "/terms"],
+    ["Terms", "/terms"],
+    ["Privacy", "/privacy"],
     ["Contact", "/contact"],
   ];
 
@@ -7181,7 +7245,7 @@ function IseyaFooter() {
             className="h-auto w-[120px] object-contain sm:w-[160px] lg:w-[180px]"
           />
           <p className="text-sm font-medium text-white/85">
-            AI-powered career positioning by Jormp LLC.
+            ISEYA by Jormp LLC.
           </p>
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
             California, USA

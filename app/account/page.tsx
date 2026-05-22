@@ -365,7 +365,7 @@ export default function AccountPage() {
                 <div className="mt-6 flex flex-wrap gap-3">
                   <button
                     type="button"
-                    onClick={() => setStatus("Billing management is coming soon.")}
+                    onClick={() => setStatus("Billing management will be available from your account when portal access is enabled.")}
                     className={primaryButton}
                   >
                     Manage Billing
