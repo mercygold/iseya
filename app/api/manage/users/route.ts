@@ -196,7 +196,7 @@ export async function PATCH(request: Request) {
 
   if (jobPostId) {
     const jobStatus = typeof body.jobStatus === "string" ? body.jobStatus : "";
-    const validJobStatuses = new Set(["draft", "pending_review", "published", "closed"]);
+    const validJobStatuses = new Set(["draft", "pending_review", "published", "rejected", "closed"]);
 
     if (!validJobStatuses.has(jobStatus)) {
       return Response.json({ error: "Invalid job moderation update." }, { status: 400 });

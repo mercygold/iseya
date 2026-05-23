@@ -67,7 +67,7 @@ export default function RecruitersPage() {
           ],
           [
             "Recruiter job posting",
-            "Create draft, published, pending review, or closed job posts from one focused recruiter workspace.",
+            "Create drafts, submit jobs for review, and manage closed listings from one focused recruiter workspace.",
           ],
           [
             "Career infrastructure",

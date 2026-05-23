@@ -8,6 +8,8 @@ type RecruiterProfileBody = {
   recruiterName?: unknown;
   workEmail?: unknown;
   companyWebsite?: unknown;
+  linkedinCompanyUrl?: unknown;
+  phoneNumber?: unknown;
   companyLocation?: unknown;
   industry?: unknown;
   companySize?: unknown;
@@ -95,25 +97,55 @@ export async function PUT(request: Request) {
     return Response.json({ error: "Unable to update account type." }, { status: 500 });
   }
 
-  const { data, error } = await supabase
+  const recruiterProfilePayload = {
+    user_id: userId,
+    company_name: companyName,
+    recruiter_name: recruiterName,
+    work_email: workEmail,
+    company_website: text(body.companyWebsite) || null,
+    linkedin_company_url: text(body.linkedinCompanyUrl) || null,
+    phone_number: text(body.phoneNumber),
+    company_location: text(body.companyLocation) || null,
+    industry: text(body.industry) || null,
+    company_size: text(body.companySize) || null,
+    hiring_focus: text(body.hiringFocus) || null,
+    verification_status: "pending_review",
+  };
+
+  let { data, error } = await supabase
     .from("recruiter_profiles")
     .upsert(
-      {
-        user_id: userId,
-        company_name: companyName,
-        recruiter_name: recruiterName,
-        work_email: workEmail,
-        company_website: text(body.companyWebsite) || null,
-        company_location: text(body.companyLocation) || null,
-        industry: text(body.industry) || null,
-        company_size: text(body.companySize) || null,
-        hiring_focus: text(body.hiringFocus) || null,
-        verification_status: "pending_review",
-      },
+      recruiterProfilePayload,
       { onConflict: "user_id" },
     )
     .select("*")
     .single();
+
+  if (
+    error &&
+    (error.code === "PGRST204" ||
+      error.message.includes("linkedin_company_url") ||
+      error.message.includes("phone_number"))
+  ) {
+    const legacyPayload = {
+      user_id: recruiterProfilePayload.user_id,
+      company_name: recruiterProfilePayload.company_name,
+      recruiter_name: recruiterProfilePayload.recruiter_name,
+      work_email: recruiterProfilePayload.work_email,
+      company_website: recruiterProfilePayload.company_website,
+      company_location: recruiterProfilePayload.company_location,
+      industry: recruiterProfilePayload.industry,
+      company_size: recruiterProfilePayload.company_size,
+      hiring_focus: recruiterProfilePayload.hiring_focus,
+      verification_status: recruiterProfilePayload.verification_status,
+    };
+
+    ({ data, error } = await supabase
+      .from("recruiter_profiles")
+      .upsert(legacyPayload, { onConflict: "user_id" })
+      .select("*")
+      .single());
+  }
 
   if (error) {
     console.error("[recruiter-profile] upsert failed", {

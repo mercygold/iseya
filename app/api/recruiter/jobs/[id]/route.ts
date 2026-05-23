@@ -23,29 +23,73 @@ function skills(value: unknown) {
     .slice(0, 30);
 }
 
-async function getUserId() {
+const recruiterAllowedUpdateStatuses = new Set(["draft", "pending_review", "closed"]);
+
+async function getUserContext() {
   const supabase = await createSupabaseServerClient();
 
   if (!supabase) {
-    return { supabase: null, userId: "" };
+    return { supabase: null, userId: "", recruiterProfile: null };
   }
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return { supabase, userId: user?.id ?? "" };
+  const userId = user?.id ?? "";
+  const { data: recruiterProfile } = userId
+    ? await supabase
+        .from("recruiter_profiles")
+        .select("company_name, recruiter_name, work_email, verification_status")
+        .eq("user_id", userId)
+        .maybeSingle()
+    : { data: null };
+
+  return { supabase, userId, recruiterProfile };
+}
+
+function hasCompleteCompanyProfile(
+  profile: {
+    company_name: string | null;
+    recruiter_name: string | null;
+    work_email: string | null;
+  } | null,
+) {
+  return Boolean(profile?.company_name && profile.recruiter_name && profile.work_email);
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const { supabase, userId } = await getUserId();
+  const { supabase, userId, recruiterProfile } = await getUserContext();
 
   if (!supabase || !userId) {
     return Response.json({ error: "Login required." }, { status: 401 });
   }
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const requestedStatus = typeof body.status === "string" ? text(body.status) : "";
+
+  if (requestedStatus && !recruiterAllowedUpdateStatuses.has(requestedStatus)) {
+    return Response.json(
+      { error: "Jobs can be saved as drafts, submitted for review, or closed by recruiters." },
+      { status: 400 },
+    );
+  }
+
+  if (!hasCompleteCompanyProfile(recruiterProfile)) {
+    return Response.json(
+      { error: "Create your company profile before posting jobs." },
+      { status: 403 },
+    );
+  }
+
+  if (recruiterProfile?.verification_status === "rejected" && requestedStatus === "pending_review") {
+    return Response.json(
+      { error: "Update your company profile before submitting jobs for review." },
+      { status: 403 },
+    );
+  }
+
   const update = {
     ...(typeof body.jobTitle === "string" ? { job_title: text(body.jobTitle) } : {}),
     ...(typeof body.companyName === "string" ? { company_name: text(body.companyName) } : {}),
@@ -61,7 +105,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       ? { application_deadline: text(body.applicationDeadline) || null }
       : {}),
     ...(typeof body.applicationUrl === "string" ? { application_url: text(body.applicationUrl) || null } : {}),
-    ...(typeof body.status === "string" ? { status: text(body.status) } : {}),
+    ...(requestedStatus ? { status: requestedStatus } : {}),
   };
 
   const { data, error } = await supabase
@@ -82,7 +126,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const { supabase, userId } = await getUserId();
+  const { supabase, userId } = await getUserContext();
 
   if (!supabase || !userId) {
     return Response.json({ error: "Login required." }, { status: 401 });

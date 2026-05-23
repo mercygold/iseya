@@ -8,11 +8,15 @@ type RecruiterProfile = {
   recruiter_name: string;
   work_email: string;
   company_website: string | null;
+  linkedin_company_url: string | null;
+  phone_number: string;
+  phone_verified: boolean;
   company_location: string | null;
   industry: string | null;
   company_size: string | null;
   hiring_focus: string | null;
   verification_status: string;
+  verification_notes: string | null;
 };
 
 type JobPost = {
@@ -73,6 +77,8 @@ export default function RecruiterDashboard() {
     recruiterName: "",
     workEmail: "",
     companyWebsite: "",
+    linkedinCompanyUrl: "",
+    phoneNumber: "",
     companyLocation: "",
     industry: "",
     companySize: "",
@@ -92,6 +98,20 @@ export default function RecruiterDashboard() {
     }),
     [jobs],
   );
+  const profileComplete = Boolean(
+    profile?.company_name && profile.recruiter_name && profile.work_email,
+  );
+  const verificationStatus = profile?.verification_status ?? "pending_review";
+  const canEditJobDraft = profileComplete;
+  const canSubmitJobForReview = profileComplete && verificationStatus !== "rejected";
+  const verificationMessage =
+    !profileComplete
+      ? "Create your company profile before posting jobs."
+      : verificationStatus === "verified"
+        ? "Your company profile is verified. You can submit jobs for publishing."
+        : verificationStatus === "rejected"
+          ? "Your company profile needs updates before jobs can be published."
+          : "Your company profile is under review. You can prepare job drafts, but jobs will not be published until verification is complete.";
 
   async function loadDashboard() {
     setLoading(true);
@@ -117,6 +137,8 @@ export default function RecruiterDashboard() {
           recruiterName: profileData.recruiterProfile.recruiter_name,
           workEmail: profileData.recruiterProfile.work_email,
           companyWebsite: profileData.recruiterProfile.company_website ?? "",
+          linkedinCompanyUrl: profileData.recruiterProfile.linkedin_company_url ?? "",
+          phoneNumber: profileData.recruiterProfile.phone_number ?? "",
           companyLocation: profileData.recruiterProfile.company_location ?? "",
           industry: profileData.recruiterProfile.industry ?? "",
           companySize: profileData.recruiterProfile.company_size ?? "",
@@ -144,17 +166,27 @@ export default function RecruiterDashboard() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  async function saveJob() {
+  async function saveJob(nextStatus: "draft" | "pending_review") {
     setStatus("");
 
     try {
+      if (!profileComplete) {
+        setStatus("Create your company profile before posting jobs.");
+        return;
+      }
+
+      if (verificationStatus === "rejected" && nextStatus === "pending_review") {
+        setStatus("Update your company profile before submitting jobs for review.");
+        return;
+      }
+
       const endpoint = editingJobId
         ? `/api/recruiter/jobs/${editingJobId}`
         : "/api/recruiter/jobs";
       const response = await fetch(endpoint, {
         method: editingJobId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(jobDraft),
+        body: JSON.stringify({ ...jobDraft, status: nextStatus }),
       });
       const data = (await response.json().catch(() => ({}))) as { error?: string };
 
@@ -162,7 +194,7 @@ export default function RecruiterDashboard() {
         throw new Error(data.error || "Unable to save job.");
       }
 
-      setStatus(editingJobId ? "Job post updated." : "Job post created.");
+      setStatus(nextStatus === "pending_review" ? "Job submitted for review." : editingJobId ? "Job draft updated." : "Job draft saved.");
       setEditingJobId("");
       setJobDraft(emptyJob);
       await loadDashboard();
@@ -299,6 +331,8 @@ export default function RecruiterDashboard() {
               <Field label="Recruiter name" value={profileDraft.recruiterName} onChange={(value) => setProfileDraft((draft) => ({ ...draft, recruiterName: value }))} required />
               <Field label="Work email" value={profileDraft.workEmail} onChange={(value) => setProfileDraft((draft) => ({ ...draft, workEmail: value }))} required />
               <Field label="Company website" value={profileDraft.companyWebsite} onChange={(value) => setProfileDraft((draft) => ({ ...draft, companyWebsite: value }))} />
+              <Field label="LinkedIn company URL optional" value={profileDraft.linkedinCompanyUrl} onChange={(value) => setProfileDraft((draft) => ({ ...draft, linkedinCompanyUrl: value }))} />
+              <Field label="Phone number" value={profileDraft.phoneNumber} onChange={(value) => setProfileDraft((draft) => ({ ...draft, phoneNumber: value }))} />
               <Field label="Company location" value={profileDraft.companyLocation} onChange={(value) => setProfileDraft((draft) => ({ ...draft, companyLocation: value }))} />
               <Field label="Industry" value={profileDraft.industry} onChange={(value) => setProfileDraft((draft) => ({ ...draft, industry: value }))} />
               <Field label="Company size" value={profileDraft.companySize} onChange={(value) => setProfileDraft((draft) => ({ ...draft, companySize: value }))} />
@@ -316,26 +350,41 @@ export default function RecruiterDashboard() {
                   {editingJobId ? "Edit job post" : "Create a job post"}
                 </h2>
               </div>
-              <button type="button" onClick={saveJob} className={primaryButton}>
-                {editingJobId ? "Save Changes" : "Post a Job"}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => saveJob("draft")} disabled={!profileComplete} className={secondaryButton}>
+                  Save Draft
+                </button>
+                <button type="button" onClick={() => saveJob("pending_review")} disabled={!canSubmitJobForReview} className={primaryButton}>
+                  Submit for Review
+                </button>
+              </div>
             </div>
 
-            <div className="mt-5 grid gap-4 lg:grid-cols-2">
-              <Field label="Job title" value={jobDraft.jobTitle} onChange={(value) => setJobDraft((draft) => ({ ...draft, jobTitle: value }))} required />
-              <Field label="Company name" value={jobDraft.companyName} onChange={(value) => setJobDraft((draft) => ({ ...draft, companyName: value }))} required />
-              <Field label="Location" value={jobDraft.location} onChange={(value) => setJobDraft((draft) => ({ ...draft, location: value }))} />
-              <Select label="Workplace" value={jobDraft.workplaceType} options={["remote", "hybrid", "onsite"]} onChange={(value) => setJobDraft((draft) => ({ ...draft, workplaceType: value }))} />
-              <Select label="Employment type" value={jobDraft.employmentType} options={["full-time", "part-time", "contract", "internship"]} onChange={(value) => setJobDraft((draft) => ({ ...draft, employmentType: value }))} />
-              <Field label="Salary range optional" value={jobDraft.salaryRange} onChange={(value) => setJobDraft((draft) => ({ ...draft, salaryRange: value }))} />
-              <Field label="Application deadline optional" type="date" value={jobDraft.applicationDeadline} onChange={(value) => setJobDraft((draft) => ({ ...draft, applicationDeadline: value }))} />
-              <Field label="Application URL optional" value={jobDraft.applicationUrl} onChange={(value) => setJobDraft((draft) => ({ ...draft, applicationUrl: value }))} />
-              <TextArea label="Role summary" value={jobDraft.roleSummary} onChange={(value) => setJobDraft((draft) => ({ ...draft, roleSummary: value }))} />
-              <TextArea label="Responsibilities" value={jobDraft.responsibilities} onChange={(value) => setJobDraft((draft) => ({ ...draft, responsibilities: value }))} />
-              <TextArea label="Requirements" value={jobDraft.requirements} onChange={(value) => setJobDraft((draft) => ({ ...draft, requirements: value }))} />
-              <TextArea label="Skills" value={jobDraft.skills} onChange={(value) => setJobDraft((draft) => ({ ...draft, skills: value }))} placeholder="Product strategy, SQL, stakeholder management" />
-              <Select label="Status" value={jobDraft.status} options={["draft", "pending_review", "published", "closed"]} onChange={(value) => setJobDraft((draft) => ({ ...draft, status: value }))} />
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">
+              {verificationMessage}{" "}
+              {!profileComplete || verificationStatus === "rejected" ? (
+                <a href="#company-profile" className="underline decoration-[var(--iseya-gold)] underline-offset-4">
+                  {profileComplete ? "Update Company Profile" : "Complete Company Profile"}
+                </a>
+              ) : null}
             </div>
+
+            <fieldset disabled={!canEditJobDraft} className={!canEditJobDraft ? "opacity-60" : ""}>
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                <Field label="Job title" value={jobDraft.jobTitle} onChange={(value) => setJobDraft((draft) => ({ ...draft, jobTitle: value }))} required />
+                <Field label="Company name" value={jobDraft.companyName} onChange={(value) => setJobDraft((draft) => ({ ...draft, companyName: value }))} required />
+                <Field label="Location" value={jobDraft.location} onChange={(value) => setJobDraft((draft) => ({ ...draft, location: value }))} />
+                <Select label="Workplace" value={jobDraft.workplaceType} options={["remote", "hybrid", "onsite"]} onChange={(value) => setJobDraft((draft) => ({ ...draft, workplaceType: value }))} />
+                <Select label="Employment type" value={jobDraft.employmentType} options={["full-time", "part-time", "contract", "internship"]} onChange={(value) => setJobDraft((draft) => ({ ...draft, employmentType: value }))} />
+                <Field label="Salary range optional" value={jobDraft.salaryRange} onChange={(value) => setJobDraft((draft) => ({ ...draft, salaryRange: value }))} />
+                <Field label="Application deadline optional" type="date" value={jobDraft.applicationDeadline} onChange={(value) => setJobDraft((draft) => ({ ...draft, applicationDeadline: value }))} />
+                <Field label="Application URL optional" value={jobDraft.applicationUrl} onChange={(value) => setJobDraft((draft) => ({ ...draft, applicationUrl: value }))} />
+                <TextArea label="Role summary" value={jobDraft.roleSummary} onChange={(value) => setJobDraft((draft) => ({ ...draft, roleSummary: value }))} />
+                <TextArea label="Responsibilities" value={jobDraft.responsibilities} onChange={(value) => setJobDraft((draft) => ({ ...draft, responsibilities: value }))} />
+                <TextArea label="Requirements" value={jobDraft.requirements} onChange={(value) => setJobDraft((draft) => ({ ...draft, requirements: value }))} />
+                <TextArea label="Skills" value={jobDraft.skills} onChange={(value) => setJobDraft((draft) => ({ ...draft, skills: value }))} placeholder="Product strategy, SQL, stakeholder management" />
+              </div>
+            </fieldset>
           </section>
 
           <section id="my-jobs" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

@@ -34,6 +34,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [accessCode, setAccessCode] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
+  const [linkedinCompanyUrl, setLinkedinCompanyUrl] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [companyLocation, setCompanyLocation] = useState("");
   const [industry, setIndustry] = useState("");
   const [companySize, setCompanySize] = useState("");
@@ -110,6 +112,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
             recruiterName: fullName,
             workEmail: email,
             companyWebsite,
+            linkedinCompanyUrl,
+            phoneNumber,
             companyLocation,
             industry,
             companySize,
@@ -247,6 +251,23 @@ export default function AuthForm({ mode }: AuthFormProps) {
                       onChange={(event) => setCompanyWebsite(event.target.value)}
                       className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
                       placeholder="https://company.com"
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                    LinkedIn company URL optional
+                    <input
+                      value={linkedinCompanyUrl}
+                      onChange={(event) => setLinkedinCompanyUrl(event.target.value)}
+                      className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                      placeholder="https://www.linkedin.com/company/..."
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                    Phone number
+                    <input
+                      value={phoneNumber}
+                      onChange={(event) => setPhoneNumber(event.target.value)}
+                      className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
                     />
                   </label>
                   <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
