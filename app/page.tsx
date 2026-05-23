@@ -4790,7 +4790,7 @@ export default function Home() {
   const panelApplicationKit = hasApplicationKitAccess
     ? result?.applicationKit ?? premiumPreviewPackage.applicationKit
     : result?.applicationKit ?? premiumPreviewPackage.applicationKit;
-  const workspaceResult = result ?? (isStarterPlan(subscriptionPlan) ? starterWorkspacePreviewResult : null);
+  const workspaceResult = result ?? starterWorkspacePreviewResult;
   const isStarterWorkflowPreview = !result && Boolean(workspaceResult) && isStarterPlan(subscriptionPlan);
   const isStarterBranding =
     personalBranding.fullName === "Jordan Taylor" &&
@@ -6235,7 +6235,7 @@ export default function Home() {
   }
 
   function updateWorkspaceResumeOutput(value: string) {
-    if (!result && workspaceResult && isStarterPlan(subscriptionPlan)) {
+    if (!result && workspaceResult) {
       const structured = structuredResumeFromText(value);
 
       setResult({
@@ -6255,9 +6255,9 @@ export default function Home() {
 
   function updateCoverLetter(value: string) {
     setResult((current) =>
-      current
+      current || workspaceResult
         ? {
-            ...current,
+            ...(current ?? workspaceResult),
             coverLetter: value,
           }
         : current,
@@ -6530,11 +6530,11 @@ export default function Home() {
 
   function updateLinkedIn(field: keyof LinkedInKit, value: string | string[]) {
     setResult((current) =>
-      current
+      current || workspaceResult
         ? {
-            ...current,
+            ...(current ?? workspaceResult),
             linkedin: {
-              ...current.linkedin,
+              ...(current ?? workspaceResult).linkedin,
               [field]: value,
             },
           }
@@ -6544,11 +6544,11 @@ export default function Home() {
 
   function updateApplicationKit(field: keyof ApplicationKit, value: string) {
     setResult((current) =>
-      current
+      current || workspaceResult
         ? {
-            ...current,
+            ...(current ?? workspaceResult),
             applicationKit: {
-              ...current.applicationKit,
+              ...(current ?? workspaceResult).applicationKit,
               [field]: value,
             },
           }
