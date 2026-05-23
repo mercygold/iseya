@@ -4142,6 +4142,8 @@ export default function Home() {
   const panelApplicationKit = hasApplicationKitAccess
     ? result?.applicationKit ?? premiumPreviewPackage.applicationKit
     : premiumPreviewPackage.applicationKit;
+  const workspaceResult = result ?? (isStarterPlan(subscriptionPlan) ? premiumPreviewResult : null);
+  const isStarterWorkflowPreview = !result && Boolean(workspaceResult) && isStarterPlan(subscriptionPlan);
   const dashboardActivity = [
     savedVersions.length > 0
       ? `Last version saved: ${savedVersions[0].name}`
@@ -7006,7 +7008,7 @@ export default function Home() {
         </section>
       ) : null}
 
-      {result ? (
+      {workspaceResult ? (
         <section className="mx-auto max-w-[118rem] px-4 pb-10 sm:px-6 xl:px-8">
           <div className="sticky top-0 z-30 mb-5 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
             <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
@@ -7015,8 +7017,10 @@ export default function Home() {
                   AI Workspace
                 </h2>
                 <p className="mt-1 text-xs font-medium text-slate-500">
-                  {cloudSaveStatus ||
-                    "Autosaved in your workspace. Editing updates the active document immediately."}
+                  {isStarterWorkflowPreview
+                    ? "Starter preview. Upgrade to personalize advanced documents, save versions, and unlock optimization."
+                    : cloudSaveStatus ||
+                      "Autosaved in your workspace. Editing updates the active document immediately."}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -7062,16 +7066,18 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadResumePdf)}
-                      className={`${menuItemClass} text-sm`}
+                      disabled={isStarterWorkflowPreview}
+                      className={`${menuItemClass} text-sm disabled:cursor-not-allowed disabled:opacity-55`}
                     >
-                      Resume PDF
+                      {isStarterWorkflowPreview ? "🔒 Resume PDF" : "Resume PDF"}
                     </button>
                     <button
                       type="button"
                       onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadResumeDocx)}
-                      className={`${menuItemClass} text-sm`}
+                      disabled={isStarterWorkflowPreview}
+                      className={`${menuItemClass} text-sm disabled:cursor-not-allowed disabled:opacity-55`}
                     >
-                      Resume DOCX
+                      {isStarterWorkflowPreview ? "🔒 Resume DOCX" : "Resume DOCX"}
                     </button>
                     <button
                       type="button"
@@ -7149,10 +7155,15 @@ export default function Home() {
 	          <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[370px_minmax(0,1fr)]">
 	            <aside className="order-2 lg:order-1">
 	              <div className="space-y-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-auto lg:pr-1">
-                <CompactAiSidebar result={result} />
+                {isStarterWorkflowPreview ? <StarterWorkspacePreviewNotice /> : null}
+                <CompactAiSidebar result={workspaceResult} />
                 <AdvancedIntelligencePanel
-                  analysis={result.advancedAnalysis}
-                  onReplaceBullet={replaceBulletWithVersion}
+                  analysis={workspaceResult.advancedAnalysis}
+                  onReplaceBullet={
+                    isStarterWorkflowPreview
+                      ? () => setSystemStatus("Upgrade to unlock AI bullet rewriting.")
+                      : replaceBulletWithVersion
+                  }
                 />
               </div>
             </aside>
@@ -7161,51 +7172,91 @@ export default function Home() {
 	              <div className="mx-auto max-w-6xl">
                 {activeOutput === "resume" ? (
                   <DocumentFrame title="Editable Resume" subtitle="Section editor">
-                    <WeakBulletEditor
-                      bullets={result.coach.weakBullets}
-                      onApply={rewriteSuggestedBullet}
-                    />
-	                    <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)]">
-	                      <div id="resume-editor" className="min-w-0 scroll-mt-28 xl:max-h-[calc(100vh-9rem)] xl:overflow-auto xl:pr-1">
-                        <ModularResumeEditor
-                          resumeText={result.rewrittenResume}
-                          resetSourceText={masterResume}
-                          masterResume={masterResume}
-                          jobDescription={jobDescription}
-                          targetRole={targetRole}
-                          industryTarget={industryTarget}
-                          uploadedFiles={uploadedFiles}
-                          aiSettings={aiSettings}
-                          personalBranding={personalBranding}
-                          onPersonalBrandingChange={updatePersonalBranding}
-                          onProfileImage={handleProfileImage}
-                          onResumeTextChange={updateResumeOutput}
-                          canUseAiOptimization={
-                            canUseSubscriptionFeature(subscriptionPlan, "aiGenerations") &&
-                            optimizationCredits > 0
-                          }
-                          onUpgradeRequired={() =>
-                            requireOptimizationAccess("AI section optimization")
-                          }
-                          onOptimizationUsed={() => trackUsage("optimizationCreditsUsed")}
-                        />
+                    {isStarterWorkflowPreview ? (
+                      <div className="space-y-5">
+                        <PremiumPreviewBanner />
+                        <div className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(420px,1.1fr)]">
+                          <div className="rounded-xl border border-slate-200 bg-white p-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+                                  Resume tab
+                                </p>
+                                <h3 className="mt-2 text-base font-semibold text-[var(--iseya-navy)]">
+                                  Manual editing is available on Starter
+                                </h3>
+                              </div>
+                              <Link href="/pricing" className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
+                                Upgrade to unlock optimization
+                              </Link>
+                            </div>
+                            <p className="mt-3 text-sm leading-6 text-slate-600">
+                              This preview shows how tailored documents, diagnostics, and career intelligence work together. Use the resume inputs above to edit your Starter draft manually, or upgrade to generate and optimize this workspace.
+                            </p>
+                            <WeakBulletEditor
+                              bullets={workspaceResult.coach.weakBullets}
+                              onApply={() => setSystemStatus("Upgrade to unlock AI bullet rewriting.")}
+                            />
+                          </div>
+                          <div className="min-w-0 scroll-mt-28 xl:sticky xl:top-24 xl:max-h-[calc(100vh-9rem)] xl:self-start xl:overflow-auto xl:pr-1">
+                            <ResumePreview
+                              resumeText={workspaceResult.rewrittenResume}
+                              theme={previewTheme}
+                              template={template}
+                              branding={personalBranding}
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div
-	                        id="resume-preview"
-	                        className={`min-w-0 scroll-mt-28 xl:sticky xl:top-24 xl:max-h-[calc(100vh-9rem)] xl:self-start xl:overflow-auto xl:pr-1 ${
-                            isPremiumTemplate(template) && isStarterPlan(subscriptionPlan)
-                              ? "blur-[1.5px]"
-                              : ""
-                          }`}
-	                      >
-                        <ResumePreview
-                          resumeText={result.rewrittenResume}
-                          theme={previewTheme}
-                          template={template}
-                          branding={personalBranding}
-                        />
+                    ) : (
+	                    <div>
+                      <WeakBulletEditor
+                        bullets={workspaceResult.coach.weakBullets}
+                        onApply={rewriteSuggestedBullet}
+                      />
+	                      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)]">
+	                        <div id="resume-editor" className="min-w-0 scroll-mt-28 xl:max-h-[calc(100vh-9rem)] xl:overflow-auto xl:pr-1">
+                          <ModularResumeEditor
+                            resumeText={workspaceResult.rewrittenResume}
+                            resetSourceText={masterResume}
+                            masterResume={masterResume}
+                            jobDescription={jobDescription}
+                            targetRole={targetRole}
+                            industryTarget={industryTarget}
+                            uploadedFiles={uploadedFiles}
+                            aiSettings={aiSettings}
+                            personalBranding={personalBranding}
+                            onPersonalBrandingChange={updatePersonalBranding}
+                            onProfileImage={handleProfileImage}
+                            onResumeTextChange={updateResumeOutput}
+                            canUseAiOptimization={
+                              canUseSubscriptionFeature(subscriptionPlan, "aiGenerations") &&
+                              optimizationCredits > 0
+                            }
+                            onUpgradeRequired={() =>
+                              requireOptimizationAccess("AI section optimization")
+                            }
+                            onOptimizationUsed={() => trackUsage("optimizationCreditsUsed")}
+                          />
+                        </div>
+                        <div
+	                          id="resume-preview"
+	                          className={`min-w-0 scroll-mt-28 xl:sticky xl:top-24 xl:max-h-[calc(100vh-9rem)] xl:self-start xl:overflow-auto xl:pr-1 ${
+                              isPremiumTemplate(template) && isStarterPlan(subscriptionPlan)
+                                ? "blur-[1.5px]"
+                                : ""
+                            }`}
+	                        >
+                          <ResumePreview
+                            resumeText={workspaceResult.rewrittenResume}
+                            theme={previewTheme}
+                            template={template}
+                            branding={personalBranding}
+                          />
+                        </div>
                       </div>
                     </div>
+                    )}
                   </DocumentFrame>
 	                ) : activeOutput === "cover" ? (
 	                  <DocumentFrame title="Cover Letter" subtitle="Editable letter">
@@ -7305,7 +7356,7 @@ export default function Home() {
                   <DocumentFrame title="Resume Preview" subtitle="Download layout">
                     <div className="rounded-2xl bg-slate-200/70 px-3 py-6 sm:px-6 lg:px-10">
                       <ResumePreview
-                        resumeText={result.rewrittenResume}
+                        resumeText={workspaceResult.rewrittenResume}
                         theme={previewTheme}
                         template={template}
                         branding={personalBranding}
@@ -7431,6 +7482,30 @@ function PremiumPreviewBanner() {
         className={`${primaryButtonClass} ${buttonSizeSmClass} mt-3`}
       >
         Upgrade to personalize and export
+      </Link>
+    </div>
+  );
+}
+
+function StarterWorkspacePreviewNotice() {
+  return (
+    <div className="rounded-xl border border-[var(--iseya-gold)]/45 bg-[#FFF8E6] p-4 shadow-sm">
+      <div className="flex items-center gap-2">
+        <span className="rounded-full bg-[var(--iseya-navy)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+          Starter Preview
+        </span>
+        <span className="text-sm" aria-hidden="true">
+          🔒
+        </span>
+      </div>
+      <h3 className="mt-3 text-sm font-semibold text-[var(--iseya-navy)]">
+        Full workflow visibility
+      </h3>
+      <p className="mt-2 text-xs leading-5 text-slate-600">
+        You can preview the AI Workspace, diagnostics, career intelligence, cover letter, LinkedIn, and application kit experience. Upgrade to unlock personalization, generation, exports, and saved versions.
+      </p>
+      <Link href="/pricing" className={`${primaryButtonClass} ${buttonSizeSmClass} mt-3`}>
+        Upgrade to unlock
       </Link>
     </div>
   );
