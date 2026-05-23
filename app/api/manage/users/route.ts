@@ -85,7 +85,21 @@ export async function GET() {
     company_name: string;
     recruiter_name: string;
     work_email: string;
+    company_website: string | null;
+    linkedin_company_url: string | null;
+    phone_number: string | null;
+    address_line_1: string | null;
+    address_line_2: string | null;
+    city: string | null;
+    state_region: string | null;
+    postal_code: string | null;
+    country: string | null;
+    company_location: string | null;
+    industry: string | null;
+    company_size: string | null;
+    hiring_focus: string | null;
     verification_status: string;
+    verification_notes: string | null;
     created_at: string;
   }> = [];
   let jobPosts: Array<{
@@ -102,7 +116,7 @@ export async function GET() {
     await Promise.all([
       serviceRole
         .from("recruiter_profiles")
-        .select("user_id, company_name, recruiter_name, work_email, verification_status, created_at")
+        .select("user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, company_location, industry, company_size, hiring_focus, verification_status, verification_notes, created_at")
         .order("created_at", { ascending: false })
         .limit(100),
       serviceRole
@@ -190,6 +204,10 @@ export async function PATCH(request: Request) {
       });
       return Response.json({ error: "Unable to update recruiter review status." }, { status: 500 });
     }
+
+    // TODO: Connect transactional email provider. When configured, notify work_email:
+    // verified -> "Your ISEYA recruiter profile has been verified"
+    // rejected -> "Your ISEYA recruiter profile needs updates"
 
     return Response.json({ ok: true });
   }

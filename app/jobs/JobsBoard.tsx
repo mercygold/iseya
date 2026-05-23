@@ -14,6 +14,10 @@ type JobPost = {
   workplace_type: string;
   employment_type: string;
   salary_range: string | null;
+  salary_currency: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_period: string | null;
   role_summary: string;
   responsibilities: string;
   requirements: string;
@@ -31,6 +35,19 @@ const secondaryButton =
 
 function label(value: string) {
   return value.replace(/_/g, " ").replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatSalary(job: JobPost) {
+  if (job.salary_currency && (job.salary_min !== null || job.salary_max !== null)) {
+    const formatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+    const min = job.salary_min !== null ? formatter.format(job.salary_min) : "";
+    const max = job.salary_max !== null ? formatter.format(job.salary_max) : "";
+    const range = min && max ? `${min} – ${max}` : min || max;
+
+    return `${job.salary_currency} ${range}${job.salary_period ? ` ${job.salary_period}` : ""}`;
+  }
+
+  return job.salary_range || "Salary not disclosed";
 }
 
 export default function JobsBoard() {
@@ -313,6 +330,9 @@ export default function JobsBoard() {
                   <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
                     {label(job.workplace_type)} | {label(job.employment_type)}
                   </p>
+                  <p className="mt-2 text-xs font-semibold text-slate-600">
+                    {formatSalary(job)}
+                  </p>
                 </button>
               ))
             )}
@@ -332,11 +352,9 @@ export default function JobsBoard() {
                     <p className="mt-2 text-base font-semibold text-slate-700">
                       {selectedJob.company_name} | {selectedJob.location || "Location flexible"}
                     </p>
-                    {selectedJob.salary_range ? (
-                      <p className="mt-2 text-sm font-semibold text-slate-600">
-                        {selectedJob.salary_range}
-                      </p>
-                    ) : null}
+                    <p className="mt-2 text-sm font-semibold text-slate-600">
+                      {formatSalary(selectedJob)}
+                    </p>
                     {selectedJob.application_deadline ? (
                       <p className="mt-2 text-sm font-medium text-slate-600">
                         Apply by {new Date(selectedJob.application_deadline).toLocaleDateString()}

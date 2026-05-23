@@ -11,6 +11,12 @@ type RecruiterProfile = {
   linkedin_company_url: string | null;
   phone_number: string;
   phone_verified: boolean;
+  address_line_1: string;
+  address_line_2: string | null;
+  city: string;
+  state_region: string;
+  postal_code: string | null;
+  country: string;
   company_location: string | null;
   industry: string | null;
   company_size: string | null;
@@ -27,6 +33,10 @@ type JobPost = {
   workplace_type: string;
   employment_type: string;
   salary_range: string | null;
+  salary_currency: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_period: string | null;
   role_summary: string;
   responsibilities: string;
   requirements: string;
@@ -46,6 +56,7 @@ const secondaryButton =
   "inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] disabled:cursor-not-allowed disabled:opacity-60";
 const dangerButton =
   "inline-flex min-h-10 items-center justify-center rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60";
+const companySizeOptions = ["", "1–10", "11–50", "51–200", "201–500", "501–1000", "1000+"];
 
 const emptyJob = {
   jobTitle: "",
@@ -54,6 +65,10 @@ const emptyJob = {
   workplaceType: "remote",
   employmentType: "full-time",
   salaryRange: "",
+  salaryCurrency: "",
+  salaryMin: "",
+  salaryMax: "",
+  salaryPeriod: "",
   roleSummary: "",
   responsibilities: "",
   requirements: "",
@@ -65,6 +80,10 @@ const emptyJob = {
 
 function statusLabel(value: string) {
   return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function normalizeCompanySize(value: string | null) {
+  return (value ?? "").replace(/-/g, "–");
 }
 
 export default function RecruiterDashboard() {
@@ -79,6 +98,12 @@ export default function RecruiterDashboard() {
     companyWebsite: "",
     linkedinCompanyUrl: "",
     phoneNumber: "",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    stateRegion: "",
+    postalCode: "",
+    country: "",
     companyLocation: "",
     industry: "",
     companySize: "",
@@ -99,7 +124,18 @@ export default function RecruiterDashboard() {
     [jobs],
   );
   const profileComplete = Boolean(
-    profile?.company_name && profile.recruiter_name && profile.work_email,
+    profile?.company_name &&
+      profile.recruiter_name &&
+      profile.work_email &&
+      profile.company_website &&
+      profile.phone_number &&
+      profile.address_line_1 &&
+      profile.city &&
+      profile.state_region &&
+      profile.country &&
+      profile.industry &&
+      profile.company_size &&
+      profile.hiring_focus,
   );
   const verificationStatus = profile?.verification_status ?? "pending_review";
   const canEditJobDraft = profileComplete;
@@ -139,11 +175,21 @@ export default function RecruiterDashboard() {
           companyWebsite: profileData.recruiterProfile.company_website ?? "",
           linkedinCompanyUrl: profileData.recruiterProfile.linkedin_company_url ?? "",
           phoneNumber: profileData.recruiterProfile.phone_number ?? "",
+          addressLine1: profileData.recruiterProfile.address_line_1 ?? "",
+          addressLine2: profileData.recruiterProfile.address_line_2 ?? "",
+          city: profileData.recruiterProfile.city ?? "",
+          stateRegion: profileData.recruiterProfile.state_region ?? "",
+          postalCode: profileData.recruiterProfile.postal_code ?? "",
+          country: profileData.recruiterProfile.country ?? "",
           companyLocation: profileData.recruiterProfile.company_location ?? "",
           industry: profileData.recruiterProfile.industry ?? "",
-          companySize: profileData.recruiterProfile.company_size ?? "",
+          companySize: normalizeCompanySize(profileData.recruiterProfile.company_size),
           hiringFocus: profileData.recruiterProfile.hiring_focus ?? "",
         });
+        setJobDraft((draft) => ({
+          ...draft,
+          companyName: draft.companyName || profileData.recruiterProfile?.company_name || "",
+        }));
       }
       if (jobsResponse.ok) {
         setJobs(jobsData.jobs ?? []);
@@ -238,6 +284,10 @@ export default function RecruiterDashboard() {
       workplaceType: job.workplace_type,
       employmentType: job.employment_type,
       salaryRange: job.salary_range ?? "",
+      salaryCurrency: job.salary_currency ?? "",
+      salaryMin: job.salary_min === null ? "" : String(job.salary_min),
+      salaryMax: job.salary_max === null ? "" : String(job.salary_max),
+      salaryPeriod: job.salary_period ?? "",
       roleSummary: job.role_summary,
       responsibilities: job.responsibilities,
       requirements: job.requirements,
@@ -330,13 +380,18 @@ export default function RecruiterDashboard() {
               <Field label="Company name" value={profileDraft.companyName} onChange={(value) => setProfileDraft((draft) => ({ ...draft, companyName: value }))} required />
               <Field label="Recruiter name" value={profileDraft.recruiterName} onChange={(value) => setProfileDraft((draft) => ({ ...draft, recruiterName: value }))} required />
               <Field label="Work email" value={profileDraft.workEmail} onChange={(value) => setProfileDraft((draft) => ({ ...draft, workEmail: value }))} required />
-              <Field label="Company website" value={profileDraft.companyWebsite} onChange={(value) => setProfileDraft((draft) => ({ ...draft, companyWebsite: value }))} />
+              <Field label="Company website" value={profileDraft.companyWebsite} onChange={(value) => setProfileDraft((draft) => ({ ...draft, companyWebsite: value }))} required />
               <Field label="LinkedIn company URL optional" value={profileDraft.linkedinCompanyUrl} onChange={(value) => setProfileDraft((draft) => ({ ...draft, linkedinCompanyUrl: value }))} />
-              <Field label="Phone number" value={profileDraft.phoneNumber} onChange={(value) => setProfileDraft((draft) => ({ ...draft, phoneNumber: value }))} />
-              <Field label="Company location" value={profileDraft.companyLocation} onChange={(value) => setProfileDraft((draft) => ({ ...draft, companyLocation: value }))} />
-              <Field label="Industry" value={profileDraft.industry} onChange={(value) => setProfileDraft((draft) => ({ ...draft, industry: value }))} />
-              <Field label="Company size" value={profileDraft.companySize} onChange={(value) => setProfileDraft((draft) => ({ ...draft, companySize: value }))} />
-              <TextArea label="Hiring focus" value={profileDraft.hiringFocus} onChange={(value) => setProfileDraft((draft) => ({ ...draft, hiringFocus: value }))} />
+              <Field label="Phone number" value={profileDraft.phoneNumber} onChange={(value) => setProfileDraft((draft) => ({ ...draft, phoneNumber: value }))} required />
+              <Field label="Address line 1" value={profileDraft.addressLine1} onChange={(value) => setProfileDraft((draft) => ({ ...draft, addressLine1: value }))} required />
+              <Field label="Address line 2 optional" value={profileDraft.addressLine2} onChange={(value) => setProfileDraft((draft) => ({ ...draft, addressLine2: value }))} />
+              <Field label="City" value={profileDraft.city} onChange={(value) => setProfileDraft((draft) => ({ ...draft, city: value }))} required />
+              <Field label="State/Region" value={profileDraft.stateRegion} onChange={(value) => setProfileDraft((draft) => ({ ...draft, stateRegion: value }))} required />
+              <Field label="Postal code optional" value={profileDraft.postalCode} onChange={(value) => setProfileDraft((draft) => ({ ...draft, postalCode: value }))} />
+              <Field label="Country" value={profileDraft.country} onChange={(value) => setProfileDraft((draft) => ({ ...draft, country: value }))} required />
+              <Field label="Industry" value={profileDraft.industry} onChange={(value) => setProfileDraft((draft) => ({ ...draft, industry: value }))} required />
+              <Select label="Company size" value={profileDraft.companySize} options={companySizeOptions} onChange={(value) => setProfileDraft((draft) => ({ ...draft, companySize: value }))} required />
+              <TextArea label="Hiring focus" value={profileDraft.hiringFocus} onChange={(value) => setProfileDraft((draft) => ({ ...draft, hiringFocus: value }))} required />
             </div>
           </section>
 
@@ -373,15 +428,18 @@ export default function RecruiterDashboard() {
               <div className="mt-5 grid gap-4 lg:grid-cols-2">
                 <Field label="Job title" value={jobDraft.jobTitle} onChange={(value) => setJobDraft((draft) => ({ ...draft, jobTitle: value }))} required />
                 <Field label="Company name" value={jobDraft.companyName} onChange={(value) => setJobDraft((draft) => ({ ...draft, companyName: value }))} required />
-                <Field label="Location" value={jobDraft.location} onChange={(value) => setJobDraft((draft) => ({ ...draft, location: value }))} />
-                <Select label="Workplace" value={jobDraft.workplaceType} options={["remote", "hybrid", "onsite"]} onChange={(value) => setJobDraft((draft) => ({ ...draft, workplaceType: value }))} />
-                <Select label="Employment type" value={jobDraft.employmentType} options={["full-time", "part-time", "contract", "internship"]} onChange={(value) => setJobDraft((draft) => ({ ...draft, employmentType: value }))} />
-                <Field label="Salary range optional" value={jobDraft.salaryRange} onChange={(value) => setJobDraft((draft) => ({ ...draft, salaryRange: value }))} />
+                <Field label="Location" value={jobDraft.location} onChange={(value) => setJobDraft((draft) => ({ ...draft, location: value }))} required />
+                <Select label="Workplace" value={jobDraft.workplaceType} options={["remote", "hybrid", "onsite"]} onChange={(value) => setJobDraft((draft) => ({ ...draft, workplaceType: value }))} required />
+                <Select label="Employment type" value={jobDraft.employmentType} options={["full-time", "part-time", "contract", "internship"]} onChange={(value) => setJobDraft((draft) => ({ ...draft, employmentType: value }))} required />
+                <Select label="Salary currency optional" value={jobDraft.salaryCurrency} options={["", "USD", "CAD", "GBP", "EUR", "NGN", "INR", "AUD", "AED", "ZAR", "JPY", "CNY", "GHS", "KES"]} onChange={(value) => setJobDraft((draft) => ({ ...draft, salaryCurrency: value }))} />
+                <Field label="Salary min optional" type="number" value={jobDraft.salaryMin} onChange={(value) => setJobDraft((draft) => ({ ...draft, salaryMin: value }))} />
+                <Field label="Salary max optional" type="number" value={jobDraft.salaryMax} onChange={(value) => setJobDraft((draft) => ({ ...draft, salaryMax: value }))} />
+                <Select label="Salary period optional" value={jobDraft.salaryPeriod} options={["", "yearly", "monthly", "hourly", "project"]} onChange={(value) => setJobDraft((draft) => ({ ...draft, salaryPeriod: value }))} />
                 <Field label="Application deadline optional" type="date" value={jobDraft.applicationDeadline} onChange={(value) => setJobDraft((draft) => ({ ...draft, applicationDeadline: value }))} />
                 <Field label="Application URL optional" value={jobDraft.applicationUrl} onChange={(value) => setJobDraft((draft) => ({ ...draft, applicationUrl: value }))} />
-                <TextArea label="Role summary" value={jobDraft.roleSummary} onChange={(value) => setJobDraft((draft) => ({ ...draft, roleSummary: value }))} />
-                <TextArea label="Responsibilities" value={jobDraft.responsibilities} onChange={(value) => setJobDraft((draft) => ({ ...draft, responsibilities: value }))} />
-                <TextArea label="Requirements" value={jobDraft.requirements} onChange={(value) => setJobDraft((draft) => ({ ...draft, requirements: value }))} />
+                <TextArea label="Role summary" value={jobDraft.roleSummary} onChange={(value) => setJobDraft((draft) => ({ ...draft, roleSummary: value }))} required />
+                <TextArea label="Responsibilities" value={jobDraft.responsibilities} onChange={(value) => setJobDraft((draft) => ({ ...draft, responsibilities: value }))} required />
+                <TextArea label="Requirements" value={jobDraft.requirements} onChange={(value) => setJobDraft((draft) => ({ ...draft, requirements: value }))} required />
                 <TextArea label="Skills" value={jobDraft.skills} onChange={(value) => setJobDraft((draft) => ({ ...draft, skills: value }))} placeholder="Product strategy, SQL, stakeholder management" />
               </div>
             </fieldset>
@@ -477,10 +535,12 @@ function TextArea({
   value,
   onChange,
   placeholder,
+  required = false,
 }: {
   label: string;
   value: string;
   placeholder?: string;
+  required?: boolean;
   onChange: (value: string) => void;
 }) {
   return (
@@ -488,6 +548,7 @@ function TextArea({
       {label}
       <textarea
         value={value}
+        required={required}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         className={`${inputClass} min-h-28 resize-y leading-6`}
@@ -500,11 +561,13 @@ function Select({
   label,
   value,
   options,
+  required = false,
   onChange,
 }: {
   label: string;
   value: string;
   options: string[];
+  required?: boolean;
   onChange: (value: string) => void;
 }) {
   return (
@@ -512,12 +575,13 @@ function Select({
       {label}
       <select
         value={value}
+        required={required}
         onChange={(event) => onChange(event.target.value)}
         className={inputClass}
       >
         {options.map((option) => (
           <option key={option} value={option}>
-            {statusLabel(option)}
+            {option ? statusLabel(option) : "Select"}
           </option>
         ))}
       </select>

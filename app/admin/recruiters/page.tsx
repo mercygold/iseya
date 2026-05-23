@@ -35,7 +35,7 @@ export default async function AdminRecruitersPage() {
   const serviceRole = await requireAdmin();
   const { data: recruiters } = await serviceRole
     .from("recruiter_profiles")
-    .select("user_id, company_name, recruiter_name, work_email, verification_status, created_at")
+    .select("user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, company_location, industry, company_size, hiring_focus, verification_status, verification_notes, created_at")
     .in("verification_status", ["pending_review", "rejected"])
     .order("created_at", { ascending: false })
     .limit(100);
@@ -65,6 +65,21 @@ export default async function AdminRecruitersPage() {
                 <p className="mt-1 text-sm text-slate-600">
                   {recruiter.recruiter_name || "Recruiter"} · {recruiter.work_email}
                 </p>
+                <div className="mt-3 grid gap-1 text-sm leading-6 text-slate-600 sm:grid-cols-2">
+                  <p>Website: {recruiter.company_website || "Not provided"}</p>
+                  <p>LinkedIn: {recruiter.linkedin_company_url || "Not provided"}</p>
+                  <p>Phone: {recruiter.phone_number || "Not provided"}</p>
+                  <p>Address line 1: {recruiter.address_line_1 || "Not provided"}</p>
+                  <p>Address line 2: {recruiter.address_line_2 || "Not provided"}</p>
+                  <p>City: {recruiter.city || "Not provided"}</p>
+                  <p>State/Region: {recruiter.state_region || "Not provided"}</p>
+                  <p>Postal code: {recruiter.postal_code || "Not provided"}</p>
+                  <p>Country: {recruiter.country || "Not provided"}</p>
+                  <p>Industry: {recruiter.industry || "Not provided"}</p>
+                  <p>Company size: {recruiter.company_size || "Not provided"}</p>
+                  <p className="sm:col-span-2">Hiring focus: {recruiter.hiring_focus || "Not provided"}</p>
+                  <p className="sm:col-span-2">Notes: {recruiter.verification_notes || "No notes"}</p>
+                </div>
                 <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
                   {recruiter.verification_status.replace(/_/g, " ")}
                 </p>

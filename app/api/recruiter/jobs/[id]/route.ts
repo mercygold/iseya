@@ -23,6 +23,11 @@ function skills(value: unknown) {
     .slice(0, 30);
 }
 
+function numberOrNull(value: unknown) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue >= 0 ? numberValue : null;
+}
+
 const recruiterAllowedUpdateStatuses = new Set(["draft", "pending_review", "closed"]);
 
 async function getUserContext() {
@@ -97,6 +102,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     ...(typeof body.workplaceType === "string" ? { workplace_type: text(body.workplaceType) } : {}),
     ...(typeof body.employmentType === "string" ? { employment_type: text(body.employmentType) } : {}),
     ...(typeof body.salaryRange === "string" ? { salary_range: text(body.salaryRange) || null } : {}),
+    ...(typeof body.salaryCurrency === "string" ? { salary_currency: text(body.salaryCurrency) || null } : {}),
+    ...(typeof body.salaryMin === "string" || typeof body.salaryMin === "number" ? { salary_min: numberOrNull(body.salaryMin) } : {}),
+    ...(typeof body.salaryMax === "string" || typeof body.salaryMax === "number" ? { salary_max: numberOrNull(body.salaryMax) } : {}),
+    ...(typeof body.salaryPeriod === "string" ? { salary_period: text(body.salaryPeriod) || null } : {}),
     ...(typeof body.roleSummary === "string" ? { role_summary: text(body.roleSummary) } : {}),
     ...(typeof body.responsibilities === "string" ? { responsibilities: text(body.responsibilities) } : {}),
     ...(typeof body.requirements === "string" ? { requirements: text(body.requirements) } : {}),

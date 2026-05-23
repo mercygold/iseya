@@ -36,7 +36,12 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [companyWebsite, setCompanyWebsite] = useState("");
   const [linkedinCompanyUrl, setLinkedinCompanyUrl] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [companyLocation, setCompanyLocation] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [city, setCity] = useState("");
+  const [stateRegion, setStateRegion] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [country, setCountry] = useState("");
   const [industry, setIndustry] = useState("");
   const [companySize, setCompanySize] = useState("");
   const [hiringFocus, setHiringFocus] = useState("");
@@ -114,7 +119,13 @@ export default function AuthForm({ mode }: AuthFormProps) {
             companyWebsite,
             linkedinCompanyUrl,
             phoneNumber,
-            companyLocation,
+            addressLine1,
+            addressLine2,
+            city,
+            stateRegion,
+            postalCode,
+            country,
+            companyLocation: [city, stateRegion, country].filter(Boolean).join(", "),
             industry,
             companySize,
             hiringFocus,
@@ -247,6 +258,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                   <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
                     Company website
                     <input
+                      required
                       value={companyWebsite}
                       onChange={(event) => setCompanyWebsite(event.target.value)}
                       className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
@@ -265,22 +277,68 @@ export default function AuthForm({ mode }: AuthFormProps) {
                   <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
                     Phone number
                     <input
+                      required
                       value={phoneNumber}
                       onChange={(event) => setPhoneNumber(event.target.value)}
                       className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
                     />
                   </label>
                   <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
-                    Company location
+                    Address line 1
                     <input
-                      value={companyLocation}
-                      onChange={(event) => setCompanyLocation(event.target.value)}
+                      required
+                      value={addressLine1}
+                      onChange={(event) => setAddressLine1(event.target.value)}
+                      className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                    Address line 2 optional
+                    <input
+                      value={addressLine2}
+                      onChange={(event) => setAddressLine2(event.target.value)}
+                      className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                    City
+                    <input
+                      required
+                      value={city}
+                      onChange={(event) => setCity(event.target.value)}
+                      className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                    State/Region
+                    <input
+                      required
+                      value={stateRegion}
+                      onChange={(event) => setStateRegion(event.target.value)}
+                      className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                    Postal code optional
+                    <input
+                      value={postalCode}
+                      onChange={(event) => setPostalCode(event.target.value)}
+                      className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                    Country
+                    <input
+                      required
+                      value={country}
+                      onChange={(event) => setCountry(event.target.value)}
                       className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
                     />
                   </label>
                   <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
                     Industry
                     <input
+                      required
                       value={industry}
                       onChange={(event) => setIndustry(event.target.value)}
                       className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
@@ -288,16 +346,25 @@ export default function AuthForm({ mode }: AuthFormProps) {
                   </label>
                   <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
                     Company size
-                    <input
+                    <select
+                      required
                       value={companySize}
                       onChange={(event) => setCompanySize(event.target.value)}
                       className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
-                      placeholder="1-10, 11-50, 51-200..."
-                    />
+                    >
+                      <option value="">Select</option>
+                      <option value="1–10">1–10</option>
+                      <option value="11–50">11–50</option>
+                      <option value="51–200">51–200</option>
+                      <option value="201–500">201–500</option>
+                      <option value="501–1000">501–1000</option>
+                      <option value="1000+">1000+</option>
+                    </select>
                   </label>
                   <label className="block text-sm font-semibold text-[var(--iseya-navy)] sm:col-span-2">
                     Hiring focus
                     <textarea
+                      required
                       value={hiringFocus}
                       onChange={(event) => setHiringFocus(event.target.value)}
                       className="mt-2 min-h-20 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"

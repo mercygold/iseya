@@ -31,7 +31,21 @@ type RecruiterModeration = {
   company_name: string;
   recruiter_name: string;
   work_email: string;
+  company_website: string | null;
+  linkedin_company_url: string | null;
+  phone_number: string | null;
+  address_line_1: string | null;
+  address_line_2: string | null;
+  city: string | null;
+  state_region: string | null;
+  postal_code: string | null;
+  country: string | null;
+  company_location: string | null;
+  industry: string | null;
+  company_size: string | null;
+  hiring_focus: string | null;
   verification_status: string;
+  verification_notes: string | null;
   created_at: string;
 };
 
@@ -110,6 +124,7 @@ export default function ManageDashboard() {
   const [status, setStatus] = useState("");
   const [query, setQuery] = useState("");
   const [editingUserId, setEditingUserId] = useState("");
+  const [selectedRecruiter, setSelectedRecruiter] = useState<RecruiterModeration | null>(null);
   const [draft, setDraft] = useState({
     subscriptionPlan: "free",
     subscriptionStatus: "free",
@@ -234,6 +249,11 @@ export default function ManageDashboard() {
 
       setStatus("Recruiter review status updated.");
       await loadManageData();
+      setSelectedRecruiter((current) =>
+        current?.user_id === recruiter.user_id
+          ? { ...current, verification_status: verificationStatus }
+          : current,
+      );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to update recruiter review status.");
     }
@@ -458,9 +478,13 @@ export default function ManageDashboard() {
                 <div key={recruiter.user_id} className="rounded-xl border border-slate-200 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-[var(--iseya-navy)]">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRecruiter(recruiter)}
+                        className="truncate text-left text-sm font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] underline-offset-4"
+                      >
                         {recruiter.company_name || "Company pending"}
-                      </p>
+                      </button>
                       <p className="mt-1 text-xs font-medium text-slate-500">
                         {recruiter.recruiter_name || "Recruiter"} · {recruiter.work_email}
                       </p>
@@ -468,15 +492,20 @@ export default function ManageDashboard() {
                         {statusLabel(recruiter.verification_status)}
                       </p>
                     </div>
-                    <select
-                      value={recruiter.verification_status}
-                      onChange={(event) => updateRecruiterStatus(recruiter, event.target.value)}
-                      className={inputClass}
-                    >
-                      <option value="pending_review">Pending Review</option>
-                      <option value="verified">Verified</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
+                    <div className="flex flex-wrap gap-2 sm:justify-end">
+                      <button type="button" onClick={() => setSelectedRecruiter(recruiter)} className={secondaryButton}>
+                        View
+                      </button>
+                      <button type="button" onClick={() => updateRecruiterStatus(recruiter, "verified")} className={primaryButton}>
+                        Verify Company
+                      </button>
+                      <button type="button" onClick={() => updateRecruiterStatus(recruiter, "rejected")} className={secondaryButton}>
+                        Reject Company
+                      </button>
+                      <button type="button" onClick={() => updateRecruiterStatus(recruiter, "pending_review")} className={secondaryButton}>
+                        Pending Review
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -551,6 +580,96 @@ export default function ManageDashboard() {
           </div>
         </section>
       ) : null}
+
+      {selectedRecruiter ? (
+        <RecruiterModal
+          recruiter={selectedRecruiter}
+          onClose={() => setSelectedRecruiter(null)}
+          onUpdate={(nextStatus) => updateRecruiterStatus(selectedRecruiter, nextStatus)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-[var(--iseya-navy)]">
+        {value || "Not provided"}
+      </p>
+    </div>
+  );
+}
+
+function RecruiterModal({
+  recruiter,
+  onClose,
+  onUpdate,
+}: {
+  recruiter: RecruiterModeration;
+  onClose: () => void;
+  onUpdate: (status: string) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8">
+      <section className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+              Recruiter Verification
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
+              {recruiter.company_name || "Company pending"}
+            </h2>
+            <p className="mt-1 text-sm font-medium text-slate-600">
+              {statusLabel(recruiter.verification_status)}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className={secondaryButton}>
+            Close
+          </button>
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <Detail label="Company name" value={recruiter.company_name} />
+          <Detail label="Recruiter name" value={recruiter.recruiter_name} />
+          <Detail label="Work email" value={recruiter.work_email} />
+          <Detail label="Company website" value={recruiter.company_website} />
+          <Detail label="LinkedIn company URL" value={recruiter.linkedin_company_url} />
+          <Detail label="Phone number" value={recruiter.phone_number} />
+          <Detail label="Address line 1" value={recruiter.address_line_1} />
+          <Detail label="Address line 2" value={recruiter.address_line_2} />
+          <Detail label="City" value={recruiter.city} />
+          <Detail label="State/Region" value={recruiter.state_region} />
+          <Detail label="Postal code" value={recruiter.postal_code} />
+          <Detail label="Country" value={recruiter.country} />
+          <Detail label="Industry" value={recruiter.industry} />
+          <Detail label="Company size" value={recruiter.company_size} />
+          <div className="sm:col-span-2">
+            <Detail label="Hiring focus" value={recruiter.hiring_focus} />
+          </div>
+          <div className="sm:col-span-2">
+            <Detail label="Verification notes" value={recruiter.verification_notes} />
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-2">
+          <button type="button" onClick={() => onUpdate("verified")} className={primaryButton}>
+            Verify
+          </button>
+          <button type="button" onClick={() => onUpdate("rejected")} className={secondaryButton}>
+            Reject
+          </button>
+          <button type="button" onClick={() => onUpdate("pending_review")} className={secondaryButton}>
+            Set Pending Review
+          </button>
+          <button type="button" onClick={onClose} className={secondaryButton}>
+            Close
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

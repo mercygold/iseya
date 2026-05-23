@@ -10,6 +10,10 @@ type JobBody = {
   workplaceType?: unknown;
   employmentType?: unknown;
   salaryRange?: unknown;
+  salaryCurrency?: unknown;
+  salaryMin?: unknown;
+  salaryMax?: unknown;
+  salaryPeriod?: unknown;
   roleSummary?: unknown;
   responsibilities?: unknown;
   requirements?: unknown;
@@ -35,6 +39,11 @@ function skills(value: unknown) {
     .map((item) => item.trim())
     .filter(Boolean)
     .slice(0, 30);
+}
+
+function numberOrNull(value: unknown) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue >= 0 ? numberValue : null;
 }
 
 async function getRecruiterContext() {
@@ -133,8 +142,20 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as JobBody;
   const status = text(body.status) || "draft";
 
-  if (!text(body.jobTitle) || !text(body.companyName)) {
-    return Response.json({ error: "Job title and company name are required." }, { status: 400 });
+  if (
+    !text(body.jobTitle) ||
+    !text(body.companyName) ||
+    !text(body.location) ||
+    !text(body.workplaceType) ||
+    !text(body.employmentType) ||
+    !text(body.roleSummary) ||
+    !text(body.responsibilities) ||
+    !text(body.requirements)
+  ) {
+    return Response.json(
+      { error: "Job title, company, location, workplace, employment type, summary, responsibilities, and requirements are required." },
+      { status: 400 },
+    );
   }
 
   if (!recruiterAllowedCreateStatuses.has(status)) {
@@ -158,6 +179,10 @@ export async function POST(request: Request) {
       workplace_type: text(body.workplaceType) || "remote",
       employment_type: text(body.employmentType) || "full-time",
       salary_range: text(body.salaryRange) || null,
+      salary_currency: text(body.salaryCurrency) || null,
+      salary_min: numberOrNull(body.salaryMin),
+      salary_max: numberOrNull(body.salaryMax),
+      salary_period: text(body.salaryPeriod) || null,
       role_summary: text(body.roleSummary),
       responsibilities: text(body.responsibilities),
       requirements: text(body.requirements),

@@ -10,6 +10,12 @@ type RecruiterProfileBody = {
   companyWebsite?: unknown;
   linkedinCompanyUrl?: unknown;
   phoneNumber?: unknown;
+  addressLine1?: unknown;
+  addressLine2?: unknown;
+  city?: unknown;
+  stateRegion?: unknown;
+  postalCode?: unknown;
+  country?: unknown;
   companyLocation?: unknown;
   industry?: unknown;
   companySize?: unknown;
@@ -18,6 +24,10 @@ type RecruiterProfileBody = {
 
 function text(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function optionalText(value: unknown) {
+  return typeof value === "string" ? value.trim() : undefined;
 }
 
 async function getUserContext() {
@@ -76,10 +86,32 @@ export async function PUT(request: Request) {
   const companyName = text(body.companyName);
   const recruiterName = text(body.recruiterName);
   const workEmail = text(body.workEmail);
+  const companyWebsite = text(body.companyWebsite);
+  const phoneNumber = text(body.phoneNumber);
+  const addressLine1 = text(body.addressLine1);
+  const city = text(body.city);
+  const stateRegion = text(body.stateRegion);
+  const country = text(body.country);
+  const industry = text(body.industry);
+  const companySize = text(body.companySize);
+  const hiringFocus = text(body.hiringFocus);
 
-  if (!companyName || !recruiterName || !workEmail) {
+  if (
+    !companyName ||
+    !recruiterName ||
+    !workEmail ||
+    !companyWebsite ||
+    !phoneNumber ||
+    !addressLine1 ||
+    !city ||
+    !stateRegion ||
+    !country ||
+    !industry ||
+    !companySize ||
+    !hiringFocus
+  ) {
     return Response.json(
-      { error: "Company name, recruiter name, and work email are required." },
+      { error: "Complete all required company profile fields before saving." },
       { status: 400 },
     );
   }
@@ -97,19 +129,33 @@ export async function PUT(request: Request) {
     return Response.json({ error: "Unable to update account type." }, { status: 500 });
   }
 
+  const { data: existingRecruiterProfile } = await supabase
+    .from("recruiter_profiles")
+    .select("verification_status")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const nextVerificationStatus =
+    existingRecruiterProfile?.verification_status === "verified" ? "verified" : "pending_review";
+
   const recruiterProfilePayload = {
     user_id: userId,
     company_name: companyName,
     recruiter_name: recruiterName,
     work_email: workEmail,
-    company_website: text(body.companyWebsite) || null,
-    linkedin_company_url: text(body.linkedinCompanyUrl) || null,
-    phone_number: text(body.phoneNumber),
-    company_location: text(body.companyLocation) || null,
-    industry: text(body.industry) || null,
-    company_size: text(body.companySize) || null,
-    hiring_focus: text(body.hiringFocus) || null,
-    verification_status: "pending_review",
+    company_website: companyWebsite,
+    linkedin_company_url: optionalText(body.linkedinCompanyUrl) ?? null,
+    phone_number: phoneNumber,
+    address_line_1: addressLine1,
+    address_line_2: optionalText(body.addressLine2) ?? null,
+    city,
+    state_region: stateRegion,
+    postal_code: optionalText(body.postalCode) ?? null,
+    country,
+    company_location: text(body.companyLocation) || [city, stateRegion, country].filter(Boolean).join(", "),
+    industry,
+    company_size: companySize,
+    hiring_focus: hiringFocus,
+    verification_status: nextVerificationStatus,
   };
 
   let { data, error } = await supabase
@@ -133,6 +179,8 @@ export async function PUT(request: Request) {
       recruiter_name: recruiterProfilePayload.recruiter_name,
       work_email: recruiterProfilePayload.work_email,
       company_website: recruiterProfilePayload.company_website,
+      linkedin_company_url: recruiterProfilePayload.linkedin_company_url,
+      phone_number: recruiterProfilePayload.phone_number,
       company_location: recruiterProfilePayload.company_location,
       industry: recruiterProfilePayload.industry,
       company_size: recruiterProfilePayload.company_size,
