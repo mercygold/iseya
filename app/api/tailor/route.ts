@@ -1,4 +1,9 @@
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { optimizationModel } from "@/lib/ai/models";
+import { extractResume } from "@/lib/resume/extractResume";
+import { optimizeResume } from "@/lib/resume/optimizeResume";
+import { renderResume } from "@/lib/resume/renderResume";
+import type { CanonicalResume, RenderResumeState } from "@/lib/resume/types";
 import { isProPlan, normalizeSubscriptionPlan } from "@/lib/subscription";
 
 export const runtime = "nodejs";
@@ -183,6 +188,9 @@ type TailorResponse = {
   advancedAnalysis?: AdvancedAnalysis;
   linkedin?: LinkedInKit;
   applicationKit?: ApplicationKit;
+  extractedResumeJson?: CanonicalResume;
+  optimizedResumeJson?: CanonicalResume;
+  renderResumeState?: RenderResumeState;
 };
 
 const keywordBank = [
@@ -1109,6 +1117,9 @@ function normalizeResponse(response: TailorResponse): TailorResponse {
 
   return {
     ...normalizedResponse,
+    extractedResumeJson: response.extractedResumeJson,
+    optimizedResumeJson: response.optimizedResumeJson,
+    renderResumeState: response.renderResumeState,
     advancedAnalysis:
       response.advancedAnalysis ??
       buildLocalAdvancedAnalysis(normalizedResponse, {
@@ -1118,6 +1129,55 @@ function normalizeResponse(response: TailorResponse): TailorResponse {
     linkedin: response.linkedin ?? fallbackPackage.linkedin,
     applicationKit: response.applicationKit ?? fallbackPackage.applicationKit,
   };
+}
+
+function resumeIntelligenceSourceText(request: TailorRequest) {
+  return [
+    request.currentEditedResume,
+    request.masterResume,
+    sourceMaterialText(request.uploadedSourceMaterials),
+  ]
+    .filter((text): text is string => Boolean(text?.trim()))
+    .join("\n\n");
+}
+
+async function applyResumePipeline(
+  request: TailorRequest,
+  response: TailorResponse,
+  apiKey?: string,
+): Promise<TailorResponse> {
+  const sourceText = resumeIntelligenceSourceText(request);
+
+  if (!sourceText.trim()) {
+    return normalizeResponse(response);
+  }
+
+  const extractedResumeJson = await extractResume({
+    rawText: sourceText,
+    openAiApiKey: apiKey,
+  });
+  const optimizedResumeJson = await optimizeResume({
+    resume: extractedResumeJson,
+    jobDescription: request.jobDescription,
+    targetRole: request.targetRole,
+    industryTarget: request.industryTarget,
+    openAiApiKey: apiKey,
+  });
+  const renderResumeState = renderResume(optimizedResumeJson);
+
+  if (renderResumeState.validationIssues.length > 0) {
+    console.warn("ISEYA pipeline validation failures", {
+      issues: renderResumeState.validationIssues,
+    });
+  }
+
+  return normalizeResponse({
+    ...response,
+    tailoredResume: renderResumeState.plainText || response.tailoredResume,
+    extractedResumeJson,
+    optimizedResumeJson,
+    renderResumeState,
+  });
 }
 
 async function callOpenAI(request: TailorRequest, apiKey: string) {
@@ -1136,7 +1196,7 @@ async function callOpenAI(request: TailorRequest, apiKey: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: request.aiSettings?.model || process.env.OPENAI_MODEL || "gpt-4o-mini",
+      model: optimizationModel,
       temperature: Math.max(
         0,
         Math.min(1, (request.aiSettings?.creativity ?? 25) / 100),
@@ -1186,7 +1246,7 @@ async function callOpenAI(request: TailorRequest, apiKey: string) {
     throw new Error("OpenAI returned an empty response.");
   }
 
-  return normalizeResponse(JSON.parse(content) as TailorResponse);
+  return applyResumePipeline(request, JSON.parse(content) as TailorResponse, apiKey);
 }
 
 function optimizeTextLocally(request: TailorRequest): OptimizationResponse {
@@ -1240,7 +1300,7 @@ async function callOpenAIOptimization(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: request.aiSettings?.model || process.env.OPENAI_MODEL || "gpt-4o-mini",
+      model: optimizationModel,
       temperature: Math.max(
         0,
         Math.min(0.8, (request.aiSettings?.creativity ?? 25) / 100),
@@ -1356,13 +1416,13 @@ export async function POST(request: Request) {
     }
 
     if (!apiKey) {
-      return Response.json(localTailor(body));
+      return Response.json(await applyResumePipeline(body, localTailor(body)));
     }
 
     try {
       return Response.json(await callOpenAI(body, apiKey));
     } catch {
-      return Response.json(localTailor(body));
+      return Response.json(await applyResumePipeline(body, localTailor(body)));
     }
   } catch (error) {
     return Response.json(

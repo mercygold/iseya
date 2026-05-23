@@ -83,6 +83,9 @@ type TailoringResult = {
   advancedAnalysis: AdvancedAnalysis;
   linkedin: LinkedInKit;
   applicationKit: ApplicationKit;
+  extractedResumeJson?: unknown;
+  optimizedResumeJson?: unknown;
+  renderResumeState?: unknown;
 };
 
 type LinkedInKit = {
@@ -416,6 +419,9 @@ type TailorApiResponse = {
   advancedAnalysis?: AdvancedAnalysis;
   linkedin?: LinkedInKit;
   applicationKit?: ApplicationKit;
+  extractedResumeJson?: unknown;
+  optimizedResumeJson?: unknown;
+  renderResumeState?: unknown;
 };
 
 const storageKey = "resume-agent-state-v2";
@@ -465,7 +471,7 @@ const positioningModes: PositioningMode[] = [
   "Operations",
 ];
 const defaultAiSettings: AiSettings = {
-  model: "gpt-4o-mini",
+  model: "gpt-5.5",
   creativity: 25,
   atsStrictness: 75,
   toneStyle: "Executive concise",
@@ -2172,6 +2178,9 @@ function resultFromApiResponse(
       response.applicationKit,
       packageFallback.applicationKit,
     ),
+    extractedResumeJson: response.extractedResumeJson,
+    optimizedResumeJson: response.optimizedResumeJson,
+    renderResumeState: response.renderResumeState,
   };
 }
 
@@ -4949,6 +4958,7 @@ export default function Home() {
     setAiSettings({
       ...defaultAiSettings,
       ...(state.aiSettings ?? {}),
+      model: defaultAiSettings.model,
       positioningMode: positioningModes.includes(
         state.aiSettings?.positioningMode ?? defaultAiSettings.positioningMode,
       )
@@ -7114,9 +7124,7 @@ export default function Home() {
                     }
                     className="mt-2 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                   >
-                    <option value="gpt-4o-mini">gpt-4o-mini</option>
-                    <option value="gpt-4o">gpt-4o</option>
-                    <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+                    <option value="gpt-5.5">gpt-5.5</option>
                   </select>
                 </label>
                 <label className="text-sm font-semibold text-[var(--iseya-navy)]">
