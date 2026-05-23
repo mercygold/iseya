@@ -26,6 +26,7 @@ type AuthContextValue = {
     password: string;
     fullName?: string;
     emailRedirectTo?: string;
+    accountType?: "candidate" | "recruiter";
   }) => Promise<{ needsEmailConfirmation: boolean }>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -220,6 +221,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             typeof profileUser.user_metadata?.full_name === "string"
               ? profileUser.user_metadata.full_name
               : null,
+          account_type:
+            profileUser.user_metadata?.account_type === "recruiter"
+              ? "recruiter"
+              : "candidate",
         },
         { onConflict: "id" },
       );
@@ -236,7 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [ensureUserProfile, user]);
 
   const signUp = useCallback<AuthContextValue["signUp"]>(
-    async ({ email, password, fullName, emailRedirectTo }) => {
+    async ({ email, password, fullName, emailRedirectTo, accountType }) => {
       setError("");
 
       if (!supabase) {
@@ -254,6 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           options: {
             data: {
               full_name: fullName ?? "",
+              account_type: accountType ?? "candidate",
             },
             emailRedirectTo,
           },

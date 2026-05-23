@@ -23,6 +23,7 @@ export type Database = {
           organization_verified_at: string | null;
           role: string | null;
           app_role: string | null;
+          account_type: string;
           resume_download_credits: number;
           optimization_credits: number;
           downloads_used: number;
@@ -45,6 +46,7 @@ export type Database = {
           organization_verified_at?: string | null;
           role?: string | null;
           app_role?: string | null;
+          account_type?: string;
           resume_download_credits?: number;
           optimization_credits?: number;
           downloads_used?: number;
@@ -67,6 +69,7 @@ export type Database = {
           organization_verified_at?: string | null;
           role?: string | null;
           app_role?: string | null;
+          account_type?: string;
           resume_download_credits?: number;
           optimization_credits?: number;
           downloads_used?: number;
@@ -118,6 +121,141 @@ export type Database = {
           status?: string;
           start_date?: string | null;
           end_date?: string | null;
+          created_at?: string;
+        };
+      };
+      recruiter_profiles: {
+        Row: {
+          user_id: string;
+          company_name: string;
+          recruiter_name: string;
+          work_email: string;
+          company_website: string | null;
+          company_location: string | null;
+          industry: string | null;
+          company_size: string | null;
+          hiring_focus: string | null;
+          verification_status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          company_name?: string;
+          recruiter_name?: string;
+          work_email?: string;
+          company_website?: string | null;
+          company_location?: string | null;
+          industry?: string | null;
+          company_size?: string | null;
+          hiring_focus?: string | null;
+          verification_status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          company_name?: string;
+          recruiter_name?: string;
+          work_email?: string;
+          company_website?: string | null;
+          company_location?: string | null;
+          industry?: string | null;
+          company_size?: string | null;
+          hiring_focus?: string | null;
+          verification_status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      job_posts: {
+        Row: {
+          id: string;
+          recruiter_id: string;
+          job_title: string;
+          company_name: string;
+          location: string;
+          workplace_type: string;
+          employment_type: string;
+          salary_range: string | null;
+          role_summary: string;
+          responsibilities: string;
+          requirements: string;
+          skills: string[];
+          application_deadline: string | null;
+          application_url: string | null;
+          status: string;
+          applicants_count: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          recruiter_id: string;
+          job_title: string;
+          company_name: string;
+          location?: string;
+          workplace_type?: string;
+          employment_type?: string;
+          salary_range?: string | null;
+          role_summary?: string;
+          responsibilities?: string;
+          requirements?: string;
+          skills?: string[];
+          application_deadline?: string | null;
+          application_url?: string | null;
+          status?: string;
+          applicants_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          recruiter_id?: string;
+          job_title?: string;
+          company_name?: string;
+          location?: string;
+          workplace_type?: string;
+          employment_type?: string;
+          salary_range?: string | null;
+          role_summary?: string;
+          responsibilities?: string;
+          requirements?: string;
+          skills?: string[];
+          application_deadline?: string | null;
+          application_url?: string | null;
+          status?: string;
+          applicants_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      job_applications: {
+        Row: {
+          id: string;
+          job_id: string;
+          candidate_id: string;
+          recruiter_id: string;
+          status: string;
+          candidate_snapshot: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          job_id: string;
+          candidate_id: string;
+          recruiter_id: string;
+          status?: string;
+          candidate_snapshot?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          job_id?: string;
+          candidate_id?: string;
+          recruiter_id?: string;
+          status?: string;
+          candidate_snapshot?: Json;
           created_at?: string;
         };
       };

@@ -6575,14 +6575,20 @@ export default function Home() {
               </p>
             </div>
             <p className="mt-3 max-w-none text-base leading-7 text-white/85 lg:whitespace-nowrap">
-              Tailored resumes, cover letters, LinkedIn positioning, and career materials in one structured workspace.
+              Career infrastructure for modern talent, role-fit signals, and stronger professional identity.
             </p>
           </div>
           <div className="flex max-w-2xl flex-col gap-3 lg:items-end">
             <nav className="flex flex-wrap justify-start gap-x-4 gap-y-2 text-sm font-semibold text-white/80 lg:justify-end">
               <a className="transition hover:text-[var(--iseya-gold)]" href="#resume-builder">
-                Resume Builder
+                Career Assets
               </a>
+              <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">
+                Jobs
+              </Link>
+              <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters">
+                For Recruiters
+              </Link>
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
                 Pricing
               </Link>
@@ -6652,10 +6658,10 @@ export default function Home() {
                 Beyond resume. Positioning.
               </p>
               <h1 className="mt-3 max-w-4xl text-3xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-5xl">
-                Build role-ready career materials with a clearer strategy.
+                Career infrastructure for modern talent.
               </h1>
               <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
-                ISEYA helps you tailor your resume, shape a concise cover letter, refine your LinkedIn positioning, and organize application materials around the roles you want.
+                ISEYA helps you structure your career profile, tailor career assets, refine LinkedIn positioning, and connect your experience to stronger role-fit signals.
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
@@ -6674,8 +6680,14 @@ export default function Home() {
                   href="#resume-builder"
                   className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
                 >
-                  Build Resume
+                  Build Career Profile
                 </a>
+                <Link
+                  href="/jobs"
+                  className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
+                >
+                  Browse Jobs
+                </Link>
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
@@ -6683,6 +6695,7 @@ export default function Home() {
                 "Secure checkout powered by Stripe",
                 "Private career workspace",
                 "Structured workflow for students, job seekers, and career transitions",
+                "Talent discovery and recruiter access",
               ].map((item) => (
                 <div
                   key={item}

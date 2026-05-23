@@ -3,13 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "./AuthProvider";
 import { enableInstitutionAccess } from "@/lib/featureFlags";
 import { getAuthRedirectUrl } from "@/lib/supabaseConfig";
 
 type AuthMode = "login" | "signup";
-type SignupPath = "individual" | "institution";
+type SignupPath = "individual" | "recruiter" | "institution";
 
 type AuthFormProps = {
   mode: AuthMode;
@@ -32,13 +32,30 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [signupPath, setSignupPath] = useState<SignupPath>("individual");
   const [schoolEmail, setSchoolEmail] = useState("");
   const [accessCode, setAccessCode] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [companyWebsite, setCompanyWebsite] = useState("");
+  const [companyLocation, setCompanyLocation] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [companySize, setCompanySize] = useState("");
+  const [hiringFocus, setHiringFocus] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
 
   const redirectedFrom = searchParams.get("redirectedFrom") || "/workspace";
+  const requestedType = searchParams.get("type");
   const isLogin = mode === "login";
   const useInstitutionSignup = enableInstitutionAccess && signupPath === "institution";
+  const useRecruiterSignup = !isLogin && signupPath === "recruiter";
   const signupEmail = useInstitutionSignup ? schoolEmail : email;
+
+  useEffect(() => {
+    if (!isLogin && requestedType === "recruiter") {
+      const timer = window.setTimeout(() => setSignupPath("recruiter"), 0);
+      return () => window.clearTimeout(timer);
+    }
+
+    return undefined;
+  }, [isLogin, requestedType]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -58,6 +75,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
         email: signupEmail,
         password,
         fullName,
+        accountType: useRecruiterSignup ? "recruiter" : "candidate",
         emailRedirectTo: getAuthRedirectUrl(redirectedFrom),
       });
 
@@ -80,6 +98,28 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
         if (!response.ok) {
           throw new Error(data.error || "Institution access could not be verified.");
+        }
+      }
+
+      if (useRecruiterSignup) {
+        const response = await fetch("/api/recruiter/profile", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            companyName,
+            recruiterName: fullName,
+            workEmail: email,
+            companyWebsite,
+            companyLocation,
+            industry,
+            companySize,
+            hiringFocus,
+          }),
+        });
+        const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+        if (!response.ok) {
+          throw new Error(data.error || "Recruiter profile could not be saved.");
         }
       }
 
@@ -158,11 +198,13 @@ export default function AuthForm({ mode }: AuthFormProps) {
         >
           {!isLogin ? (
             <>
-              {enableInstitutionAccess ? (
-                <div className="mb-5 grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 sm:grid-cols-2">
+              <div className="mb-5 grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 sm:grid-cols-2">
                   {[
                     ["individual", "Individual"],
-                    ["institution", "Student / Institution Access"],
+                    ["recruiter", "Recruiter"],
+                    ...(enableInstitutionAccess
+                      ? [["institution", "Student / Institution Access"]]
+                      : []),
                   ].map(([id, label]) => (
                     <button
                       key={id}
@@ -178,9 +220,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
                     </button>
                   ))}
                 </div>
-              ) : null}
               <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
-                Full name
+                {useRecruiterSignup ? "Recruiter name" : "Full name"}
                 <input
                   value={fullName}
                   onChange={(event) => setFullName(event.target.value)}
@@ -188,11 +229,71 @@ export default function AuthForm({ mode }: AuthFormProps) {
                   autoComplete="name"
                 />
               </label>
+              {useRecruiterSignup ? (
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                    Company name
+                    <input
+                      required
+                      value={companyName}
+                      onChange={(event) => setCompanyName(event.target.value)}
+                      className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                    Company website
+                    <input
+                      value={companyWebsite}
+                      onChange={(event) => setCompanyWebsite(event.target.value)}
+                      className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                      placeholder="https://company.com"
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                    Company location
+                    <input
+                      value={companyLocation}
+                      onChange={(event) => setCompanyLocation(event.target.value)}
+                      className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                    Industry
+                    <input
+                      value={industry}
+                      onChange={(event) => setIndustry(event.target.value)}
+                      className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                    Company size
+                    <input
+                      value={companySize}
+                      onChange={(event) => setCompanySize(event.target.value)}
+                      className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                      placeholder="1-10, 11-50, 51-200..."
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-[var(--iseya-navy)] sm:col-span-2">
+                    Hiring focus
+                    <textarea
+                      value={hiringFocus}
+                      onChange={(event) => setHiringFocus(event.target.value)}
+                      className="mt-2 min-h-20 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                      placeholder="Roles, departments, seniority, locations, or skills you hire for."
+                    />
+                  </label>
+                </div>
+              ) : null}
             </>
           ) : null}
 
           <label className="mt-4 block text-sm font-semibold text-[var(--iseya-navy)]">
-            {useInstitutionSignup && !isLogin ? "School email" : "Email"}
+            {useInstitutionSignup && !isLogin
+              ? "School email"
+              : useRecruiterSignup
+                ? "Work email"
+                : "Email"}
             <input
               type="email"
               required
@@ -249,7 +350,13 @@ export default function AuthForm({ mode }: AuthFormProps) {
             disabled={loading}
             className="mt-5 min-h-11 w-full rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-4 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Working..." : isLogin ? "Login" : "Sign up"}
+            {loading
+              ? "Working..."
+              : isLogin
+                ? "Login"
+                : useRecruiterSignup
+                  ? "Create recruiter account"
+                  : "Sign up"}
           </button>
 
           {isLogin ? (

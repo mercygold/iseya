@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabasePublicConfigStatus } from "./lib/supabaseConfig";
 
-const protectedRoutes = ["/dashboard", "/workspace", "/manage"];
+const protectedRoutes = ["/dashboard", "/workspace", "/manage", "/recruiter"];
 const authRoutes = ["/login", "/signup"];
 
 export async function proxy(request: NextRequest) {
@@ -63,5 +63,14 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/workspace/:path*", "/manage/:path*", "/manage", "/login", "/signup"],
+  matcher: [
+    "/dashboard/:path*",
+    "/workspace/:path*",
+    "/manage/:path*",
+    "/manage",
+    "/recruiter/:path*",
+    "/recruiter",
+    "/login",
+    "/signup",
+  ],
 };
