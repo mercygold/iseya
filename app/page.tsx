@@ -4104,6 +4104,8 @@ export default function Home() {
   const downloadProgressPercent = Number.isFinite(downloadLimit)
     ? Math.min(100, Math.round((effectiveDownloadsUsed / Math.max(1, downloadLimit)) * 100))
     : 100;
+  const starterResumeExportUsed =
+    isStarterPlan(subscriptionPlan) && effectiveDownloadsUsed >= 1;
   const optimizationProgressPercent = Number.isFinite(optimizationLimit)
     ? Math.min(100, Math.round((effectiveOptimizationCreditsUsed / Math.max(1, optimizationLimit)) * 100))
     : 100;
@@ -4118,6 +4120,11 @@ export default function Home() {
   const hasCoverLetterAccess = canUseSubscriptionFeature(subscriptionPlan, "coverLetter");
   const hasLinkedInAccess = canUseSubscriptionFeature(subscriptionPlan, "linkedinProfile");
   const hasApplicationKitAccess = canUseSubscriptionFeature(subscriptionPlan, "applicationKit");
+  const extractedSourceTextForPreview = uploadedFiles
+    .map((file) => file.extractedText?.trim())
+    .filter((text): text is string => Boolean(text))
+    .join("\n\n");
+  const hasExtractedSourceText = extractedSourceTextForPreview.trim().length > 0;
   const premiumPreviewResult = useMemo(
     () => buildTailoredResume(sampleResume, sampleJob, "Product Manager"),
     [],
@@ -4125,15 +4132,14 @@ export default function Home() {
   const starterPreviewSourceText = useMemo(
     () =>
       [
-        masterResume,
-        uploadedFiles
-          .map((file) => file.extractedText?.trim())
-          .filter((text): text is string => Boolean(text))
-          .join("\n\n"),
+        hasExtractedSourceText && masterResume.trim() === sampleResume.trim()
+          ? ""
+          : masterResume,
+        extractedSourceTextForPreview,
       ]
         .filter((text) => text.trim().length > 0)
         .join("\n\nSUPPORTING SOURCE MATERIAL\n"),
-    [masterResume, uploadedFiles],
+    [extractedSourceTextForPreview, hasExtractedSourceText, masterResume],
   );
   const starterWorkspacePreviewResult = useMemo(
     () =>
@@ -4168,6 +4174,13 @@ export default function Home() {
     : result?.applicationKit ?? premiumPreviewPackage.applicationKit;
   const workspaceResult = result ?? (isStarterPlan(subscriptionPlan) ? starterWorkspacePreviewResult : null);
   const isStarterWorkflowPreview = !result && Boolean(workspaceResult) && isStarterPlan(subscriptionPlan);
+  const isStarterBranding =
+    personalBranding.fullName === "Jordan Taylor" &&
+    personalBranding.email === "jordan@example.com";
+  const workspaceBranding =
+    isStarterPlan(subscriptionPlan) && hasExtractedSourceText && isStarterBranding
+      ? brandingFromResumeText(extractedSourceTextForPreview)
+      : personalBranding;
   const dashboardActivity = [
     savedVersions.length > 0
       ? `Last version saved: ${savedVersions[0].name}`
@@ -5303,10 +5316,15 @@ export default function Home() {
   async function tailorResume() {
     if (!requireOptimizationAccess("AI resume tailoring")) {
       if (isStarterPlan(subscriptionPlan)) {
+        const starterSourceText =
+          extractedSourceText.trim().length > 0 &&
+          masterResume.trim() === sampleResume.trim()
+            ? extractedSourceText
+            : [masterResume, extractedSourceText]
+                .filter((text) => text.trim().length > 0)
+                .join("\n\nSUPPORTING SOURCE MATERIAL\n");
         const starterGeneratedResult = buildTailoredResume(
-          [masterResume, extractedSourceText]
-            .filter((text) => text.trim().length > 0)
-            .join("\n\nSUPPORTING SOURCE MATERIAL\n"),
+          starterSourceText,
           jobDescription,
           targetRole,
         );
@@ -5480,6 +5498,34 @@ export default function Home() {
     }
 
     if (nextFiles.some((file) => file.extractionStatus === "extracted")) {
+      const nextExtractedText = nextFiles
+        .map((file) => file.extractedText?.trim())
+        .filter((text): text is string => Boolean(text))
+        .join("\n\n");
+
+      if (nextExtractedText) {
+        const extractedBranding = brandingFromResumeText(nextExtractedText);
+        setPersonalBranding((current) => {
+          const currentIsStarter =
+            current.fullName === "Jordan Taylor" &&
+            current.email === "jordan@example.com";
+
+          return currentIsStarter
+            ? {
+                ...current,
+                fullName: extractedBranding.fullName,
+                professionalTitle: extractedBranding.professionalTitle,
+                email: extractedBranding.email,
+                phone: extractedBranding.phone,
+                location: extractedBranding.location,
+                linkedInUrl: extractedBranding.linkedInUrl,
+                portfolioUrl: extractedBranding.portfolioUrl,
+                websiteUrl: extractedBranding.websiteUrl,
+              }
+            : current;
+        });
+      }
+
       setActiveOutput("resume");
       setSystemStatus("Text extracted successfully and added to your source materials.");
     }
@@ -5567,6 +5613,25 @@ export default function Home() {
           }
         : current,
     );
+  }
+
+  function updateWorkspaceResumeOutput(value: string) {
+    if (!result && workspaceResult && isStarterPlan(subscriptionPlan)) {
+      const structured = structuredResumeFromText(value);
+
+      setResult({
+        ...workspaceResult,
+        rewrittenResume: value,
+        summary: structured.summary || workspaceResult.summary,
+        skills:
+          structured.skills.length > 0
+            ? structured.skills
+            : workspaceResult.skills,
+      });
+      return;
+    }
+
+    updateResumeOutput(value);
   }
 
   function updateCoverLetter(value: string) {
@@ -5711,16 +5776,18 @@ export default function Home() {
       return;
     }
 
-    if (!result) {
+    const exportResult = result ?? workspaceResult;
+
+    if (!exportResult) {
       return;
     }
 
     try {
       const blob = await createResumePdfBlob(
-        result.rewrittenResume,
+        exportResult.rewrittenResume,
         template,
         previewTheme,
-        personalBranding,
+        workspaceBranding,
       );
       saveBlob(blob, fileNameForRole(targetRole, "pdf"));
       trackUsage("exportsCreated");
@@ -5734,16 +5801,18 @@ export default function Home() {
       return;
     }
 
-    if (!result) {
+    const exportResult = result ?? workspaceResult;
+
+    if (!exportResult) {
       return;
     }
 
     try {
       const blob = await createResumeDocxBlob(
-        result.rewrittenResume,
+        exportResult.rewrittenResume,
         template,
         previewTheme,
-        personalBranding,
+        workspaceBranding,
       );
       saveBlob(blob, fileNameForRole(targetRole, "docx"));
       trackUsage("exportsCreated");
@@ -7106,18 +7175,16 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadResumePdf)}
-                      disabled={isStarterWorkflowPreview}
-                      className={`${menuItemClass} text-sm disabled:cursor-not-allowed disabled:opacity-55`}
+                      className={`${menuItemClass} text-sm`}
                     >
-                      {isStarterWorkflowPreview ? "🔒 Resume PDF" : "Resume PDF"}
+                      {starterResumeExportUsed ? "🔒 Resume PDF" : "Resume PDF"}
                     </button>
                     <button
                       type="button"
                       onClick={() => runWithFeedback("exportMenu", "Exporting...", "Exported", downloadResumeDocx)}
-                      disabled={isStarterWorkflowPreview}
-                      className={`${menuItemClass} text-sm disabled:cursor-not-allowed disabled:opacity-55`}
+                      className={`${menuItemClass} text-sm`}
                     >
-                      {isStarterWorkflowPreview ? "🔒 Resume DOCX" : "Resume DOCX"}
+                      {starterResumeExportUsed ? "🔒 Resume DOCX" : "Resume DOCX"}
                     </button>
                     <button
                       type="button"
@@ -7216,26 +7283,47 @@ export default function Home() {
                       <div className="space-y-5">
                         <PremiumPreviewBanner />
                         <div className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(420px,1.1fr)]">
-                          <div className="rounded-xl border border-slate-200 bg-white p-5">
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                              <div>
-                                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
-                                  Resume tab
-                                </p>
-                                <h3 className="mt-2 text-base font-semibold text-[var(--iseya-navy)]">
-                                  Manual editing is available on Starter
-                                </h3>
+                          <div className="min-w-0 scroll-mt-28 xl:max-h-[calc(100vh-9rem)] xl:overflow-auto xl:pr-1">
+                            <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4">
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+                                    Resume tab
+                                  </p>
+                                  <h3 className="mt-2 text-base font-semibold text-[var(--iseya-navy)]">
+                                    Manual editing is available on Starter
+                                  </h3>
+                                </div>
+                                <Link href="/pricing" className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
+                                  Upgrade to unlock optimization
+                                </Link>
                               </div>
-                              <Link href="/pricing" className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
-                                Upgrade to unlock optimization
-                              </Link>
+                              <p className="mt-3 text-sm leading-6 text-slate-600">
+                                Edit your resume manually, preview the final document, and use your one included resume export. Premium AI actions, saved versions, and advanced document exports unlock on Plus or Pro.
+                              </p>
                             </div>
-                            <p className="mt-3 text-sm leading-6 text-slate-600">
-                              This preview shows how tailored documents, diagnostics, and career intelligence work together. Use the resume inputs above to edit your Starter draft manually, or upgrade to generate and optimize this workspace.
-                            </p>
                             <WeakBulletEditor
                               bullets={workspaceResult.coach.weakBullets}
                               onApply={() => setSystemStatus("Upgrade to unlock AI bullet rewriting.")}
+                            />
+                            <ModularResumeEditor
+                              resumeText={workspaceResult.rewrittenResume}
+                              resetSourceText={starterPreviewSourceText || masterResume}
+                              masterResume={starterPreviewSourceText || masterResume}
+                              jobDescription={jobDescription}
+                              targetRole={targetRole}
+                              industryTarget={industryTarget}
+                              uploadedFiles={uploadedFiles}
+                              aiSettings={aiSettings}
+                              personalBranding={workspaceBranding}
+                              onPersonalBrandingChange={updatePersonalBranding}
+                              onProfileImage={handleProfileImage}
+                              onResumeTextChange={updateWorkspaceResumeOutput}
+                              canUseAiOptimization={false}
+                              onUpgradeRequired={() =>
+                                requireOptimizationAccess("AI section optimization")
+                              }
+                              onOptimizationUsed={() => undefined}
                             />
                           </div>
                           <div className="min-w-0 scroll-mt-28 xl:sticky xl:top-24 xl:max-h-[calc(100vh-9rem)] xl:self-start xl:overflow-auto xl:pr-1">
@@ -7243,7 +7331,7 @@ export default function Home() {
                               resumeText={workspaceResult.rewrittenResume}
                               theme={previewTheme}
                               template={template}
-                              branding={personalBranding}
+                              branding={workspaceBranding}
                             />
                           </div>
                         </div>
@@ -7265,10 +7353,10 @@ export default function Home() {
                             industryTarget={industryTarget}
                             uploadedFiles={uploadedFiles}
                             aiSettings={aiSettings}
-                            personalBranding={personalBranding}
+                            personalBranding={workspaceBranding}
                             onPersonalBrandingChange={updatePersonalBranding}
                             onProfileImage={handleProfileImage}
-                            onResumeTextChange={updateResumeOutput}
+                            onResumeTextChange={updateWorkspaceResumeOutput}
                             canUseAiOptimization={
                               canUseSubscriptionFeature(subscriptionPlan, "aiGenerations") &&
                               optimizationCredits > 0
@@ -7291,7 +7379,7 @@ export default function Home() {
                             resumeText={workspaceResult.rewrittenResume}
                             theme={previewTheme}
                             template={template}
-                            branding={personalBranding}
+                            branding={workspaceBranding}
                           />
                         </div>
                       </div>
@@ -7399,7 +7487,7 @@ export default function Home() {
                         resumeText={workspaceResult.rewrittenResume}
                         theme={previewTheme}
                         template={template}
-                        branding={personalBranding}
+                        branding={workspaceBranding}
                         fullPage
                       />
                     </div>
