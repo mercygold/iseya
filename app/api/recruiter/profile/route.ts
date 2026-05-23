@@ -34,6 +34,22 @@ function optionalText(value: unknown) {
   return typeof value === "string" ? value.trim() : undefined;
 }
 
+function hasBodyKey(body: RecruiterProfileBody, key: keyof RecruiterProfileBody) {
+  return Object.prototype.hasOwnProperty.call(body, key);
+}
+
+function optionalProfileText(
+  body: RecruiterProfileBody,
+  key: keyof RecruiterProfileBody,
+  existingValue?: string | null,
+) {
+  if (!hasBodyKey(body, key)) {
+    return existingValue ?? null;
+  }
+
+  return optionalText(body[key]) ?? null;
+}
+
 async function getUserContext() {
   const supabase = await createSupabaseServerClient();
 
@@ -101,6 +117,11 @@ export async function PUT(request: Request) {
   const companySize = text(body.companySize);
   const hiringFocus = text(body.hiringFocus);
 
+  console.info("[recruiter-profile] save requested", {
+    userId,
+    payloadKeys: Object.keys(body),
+  });
+
   if (
     !companyName ||
     !recruiterName ||
@@ -119,24 +140,37 @@ export async function PUT(request: Request) {
     );
   }
 
-  const profileUpdate = await supabase
+  const profileUpsert = await supabase
     .from("profiles")
-    .update({ account_type: "recruiter", full_name: recruiterName, email: workEmail })
-    .eq("id", userId);
+    .upsert(
+      {
+        id: userId,
+        account_type: "recruiter",
+        full_name: recruiterName,
+        email: workEmail,
+      },
+      { onConflict: "id" },
+    )
+    .select("id")
+    .single();
 
-  if (profileUpdate.error) {
-    console.error("[recruiter-profile] profile update failed", {
-      code: profileUpdate.error.code,
-      message: profileUpdate.error.message,
-      details: profileUpdate.error.details,
-      hint: profileUpdate.error.hint,
+  if (profileUpsert.error) {
+    console.error("[recruiter-profile] profile upsert failed", {
+      code: profileUpsert.error.code,
+      message: profileUpsert.error.message,
+      details: profileUpsert.error.details,
+      hint: profileUpsert.error.hint,
+      userId,
+      attemptedColumns: ["id", "account_type", "full_name", "email"],
     });
     return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
 
   const { data: existingRecruiterProfile, error: existingProfileError } = await supabase
     .from("recruiter_profiles")
-    .select("user_id, verification_status")
+    .select(
+      "user_id, verification_status, linkedin_company_url, address_line_2, postal_code, industry, industry_other, company_size, verification_notes",
+    )
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -146,6 +180,7 @@ export async function PUT(request: Request) {
       message: existingProfileError.message,
       details: existingProfileError.details,
       hint: existingProfileError.hint,
+      userId,
     });
     return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
@@ -159,34 +194,38 @@ export async function PUT(request: Request) {
     recruiter_name: recruiterName,
     work_email: workEmail,
     company_website: companyWebsite,
-    linkedin_company_url: optionalText(body.linkedinCompanyUrl) ?? null,
+    linkedin_company_url: optionalProfileText(
+      body,
+      "linkedinCompanyUrl",
+      existingRecruiterProfile?.linkedin_company_url,
+    ),
     phone_number: phoneNumber,
     address_line_1: addressLine1,
-    address_line_2: optionalText(body.addressLine2) ?? null,
+    address_line_2: optionalProfileText(body, "addressLine2", existingRecruiterProfile?.address_line_2),
     city,
     state_region: stateRegion,
-    postal_code: optionalText(body.postalCode) ?? null,
+    postal_code: optionalProfileText(body, "postalCode", existingRecruiterProfile?.postal_code),
     country,
     company_location: text(body.companyLocation) || [city, stateRegion, country].filter(Boolean).join(", "),
-    industry: industry || null,
-    industry_other: industry === "Other" ? industryOther || null : null,
-    company_size: companySize,
+    industry: hasBodyKey(body, "industry") ? industry || null : existingRecruiterProfile?.industry ?? null,
+    industry_other:
+      industry === "Other"
+        ? industryOther || existingRecruiterProfile?.industry_other || null
+        : hasBodyKey(body, "industry")
+          ? null
+          : existingRecruiterProfile?.industry_other ?? null,
+    company_size: hasBodyKey(body, "companySize")
+      ? companySize || null
+      : existingRecruiterProfile?.company_size ?? null,
     hiring_focus: hiringFocus,
     verification_status: nextVerificationStatus,
   };
 
-  const saveResult = existingRecruiterProfile
-    ? await supabase
-        .from("recruiter_profiles")
-        .update(recruiterProfilePayload)
-        .eq("user_id", userId)
-        .select("*")
-        .single()
-    : await supabase
-        .from("recruiter_profiles")
-        .insert(recruiterProfilePayload)
-        .select("*")
-        .single();
+  const saveResult = await supabase
+    .from("recruiter_profiles")
+    .upsert(recruiterProfilePayload, { onConflict: "user_id" })
+    .select("*")
+    .single();
 
   const { data, error } = saveResult;
 
@@ -198,6 +237,7 @@ export async function PUT(request: Request) {
       hint: error.hint,
       attemptedColumns: Object.keys(recruiterProfilePayload),
       operation: existingRecruiterProfile ? "update" : "insert",
+      userId,
     });
     return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
