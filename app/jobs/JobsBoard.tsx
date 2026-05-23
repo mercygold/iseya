@@ -37,10 +37,15 @@ export default function JobsBoard() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState<JobPost[]>([]);
   const [query, setQuery] = useState("");
+  const [titleQuery, setTitleQuery] = useState("");
+  const [locationQuery, setLocationQuery] = useState("");
+  const [employmentType, setEmploymentType] = useState("");
   const [workplace, setWorkplace] = useState("");
+  const [alertEmail, setAlertEmail] = useState(user?.email ?? "");
   const [selectedJobId, setSelectedJobId] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
+  const [alertLoading, setAlertLoading] = useState(false);
 
   const selectedJob = useMemo(
     () => jobs.find((job) => job.id === selectedJobId) ?? jobs[0] ?? null,
@@ -54,6 +59,9 @@ export default function JobsBoard() {
     try {
       const params = new URLSearchParams();
       if (query.trim()) params.set("q", query.trim());
+      if (titleQuery.trim()) params.set("title", titleQuery.trim());
+      if (locationQuery.trim()) params.set("location", locationQuery.trim());
+      if (employmentType) params.set("employmentType", employmentType);
       if (workplace) params.set("workplace", workplace);
       const response = await fetch(`/api/jobs?${params.toString()}`, {
         cache: "no-store",
@@ -71,7 +79,7 @@ export default function JobsBoard() {
     } finally {
       setLoading(false);
     }
-  }, [query, workplace]);
+  }, [employmentType, locationQuery, query, titleQuery, workplace]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -107,6 +115,36 @@ export default function JobsBoard() {
     }
   }
 
+  async function subscribeToAlerts() {
+    setAlertLoading(true);
+    setStatus("");
+
+    try {
+      const response = await fetch("/api/jobs/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: alertEmail,
+          titleQuery,
+          locationQuery,
+          employmentType,
+          remoteOnly: workplace === "remote",
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to save job alert.");
+      }
+
+      setStatus("Job alert saved. We will use these search preferences for future notifications.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to save job alert.");
+    } finally {
+      setAlertLoading(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <section className="iseya-header text-white">
@@ -123,14 +161,14 @@ export default function JobsBoard() {
               />
             </Link>
             <p className="mt-5 text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
-              Talent discovery
+              Job discovery
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
-              Jobs for career-ready candidates.
+              Browse roles that fit your next move.
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-8 text-white/82">
-              Browse roles that connect with your career profile, career assets,
-              skill alignment, and employability signals.
+              Search public job listings, review role requirements, apply externally,
+              or express interest using your existing ISEYA career materials.
             </p>
           </div>
           <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
@@ -151,13 +189,36 @@ export default function JobsBoard() {
       </section>
 
       <section className="mx-auto max-w-[92rem] px-5 py-8 sm:px-8">
-        <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_220px]">
+        <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1.2fr_1fr_1fr_180px_180px]">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by title, company, skill, or location"
+            placeholder="Keyword, company, or skill"
             className="rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
           />
+          <input
+            value={titleQuery}
+            onChange={(event) => setTitleQuery(event.target.value)}
+            placeholder="Job title"
+            className="rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+          />
+          <input
+            value={locationQuery}
+            onChange={(event) => setLocationQuery(event.target.value)}
+            placeholder="Location"
+            className="rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+          />
+          <select
+            value={employmentType}
+            onChange={(event) => setEmploymentType(event.target.value)}
+            className="rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+          >
+            <option value="">All job types</option>
+            <option value="full-time">Full-time</option>
+            <option value="part-time">Part-time</option>
+            <option value="contract">Contract</option>
+            <option value="internship">Internship</option>
+          </select>
           <select
             value={workplace}
             onChange={(event) => setWorkplace(event.target.value)}
@@ -168,6 +229,33 @@ export default function JobsBoard() {
             <option value="hybrid">Hybrid</option>
             <option value="onsite">Onsite</option>
           </select>
+        </div>
+
+        <div className="mt-4 grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+              Job alerts
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Subscribe to job notifications using the current title, location, type,
+              and remote preferences. No social profile is created.
+            </p>
+            <input
+              type="email"
+              value={alertEmail}
+              onChange={(event) => setAlertEmail(event.target.value)}
+              placeholder="Email for job alerts"
+              className="mt-3 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25 lg:max-w-md"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={subscribeToAlerts}
+            disabled={alertLoading}
+            className={secondaryButton}
+          >
+            {alertLoading ? "Saving..." : "Subscribe to Job Alerts"}
+          </button>
         </div>
 
         {status ? (
@@ -267,10 +355,12 @@ export default function JobsBoard() {
                       ISEYA application MVP
                     </p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Express interest using your existing ISEYA career profile and career assets. Resume attachment review will connect to recruiter applicant review in a later phase.
+                      Express interest using your existing ISEYA career materials. Full
+                      resume attachment review will connect to recruiter applicant
+                      management in a later phase.
                     </p>
                     <Link href="/workspace" className={`${secondaryButton} mt-3`}>
-                      Improve Career Assets
+                      Improve Career Materials
                     </Link>
                   </div>
                 </div>

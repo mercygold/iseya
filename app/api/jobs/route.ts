@@ -12,6 +12,9 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const query = url.searchParams.get("q")?.trim().toLowerCase() ?? "";
+  const title = url.searchParams.get("title")?.trim().toLowerCase() ?? "";
+  const location = url.searchParams.get("location")?.trim().toLowerCase() ?? "";
+  const employmentType = url.searchParams.get("employmentType")?.trim().toLowerCase() ?? "";
   const workplace = url.searchParams.get("workplace")?.trim().toLowerCase() ?? "";
 
   let builder = supabase
@@ -25,6 +28,10 @@ export async function GET(request: Request) {
     builder = builder.eq("workplace_type", workplace);
   }
 
+  if (employmentType) {
+    builder = builder.eq("employment_type", employmentType);
+  }
+
   const { data, error } = await builder;
 
   if (error) {
@@ -32,20 +39,25 @@ export async function GET(request: Request) {
     return Response.json({ error: "Unable to load jobs." }, { status: 500 });
   }
 
-  const jobs = query
-    ? (data ?? []).filter((job) =>
-        [
-          job.job_title,
-          job.company_name,
-          job.location,
-          job.role_summary,
-          ...(job.skills ?? []),
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(query),
-      )
-    : data ?? [];
+  const jobs = (data ?? []).filter((job) => {
+    const haystack = [
+      job.job_title,
+      job.company_name,
+      job.location,
+      job.role_summary,
+      job.requirements,
+      job.responsibilities,
+      ...(job.skills ?? []),
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    if (query && !haystack.includes(query)) return false;
+    if (title && !String(job.job_title ?? "").toLowerCase().includes(title)) return false;
+    if (location && !String(job.location ?? "").toLowerCase().includes(location)) return false;
+
+    return true;
+  });
 
   return Response.json({ jobs });
 }

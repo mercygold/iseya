@@ -6575,7 +6575,7 @@ export default function Home() {
               </p>
             </div>
             <p className="mt-3 max-w-none text-base leading-7 text-white/85 lg:whitespace-nowrap">
-              Career infrastructure for modern talent, role-fit signals, and stronger professional identity.
+              Career infrastructure for resumes, applications, job discovery, and recruiter access.
             </p>
           </div>
           <div className="flex max-w-2xl flex-col gap-3 lg:items-end">
@@ -6676,12 +6676,12 @@ export default function Home() {
                 >
                   View Pricing
                 </Link>
-                <a
-                  href="#resume-builder"
-                  className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
-                >
-                  Build Career Profile
-                </a>
+              <a
+                href="#resume-builder"
+                className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
+              >
+                  Build Resume
+              </a>
                 <Link
                   href="/jobs"
                   className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
@@ -6695,7 +6695,7 @@ export default function Home() {
                 "Secure checkout powered by Stripe",
                 "Private career workspace",
                 "Structured workflow for students, job seekers, and career transitions",
-                "Talent discovery and recruiter access",
+                "Job discovery and recruiter access",
               ].map((item) => (
                 <div
                   key={item}

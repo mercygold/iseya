@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { enableInstitutionAccess } from "@/lib/featureFlags";
 import { subscriptionLabel, normalizeSubscriptionPlan } from "@/lib/subscription";
@@ -25,6 +26,25 @@ type Organization = {
   seats_used: number;
 };
 
+type RecruiterModeration = {
+  user_id: string;
+  company_name: string;
+  recruiter_name: string;
+  work_email: string;
+  verification_status: string;
+  created_at: string;
+};
+
+type JobPostModeration = {
+  id: string;
+  recruiter_id: string;
+  job_title: string;
+  company_name: string;
+  status: string;
+  applicants_count: number;
+  created_at: string;
+};
+
 type ManagePayload = {
   users: ManagedUser[];
   stats: {
@@ -37,6 +57,8 @@ type ManagePayload = {
     recentPaidUsers: ManagedUser[];
   };
   organizations: Organization[];
+  recruiters: RecruiterModeration[];
+  jobPosts: JobPostModeration[];
 };
 
 const inputClass =
@@ -186,6 +208,60 @@ export default function ManageDashboard() {
       await loadManageData();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to update user.");
+    }
+  }
+
+  async function updateRecruiterStatus(recruiter: RecruiterModeration, verificationStatus: string) {
+    const confirmed = window.confirm(
+      `Set ${recruiter.company_name || recruiter.work_email} to ${statusLabel(verificationStatus)}?`,
+    );
+
+    if (!confirmed) return;
+
+    setStatus("");
+
+    try {
+      const response = await fetch("/api/manage/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recruiterUserId: recruiter.user_id, verificationStatus }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to update recruiter review status.");
+      }
+
+      setStatus("Recruiter review status updated.");
+      await loadManageData();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to update recruiter review status.");
+    }
+  }
+
+  async function updateJobStatus(job: JobPostModeration, jobStatus: string) {
+    const confirmed = window.confirm(`Set ${job.job_title} to ${statusLabel(jobStatus)}?`);
+
+    if (!confirmed) return;
+
+    setStatus("");
+
+    try {
+      const response = await fetch("/api/manage/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobPostId: job.id, jobStatus }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to update job post status.");
+      }
+
+      setStatus("Job post status updated.");
+      await loadManageData();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to update job post status.");
     }
   }
 
@@ -374,6 +450,79 @@ export default function ManageDashboard() {
         </div>
       </section>
 
+      <section className="grid gap-4 xl:grid-cols-2">
+        <ModerationCard title="Recruiter Moderation" subtitle="Review recruiter accounts before broader access.">
+          {(payload.recruiters ?? []).length > 0 ? (
+            <div className="space-y-3">
+              {payload.recruiters.map((recruiter) => (
+                <div key={recruiter.user_id} className="rounded-xl border border-slate-200 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[var(--iseya-navy)]">
+                        {recruiter.company_name || "Company pending"}
+                      </p>
+                      <p className="mt-1 text-xs font-medium text-slate-500">
+                        {recruiter.recruiter_name || "Recruiter"} · {recruiter.work_email}
+                      </p>
+                      <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
+                        {statusLabel(recruiter.verification_status)}
+                      </p>
+                    </div>
+                    <select
+                      value={recruiter.verification_status}
+                      onChange={(event) => updateRecruiterStatus(recruiter, event.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="pending_review">Pending Review</option>
+                      <option value="verified">Verified</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No recruiter accounts to review yet.</p>
+          )}
+        </ModerationCard>
+
+        <ModerationCard title="Job Post Moderation" subtitle="Publish, review, or close recruiter job listings.">
+          {(payload.jobPosts ?? []).length > 0 ? (
+            <div className="space-y-3">
+              {payload.jobPosts.map((job) => (
+                <div key={job.id} className="rounded-xl border border-slate-200 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[var(--iseya-navy)]">
+                        {job.job_title}
+                      </p>
+                      <p className="mt-1 text-xs font-medium text-slate-500">
+                        {job.company_name} · {job.applicants_count} applicants
+                      </p>
+                      <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
+                        {statusLabel(job.status)}
+                      </p>
+                    </div>
+                    <select
+                      value={job.status}
+                      onChange={(event) => updateJobStatus(job, event.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="pending_review">Pending Review</option>
+                      <option value="published">Published</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No job posts to review yet.</p>
+          )}
+        </ModerationCard>
+      </section>
+
       {enableInstitutionAccess ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
@@ -402,6 +551,27 @@ export default function ManageDashboard() {
         </section>
       ) : null}
     </div>
+  );
+}
+
+function ModerationCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+        Admin Moderation
+      </p>
+      <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">{title}</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{subtitle}</p>
+      <div className="mt-5">{children}</div>
+    </section>
   );
 }
 

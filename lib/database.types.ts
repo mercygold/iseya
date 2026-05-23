@@ -259,6 +259,44 @@ export type Database = {
           created_at?: string;
         };
       };
+      job_alert_subscriptions: {
+        Row: {
+          id: string;
+          candidate_id: string | null;
+          email: string;
+          title_query: string;
+          location_query: string;
+          employment_type: string;
+          remote_only: boolean;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          candidate_id?: string | null;
+          email: string;
+          title_query?: string;
+          location_query?: string;
+          employment_type?: string;
+          remote_only?: boolean;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          candidate_id?: string | null;
+          email?: string;
+          title_query?: string;
+          location_query?: string;
+          employment_type?: string;
+          remote_only?: boolean;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       resumes: {
         Row: {
           id: string;
