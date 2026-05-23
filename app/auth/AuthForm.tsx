@@ -6,6 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "./AuthProvider";
 import { enableInstitutionAccess } from "@/lib/featureFlags";
+import {
+  countryOptions,
+  countryRegions,
+  manualLocationOption,
+} from "@/lib/recruiterLocationOptions";
 import { getAuthRedirectUrl } from "@/lib/supabaseConfig";
 
 type AuthMode = "login" | "signup";
@@ -15,19 +20,6 @@ type AuthFormProps = {
   mode: AuthMode;
 };
 
-const countryRegions: Record<string, string[]> = {
-  "United States": ["California", "Florida", "Georgia", "Illinois", "New York", "Texas", "Washington", "Other / Not listed"],
-  Canada: ["Alberta", "British Columbia", "Ontario", "Quebec", "Other / Not listed"],
-  "United Kingdom": ["England", "Northern Ireland", "Scotland", "Wales", "Other / Not listed"],
-  Nigeria: ["Abuja FCT", "Lagos", "Ogun", "Oyo", "Rivers", "Kano", "Other / Not listed"],
-  Australia: ["New South Wales", "Queensland", "Victoria", "Western Australia", "Other / Not listed"],
-  India: ["Delhi", "Karnataka", "Maharashtra", "Tamil Nadu", "Telangana", "Other / Not listed"],
-  "United Arab Emirates": ["Abu Dhabi", "Dubai", "Sharjah", "Other / Not listed"],
-  "South Africa": ["Gauteng", "KwaZulu-Natal", "Western Cape", "Other / Not listed"],
-  Ghana: ["Ashanti", "Greater Accra", "Northern", "Other / Not listed"],
-  Kenya: ["Nairobi", "Mombasa", "Nakuru", "Other / Not listed"],
-};
-const countryOptions = ["", ...Object.keys(countryRegions), "Other / Not listed"];
 const industryOptions = ["", "Technology", "Software / SaaS", "Artificial Intelligence", "Cybersecurity", "Fintech", "Healthcare", "Education", "Consulting", "Marketing / Advertising", "Media / Entertainment", "E-commerce", "Retail", "Finance / Banking", "Real Estate", "Construction", "Manufacturing", "Logistics / Transportation", "Energy", "Agriculture", "Hospitality", "Legal", "Government / Public Sector", "Nonprofit", "Staffing / Recruiting", "Other"];
 
 export default function AuthForm({ mode }: AuthFormProps) {
@@ -70,8 +62,23 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const useInstitutionSignup = enableInstitutionAccess && signupPath === "institution";
   const useRecruiterSignup = !isLogin && signupPath === "recruiter";
   const signupEmail = useInstitutionSignup ? schoolEmail : email;
-  const stateOptions = country ? (countryRegions[country] ?? ["Other / Not listed"]) : [];
-  const needsManualState = country === "Other / Not listed" || stateRegion === "Other / Not listed";
+  const selectedCountryOption = countryOptions.includes(country)
+    ? country
+    : country
+      ? manualLocationOption
+      : "";
+  const countryStateOptions =
+    selectedCountryOption && selectedCountryOption !== manualLocationOption
+      ? countryRegions[selectedCountryOption] ?? [manualLocationOption]
+      : [manualLocationOption];
+  const selectedStateOption = countryStateOptions.includes(stateRegion)
+    ? stateRegion
+    : stateRegion
+      ? manualLocationOption
+      : "";
+  const needsManualCountry = selectedCountryOption === manualLocationOption;
+  const needsManualState =
+    selectedCountryOption === manualLocationOption || selectedStateOption === manualLocationOption;
   const needsOtherIndustry = industry === "Other";
 
   useEffect(() => {
@@ -341,7 +348,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                     Country
                     <select
                       required
-                      value={country}
+                      value={selectedCountryOption}
                       onChange={(event) => {
                         setCountry(event.target.value);
                         setStateRegion("");
@@ -353,12 +360,26 @@ export default function AuthForm({ mode }: AuthFormProps) {
                       ))}
                     </select>
                   </label>
-                  {needsManualState ? (
+                  {needsManualCountry ? (
                     <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
-                      State/Region
+                      Enter country/region manually
                       <input
                         required
-                        value={stateRegion === "Other / Not listed" ? "" : stateRegion}
+                        value={country === manualLocationOption ? "" : country}
+                        onChange={(event) => {
+                          setCountry(event.target.value);
+                          setStateRegion("");
+                        }}
+                        className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                      />
+                    </label>
+                  ) : null}
+                  {needsManualState ? (
+                    <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                      Enter state/region manually
+                      <input
+                        required
+                        value={stateRegion === manualLocationOption ? "" : stateRegion}
                         onChange={(event) => setStateRegion(event.target.value)}
                         className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
                       />
@@ -368,11 +389,11 @@ export default function AuthForm({ mode }: AuthFormProps) {
                       State/Region
                       <select
                         required
-                        value={stateRegion}
+                        value={selectedStateOption}
                         onChange={(event) => setStateRegion(event.target.value)}
                         className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
                       >
-                        {["", ...stateOptions].map((option) => (
+                        {["", ...countryStateOptions].map((option) => (
                           <option key={option} value={option}>{option || "Select"}</option>
                         ))}
                       </select>

@@ -2,6 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  countryOptions,
+  countryRegions,
+  manualLocationOption,
+} from "@/lib/recruiterLocationOptions";
 
 type RecruiterProfile = {
   company_name: string;
@@ -58,19 +63,6 @@ const secondaryButton =
 const dangerButton =
   "inline-flex min-h-10 items-center justify-center rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60";
 const companySizeOptions = ["", "1–10", "11–50", "51–200", "201–500", "501–1000", "1000+"];
-const countryRegions: Record<string, string[]> = {
-  "United States": ["Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Florida", "Georgia", "Illinois", "New York", "Texas", "Washington", "Other / Not listed"],
-  Canada: ["Alberta", "British Columbia", "Manitoba", "Ontario", "Quebec", "Saskatchewan", "Other / Not listed"],
-  "United Kingdom": ["England", "Northern Ireland", "Scotland", "Wales", "Other / Not listed"],
-  Nigeria: ["Abia", "Abuja FCT", "Lagos", "Ogun", "Oyo", "Rivers", "Kano", "Kaduna", "Other / Not listed"],
-  Australia: ["Australian Capital Territory", "New South Wales", "Queensland", "South Australia", "Victoria", "Western Australia", "Other / Not listed"],
-  India: ["Delhi", "Gujarat", "Karnataka", "Maharashtra", "Tamil Nadu", "Telangana", "Uttar Pradesh", "Other / Not listed"],
-  "United Arab Emirates": ["Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Ras Al Khaimah", "Other / Not listed"],
-  "South Africa": ["Eastern Cape", "Gauteng", "KwaZulu-Natal", "Western Cape", "Other / Not listed"],
-  Ghana: ["Ashanti", "Greater Accra", "Northern", "Western", "Other / Not listed"],
-  Kenya: ["Kiambu", "Mombasa", "Nairobi", "Nakuru", "Other / Not listed"],
-};
-const countryOptions = ["", ...Object.keys(countryRegions), "Other / Not listed"];
 const industryOptions = [
   "",
   "Technology",
@@ -178,8 +170,23 @@ export default function RecruiterDashboard() {
       profile.country &&
       profile.hiring_focus,
   );
-  const stateOptions = profileDraft.country ? (countryRegions[profileDraft.country] ?? ["Other / Not listed"]) : [];
-  const needsManualState = profileDraft.country === "Other / Not listed" || profileDraft.stateRegion === "Other / Not listed";
+  const selectedCountryOption = countryOptions.includes(profileDraft.country)
+    ? profileDraft.country
+    : profileDraft.country
+      ? manualLocationOption
+      : "";
+  const countryStateOptions =
+    selectedCountryOption && selectedCountryOption !== manualLocationOption
+      ? countryRegions[selectedCountryOption] ?? [manualLocationOption]
+      : [manualLocationOption];
+  const selectedStateOption = countryStateOptions.includes(profileDraft.stateRegion)
+    ? profileDraft.stateRegion
+    : profileDraft.stateRegion
+      ? manualLocationOption
+      : "";
+  const needsManualCountry = selectedCountryOption === manualLocationOption;
+  const needsManualState =
+    selectedCountryOption === manualLocationOption || selectedStateOption === manualLocationOption;
   const needsOtherIndustry = profileDraft.industry === "Other";
   const verificationStatus = profile?.verification_status ?? "pending_review";
   const canEditJobDraft = profileComplete;
@@ -449,11 +456,14 @@ export default function RecruiterDashboard() {
               <Field label="Address line 1" value={profileDraft.addressLine1} onChange={(value) => setProfileDraft((draft) => ({ ...draft, addressLine1: value }))} required />
               <Field label="Address line 2 optional" value={profileDraft.addressLine2} onChange={(value) => setProfileDraft((draft) => ({ ...draft, addressLine2: value }))} />
               <Field label="City" value={profileDraft.city} onChange={(value) => setProfileDraft((draft) => ({ ...draft, city: value }))} required />
-              <Select label="Country" value={profileDraft.country} options={countryOptions} onChange={(value) => setProfileDraft((draft) => ({ ...draft, country: value, stateRegion: "" }))} required />
+              <Select label="Country" value={selectedCountryOption} options={countryOptions} onChange={(value) => setProfileDraft((draft) => ({ ...draft, country: value, stateRegion: "" }))} required />
+              {needsManualCountry ? (
+                <Field label="Enter country/region manually" value={profileDraft.country === manualLocationOption ? "" : profileDraft.country} onChange={(value) => setProfileDraft((draft) => ({ ...draft, country: value, stateRegion: "" }))} required />
+              ) : null}
               {needsManualState ? (
-                <Field label="State/Region" value={profileDraft.stateRegion === "Other / Not listed" ? "" : profileDraft.stateRegion} onChange={(value) => setProfileDraft((draft) => ({ ...draft, stateRegion: value }))} required />
+                <Field label="Enter state/region manually" value={profileDraft.stateRegion === manualLocationOption ? "" : profileDraft.stateRegion} onChange={(value) => setProfileDraft((draft) => ({ ...draft, stateRegion: value }))} required />
               ) : (
-                <Select label="State/Region" value={profileDraft.stateRegion} options={["", ...stateOptions]} onChange={(value) => setProfileDraft((draft) => ({ ...draft, stateRegion: value }))} required />
+                <Select label="State/Region" value={selectedStateOption} options={["", ...countryStateOptions]} onChange={(value) => setProfileDraft((draft) => ({ ...draft, stateRegion: value }))} required />
               )}
               <Field label="Postal code optional" value={profileDraft.postalCode} onChange={(value) => setProfileDraft((draft) => ({ ...draft, postalCode: value }))} />
               <Select label="Industry optional" value={profileDraft.industry} options={industryOptions} onChange={(value) => setProfileDraft((draft) => ({ ...draft, industry: value, industryOther: value === "Other" ? draft.industryOther : "" }))} />
