@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { InfoPageShell } from "../../info-page-shell";
 import { cleanSupabaseEnvValue } from "@/lib/supabaseConfig";
 import { createSupabaseServiceRoleClient } from "@/lib/supabaseServer";
+import { planDownloadLimit, planOptimizationLimit } from "@/lib/subscription";
 
 type PaidPlan = "plus" | "pro_monthly" | "pro_annual";
 
@@ -38,6 +39,15 @@ function checkoutSessionMarker(sessionId: string) {
 
 function appendProcessedMarker(current: string[] | null | undefined, marker: string) {
   return Array.from(new Set([...(current ?? []), marker]));
+}
+
+function entitlementUpdate(plan: PaidPlan) {
+  return {
+    resume_download_credits: planDownloadLimit(plan),
+    optimization_credits: planOptimizationLimit(plan),
+    document_exports_used: 0,
+    optimization_credits_used: 0,
+  };
 }
 
 function logBillingSuccess(message: string, details?: Record<string, string | boolean | null>) {
@@ -183,6 +193,15 @@ async function reconcileCheckoutSession(sessionId: string) {
 
     const marker = checkoutSessionMarker(session.id);
     const processed = profile.processed_stripe_event_ids ?? [];
+
+    if (processed.includes(marker)) {
+      logBillingSuccess("Checkout session reconciliation already applied.", {
+        plan,
+        markerExists: true,
+      });
+      return plan;
+    }
+
     const commonUpdate = {
       subscription_plan: plan,
       subscription_status: "active",
@@ -190,26 +209,18 @@ async function reconcileCheckoutSession(sessionId: string) {
       stripe_subscription_id: subscriptionId,
       processed_stripe_event_ids: appendProcessedMarker(processed, marker),
     };
-    const plusCredits =
-      plan === "plus"
-        ? {
-            resume_download_credits: 3,
-            optimization_credits: 15,
-          }
-        : {};
-
     const { error } = await supabase
       .from("profiles")
       .update({
         ...commonUpdate,
-        ...plusCredits,
+        ...entitlementUpdate(plan),
       })
       .eq("id", profile.id);
 
     logBillingSuccess("Checkout session reconciliation update result.", {
       plan,
       success: !error,
-      normalizedPlus: Boolean(Object.keys(plusCredits).length),
+      entitlementsApplied: true,
     });
 
     if (error) {

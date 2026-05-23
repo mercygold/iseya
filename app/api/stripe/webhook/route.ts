@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { cleanSupabaseEnvValue } from "@/lib/supabaseConfig";
 import { createSupabaseServiceRoleClient } from "@/lib/supabaseServer";
+import { planDownloadLimit, planOptimizationLimit } from "@/lib/subscription";
 
 type PaidPlan = "plus" | "pro_monthly" | "pro_annual";
 
@@ -8,6 +9,8 @@ type ProfileEntitlements = {
   id: string;
   resume_download_credits: number | null;
   optimization_credits: number | null;
+  document_exports_used?: number | null;
+  optimization_credits_used?: number | null;
   processed_stripe_event_ids: string[] | null;
 };
 
@@ -76,6 +79,19 @@ function appendEventId(current: string[] | null | undefined, eventId: string) {
   return Array.from(new Set([...(current ?? []), eventId]));
 }
 
+function entitlementUpdate(plan: PaidPlan, resetUsage: boolean) {
+  return {
+    resume_download_credits: planDownloadLimit(plan),
+    optimization_credits: planOptimizationLimit(plan),
+    ...(resetUsage
+      ? {
+          document_exports_used: 0,
+          optimization_credits_used: 0,
+        }
+      : {}),
+  };
+}
+
 function checkoutSessionMarker(sessionId: string) {
   return `checkout_session:${sessionId}`;
 }
@@ -99,7 +115,9 @@ async function findProfile({
   if (userId) {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, resume_download_credits, optimization_credits, processed_stripe_event_ids")
+      .select(
+        "id, resume_download_credits, optimization_credits, document_exports_used, optimization_credits_used, processed_stripe_event_ids",
+      )
       .eq("id", userId)
       .maybeSingle();
 
@@ -125,7 +143,9 @@ async function findProfile({
   if (customerId) {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, resume_download_credits, optimization_credits, processed_stripe_event_ids")
+      .select(
+        "id, resume_download_credits, optimization_credits, document_exports_used, optimization_credits_used, processed_stripe_event_ids",
+      )
       .eq("stripe_customer_id", customerId)
       .maybeSingle();
 
@@ -151,7 +171,9 @@ async function findProfile({
   if (email) {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, resume_download_credits, optimization_credits, processed_stripe_event_ids")
+      .select(
+        "id, resume_download_credits, optimization_credits, document_exports_used, optimization_credits_used, processed_stripe_event_ids",
+      )
       .eq("email", email)
       .maybeSingle();
 
@@ -208,7 +230,9 @@ async function ensureProfileForCheckoutSession(
       },
       { onConflict: "id", ignoreDuplicates: true },
     )
-    .select("id, resume_download_credits, optimization_credits, processed_stripe_event_ids")
+    .select(
+      "id, resume_download_credits, optimization_credits, document_exports_used, optimization_credits_used, processed_stripe_event_ids",
+    )
     .single();
 
   if (error) {
@@ -305,8 +329,7 @@ async function updateProfileFromCheckoutSession(
         subscription_status: "active",
         stripe_customer_id: customerId,
         stripe_subscription_id: null,
-        resume_download_credits: 3,
-        optimization_credits: 15,
+        ...entitlementUpdate("plus", true),
         processed_stripe_event_ids: processedEvents,
       })
       .eq("id", profile.id);
@@ -347,6 +370,7 @@ async function updateProfileFromCheckoutSession(
         subscription_status: "active",
         stripe_customer_id: customerId,
         stripe_subscription_id: subscriptionId,
+        ...entitlementUpdate(subscriptionPlan, true),
         processed_stripe_event_ids: processedEvents,
       })
       .eq("id", profile.id);
@@ -382,7 +406,10 @@ async function updateProfileFromCheckoutSession(
   });
 }
 
-async function updateProfileFromSubscription(eventId: string, subscription: Stripe.Subscription) {
+async function updateProfileFromSubscription(
+  eventId: string,
+  subscription: Stripe.Subscription,
+) {
   const customerId = stringId(subscription.customer);
   const subscriptionId = subscription.id;
   const priceId = subscription.items.data[0]?.price.id;
@@ -400,13 +427,15 @@ async function updateProfileFromSubscription(eventId: string, subscription: Stri
     return;
   }
 
+  const isCanceled = subscription.status === "canceled";
   const { error } = await supabase
     .from("profiles")
     .update({
-      subscription_plan: subscription.status === "canceled" ? "free" : plan,
+      subscription_plan: isCanceled ? "free" : plan,
       subscription_status: subscription.status,
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
+      ...(!isCanceled ? entitlementUpdate(plan, false) : {}),
       processed_stripe_event_ids: appendEventId(profile.processed_stripe_event_ids, eventId),
     })
     .eq("id", profile.id);
@@ -443,6 +472,23 @@ async function updateProfileFromInvoice(
   const customerId = stringId(invoice.customer);
   const subscriptionId = invoiceSubscriptionId(invoice);
   const customerEmail = invoice.customer_email || null;
+  let plan: PaidPlan | null = null;
+  const stripeClient = stripe();
+
+  if (stripeClient && subscriptionId) {
+    try {
+      const subscription = await stripeClient.subscriptions.retrieve(subscriptionId);
+      plan =
+        planFromMetadata(subscription.metadata?.plan) ??
+        planFromPriceId(subscription.items.data[0]?.price.id);
+    } catch (error) {
+      logWebhookError("Invoice subscription lookup failed.", {
+        eventId,
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
   const { supabase, profile } = await findProfile({ customerId, email: customerEmail });
 
   if (!supabase || !profile || alreadyProcessed(profile, eventId)) {
@@ -456,9 +502,11 @@ async function updateProfileFromInvoice(
   const { error } = await supabase
     .from("profiles")
     .update({
+      ...(status === "active" && plan ? { subscription_plan: plan } : {}),
       subscription_status: status,
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
+      ...(status === "active" && plan ? entitlementUpdate(plan, true) : {}),
       processed_stripe_event_ids: appendEventId(profile.processed_stripe_event_ids, eventId),
     })
     .eq("id", profile.id);
@@ -518,7 +566,10 @@ export async function POST(request: Request) {
     case "customer.subscription.created":
     case "customer.subscription.updated":
     case "customer.subscription.deleted":
-      await updateProfileFromSubscription(event.id, event.data.object as Stripe.Subscription);
+      await updateProfileFromSubscription(
+        event.id,
+        event.data.object as Stripe.Subscription,
+      );
       break;
     case "invoice.payment_succeeded":
     case "invoice.payment_failed":
