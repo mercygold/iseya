@@ -188,6 +188,17 @@ export default function JobsBoard() {
         </div>
       </section>
 
+      <section className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-[92rem] px-5 py-4 sm:px-8">
+          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-sm font-semibold text-slate-700 lg:justify-start lg:text-left">
+            <span className="text-[var(--iseya-navy)]">Built for:</span>
+            <span className="text-slate-600">
+              Students • Graduates • Career Transitioners • International Professionals
+            </span>
+          </p>
+        </div>
+      </section>
+
       <section className="mx-auto max-w-[92rem] px-5 py-8 sm:px-8">
         <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1.2fr_1fr_1fr_180px_180px]">
           <input
