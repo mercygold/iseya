@@ -2,8 +2,26 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabasePublicConfigStatus } from "./lib/supabaseConfig";
 
-const protectedRoutes = ["/dashboard", "/workspace", "/manage", "/recruiter"];
+const protectedRoutes = [
+  "/dashboard",
+  "/workspace",
+  "/manage",
+  "/recruiter",
+  "/recruiters/dashboard",
+  "/recruiters/onboarding",
+  "/recruiters/jobs",
+];
 const authRoutes = ["/login", "/signup"];
+
+function safeInternalRedirect(request: NextRequest, fallback: string) {
+  const redirectedFrom = request.nextUrl.searchParams.get("redirectedFrom");
+
+  if (!redirectedFrom || !redirectedFrom.startsWith("/") || redirectedFrom.startsWith("//")) {
+    return new URL(fallback, request.url);
+  }
+
+  return new URL(redirectedFrom, request.url);
+}
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -53,10 +71,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthRoute && user) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/workspace";
-    redirectUrl.search = "";
-    return NextResponse.redirect(redirectUrl);
+    return NextResponse.redirect(safeInternalRedirect(request, "/workspace"));
   }
 
   return response;
@@ -70,6 +85,12 @@ export const config = {
     "/manage",
     "/recruiter/:path*",
     "/recruiter",
+    "/recruiters/dashboard/:path*",
+    "/recruiters/dashboard",
+    "/recruiters/onboarding/:path*",
+    "/recruiters/onboarding",
+    "/recruiters/jobs/:path*",
+    "/recruiters/jobs",
     "/login",
     "/signup",
   ],

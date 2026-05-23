@@ -34,10 +34,10 @@ export default function RecruitersPage() {
               career profiles, optimized career assets, and clearer role-fit signals.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link href="/signup?type=recruiter&redirectedFrom=/recruiter" className={primaryButton}>
+              <Link href="/recruiters/signup" className={primaryButton}>
                 Create Recruiter Account
               </Link>
-              <Link href="/recruiter" className={secondaryButton}>
+              <Link href="/recruiters/dashboard" className={secondaryButton}>
                 Post a Job
               </Link>
             </div>
@@ -52,7 +52,7 @@ export default function RecruitersPage() {
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
               Pricing
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/login">
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/login?redirectedFrom=/recruiters/dashboard">
               Sign In
             </Link>
           </nav>

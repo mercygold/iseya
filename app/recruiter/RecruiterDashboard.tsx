@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 type RecruiterProfile = {
   company_name: string;
@@ -63,6 +64,8 @@ function statusLabel(value: string) {
 }
 
 export default function RecruiterDashboard() {
+  const pathname = usePathname();
+  const router = useRouter();
   const [profile, setProfile] = useState<RecruiterProfile | null>(null);
   const [jobs, setJobs] = useState<JobPost[]>([]);
   const [profileDraft, setProfileDraft] = useState({
@@ -185,6 +188,10 @@ export default function RecruiterDashboard() {
 
       setStatus("Company profile saved.");
       await loadDashboard();
+      if (pathname.startsWith("/recruiters/onboarding")) {
+        router.replace("/recruiters/dashboard");
+        router.refresh();
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to save recruiter profile.");
     }

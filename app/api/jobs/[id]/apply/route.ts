@@ -61,9 +61,10 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  const { error } = await serviceRole.from("job_applications").insert({
+  const applicationPayload = {
     job_id: job.id,
     candidate_id: user?.id ?? null,
+    candidate_user_id: user?.id ?? null,
     candidate_email: candidateEmail || null,
     recruiter_id: job.recruiter_id,
     status: "submitted",
@@ -72,7 +73,24 @@ export async function POST(request: Request, context: RouteContext) {
       fullName: profile?.full_name ?? "",
       source: user ? "ISEYA career materials" : "Email interest",
     },
-  });
+  };
+
+  let { error } = await serviceRole.from("job_applications").insert(applicationPayload);
+
+  if (
+    error &&
+    (error.code === "PGRST204" || error.message.includes("candidate_user_id"))
+  ) {
+    const legacyPayload = {
+      job_id: applicationPayload.job_id,
+      candidate_id: applicationPayload.candidate_id,
+      candidate_email: applicationPayload.candidate_email,
+      recruiter_id: applicationPayload.recruiter_id,
+      status: applicationPayload.status,
+      candidate_snapshot: applicationPayload.candidate_snapshot,
+    };
+    ({ error } = await serviceRole.from("job_applications").insert(legacyPayload));
+  }
 
   if (error) {
     if (error.code === "23505") {

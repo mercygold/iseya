@@ -126,6 +126,7 @@ export type Database = {
       };
       recruiter_profiles: {
         Row: {
+          id: string;
           user_id: string;
           company_name: string;
           recruiter_name: string;
@@ -140,6 +141,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          id?: string;
           user_id: string;
           company_name?: string;
           recruiter_name?: string;
@@ -154,6 +156,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          id?: string;
           user_id?: string;
           company_name?: string;
           recruiter_name?: string;
@@ -235,6 +238,7 @@ export type Database = {
           id: string;
           job_id: string;
           candidate_id: string | null;
+          candidate_user_id: string | null;
           candidate_email: string | null;
           recruiter_id: string;
           status: string;
@@ -245,6 +249,7 @@ export type Database = {
           id?: string;
           job_id: string;
           candidate_id?: string | null;
+          candidate_user_id?: string | null;
           candidate_email?: string | null;
           recruiter_id: string;
           status?: string;
@@ -255,6 +260,7 @@ export type Database = {
           id?: string;
           job_id?: string;
           candidate_id?: string | null;
+          candidate_user_id?: string | null;
           candidate_email?: string | null;
           recruiter_id?: string;
           status?: string;
@@ -267,10 +273,15 @@ export type Database = {
           id: string;
           candidate_id: string | null;
           email: string;
+          keyword: string;
           keyword_query: string;
+          title_preference: string;
           title_query: string;
+          location_preference: string;
           location_query: string;
+          job_type_preference: string;
           employment_type: string;
+          workplace_type_preference: string;
           workplace_type: string;
           remote_only: boolean;
           status: string;
@@ -281,10 +292,15 @@ export type Database = {
           id?: string;
           candidate_id?: string | null;
           email: string;
+          keyword?: string;
           keyword_query?: string;
+          title_preference?: string;
           title_query?: string;
+          location_preference?: string;
           location_query?: string;
+          job_type_preference?: string;
           employment_type?: string;
+          workplace_type_preference?: string;
           workplace_type?: string;
           remote_only?: boolean;
           status?: string;
@@ -295,10 +311,15 @@ export type Database = {
           id?: string;
           candidate_id?: string | null;
           email?: string;
+          keyword?: string;
           keyword_query?: string;
+          title_preference?: string;
           title_query?: string;
+          location_preference?: string;
           location_query?: string;
+          job_type_preference?: string;
           employment_type?: string;
+          workplace_type_preference?: string;
           workplace_type?: string;
           remote_only?: boolean;
           status?: string;

@@ -39,17 +39,45 @@ export async function POST(request: Request) {
     data: { user },
   } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
 
-  const { error } = await serviceRole.from("job_alert_subscriptions").insert({
+  const alertPayload = {
     candidate_id: user?.id ?? null,
     email,
+    keyword: keywordQuery,
     keyword_query: keywordQuery,
+    title_preference: titleQuery,
     title_query: titleQuery,
+    location_preference: locationQuery,
     location_query: locationQuery,
+    job_type_preference: employmentType,
     employment_type: employmentType,
+    workplace_type_preference: workplaceType,
     workplace_type: workplaceType,
     remote_only: remoteOnly,
     status: "active",
-  });
+  };
+
+  let { error } = await serviceRole.from("job_alert_subscriptions").insert(alertPayload);
+
+  if (
+    error &&
+    (error.code === "PGRST204" ||
+      error.message.includes("keyword") ||
+      error.message.includes("title_preference") ||
+      error.message.includes("workplace_type_preference"))
+  ) {
+    const legacyPayload = {
+      candidate_id: alertPayload.candidate_id,
+      email: alertPayload.email,
+      keyword_query: alertPayload.keyword_query,
+      title_query: alertPayload.title_query,
+      location_query: alertPayload.location_query,
+      employment_type: alertPayload.employment_type,
+      workplace_type: alertPayload.workplace_type,
+      remote_only: alertPayload.remote_only,
+      status: alertPayload.status,
+    };
+    ({ error } = await serviceRole.from("job_alert_subscriptions").insert(legacyPayload));
+  }
 
   if (error) {
     console.error("[jobs] alert subscription failed", {

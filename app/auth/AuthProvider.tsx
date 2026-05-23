@@ -213,21 +213,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      await supabase.from("profiles").upsert(
-        {
-          id: profileUser.id,
-          email: profileUser.email ?? null,
-          full_name:
-            typeof profileUser.user_metadata?.full_name === "string"
-              ? profileUser.user_metadata.full_name
-              : null,
-          account_type:
-            profileUser.user_metadata?.account_type === "recruiter"
-              ? "recruiter"
-              : "candidate",
-        },
-        { onConflict: "id" },
-      );
+      const profilePayload: {
+        id: string;
+        email: string | null;
+        full_name: string | null;
+        account_type?: "recruiter";
+      } = {
+        id: profileUser.id,
+        email: profileUser.email ?? null,
+        full_name:
+          typeof profileUser.user_metadata?.full_name === "string"
+            ? profileUser.user_metadata.full_name
+            : null,
+      };
+
+      if (profileUser.user_metadata?.account_type === "recruiter") {
+        profilePayload.account_type = "recruiter";
+      }
+
+      await supabase.from("profiles").upsert(profilePayload, { onConflict: "id" });
     },
     [supabase],
   );
