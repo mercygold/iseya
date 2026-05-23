@@ -20,7 +20,7 @@ create table if not exists public.profiles (
   stripe_subscription_id text,
   resume_download_credits integer not null default 0,
   optimization_credits integer not null default 0,
-  downloads_used integer not null default 0,
+  document_exports_used integer not null default 0,
   optimization_credits_used integer not null default 0,
   saved_versions_count integer not null default 0,
   processed_stripe_event_ids text[] not null default '{}',

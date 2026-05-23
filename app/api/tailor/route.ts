@@ -5,7 +5,7 @@ import { rankResumeIntelligence } from "@/lib/resume/intelligenceRanker";
 import { optimizeResume } from "@/lib/resume/optimizeResume";
 import { renderResume } from "@/lib/resume/renderResume";
 import type { CanonicalResume, RenderResumeState } from "@/lib/resume/types";
-import { isProPlan, normalizeSubscriptionPlan } from "@/lib/subscription";
+import { isProPlan, normalizeSubscriptionPlan, planOptimizationLimit } from "@/lib/subscription";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1384,12 +1384,20 @@ async function canUseOptimizationEndpoint() {
     .maybeSingle();
 
   const plan = normalizeSubscriptionPlan(data?.subscription_plan);
+  const storedCreditLimit = Number(data?.optimization_credits) || 0;
+  const creditLimit = storedCreditLimit > 0 ? storedCreditLimit : planOptimizationLimit(plan);
+  const { data: usageData, error: usageError } = await supabase
+    .from("profiles")
+    .select("optimization_credits_used")
+    .eq("id", user.id)
+    .maybeSingle();
+  const creditsUsed = usageError ? 0 : Number(usageData?.optimization_credits_used) || 0;
 
   if (isProPlan(plan)) {
-    return true;
+    return creditLimit - creditsUsed > 0;
   }
 
-  return plan === "plus" && (data?.optimization_credits ?? 0) > 0;
+  return plan === "plus" && creditLimit - creditsUsed > 0;
 }
 
 export async function POST(request: Request) {

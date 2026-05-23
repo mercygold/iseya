@@ -4715,17 +4715,27 @@ export default function Home() {
       : "border-[var(--iseya-gold)]/60 bg-[#FFF8E6]";
   const downloadLimit = planDownloadLimit(subscriptionPlan);
   const optimizationLimit = planOptimizationLimit(subscriptionPlan);
+  const documentExportLimit =
+    authUser && resumeDownloadCredits > 0 ? resumeDownloadCredits : downloadLimit;
+  const optimizationCreditLimit =
+    authUser && optimizationCredits > 0 ? optimizationCredits : optimizationLimit;
   const effectiveDownloadsUsed = authUser ? downloadsUsed : usageStats.downloadsUsed;
   const effectiveOptimizationCreditsUsed = authUser
     ? optimizationCreditsUsed
     : usageStats.optimizationCreditsUsed;
+  const documentExportsRemaining = Number.isFinite(documentExportLimit)
+    ? Math.max(0, documentExportLimit - effectiveDownloadsUsed)
+    : documentExportLimit;
+  const optimizationCreditsRemaining = Number.isFinite(optimizationCreditLimit)
+    ? Math.max(0, optimizationCreditLimit - effectiveOptimizationCreditsUsed)
+    : optimizationCreditLimit;
   const downloadProgressPercent = Number.isFinite(downloadLimit)
-    ? Math.min(100, Math.round((effectiveDownloadsUsed / Math.max(1, downloadLimit)) * 100))
+    ? Math.min(100, Math.round((effectiveDownloadsUsed / Math.max(1, documentExportLimit)) * 100))
     : 100;
   const starterResumeExportUsed =
     isStarterPlan(subscriptionPlan) && effectiveDownloadsUsed >= 1;
   const optimizationProgressPercent = Number.isFinite(optimizationLimit)
-    ? Math.min(100, Math.round((effectiveOptimizationCreditsUsed / Math.max(1, optimizationLimit)) * 100))
+    ? Math.min(100, Math.round((effectiveOptimizationCreditsUsed / Math.max(1, optimizationCreditLimit)) * 100))
     : 100;
   const activeSavedVersionsCount = authUser ? savedVersionsCount : savedVersions.length;
   const savedVersionLimit = planSavedVersionLimit(subscriptionPlan);
@@ -4926,9 +4936,24 @@ export default function Home() {
         ? defaultOptimizationCredits
         : profile.optimization_credits ?? defaultOptimizationCredits,
     );
-    setDownloadsUsed(0);
-    setOptimizationCreditsUsed(0);
-    setSavedVersionsCount(savedVersions.length);
+    const { data: usageData, error: usageError } = await supabase
+      .from("profiles")
+      .select("document_exports_used, optimization_credits_used, saved_versions_count")
+      .eq("id", liveUserId)
+      .maybeSingle();
+
+    if (!usageError && usageData) {
+      setDownloadsUsed(Math.max(0, Number(usageData.document_exports_used) || 0));
+      setOptimizationCreditsUsed(Math.max(0, Number(usageData.optimization_credits_used) || 0));
+      setSavedVersionsCount(Math.max(0, Number(usageData.saved_versions_count) || 0));
+    } else {
+      setDownloadsUsed(0);
+      setOptimizationCreditsUsed(0);
+      setSavedVersionsCount(savedVersions.length);
+      if (usageError && !/column .* does not exist/i.test(usageError.message)) {
+        console.error("Unable to refresh workspace usage counters.", usageError.message);
+      }
+    }
     if (enableInstitutionAccess) {
       const response = await fetch("/api/institution/verify");
       const data = (await response.json().catch(() => ({}))) as {
@@ -5552,7 +5577,7 @@ export default function Home() {
     }
 
     if (canUseSubscriptionFeature(subscriptionPlan, "exports")) {
-      if (resumeDownloadCredits > 0) {
+      if (documentExportsRemaining > 0) {
         return true;
       }
 
@@ -5570,7 +5595,7 @@ export default function Home() {
 
   function requireOptimizationAccess(label: string) {
     if (canUseSubscriptionFeature(subscriptionPlan, "aiGenerations")) {
-      if (optimizationCredits > 0) {
+      if (optimizationCreditsRemaining > 0) {
         return true;
       }
 
@@ -5600,7 +5625,9 @@ export default function Home() {
     void supabase
       .from("profiles")
       .update({
-        ...(typeof next.downloadsUsed === "number" ? { downloads_used: next.downloadsUsed } : {}),
+        ...(typeof next.downloadsUsed === "number"
+          ? { document_exports_used: next.downloadsUsed }
+          : {}),
         ...(typeof next.optimizationCreditsUsed === "number"
           ? { optimization_credits_used: next.optimizationCreditsUsed }
           : {}),
@@ -5615,6 +5642,42 @@ export default function Home() {
           : {}),
       })
       .eq("id", authUser.id);
+  }
+
+  async function consumePersistedUsage(kind: "optimization" | "export") {
+    const response = await fetch("/api/usage/consume", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind }),
+    });
+    const data = (await response.json().catch(() => ({}))) as {
+      downloadsUsed?: number;
+      exportsRemaining?: number;
+      exportLimit?: number;
+      optimizationCreditsUsed?: number;
+      optimizationCreditsRemaining?: number;
+      optimizationCreditLimit?: number;
+      error?: string;
+    };
+
+    if (!response.ok) {
+      throw new Error(data.error || "Unable to update usage.");
+    }
+
+    if (typeof data.downloadsUsed === "number") {
+      setDownloadsUsed(data.downloadsUsed);
+    }
+    if (typeof data.exportLimit === "number") {
+      setResumeDownloadCredits(data.exportLimit);
+    }
+    if (typeof data.optimizationCreditsUsed === "number") {
+      setOptimizationCreditsUsed(data.optimizationCreditsUsed);
+    }
+    if (typeof data.optimizationCreditLimit === "number") {
+      setOptimizationCredits(data.optimizationCreditLimit);
+    }
+
+    return data;
   }
 
   function trackUsage(kind: "aiGenerations" | "exportsCreated" | "optimizationCreditsUsed") {
@@ -5643,25 +5706,28 @@ export default function Home() {
 
     if (kind === "exportsCreated") {
       const nextDownloadsUsed = downloadsUsed + 1;
-      const nextCredits = canUseSubscriptionFeature(subscriptionPlan, "exports")
-        ? Math.max(0, resumeDownloadCredits - 1)
-        : resumeDownloadCredits;
       setDownloadsUsed(nextDownloadsUsed);
-      setResumeDownloadCredits(nextCredits);
-      syncProfileUsage({ downloadsUsed: nextDownloadsUsed, resumeDownloadCredits: nextCredits });
+      if (authUser) {
+        void consumePersistedUsage("export").catch((error) => {
+          setSystemStatus(error instanceof Error ? error.message : "Unable to update export usage.");
+          void refreshSubscriptionProfile();
+        });
+      } else {
+        syncProfileUsage({ downloadsUsed: nextDownloadsUsed });
+      }
     }
 
     if (kind === "optimizationCreditsUsed") {
       const nextOptimizationUsed = optimizationCreditsUsed + 1;
-      const nextCredits = canUseSubscriptionFeature(subscriptionPlan, "aiGenerations")
-        ? Math.max(0, optimizationCredits - 1)
-        : optimizationCredits;
       setOptimizationCreditsUsed(nextOptimizationUsed);
-      setOptimizationCredits(nextCredits);
-      syncProfileUsage({
-        optimizationCreditsUsed: nextOptimizationUsed,
-        optimizationCredits: nextCredits,
-      });
+      if (authUser) {
+        void consumePersistedUsage("optimization").catch((error) => {
+          setSystemStatus(error instanceof Error ? error.message : "Unable to update optimization usage.");
+          void refreshSubscriptionProfile();
+        });
+      } else {
+        syncProfileUsage({ optimizationCreditsUsed: nextOptimizationUsed });
+      }
     }
 
     if (supabase && authUser) {
@@ -6737,13 +6803,13 @@ export default function Home() {
             <MiniAnalyticsCard
               label="Document exports used"
               value={String(effectiveDownloadsUsed)}
-              detail={Number.isFinite(downloadLimit) ? `${downloadLimit} included` : "Unlimited"}
+              detail={Number.isFinite(documentExportLimit) ? `${documentExportLimit} included` : "Unlimited"}
               progress={downloadProgressPercent}
             />
             <MiniAnalyticsCard
               label="Credits remaining"
-              value={String(optimizationCredits)}
-              detail={`${effectiveOptimizationCreditsUsed} used of ${optimizationLimit}`}
+              value={String(optimizationCreditsRemaining)}
+              detail={`${effectiveOptimizationCreditsUsed} used of ${optimizationCreditLimit}`}
               progress={optimizationProgressPercent}
             />
             <MiniAnalyticsCard
@@ -7302,7 +7368,7 @@ export default function Home() {
                         Document exports remaining
                       </p>
                       <p className="mt-1 text-xl font-semibold text-[var(--iseya-navy)]">
-                        {resumeDownloadCredits}
+                        {documentExportsRemaining}
                       </p>
                     </div>
                     <div className="rounded-lg border border-white/70 bg-white p-3">
@@ -7310,7 +7376,7 @@ export default function Home() {
                         Optimization credits remaining
                       </p>
                       <p className="mt-1 text-xl font-semibold text-[var(--iseya-navy)]">
-                        {optimizationCredits}
+                        {optimizationCreditsRemaining}
                       </p>
                     </div>
                   </div>
@@ -7989,7 +8055,7 @@ export default function Home() {
                             onResumeTextChange={updateWorkspaceResumeOutput}
                             canUseAiOptimization={
                               canUseSubscriptionFeature(subscriptionPlan, "aiGenerations") &&
-                              optimizationCredits > 0
+                              optimizationCreditsRemaining > 0
                             }
                             onUpgradeRequired={() =>
                               requireOptimizationAccess("AI section optimization")

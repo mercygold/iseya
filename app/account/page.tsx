@@ -240,19 +240,19 @@ export default function AccountPage() {
 
       const { data: usageData, error: usageError } = await supabase
         .from("profiles")
-        .select("downloads_used, optimization_credits_used, saved_versions_count")
+        .select("document_exports_used, optimization_credits_used, saved_versions_count")
         .eq("id", user.id)
         .maybeSingle();
 
       if (!cancelled && !usageError && usageData) {
         setUsage({
-          downloadsUsed: Number(usageData.downloads_used) || 0,
+          downloadsUsed: Number(usageData.document_exports_used) || 0,
           optimizationCreditsUsed: Number(usageData.optimization_credits_used) || 0,
           savedVersionsCount: Number(usageData.saved_versions_count) || 0,
         });
       }
 
-      if (usageError) {
+      if (usageError && !/column .* does not exist/i.test(usageError.message)) {
         console.error("Unable to load account usage.", usageError.message);
       }
 
@@ -273,20 +273,22 @@ export default function AccountPage() {
   const statusLabel = formatStatus(profile?.subscription_status, plan);
   const exportLimit = planDownloadLimit(plan);
   const optimizationLimit = planOptimizationLimit(plan);
-  const exportsRemaining =
-    plan === "pro_monthly" || plan === "pro_annual"
-      ? profile?.resume_download_credits || exportLimit
-      : profile?.resume_download_credits ?? exportLimit;
-  const optimizationRemaining =
-    plan === "pro_monthly" || plan === "pro_annual"
-      ? profile?.optimization_credits || optimizationLimit
-      : profile?.optimization_credits ?? optimizationLimit;
-  const exportsUsed = Number.isFinite(exportLimit)
-    ? Math.max(0, exportLimit - (Number(exportsRemaining) || 0))
-    : usage.downloadsUsed;
-  const optimizationUsed = Number.isFinite(optimizationLimit)
-    ? Math.max(0, optimizationLimit - (Number(optimizationRemaining) || 0))
-    : usage.optimizationCreditsUsed;
+  const documentExportLimit =
+    profile && Number(profile.resume_download_credits) > 0
+      ? Number(profile.resume_download_credits)
+      : exportLimit;
+  const optimizationCreditLimit =
+    profile && Number(profile.optimization_credits) > 0
+      ? Number(profile.optimization_credits)
+      : optimizationLimit;
+  const exportsUsed = usage.downloadsUsed;
+  const optimizationUsed = usage.optimizationCreditsUsed;
+  const exportsRemaining = Number.isFinite(documentExportLimit)
+    ? Math.max(0, documentExportLimit - exportsUsed)
+    : documentExportLimit;
+  const optimizationRemaining = Number.isFinite(optimizationCreditLimit)
+    ? Math.max(0, optimizationCreditLimit - optimizationUsed)
+    : optimizationCreditLimit;
   const savedVersionLimit = planSavedVersionLimit(plan);
   const emailVerified = Boolean(user?.email_confirmed_at || user?.confirmed_at);
 
@@ -432,13 +434,13 @@ export default function AccountPage() {
                   <UsageBar
                     label="Document exports"
                     used={exportsUsed}
-                    available={exportLimit}
+                    available={documentExportLimit}
                     remaining={Number.isFinite(exportsRemaining) ? Number(exportsRemaining) : undefined}
                   />
                   <UsageBar
                     label="Optimization credits"
                     used={optimizationUsed}
-                    available={optimizationLimit}
+                    available={optimizationCreditLimit}
                     remaining={Number.isFinite(optimizationRemaining) ? Number(optimizationRemaining) : undefined}
                   />
                   <UsageBar

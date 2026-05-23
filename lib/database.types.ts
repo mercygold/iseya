@@ -26,7 +26,7 @@ export type Database = {
           account_type: string;
           resume_download_credits: number;
           optimization_credits: number;
-          downloads_used: number;
+          document_exports_used: number;
           optimization_credits_used: number;
           saved_versions_count: number;
           processed_stripe_event_ids: string[];
@@ -49,7 +49,7 @@ export type Database = {
           account_type?: string;
           resume_download_credits?: number;
           optimization_credits?: number;
-          downloads_used?: number;
+          document_exports_used?: number;
           optimization_credits_used?: number;
           saved_versions_count?: number;
           processed_stripe_event_ids?: string[];
@@ -72,7 +72,7 @@ export type Database = {
           account_type?: string;
           resume_download_credits?: number;
           optimization_credits?: number;
-          downloads_used?: number;
+          document_exports_used?: number;
           optimization_credits_used?: number;
           saved_versions_count?: number;
           processed_stripe_event_ids?: string[];
