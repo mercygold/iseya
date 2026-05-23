@@ -1608,11 +1608,33 @@ function isPlaceholderResumeText(value: string) {
   );
 }
 
+function isResumeNoiseLine(value: string) {
+  const cleaned = value.trim();
+
+  return (
+    !cleaned ||
+    /^[-–—_=]{3,}$/.test(cleaned) ||
+    /^page\s+\d+(?:\s+of\s+\d+)?$/i.test(cleaned) ||
+    /^\d+$/.test(cleaned) ||
+    /^selected delivery highlights$/i.test(cleaned) ||
+    /^selected highlights$/i.test(cleaned) ||
+    /^key achievements$/i.test(cleaned) ||
+    /^resume$/i.test(cleaned) ||
+    /^curriculum vitae$/i.test(cleaned)
+  );
+}
+
 function sanitizeResumeSourceText(value: string) {
   return value
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter((line) => line && !isSourceArtifactHeading(line) && !isPlaceholderResumeText(line))
+    .filter(
+      (line) =>
+        line &&
+        !isResumeNoiseLine(line) &&
+        !isSourceArtifactHeading(line) &&
+        !isPlaceholderResumeText(line),
+    )
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -2242,12 +2264,11 @@ function buildTailoredResume(
   const sourceBranding = brandingFromResumeText(sourceResume);
   const sourceSkills = parsedSource.skills.length > 0 ? parsedSource.skills : [];
   const strongestKeywords = matchedKeywords.slice(0, 12);
-  const skills = Array.from(
-    new Set([
-      ...sourceSkills,
-      ...strongestKeywords,
-    ].filter((skill) => !isPlaceholderResumeText(skill))),
-  ).slice(0, 28);
+  const skills = prioritizeSkillsForJob(
+    [...sourceSkills, ...strongestKeywords].filter((skill) => !isPlaceholderResumeText(skill)),
+    jobDescription,
+    18,
+  );
   const summary =
     parsedSource.summary ||
     [
@@ -2408,8 +2429,8 @@ function parseResumePreview(resumeText: string) {
       sections.push(currentSection);
     }
 
-    if (/^[-*]\s+/.test(cleanedLine)) {
-      const bullet = cleanedLine.replace(/^[-*]\s+/, "");
+    if (/^[-*•]\s+/.test(cleanedLine)) {
+      const bullet = cleanedLine.replace(/^[-*•]\s+/, "");
       currentSection.bullets.push(bullet);
       currentSection.lines?.push(`- ${bullet}`);
     } else {
@@ -2493,7 +2514,11 @@ function findResumeSection(
 
 function uniqueStrings(items: string[]) {
   return Array.from(
-    new Set(items.map((item) => cleanEditorText(item)).filter(Boolean)),
+    new Set(
+      items
+        .map((item) => cleanEditorText(item))
+        .filter((item) => item && !isResumeNoiseLine(item) && !isSourceArtifactHeading(item)),
+    ),
   );
 }
 
@@ -2508,7 +2533,9 @@ function splitResumeList(value: string) {
 function cleanEditorText(value: string) {
   return value
     .replace(/^#{1,6}\s*/, "")
+    .replace(/^[•●▪◦]\s*/, "")
     .replace(/\*\*/g, "")
+    .replace(/\bpage\s+\d+(?:\s+of\s+\d+)?\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -2537,7 +2564,7 @@ function createEmptyExperience(index = 0): ExperienceEntry {
 function cleanBullets(bullets: string[]) {
   return uniqueStrings(
     bullets
-      .map((bullet) => cleanExportBullet(bullet.replace(/^[-*]\s+/, "")))
+      .map((bullet) => cleanAchievementBullet(bullet.replace(/^[-*]\s+/, "")))
       .filter(Boolean),
   );
 }
@@ -2598,11 +2625,16 @@ function isLikelyCertificationLine(line: string) {
 }
 
 function isLikelySkillLine(line: string) {
+  const cleaned = cleanEditorText(line);
+
   return (
-    /[,|;•]/.test(line) &&
-    line.length <= 220 &&
-    !dateSignalRegex().test(line) &&
-    !/@/.test(line)
+    /[,|;•]/.test(cleaned) &&
+    cleaned.length <= 220 &&
+    !/[.!?]$/.test(cleaned) &&
+    !dateSignalRegex().test(cleaned) &&
+    !isLikelyEducationLine(cleaned) &&
+    !isLikelyProjectLine(cleaned) &&
+    !/@/.test(cleaned)
   );
 }
 
@@ -2670,6 +2702,62 @@ function parseExperienceLine(line: string) {
   };
 }
 
+function looksLikeRoleTitle(line: string) {
+  return /\b(?:manager|director|lead|specialist|analyst|engineer|developer|consultant|coordinator|associate|assistant|officer|administrator|designer|researcher|scientist|product|project|program|operations|strategy|marketing|finance|legal|policy|data|ai|ml|software|clinical|healthcare)\b/i.test(
+    line,
+  );
+}
+
+function cleanResumeSkill(value: string) {
+  const cleaned = cleanEditorText(value)
+    .replace(/^[-*]\s+/, "")
+    .replace(/\.$/, "");
+
+  if (
+    !cleaned ||
+    cleaned.length > 48 ||
+    /\b(?:award|honor|dean'?s list|scholarship|club|society|volunteer)\b/i.test(cleaned) ||
+    /[.!?]/.test(cleaned)
+  ) {
+    return "";
+  }
+
+  return titleCase(cleaned);
+}
+
+function prioritizeSkillsForJob(skills: string[], jobDescription: string, maxItems = 18) {
+  const jobKeywords = dedupeKeywords([
+    ...inferJobKeywordGroups(jobDescription).required,
+    ...inferJobKeywordGroups(jobDescription).preferred,
+  ]).map((keyword) => keyword.toLowerCase());
+
+  return uniqueStrings(skills.map(cleanResumeSkill).filter(Boolean))
+    .sort((a, b) => {
+      const aScore = jobKeywords.some((keyword) => a.toLowerCase().includes(keyword)) ? 0 : 1;
+      const bScore = jobKeywords.some((keyword) => b.toLowerCase().includes(keyword)) ? 0 : 1;
+      return aScore - bScore || a.localeCompare(b);
+    })
+    .slice(0, maxItems);
+}
+
+function cleanAchievementBullet(value: string) {
+  const cleaned = cleanExportBullet(value)
+    .replace(/^selected delivery highlights:?$/i, "")
+    .replace(/^key achievements:?$/i, "")
+    .replace(/^achievements:?$/i, "");
+
+  if (
+    !cleaned ||
+    isResumeNoiseLine(cleaned) ||
+    isRecognizedResumeHeading(cleaned) ||
+    isLikelyEducationLine(cleaned)
+  ) {
+    return "";
+  }
+
+  return cleaned;
+}
+
 function normalizeExperience(entry: Partial<ExperienceEntry>, index = 0): ExperienceEntry | null {
   const normalized: ExperienceEntry = {
     id: entry.id || `experience-${index}`,
@@ -2683,9 +2771,8 @@ function normalizeExperience(entry: Partial<ExperienceEntry>, index = 0): Experi
   };
 
   const hasIdentity = Boolean(normalized.title || normalized.company);
-  const hasBullets = normalized.bullets.length > 0;
 
-  if (!hasIdentity && !hasBullets) {
+  if (!hasIdentity) {
     return null;
   }
 
@@ -2696,6 +2783,8 @@ function normalizeExperience(entry: Partial<ExperienceEntry>, index = 0): Experi
   ) {
     normalized.title = "";
   }
+
+  normalized.bullets = normalized.bullets.slice(0, 5);
 
   return normalized;
 }
@@ -2752,8 +2841,8 @@ function parseExperienceEntries(section?: ResumeSection): ExperienceEntry[] {
   const isHighlightsOnly = /HIGHLIGHT/i.test(section.heading);
 
   for (const rawLine of orderedLines) {
-    const isBullet = /^[-*]\s+/.test(rawLine);
-    const line = cleanEditorText(rawLine.replace(/^[-*]\s+/, ""));
+    const isBullet = /^[-*•]\s+/.test(rawLine);
+    const line = cleanEditorText(rawLine.replace(/^[-*•]\s+/, ""));
 
     if (!line) {
       continue;
@@ -2849,7 +2938,7 @@ function sourceLinesForParsing(resumeText: string) {
         .replace(/\s+([•*-])\s+/g, "\n$1 ")
         .split(/\n/),
     )
-    .map((line) => cleanEditorText(line))
+    .map((line) => line.replace(/\s+/g, " ").trim())
     .filter((line) => line && !isLikelyContactLine(line, extractContactInfoFromText(resumeText)));
 }
 
@@ -2885,6 +2974,62 @@ function inferExperienceFromResumeText(resumeText: string) {
 
     const nextLine = cleanEditorText(lines[index + 1] || "");
     const followingLine = cleanEditorText(lines[index + 2] || "");
+    const lineLooksCompany = companySignalRegex().test(cleaned);
+    const nextLooksCompany = companySignalRegex().test(nextLine);
+    const lineLooksRole = looksLikeRoleTitle(cleaned);
+    const nextLooksRole = looksLikeRoleTitle(nextLine);
+    const followingLooksDate = dateSignalRegex().test(followingLine);
+
+    if (
+      lineLooksCompany &&
+      nextLooksRole &&
+      (followingLooksDate || dateSignalRegex().test(nextLine))
+    ) {
+      const dateRange = splitDateRange(followingLooksDate ? followingLine : nextLine);
+      const normalized = normalizeExperience(
+        {
+          id: `experience-${entries.length}`,
+          title: nextLine,
+          company: cleaned,
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+          isCurrent: dateRange.isCurrent,
+          bullets: [],
+        },
+        entries.length,
+      );
+
+      if (normalized) {
+        current = normalized;
+        entries.push(current);
+        index += followingLooksDate ? 2 : 1;
+        continue;
+      }
+    }
+
+    if (lineLooksRole && nextLooksCompany) {
+      const dateRange = splitDateRange(followingLooksDate ? followingLine : "");
+      const normalized = normalizeExperience(
+        {
+          id: `experience-${entries.length}`,
+          title: cleaned,
+          company: nextLine,
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+          isCurrent: dateRange.isCurrent,
+          bullets: [],
+        },
+        entries.length,
+      );
+
+      if (normalized) {
+        current = normalized;
+        entries.push(current);
+        index += followingLooksDate ? 2 : 1;
+        continue;
+      }
+    }
+
     const combinedCandidate =
       nextLine && !isRecognizedResumeHeading(nextLine) && dateSignalRegex().test(nextLine)
         ? `${cleaned} | ${nextLine}`
@@ -8173,6 +8318,11 @@ function ModularResumeEditor({
   const structured = structuredResumeFromText(resumeText);
   const resetStructured = structuredResumeFromText(resetSourceText);
   const displayedExperience = [...structured.experience, ...draftExperiences];
+  const unmatchedReviewSections = resetStructured.additionalSections.filter(
+    (section) =>
+      !isSourceArtifactHeading(section.heading) &&
+      [...section.body, ...section.bullets].some((item) => cleanEditorText(item)),
+  );
 
   function commit(next: StructuredResume) {
     onResumeTextChange(serializeStructuredResume(next, personalBranding));
@@ -8861,6 +9011,37 @@ function ModularResumeEditor({
       <ModularListSection title="Certifications" value={structured.certifications.join("\n")} onChange={(value) => updateListField("certifications", value)} onOptimize={() => applyListAiAction("certifications", "Certifications", "Optimize this section")} onReset={() => resetSection("certifications")} onAiAction={(action) => applyListAiAction("certifications", "Certifications", action)} isOptimizing={optimizingKey.startsWith("certifications-")} />
       <ModularListSection title="Publications / Research" value={structured.publications.join("\n")} onChange={(value) => updateListField("publications", value)} onOptimize={() => applyListAiAction("publications", "Publications / Research", "Optimize this section")} onReset={() => resetSection("publications")} onAiAction={(action) => applyListAiAction("publications", "Publications / Research", action)} isOptimizing={optimizingKey.startsWith("publications-")} />
       <ModularListSection title="Tools / Technologies" value={structured.tools.join(", ")} onChange={(value) => updateListField("tools", value)} onOptimize={() => applyListAiAction("tools", "Tools / Technologies", "Optimize this section")} onReset={() => resetSection("tools")} onAiAction={(action) => applyListAiAction("tools", "Tools / Technologies", action)} isOptimizing={optimizingKey.startsWith("tools-")} />
+
+      {unmatchedReviewSections.length > 0 ? (
+        <ModularSection title="Review unmatched content">
+          <p className="mb-3 text-xs leading-5 text-slate-600">
+            These source lines were not added to the final resume preview. Move only relevant, truthful details into the appropriate editable section.
+          </p>
+          <div className="space-y-2">
+            {unmatchedReviewSections.map((section, sectionIndex) => (
+              <div
+                key={`${section.heading}-${sectionIndex}`}
+                className="rounded-lg border border-amber-200 bg-amber-50/60 p-3"
+              >
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-navy)]">
+                  {section.heading}
+                </p>
+                <ul className="mt-2 space-y-1 text-xs leading-5 text-slate-700">
+                  {[...section.body, ...section.bullets]
+                    .map(cleanEditorText)
+                    .filter(Boolean)
+                    .slice(0, 8)
+                    .map((item, itemIndex) => (
+                      <li key={`${section.heading}-${itemIndex}`}>
+                        {item}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </ModularSection>
+      ) : null}
 
       <ModularSection
         title="Optional Additional Sections"
