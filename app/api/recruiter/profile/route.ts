@@ -129,11 +129,22 @@ export async function PUT(request: Request) {
     return Response.json({ error: "Unable to update account type." }, { status: 500 });
   }
 
-  const { data: existingRecruiterProfile } = await supabase
+  const { data: existingRecruiterProfile, error: existingProfileError } = await supabase
     .from("recruiter_profiles")
-    .select("verification_status")
+    .select("user_id, verification_status")
     .eq("user_id", userId)
     .maybeSingle();
+
+  if (existingProfileError) {
+    console.error("[recruiter-profile] existing profile lookup failed", {
+      code: existingProfileError.code,
+      message: existingProfileError.message,
+      details: existingProfileError.details,
+      hint: existingProfileError.hint,
+    });
+    return Response.json({ error: "Unable to check recruiter profile before saving." }, { status: 500 });
+  }
+
   const nextVerificationStatus =
     existingRecruiterProfile?.verification_status === "verified" ? "verified" : "pending_review";
 
@@ -159,49 +170,44 @@ export async function PUT(request: Request) {
     verification_status: nextVerificationStatus,
   };
 
-  let { data, error } = await supabase
-    .from("recruiter_profiles")
-    .upsert(
-      recruiterProfilePayload,
-      { onConflict: "user_id" },
-    )
-    .select("*")
-    .single();
+  const saveResult = existingRecruiterProfile
+    ? await supabase
+        .from("recruiter_profiles")
+        .update(recruiterProfilePayload)
+        .eq("user_id", userId)
+        .select("*")
+        .single()
+    : await supabase
+        .from("recruiter_profiles")
+        .insert(recruiterProfilePayload)
+        .select("*")
+        .single();
 
-  if (
-    error &&
-    (error.code === "PGRST204" ||
-      error.message.includes("linkedin_company_url") ||
-      error.message.includes("phone_number"))
-  ) {
-    const legacyPayload = {
-      user_id: recruiterProfilePayload.user_id,
-      company_name: recruiterProfilePayload.company_name,
-      recruiter_name: recruiterProfilePayload.recruiter_name,
-      work_email: recruiterProfilePayload.work_email,
-      company_website: recruiterProfilePayload.company_website,
-      linkedin_company_url: recruiterProfilePayload.linkedin_company_url,
-      phone_number: recruiterProfilePayload.phone_number,
-      company_location: recruiterProfilePayload.company_location,
-      industry: recruiterProfilePayload.industry,
-      company_size: recruiterProfilePayload.company_size,
-      hiring_focus: recruiterProfilePayload.hiring_focus,
-      verification_status: recruiterProfilePayload.verification_status,
-    };
-
-    ({ data, error } = await supabase
-      .from("recruiter_profiles")
-      .upsert(legacyPayload, { onConflict: "user_id" })
-      .select("*")
-      .single());
-  }
+  const { data, error } = saveResult;
 
   if (error) {
     console.error("[recruiter-profile] upsert failed", {
       code: error.code,
       message: error.message,
+      details: error.details,
+      hint: error.hint,
+      attemptedColumns: Object.keys(recruiterProfilePayload),
+      operation: existingRecruiterProfile ? "update" : "insert",
     });
-    return Response.json({ error: "Unable to save recruiter profile." }, { status: 500 });
+    const missingColumn =
+      error.code === "PGRST204" ||
+      /column|schema cache|address_line_1|industry_other|phone_number|linkedin_company_url/i.test(
+        error.message,
+      );
+
+    return Response.json(
+      {
+        error: missingColumn
+          ? "Recruiter profile storage needs the latest database migration before saving."
+          : "Unable to save recruiter profile.",
+      },
+      { status: 500 },
+    );
   }
 
   return Response.json({ recruiterProfile: data });
