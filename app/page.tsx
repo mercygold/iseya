@@ -305,7 +305,14 @@ type UploadedSourceFile = {
   extractedText?: string;
 };
 
-type ExtractionStatus = "extracted" | "metadata_only" | "unsupported" | "failed";
+type ExtractionStatus =
+  | "extracted"
+  | "extraction_failed"
+  | "ocr_required"
+  | "unsupported_for_extraction"
+  | "metadata_only"
+  | "unsupported"
+  | "failed";
 
 type ExtractApiResponse = {
   extractedText: string;
@@ -408,7 +415,7 @@ type TailorApiResponse = {
 const storageKey = "resume-agent-state-v2";
 const versionStorageKey = "iseya_resume_versions";
 const usageStorageKey = "iseya_usage_stats";
-const acceptedSourceFileTypes = ".pdf,.docx,.txt,.png,.jpg,.jpeg";
+const acceptedSourceFileTypes = ".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.ppt,.pptx";
 const industryTargets: IndustryTarget[] = [
   "AI / Technology",
   "SaaS",
@@ -3155,6 +3162,18 @@ function extractionStatusLabel(status?: ExtractionStatus) {
     return "Text extracted";
   }
 
+  if (status === "ocr_required") {
+    return "OCR required";
+  }
+
+  if (status === "extraction_failed") {
+    return "Extraction failed";
+  }
+
+  if (status === "unsupported_for_extraction") {
+    return "Saved as reference";
+  }
+
   if (status === "metadata_only") {
     return "Metadata saved";
   }
@@ -3207,14 +3226,14 @@ async function extractUploadedFile(file: File): Promise<UploadedSourceFile> {
         ...baseFile,
         extractedText: await file.text(),
         extractionStatus: "extracted",
-        warnings: ["TXT text was added as source material."],
+        warnings: ["Text extracted successfully and added to your source materials."],
       };
     }
 
     return {
       ...baseFile,
-      extractionStatus: "failed",
-      warnings: ["Text extraction failed. File metadata was saved for source tracking."],
+      extractionStatus: "extraction_failed",
+      warnings: ["We could not extract text from this file. You can still use it as source material or paste the text manually."],
     };
   }
 }
@@ -5396,7 +5415,14 @@ export default function Home() {
       return;
     }
 
-    const nextFiles = await Promise.all(Array.from(files).map(extractUploadedFile));
+    const selectedFiles = Array.from(files);
+    const selectedTypes = selectedFiles.map((file) => sourceFileType(file));
+
+    if (selectedTypes.some((type) => [".png", ".jpg", ".jpeg", ".pdf"].includes(type))) {
+      setSystemStatus("We are extracting text from the image. This may take a moment.");
+    }
+
+    const nextFiles = await Promise.all(selectedFiles.map(extractUploadedFile));
 
     setUploadedFiles((current) => {
       const byId = new Map(current.map((file) => [file.id, file]));
@@ -5412,9 +5438,39 @@ export default function Home() {
       uploadInputRef.current.value = "";
     }
 
-    if (nextFiles.some((file) => file.extractionStatus === "failed")) {
+    if (nextFiles.some((file) => file.extractionStatus === "extracted")) {
+      setSystemStatus("Text extracted successfully and added to your source materials.");
+    }
+
+    if (
+      nextFiles.some(
+        (file) =>
+          file.extractionStatus === "extraction_failed" &&
+          [".png", ".jpg", ".jpeg"].includes(file.type),
+      )
+    ) {
       setSystemStatus(
-        "One or more files could not be fully extracted. Metadata was still saved for source tracking.",
+        "We could not read text clearly from this image. Please upload a clearer file or paste the text manually.",
+      );
+      return;
+    }
+
+    if (
+      nextFiles.some(
+        (file) =>
+          file.extractionStatus === "extraction_failed" ||
+          file.extractionStatus === "ocr_required",
+      )
+    ) {
+      setSystemStatus(
+        "We could not extract text from this file. You can still use it as source material or paste the text manually.",
+      );
+      return;
+    }
+
+    if (nextFiles.some((file) => [".ppt", ".pptx"].includes(file.type))) {
+      setSystemStatus(
+        "PowerPoint files are saved as reference material. Text extraction for presentations will be added later.",
       );
     }
   }
@@ -6101,11 +6157,11 @@ export default function Home() {
             >
               Upload Resume / Supporting Files
             </label>
-	            <p className="mt-2 text-xs leading-5 text-zinc-500">
-	              Accepts PDF, DOCX, TXT, PNG, JPG, and JPEG. TXT, DOCX, and
-	              readable PDF files can be reviewed as source material; images are
-	              saved for your workspace.
-	            </p>
+            <p className="mt-2 text-xs leading-5 text-zinc-500">
+              Accepts PDF, DOC, DOCX, TXT, PNG, JPG, JPEG, PPT, and PPTX.
+              Text extraction is available for readable PDF, DOCX, TXT, and
+              image files. Presentations are saved as reference material.
+            </p>
 
             {uploadedFiles.length > 0 ? (
               <div className="mt-4 space-y-2">
