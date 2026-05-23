@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { optimizationModel } from "@/lib/ai/models";
 import { extractResume } from "@/lib/resume/extractResume";
+import { rankResumeIntelligence } from "@/lib/resume/intelligenceRanker";
 import { optimizeResume } from "@/lib/resume/optimizeResume";
 import { renderResume } from "@/lib/resume/renderResume";
 import type { CanonicalResume, RenderResumeState } from "@/lib/resume/types";
@@ -1163,7 +1164,14 @@ async function applyResumePipeline(
     industryTarget: request.industryTarget,
     openAiApiKey: apiKey,
   });
-  const renderResumeState = renderResume(optimizedResumeJson);
+  const rankedResume = await rankResumeIntelligence({
+    resume: optimizedResumeJson,
+    jobDescription: request.jobDescription,
+    targetRole: request.targetRole,
+    industryTarget: request.industryTarget,
+    openAiApiKey: apiKey,
+  });
+  const renderResumeState = renderResume(rankedResume.resume);
 
   if (renderResumeState.validationIssues.length > 0) {
     console.warn("ISEYA pipeline validation failures", {
@@ -1175,7 +1183,7 @@ async function applyResumePipeline(
     ...response,
     tailoredResume: renderResumeState.plainText || response.tailoredResume,
     extractedResumeJson,
-    optimizedResumeJson,
+    optimizedResumeJson: rankedResume.resume,
     renderResumeState,
   });
 }

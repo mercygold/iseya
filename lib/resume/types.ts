@@ -64,6 +64,15 @@ export type ResumeValidationResult = {
   issues: ResumeValidationIssue[];
 };
 
+export type CandidateSeniority = "entry-level" | "mid-level" | "senior" | "executive";
+
+export type ResumeIntelligenceStrategy = {
+  seniority: CandidateSeniority;
+  strongestSignals: string[];
+  suppressedContentCount: number;
+  sectionOrder: string[];
+};
+
 export type SemanticSectionType =
   | "professionalSummary"
   | "coreSkills"

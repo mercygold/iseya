@@ -70,6 +70,14 @@ function formatEducation(education: ResumeEducation) {
   return [credential, meta].filter(Boolean).join("\n");
 }
 
+function keyAchievements(resume: CanonicalResume) {
+  return (
+    resume.additionalSections.find((section) =>
+      /^key achievements$/i.test(section.heading),
+    )?.items ?? []
+  );
+}
+
 export function resumeToPlainText(resume: CanonicalResume) {
   const validation = validateResume(resume);
   const clean = validation.resume;
@@ -92,6 +100,11 @@ export function resumeToPlainText(resume: CanonicalResume) {
       ? `PROFESSIONAL EXPERIENCE\n${clean.professionalExperience
           .map(formatExperience)
           .join("\n\n")}`
+      : "",
+    keyAchievements(clean).length > 0
+      ? `KEY ACHIEVEMENTS\n${keyAchievements(clean)
+          .map((item) => `• ${item}`)
+          .join("\n")}`
       : "",
     clean.projects.length > 0
       ? `${projectTitle(clean.projects).toUpperCase()}\n${clean.projects
@@ -137,6 +150,10 @@ export function renderResume(resume: CanonicalResume): RenderResumeState {
         clean.professionalExperience,
       ),
     );
+  }
+  const achievements = keyAchievements(clean);
+  if (achievements.length > 0) {
+    sections.push(section("key-achievements", "Key Achievements", "list", achievements));
   }
   if (clean.projects.length > 0) {
     sections.push(section("projects", projectTitle(clean.projects), "projects", clean.projects));
