@@ -4,7 +4,8 @@ alter table public.recruiter_profiles
   add column if not exists city text not null default '',
   add column if not exists state_region text not null default '',
   add column if not exists postal_code text,
-  add column if not exists country text not null default '';
+  add column if not exists country text not null default '',
+  add column if not exists industry_other text;
 
 create index if not exists recruiter_profiles_country_idx
   on public.recruiter_profiles(country);

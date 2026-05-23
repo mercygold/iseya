@@ -18,6 +18,7 @@ type RecruiterProfileBody = {
   country?: unknown;
   companyLocation?: unknown;
   industry?: unknown;
+  industryOther?: unknown;
   companySize?: unknown;
   hiringFocus?: unknown;
 };
@@ -93,6 +94,7 @@ export async function PUT(request: Request) {
   const stateRegion = text(body.stateRegion);
   const country = text(body.country);
   const industry = text(body.industry);
+  const industryOther = text(body.industryOther);
   const companySize = text(body.companySize);
   const hiringFocus = text(body.hiringFocus);
 
@@ -106,8 +108,6 @@ export async function PUT(request: Request) {
     !city ||
     !stateRegion ||
     !country ||
-    !industry ||
-    !companySize ||
     !hiringFocus
   ) {
     return Response.json(
@@ -152,7 +152,8 @@ export async function PUT(request: Request) {
     postal_code: optionalText(body.postalCode) ?? null,
     country,
     company_location: text(body.companyLocation) || [city, stateRegion, country].filter(Boolean).join(", "),
-    industry,
+    industry: industry || null,
+    industry_other: industry === "Other" ? industryOther || null : null,
     company_size: companySize,
     hiring_focus: hiringFocus,
     verification_status: nextVerificationStatus,

@@ -35,7 +35,7 @@ export default async function AdminRecruitersPage() {
   const serviceRole = await requireAdmin();
   const { data: recruiters } = await serviceRole
     .from("recruiter_profiles")
-    .select("user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, company_location, industry, company_size, hiring_focus, verification_status, verification_notes, created_at")
+    .select("user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, company_location, industry, industry_other, company_size, hiring_focus, verification_status, verification_notes, created_at")
     .in("verification_status", ["pending_review", "rejected"])
     .order("created_at", { ascending: false })
     .limit(100);
@@ -75,7 +75,7 @@ export default async function AdminRecruitersPage() {
                   <p>State/Region: {recruiter.state_region || "Not provided"}</p>
                   <p>Postal code: {recruiter.postal_code || "Not provided"}</p>
                   <p>Country: {recruiter.country || "Not provided"}</p>
-                  <p>Industry: {recruiter.industry || "Not provided"}</p>
+                  <p>Industry: {recruiter.industry === "Other" ? recruiter.industry_other || "Other" : recruiter.industry || "Not provided"}</p>
                   <p>Company size: {recruiter.company_size || "Not provided"}</p>
                   <p className="sm:col-span-2">Hiring focus: {recruiter.hiring_focus || "Not provided"}</p>
                   <p className="sm:col-span-2">Notes: {recruiter.verification_notes || "No notes"}</p>

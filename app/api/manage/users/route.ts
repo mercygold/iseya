@@ -96,6 +96,7 @@ export async function GET() {
     country: string | null;
     company_location: string | null;
     industry: string | null;
+    industry_other: string | null;
     company_size: string | null;
     hiring_focus: string | null;
     verification_status: string;
@@ -116,7 +117,7 @@ export async function GET() {
     await Promise.all([
       serviceRole
         .from("recruiter_profiles")
-        .select("user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, company_location, industry, company_size, hiring_focus, verification_status, verification_notes, created_at")
+        .select("user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, company_location, industry, industry_other, company_size, hiring_focus, verification_status, verification_notes, created_at")
         .order("created_at", { ascending: false })
         .limit(100),
       serviceRole

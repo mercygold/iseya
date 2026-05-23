@@ -19,6 +19,7 @@ type RecruiterProfile = {
   country: string;
   company_location: string | null;
   industry: string | null;
+  industry_other: string | null;
   company_size: string | null;
   hiring_focus: string | null;
   verification_status: string;
@@ -57,6 +58,47 @@ const secondaryButton =
 const dangerButton =
   "inline-flex min-h-10 items-center justify-center rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60";
 const companySizeOptions = ["", "1–10", "11–50", "51–200", "201–500", "501–1000", "1000+"];
+const countryRegions: Record<string, string[]> = {
+  "United States": ["Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Florida", "Georgia", "Illinois", "New York", "Texas", "Washington", "Other / Not listed"],
+  Canada: ["Alberta", "British Columbia", "Manitoba", "Ontario", "Quebec", "Saskatchewan", "Other / Not listed"],
+  "United Kingdom": ["England", "Northern Ireland", "Scotland", "Wales", "Other / Not listed"],
+  Nigeria: ["Abia", "Abuja FCT", "Lagos", "Ogun", "Oyo", "Rivers", "Kano", "Kaduna", "Other / Not listed"],
+  Australia: ["Australian Capital Territory", "New South Wales", "Queensland", "South Australia", "Victoria", "Western Australia", "Other / Not listed"],
+  India: ["Delhi", "Gujarat", "Karnataka", "Maharashtra", "Tamil Nadu", "Telangana", "Uttar Pradesh", "Other / Not listed"],
+  "United Arab Emirates": ["Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Ras Al Khaimah", "Other / Not listed"],
+  "South Africa": ["Eastern Cape", "Gauteng", "KwaZulu-Natal", "Western Cape", "Other / Not listed"],
+  Ghana: ["Ashanti", "Greater Accra", "Northern", "Western", "Other / Not listed"],
+  Kenya: ["Kiambu", "Mombasa", "Nairobi", "Nakuru", "Other / Not listed"],
+};
+const countryOptions = ["", ...Object.keys(countryRegions), "Other / Not listed"];
+const industryOptions = [
+  "",
+  "Technology",
+  "Software / SaaS",
+  "Artificial Intelligence",
+  "Cybersecurity",
+  "Fintech",
+  "Healthcare",
+  "Education",
+  "Consulting",
+  "Marketing / Advertising",
+  "Media / Entertainment",
+  "E-commerce",
+  "Retail",
+  "Finance / Banking",
+  "Real Estate",
+  "Construction",
+  "Manufacturing",
+  "Logistics / Transportation",
+  "Energy",
+  "Agriculture",
+  "Hospitality",
+  "Legal",
+  "Government / Public Sector",
+  "Nonprofit",
+  "Staffing / Recruiting",
+  "Other",
+];
 
 const emptyJob = {
   jobTitle: "",
@@ -106,6 +148,7 @@ export default function RecruiterDashboard() {
     country: "",
     companyLocation: "",
     industry: "",
+    industryOther: "",
     companySize: "",
     hiringFocus: "",
   });
@@ -133,10 +176,11 @@ export default function RecruiterDashboard() {
       profile.city &&
       profile.state_region &&
       profile.country &&
-      profile.industry &&
-      profile.company_size &&
       profile.hiring_focus,
   );
+  const stateOptions = profileDraft.country ? (countryRegions[profileDraft.country] ?? ["Other / Not listed"]) : [];
+  const needsManualState = profileDraft.country === "Other / Not listed" || profileDraft.stateRegion === "Other / Not listed";
+  const needsOtherIndustry = profileDraft.industry === "Other";
   const verificationStatus = profile?.verification_status ?? "pending_review";
   const canEditJobDraft = profileComplete;
   const canSubmitJobForReview = profileComplete && verificationStatus !== "rejected";
@@ -183,6 +227,7 @@ export default function RecruiterDashboard() {
           country: profileData.recruiterProfile.country ?? "",
           companyLocation: profileData.recruiterProfile.company_location ?? "",
           industry: profileData.recruiterProfile.industry ?? "",
+          industryOther: profileData.recruiterProfile.industry_other ?? "",
           companySize: normalizeCompanySize(profileData.recruiterProfile.company_size),
           hiringFocus: profileData.recruiterProfile.hiring_focus ?? "",
         });
@@ -253,6 +298,24 @@ export default function RecruiterDashboard() {
     setStatus("");
 
     try {
+      const missingFields = [
+        ["Company name", profileDraft.companyName],
+        ["Recruiter name", profileDraft.recruiterName],
+        ["Work email", profileDraft.workEmail],
+        ["Company website", profileDraft.companyWebsite],
+        ["Phone number", profileDraft.phoneNumber],
+        ["Address line 1", profileDraft.addressLine1],
+        ["City", profileDraft.city],
+        ["State/Region", needsManualState ? profileDraft.stateRegion : profileDraft.stateRegion],
+        ["Country", profileDraft.country],
+        ["Hiring focus", profileDraft.hiringFocus],
+      ].filter(([, value]) => !String(value).trim());
+
+      if (missingFields.length > 0) {
+        setStatus(`Missing required fields: ${missingFields.map(([label]) => label).join(", ")}.`);
+        return;
+      }
+
       const response = await fetch("/api/recruiter/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -386,11 +449,18 @@ export default function RecruiterDashboard() {
               <Field label="Address line 1" value={profileDraft.addressLine1} onChange={(value) => setProfileDraft((draft) => ({ ...draft, addressLine1: value }))} required />
               <Field label="Address line 2 optional" value={profileDraft.addressLine2} onChange={(value) => setProfileDraft((draft) => ({ ...draft, addressLine2: value }))} />
               <Field label="City" value={profileDraft.city} onChange={(value) => setProfileDraft((draft) => ({ ...draft, city: value }))} required />
-              <Field label="State/Region" value={profileDraft.stateRegion} onChange={(value) => setProfileDraft((draft) => ({ ...draft, stateRegion: value }))} required />
+              <Select label="Country" value={profileDraft.country} options={countryOptions} onChange={(value) => setProfileDraft((draft) => ({ ...draft, country: value, stateRegion: "" }))} required />
+              {needsManualState ? (
+                <Field label="State/Region" value={profileDraft.stateRegion === "Other / Not listed" ? "" : profileDraft.stateRegion} onChange={(value) => setProfileDraft((draft) => ({ ...draft, stateRegion: value }))} required />
+              ) : (
+                <Select label="State/Region" value={profileDraft.stateRegion} options={["", ...stateOptions]} onChange={(value) => setProfileDraft((draft) => ({ ...draft, stateRegion: value }))} required />
+              )}
               <Field label="Postal code optional" value={profileDraft.postalCode} onChange={(value) => setProfileDraft((draft) => ({ ...draft, postalCode: value }))} />
-              <Field label="Country" value={profileDraft.country} onChange={(value) => setProfileDraft((draft) => ({ ...draft, country: value }))} required />
-              <Field label="Industry" value={profileDraft.industry} onChange={(value) => setProfileDraft((draft) => ({ ...draft, industry: value }))} required />
-              <Select label="Company size" value={profileDraft.companySize} options={companySizeOptions} onChange={(value) => setProfileDraft((draft) => ({ ...draft, companySize: value }))} required />
+              <Select label="Industry optional" value={profileDraft.industry} options={industryOptions} onChange={(value) => setProfileDraft((draft) => ({ ...draft, industry: value, industryOther: value === "Other" ? draft.industryOther : "" }))} />
+              {needsOtherIndustry ? (
+                <Field label="Specify industry optional" value={profileDraft.industryOther} onChange={(value) => setProfileDraft((draft) => ({ ...draft, industryOther: value }))} />
+              ) : null}
+              <Select label="Company size optional" value={profileDraft.companySize} options={companySizeOptions} onChange={(value) => setProfileDraft((draft) => ({ ...draft, companySize: value }))} />
               <TextArea label="Hiring focus" value={profileDraft.hiringFocus} onChange={(value) => setProfileDraft((draft) => ({ ...draft, hiringFocus: value }))} required />
             </div>
           </section>

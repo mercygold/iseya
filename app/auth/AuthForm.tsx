@@ -15,6 +15,21 @@ type AuthFormProps = {
   mode: AuthMode;
 };
 
+const countryRegions: Record<string, string[]> = {
+  "United States": ["California", "Florida", "Georgia", "Illinois", "New York", "Texas", "Washington", "Other / Not listed"],
+  Canada: ["Alberta", "British Columbia", "Ontario", "Quebec", "Other / Not listed"],
+  "United Kingdom": ["England", "Northern Ireland", "Scotland", "Wales", "Other / Not listed"],
+  Nigeria: ["Abuja FCT", "Lagos", "Ogun", "Oyo", "Rivers", "Kano", "Other / Not listed"],
+  Australia: ["New South Wales", "Queensland", "Victoria", "Western Australia", "Other / Not listed"],
+  India: ["Delhi", "Karnataka", "Maharashtra", "Tamil Nadu", "Telangana", "Other / Not listed"],
+  "United Arab Emirates": ["Abu Dhabi", "Dubai", "Sharjah", "Other / Not listed"],
+  "South Africa": ["Gauteng", "KwaZulu-Natal", "Western Cape", "Other / Not listed"],
+  Ghana: ["Ashanti", "Greater Accra", "Northern", "Other / Not listed"],
+  Kenya: ["Nairobi", "Mombasa", "Nakuru", "Other / Not listed"],
+};
+const countryOptions = ["", ...Object.keys(countryRegions), "Other / Not listed"];
+const industryOptions = ["", "Technology", "Software / SaaS", "Artificial Intelligence", "Cybersecurity", "Fintech", "Healthcare", "Education", "Consulting", "Marketing / Advertising", "Media / Entertainment", "E-commerce", "Retail", "Finance / Banking", "Real Estate", "Construction", "Manufacturing", "Logistics / Transportation", "Energy", "Agriculture", "Hospitality", "Legal", "Government / Public Sector", "Nonprofit", "Staffing / Recruiting", "Other"];
+
 export default function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -43,6 +58,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [postalCode, setPostalCode] = useState("");
   const [country, setCountry] = useState("");
   const [industry, setIndustry] = useState("");
+  const [industryOther, setIndustryOther] = useState("");
   const [companySize, setCompanySize] = useState("");
   const [hiringFocus, setHiringFocus] = useState("");
   const [status, setStatus] = useState("");
@@ -54,6 +70,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const useInstitutionSignup = enableInstitutionAccess && signupPath === "institution";
   const useRecruiterSignup = !isLogin && signupPath === "recruiter";
   const signupEmail = useInstitutionSignup ? schoolEmail : email;
+  const stateOptions = country ? (countryRegions[country] ?? ["Other / Not listed"]) : [];
+  const needsManualState = country === "Other / Not listed" || stateRegion === "Other / Not listed";
+  const needsOtherIndustry = industry === "Other";
 
   useEffect(() => {
     if (!isLogin && requestedType === "recruiter") {
@@ -127,6 +146,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
             country,
             companyLocation: [city, stateRegion, country].filter(Boolean).join(", "),
             industry,
+            industryOther,
             companySize,
             hiringFocus,
           }),
@@ -310,15 +330,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
                     />
                   </label>
                   <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
-                    State/Region
-                    <input
-                      required
-                      value={stateRegion}
-                      onChange={(event) => setStateRegion(event.target.value)}
-                      className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
-                    />
-                  </label>
-                  <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
                     Postal code optional
                     <input
                       value={postalCode}
@@ -328,26 +339,70 @@ export default function AuthForm({ mode }: AuthFormProps) {
                   </label>
                   <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
                     Country
-                    <input
+                    <select
                       required
                       value={country}
-                      onChange={(event) => setCountry(event.target.value)}
+                      onChange={(event) => {
+                        setCountry(event.target.value);
+                        setStateRegion("");
+                      }}
                       className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
-                    />
+                    >
+                      {countryOptions.map((option) => (
+                        <option key={option} value={option}>{option || "Select"}</option>
+                      ))}
+                    </select>
                   </label>
+                  {needsManualState ? (
+                    <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                      State/Region
+                      <input
+                        required
+                        value={stateRegion === "Other / Not listed" ? "" : stateRegion}
+                        onChange={(event) => setStateRegion(event.target.value)}
+                        className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                      />
+                    </label>
+                  ) : (
+                    <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                      State/Region
+                      <select
+                        required
+                        value={stateRegion}
+                        onChange={(event) => setStateRegion(event.target.value)}
+                        className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                      >
+                        {["", ...stateOptions].map((option) => (
+                          <option key={option} value={option}>{option || "Select"}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
                     Industry
-                    <input
-                      required
+                    <select
                       value={industry}
                       onChange={(event) => setIndustry(event.target.value)}
                       className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
-                    />
+                    >
+                      {industryOptions.map((option) => (
+                        <option key={option} value={option}>{option || "Select"}</option>
+                      ))}
+                    </select>
                   </label>
+                  {needsOtherIndustry ? (
+                    <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                      Specify industry optional
+                      <input
+                        value={industryOther}
+                        onChange={(event) => setIndustryOther(event.target.value)}
+                        className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                      />
+                    </label>
+                  ) : null}
                   <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
-                    Company size
+                    Company size optional
                     <select
-                      required
                       value={companySize}
                       onChange={(event) => setCompanySize(event.target.value)}
                       className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"

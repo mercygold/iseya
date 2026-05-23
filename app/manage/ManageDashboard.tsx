@@ -42,6 +42,7 @@ type RecruiterModeration = {
   country: string | null;
   company_location: string | null;
   industry: string | null;
+  industry_other: string | null;
   company_size: string | null;
   hiring_focus: string | null;
   verification_status: string;
@@ -645,7 +646,7 @@ function RecruiterModal({
           <Detail label="State/Region" value={recruiter.state_region} />
           <Detail label="Postal code" value={recruiter.postal_code} />
           <Detail label="Country" value={recruiter.country} />
-          <Detail label="Industry" value={recruiter.industry} />
+          <Detail label="Industry" value={recruiter.industry === "Other" ? recruiter.industry_other : recruiter.industry} />
           <Detail label="Company size" value={recruiter.company_size} />
           <div className="sm:col-span-2">
             <Detail label="Hiring focus" value={recruiter.hiring_focus} />

@@ -143,6 +143,7 @@ export type Database = {
           country: string;
           company_location: string | null;
           industry: string | null;
+          industry_other: string | null;
           company_size: string | null;
           hiring_focus: string | null;
           verification_status: string;
@@ -168,6 +169,7 @@ export type Database = {
           country?: string;
           company_location?: string | null;
           industry?: string | null;
+          industry_other?: string | null;
           company_size?: string | null;
           hiring_focus?: string | null;
           verification_status?: string;
@@ -193,6 +195,7 @@ export type Database = {
           country?: string;
           company_location?: string | null;
           industry?: string | null;
+          industry_other?: string | null;
           company_size?: string | null;
           hiring_focus?: string | null;
           verification_status?: string;
