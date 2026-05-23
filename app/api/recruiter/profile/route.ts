@@ -3,6 +3,9 @@ import { createSupabaseServerClient } from "@/lib/supabaseServer";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const saveErrorMessage =
+  "Unable to save recruiter profile right now. Please check the required fields and try again.";
+
 type RecruiterProfileBody = {
   companyName?: unknown;
   recruiterName?: unknown;
@@ -125,8 +128,10 @@ export async function PUT(request: Request) {
     console.error("[recruiter-profile] profile update failed", {
       code: profileUpdate.error.code,
       message: profileUpdate.error.message,
+      details: profileUpdate.error.details,
+      hint: profileUpdate.error.hint,
     });
-    return Response.json({ error: "Unable to update account type." }, { status: 500 });
+    return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
 
   const { data: existingRecruiterProfile, error: existingProfileError } = await supabase
@@ -142,7 +147,7 @@ export async function PUT(request: Request) {
       details: existingProfileError.details,
       hint: existingProfileError.hint,
     });
-    return Response.json({ error: "Unable to check recruiter profile before saving." }, { status: 500 });
+    return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
 
   const nextVerificationStatus =
@@ -194,20 +199,7 @@ export async function PUT(request: Request) {
       attemptedColumns: Object.keys(recruiterProfilePayload),
       operation: existingRecruiterProfile ? "update" : "insert",
     });
-    const missingColumn =
-      error.code === "PGRST204" ||
-      /column|schema cache|address_line_1|industry_other|phone_number|linkedin_company_url/i.test(
-        error.message,
-      );
-
-    return Response.json(
-      {
-        error: missingColumn
-          ? "Recruiter profile storage needs the latest database migration before saving."
-          : "Unable to save recruiter profile.",
-      },
-      { status: 500 },
-    );
+    return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
 
   return Response.json({ recruiterProfile: data });

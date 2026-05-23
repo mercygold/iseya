@@ -331,7 +331,9 @@ export default function RecruiterDashboard() {
       const data = (await response.json().catch(() => ({}))) as { error?: string };
 
       if (!response.ok) {
-        throw new Error(data.error || "Unable to save recruiter profile.");
+        throw new Error(
+          data.error || "Unable to save recruiter profile right now. Please try again.",
+        );
       }
 
       setStatus("Company profile saved.");
@@ -341,7 +343,11 @@ export default function RecruiterDashboard() {
         router.refresh();
       }
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to save recruiter profile.");
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Unable to save recruiter profile right now. Please try again.",
+      );
     }
   }
 
