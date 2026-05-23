@@ -4122,27 +4122,51 @@ export default function Home() {
     () => buildTailoredResume(sampleResume, sampleJob, "Product Manager"),
     [],
   );
+  const starterPreviewSourceText = useMemo(
+    () =>
+      [
+        masterResume,
+        uploadedFiles
+          .map((file) => file.extractedText?.trim())
+          .filter((text): text is string => Boolean(text))
+          .join("\n\n"),
+      ]
+        .filter((text) => text.trim().length > 0)
+        .join("\n\nSUPPORTING SOURCE MATERIAL\n"),
+    [masterResume, uploadedFiles],
+  );
+  const starterWorkspacePreviewResult = useMemo(
+    () =>
+      buildTailoredResume(
+        starterPreviewSourceText.trim().length >= 40
+          ? starterPreviewSourceText
+          : sampleResume,
+        jobDescription.trim().length >= 40 ? jobDescription : sampleJob,
+        targetRole.trim() || "Product Manager",
+      ),
+    [jobDescription, starterPreviewSourceText, targetRole],
+  );
   const premiumPreviewPackage = useMemo(
     () =>
       buildApplicationPackage({
-        resumeText: premiumPreviewResult.rewrittenResume,
-        targetRole: "Product Manager",
-        industryTarget: "General / ATS",
-        jobDescription: sampleJob,
-        coach: premiumPreviewResult.coach,
+        resumeText: starterWorkspacePreviewResult.rewrittenResume,
+        targetRole: targetRole.trim() || "Product Manager",
+        industryTarget,
+        jobDescription: jobDescription.trim().length >= 40 ? jobDescription : sampleJob,
+        coach: starterWorkspacePreviewResult.coach,
       }),
-    [premiumPreviewResult],
+    [industryTarget, jobDescription, starterWorkspacePreviewResult, targetRole],
   );
   const panelCoverLetter = hasCoverLetterAccess
     ? result?.coverLetter ?? premiumPreviewResult.coverLetter
-    : premiumPreviewResult.coverLetter;
+    : result?.coverLetter ?? starterWorkspacePreviewResult.coverLetter;
   const panelLinkedIn = hasLinkedInAccess
     ? result?.linkedin ?? premiumPreviewPackage.linkedin
-    : premiumPreviewPackage.linkedin;
+    : result?.linkedin ?? premiumPreviewPackage.linkedin;
   const panelApplicationKit = hasApplicationKitAccess
     ? result?.applicationKit ?? premiumPreviewPackage.applicationKit
-    : premiumPreviewPackage.applicationKit;
-  const workspaceResult = result ?? (isStarterPlan(subscriptionPlan) ? premiumPreviewResult : null);
+    : result?.applicationKit ?? premiumPreviewPackage.applicationKit;
+  const workspaceResult = result ?? (isStarterPlan(subscriptionPlan) ? starterWorkspacePreviewResult : null);
   const isStarterWorkflowPreview = !result && Boolean(workspaceResult) && isStarterPlan(subscriptionPlan);
   const dashboardActivity = [
     savedVersions.length > 0
@@ -5278,6 +5302,21 @@ export default function Home() {
 
   async function tailorResume() {
     if (!requireOptimizationAccess("AI resume tailoring")) {
+      if (isStarterPlan(subscriptionPlan)) {
+        const starterGeneratedResult = buildTailoredResume(
+          [masterResume, extractedSourceText]
+            .filter((text) => text.trim().length > 0)
+            .join("\n\nSUPPORTING SOURCE MATERIAL\n"),
+          jobDescription,
+          targetRole,
+        );
+        setActiveOutput("resume");
+        setTailorError("");
+        setResult(starterGeneratedResult);
+        setSystemStatus(
+          "Starter preview generated one editable resume. Upgrade to unlock advanced AI optimization, premium exports, and saved versions.",
+        );
+      }
       return;
     }
 
@@ -5441,6 +5480,7 @@ export default function Home() {
     }
 
     if (nextFiles.some((file) => file.extractionStatus === "extracted")) {
+      setActiveOutput("resume");
       setSystemStatus("Text extracted successfully and added to your source materials.");
     }
 
