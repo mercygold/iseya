@@ -17,9 +17,11 @@ function validEmail(value: string) {
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const email = text(body.email).toLowerCase();
+  const keywordQuery = text(body.keywordQuery);
   const titleQuery = text(body.titleQuery);
   const locationQuery = text(body.locationQuery);
   const employmentType = text(body.employmentType);
+  const workplaceType = text(body.workplaceType);
   const remoteOnly = Boolean(body.remoteOnly);
 
   if (!validEmail(email)) {
@@ -40,9 +42,11 @@ export async function POST(request: Request) {
   const { error } = await serviceRole.from("job_alert_subscriptions").insert({
     candidate_id: user?.id ?? null,
     email,
+    keyword_query: keywordQuery,
     title_query: titleQuery,
     location_query: locationQuery,
     employment_type: employmentType,
+    workplace_type: workplaceType,
     remote_only: remoteOnly,
     status: "active",
   });

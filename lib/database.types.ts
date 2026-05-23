@@ -234,7 +234,8 @@ export type Database = {
         Row: {
           id: string;
           job_id: string;
-          candidate_id: string;
+          candidate_id: string | null;
+          candidate_email: string | null;
           recruiter_id: string;
           status: string;
           candidate_snapshot: Json;
@@ -243,7 +244,8 @@ export type Database = {
         Insert: {
           id?: string;
           job_id: string;
-          candidate_id: string;
+          candidate_id?: string | null;
+          candidate_email?: string | null;
           recruiter_id: string;
           status?: string;
           candidate_snapshot?: Json;
@@ -252,7 +254,8 @@ export type Database = {
         Update: {
           id?: string;
           job_id?: string;
-          candidate_id?: string;
+          candidate_id?: string | null;
+          candidate_email?: string | null;
           recruiter_id?: string;
           status?: string;
           candidate_snapshot?: Json;
@@ -264,9 +267,11 @@ export type Database = {
           id: string;
           candidate_id: string | null;
           email: string;
+          keyword_query: string;
           title_query: string;
           location_query: string;
           employment_type: string;
+          workplace_type: string;
           remote_only: boolean;
           status: string;
           created_at: string;
@@ -276,9 +281,11 @@ export type Database = {
           id?: string;
           candidate_id?: string | null;
           email: string;
+          keyword_query?: string;
           title_query?: string;
           location_query?: string;
           employment_type?: string;
+          workplace_type?: string;
           remote_only?: boolean;
           status?: string;
           created_at?: string;
@@ -288,9 +295,11 @@ export type Database = {
           id?: string;
           candidate_id?: string | null;
           email?: string;
+          keyword_query?: string;
           title_query?: string;
           location_query?: string;
           employment_type?: string;
+          workplace_type?: string;
           remote_only?: boolean;
           status?: string;
           created_at?: string;

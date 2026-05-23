@@ -42,6 +42,7 @@ export default function JobsBoard() {
   const [employmentType, setEmploymentType] = useState("");
   const [workplace, setWorkplace] = useState("");
   const [alertEmail, setAlertEmail] = useState(user?.email ?? "");
+  const [interestEmail, setInterestEmail] = useState(user?.email ?? "");
   const [selectedJobId, setSelectedJobId] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
@@ -90,28 +91,28 @@ export default function JobsBoard() {
   }, [loadJobs]);
 
   async function applyToJob(job: JobPost) {
-    if (!user) {
-      window.location.href = `/login?redirectedFrom=${encodeURIComponent("/jobs")}`;
-      return;
-    }
-
     if (job.application_url) {
       window.open(job.application_url, "_blank", "noopener,noreferrer");
+      return;
     }
 
     setStatus("");
 
     try {
-      const response = await fetch(`/api/jobs/${job.id}/apply`, { method: "POST" });
+      const response = await fetch(`/api/jobs/${job.id}/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: interestEmail }),
+      });
       const data = (await response.json().catch(() => ({}))) as { error?: string };
 
       if (!response.ok) {
         throw new Error(data.error || "Unable to express interest.");
       }
 
-      setStatus("Interest submitted with your ISEYA career profile.");
+      setStatus("Interest submitted.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to express interest.");
+      setStatus(error instanceof Error ? error.message : "Unable to submit interest right now.");
     }
   }
 
@@ -125,9 +126,11 @@ export default function JobsBoard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: alertEmail,
+          keywordQuery: query,
           titleQuery,
           locationQuery,
           employmentType,
+          workplaceType: workplace,
           remoteOnly: workplace === "remote",
         }),
       });
@@ -137,9 +140,13 @@ export default function JobsBoard() {
         throw new Error(data.error || "Unable to save job alert.");
       }
 
-      setStatus("Job alert saved. We will use these search preferences for future notifications.");
+      setStatus("You’re subscribed to job alerts.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to save job alert.");
+      setStatus(
+        error instanceof Error && /valid email/i.test(error.message)
+          ? error.message
+          : "Job alerts are being prepared. Please try again shortly.",
+      );
     } finally {
       setAlertLoading(false);
     }
@@ -283,7 +290,7 @@ export default function JobsBoard() {
               </div>
             ) : jobs.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm font-medium text-slate-600">
-                No published jobs match this search yet.
+                New opportunities are being added. Adjust your filters or subscribe for alerts.
               </div>
             ) : (
               jobs.map((job) => (
@@ -330,14 +337,30 @@ export default function JobsBoard() {
                         {selectedJob.salary_range}
                       </p>
                     ) : null}
+                    {selectedJob.application_deadline ? (
+                      <p className="mt-2 text-sm font-medium text-slate-600">
+                        Apply by {new Date(selectedJob.application_deadline).toLocaleDateString()}
+                      </p>
+                    ) : null}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => applyToJob(selectedJob)}
-                    className={primaryButton}
-                  >
-                    Apply or Express Interest
-                  </button>
+                  <div className="flex flex-col gap-2 sm:min-w-64">
+                    {!selectedJob.application_url ? (
+                      <input
+                        type="email"
+                        value={interestEmail}
+                        onChange={(event) => setInterestEmail(event.target.value)}
+                        placeholder="Email for interest"
+                        className="rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+                      />
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => applyToJob(selectedJob)}
+                      className={primaryButton}
+                    >
+                      {selectedJob.application_url ? "Apply Externally" : "Express Interest"}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-6 grid gap-5">
@@ -366,9 +389,9 @@ export default function JobsBoard() {
                       ISEYA application MVP
                     </p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Express interest using your existing ISEYA career materials. Full
-                      resume attachment review will connect to recruiter applicant
-                      management in a later phase.
+                      {selectedJob.application_url
+                        ? "This employer accepts applications through an external application page."
+                        : "Express interest without creating a public candidate profile. If you are signed in, ISEYA can connect the interest to your private workspace."}
                     </p>
                     <Link href="/workspace" className={`${secondaryButton} mt-3`}>
                       Improve Career Materials
