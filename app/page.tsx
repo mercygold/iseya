@@ -2561,14 +2561,69 @@ function splitDateRange(value: string) {
   };
 }
 
+function dateSignalRegex() {
+  return /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|\d{1,2}\/\d{4}|(?:19|20)\d{2}|present|current|now)\b/i;
+}
+
+function companySignalRegex() {
+  return /\b(?:inc|llc|ltd|corp|corporation|company|co\.|group|partners|systems|technologies|technology|solutions|ventures|university|college|hospital|health|bank|financial|consulting|labs|agency|foundation|department|ministry)\b/i;
+}
+
+function likelyExperienceLine(line: string) {
+  const cleaned = cleanEditorText(line);
+
+  if (!cleaned || isRecognizedResumeHeading(cleaned) || isLikelyEducationLine(cleaned)) {
+    return false;
+  }
+
+  return (
+    /\b(at|@)\b/i.test(cleaned) ||
+    /\s+[|]\s+/.test(cleaned) ||
+    /\s+-\s+/.test(cleaned) ||
+    dateSignalRegex().test(cleaned) ||
+    companySignalRegex().test(cleaned)
+  );
+}
+
+function isLikelyEducationLine(line: string) {
+  return /\b(?:bachelor|master|mba|ph\.?d|doctorate|associate|degree|university|college|school|institute|certification|certificate|licensed|license)\b/i.test(
+    line,
+  );
+}
+
+function isLikelyCertificationLine(line: string) {
+  return /\b(?:certified|certification|certificate|license|licensed|pmp|scrum|aws|azure|google|salesforce|cfa|cpa|security\+|six sigma)\b/i.test(
+    line,
+  );
+}
+
+function isLikelySkillLine(line: string) {
+  return (
+    /[,|;•]/.test(line) &&
+    line.length <= 220 &&
+    !dateSignalRegex().test(line) &&
+    !/@/.test(line)
+  );
+}
+
+function isLikelyProjectLine(line: string) {
+  return /\b(?:project|portfolio|prototype|implementation|automation|dashboard|model|platform|app|application|system|tool)\b/i.test(
+    line,
+  );
+}
+
 function parseExperienceLine(line: string) {
   const cleaned = cleanEditorText(line);
   const parts = cleaned.split(/\s+\|\s+/).map(cleanEditorText).filter(Boolean);
-  const roleCompany = parts[0] || cleaned;
-  const datePart = parts.find((part) => /\d{4}|present|current|now/i.test(part)) || "";
+  const datePart = parts.find((part) => dateSignalRegex().test(part)) || "";
+  const roleCompany = (parts.find((part) => part !== datePart && !/^[A-Za-z .'-]+,\s*[A-Z]{2}/.test(part)) || parts[0] || cleaned)
+    .replace(datePart, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
   const location = parts.find((part) => part !== roleCompany && part !== datePart) || "";
   const atMatch = roleCompany.match(/^(.+?)\s+at\s+(.+)$/i);
   const dashParts = roleCompany.split(/\s+-\s+/);
+  const commaParts = roleCompany.split(/\s*,\s*/).filter(Boolean);
   const dateRange = splitDateRange(datePart);
 
   if (atMatch) {
@@ -2581,9 +2636,27 @@ function parseExperienceLine(line: string) {
   }
 
   if (dashParts.length >= 2) {
+    const [first, ...rest] = dashParts;
+    const second = rest.join(" - ");
+    const firstLooksCompany = companySignalRegex().test(first);
+    const secondLooksCompany = companySignalRegex().test(second);
+
     return {
-      title: dashParts[0].trim(),
-      company: dashParts.slice(1).join(" - ").trim(),
+      title: firstLooksCompany && !secondLooksCompany ? second.trim() : first.trim(),
+      company: firstLooksCompany && !secondLooksCompany ? first.trim() : second.trim(),
+      location,
+      ...dateRange,
+    };
+  }
+
+  if (commaParts.length >= 2) {
+    const [first, ...rest] = commaParts;
+    const second = rest.join(", ");
+    const firstLooksCompany = companySignalRegex().test(first);
+
+    return {
+      title: firstLooksCompany ? second.trim() : first.trim(),
+      company: firstLooksCompany ? first.trim() : second.trim(),
       location,
       ...dateRange,
     };
@@ -2768,8 +2841,110 @@ function parseExperienceEntries(section?: ResumeSection): ExperienceEntry[] {
   );
 }
 
+function sourceLinesForParsing(resumeText: string) {
+  return sanitizeResumeSourceText(resumeText)
+    .split(/\r?\n/)
+    .flatMap((line) =>
+      line
+        .replace(/\s+([•*-])\s+/g, "\n$1 ")
+        .split(/\n/),
+    )
+    .map((line) => cleanEditorText(line))
+    .filter((line) => line && !isLikelyContactLine(line, extractContactInfoFromText(resumeText)));
+}
+
+function inferExperienceFromResumeText(resumeText: string) {
+  const lines = sourceLinesForParsing(resumeText);
+  const entries: ExperienceEntry[] = [];
+  let current: ExperienceEntry | null = null;
+  let currentSection = "profile";
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+
+    if (isRecognizedResumeHeading(line)) {
+      currentSection = canonicalResumeHeading(line).toLowerCase();
+      continue;
+    }
+
+    if (/education|certification|publication|research|skill|tool|project/.test(currentSection)) {
+      continue;
+    }
+
+    const isBullet = /^[-*•]\s+/.test(line);
+    const cleaned = cleanEditorText(line.replace(/^[-*•]\s+/, ""));
+
+    if (!cleaned || isPlaceholderResumeText(cleaned) || isLikelyEducationLine(cleaned)) {
+      continue;
+    }
+
+    if (isBullet || (current && cleaned.length > 45 && !likelyExperienceLine(cleaned))) {
+      current?.bullets.push(cleaned);
+      continue;
+    }
+
+    const nextLine = cleanEditorText(lines[index + 1] || "");
+    const followingLine = cleanEditorText(lines[index + 2] || "");
+    const combinedCandidate =
+      nextLine && !isRecognizedResumeHeading(nextLine) && dateSignalRegex().test(nextLine)
+        ? `${cleaned} | ${nextLine}`
+        : cleaned;
+    const looksLikeExperience =
+      likelyExperienceLine(combinedCandidate) ||
+      (nextLine && companySignalRegex().test(nextLine)) ||
+      (followingLine && dateSignalRegex().test(followingLine));
+
+    if (!looksLikeExperience) {
+      if (current && cleaned.length > 20) {
+        current.bullets.push(cleaned);
+      }
+      continue;
+    }
+
+    const parsed = parseExperienceLine(combinedCandidate);
+    const normalized = normalizeExperience(
+      {
+        id: `experience-${entries.length}`,
+        title: parsed.title,
+        company: parsed.company || (companySignalRegex().test(nextLine) ? nextLine : ""),
+        location: parsed.location,
+        startDate: parsed.startDate,
+        endDate: parsed.endDate,
+        isCurrent: parsed.isCurrent,
+        bullets: [],
+      },
+      entries.length,
+    );
+
+    if (normalized) {
+      current = normalized;
+      entries.push(current);
+    }
+  }
+
+  return dedupeExperience(
+    entries
+      .map((entry, index) => normalizeExperience(entry, index))
+      .filter((entry): entry is ExperienceEntry => Boolean(entry)),
+  );
+}
+
+function inferListFromResumeText(
+  resumeText: string,
+  predicate: (line: string) => boolean,
+  limit = 12,
+) {
+  return uniqueStrings(
+    sourceLinesForParsing(resumeText)
+      .filter((line) => !isRecognizedResumeHeading(line) && predicate(line))
+      .flatMap((line) => (isLikelySkillLine(line) ? splitResumeList(line) : [line]))
+      .filter((line) => !isPlaceholderResumeText(line)),
+  ).slice(0, limit);
+}
+
 function structuredResumeFromText(resumeText: string): StructuredResume {
-  const { sections } = parseResumePreview(sanitizeResumeSourceText(resumeText));
+  const cleanedResumeText = sanitizeResumeSourceText(resumeText);
+  const { sections } = parseResumePreview(cleanedResumeText);
   const summarySection = findResumeSection(sections, [
     "PROFESSIONAL SUMMARY",
     "SUMMARY",
@@ -2812,13 +2987,34 @@ function structuredResumeFromText(resumeText: string): StructuredResume {
       .map((section) => section?.heading),
   );
 
+  const parsedExperience = parseExperienceEntries(experienceSection);
+  const inferredExperience =
+    parsedExperience.length > 0 ? parsedExperience : inferExperienceFromResumeText(cleanedResumeText);
+  const parsedSkills = splitResumeList(sectionItems(skillsSection).join(", "));
+  const inferredSkills =
+    parsedSkills.length > 0
+      ? parsedSkills
+      : inferListFromResumeText(cleanedResumeText, isLikelySkillLine, 24);
+  const parsedEducation = sectionItems(educationSection);
+  const parsedCertifications = sectionItems(certificationSection);
+  const parsedProjects = sectionItems(projectSection);
+
   return {
     summary: sectionItems(summarySection).join(" "),
-    skills: splitResumeList(sectionItems(skillsSection).join(", ")),
-    experience: parseExperienceEntries(experienceSection),
-    projects: sectionItems(projectSection),
-    education: sectionItems(educationSection),
-    certifications: sectionItems(certificationSection),
+    skills: inferredSkills,
+    experience: inferredExperience,
+    projects:
+      parsedProjects.length > 0
+        ? parsedProjects
+        : inferListFromResumeText(cleanedResumeText, isLikelyProjectLine, 8),
+    education:
+      parsedEducation.length > 0
+        ? parsedEducation
+        : inferListFromResumeText(cleanedResumeText, isLikelyEducationLine, 8),
+    certifications:
+      parsedCertifications.length > 0
+        ? parsedCertifications
+        : inferListFromResumeText(cleanedResumeText, isLikelyCertificationLine, 8),
     publications: sectionItems(publicationSection),
     tools: splitResumeList(sectionItems(toolsSection).join(", ")),
     additionalSections: sections.filter(
