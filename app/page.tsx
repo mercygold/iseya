@@ -270,6 +270,7 @@ type ExperienceEntry = {
 };
 
 type StructuredResume = {
+  header?: PersonalBranding;
   summary: string;
   skills: string[];
   experience: ExperienceEntry[];
@@ -277,8 +278,12 @@ type StructuredResume = {
   education: string[];
   certifications: string[];
   publications: string[];
+  leadership: string[];
+  awards: string[];
+  volunteerExperience: string[];
   tools: string[];
   additionalSections: ResumeSection[];
+  unmatchedSections?: ResumeSection[];
 };
 
 type AiOptimizationAction =
@@ -2270,23 +2275,20 @@ function buildTailoredResume(
     18,
   );
   const summary =
-    parsedSource.summary ||
-    [
-      role && role !== "Target Role" ? `${role} candidate` : "Candidate",
-      skills.length > 0
-        ? `with experience across ${skills.slice(0, 5).join(", ")}`
-        : "",
-      "based on the provided resume source.",
-    ]
-      .filter(Boolean)
-      .join(" ");
-  const structuredResume: StructuredResume = {
+    generateExecutiveSummary({
+      sourceSummary: parsedSource.summary,
+      targetRole: role,
+      jobDescription,
+      skills,
+      experience: parsedSource.experience,
+    });
+  const structuredResume = validateCanonicalResume({
     ...parsedSource,
     summary,
     skills,
     experience: parsedSource.experience,
     additionalSections: [],
-  };
+  });
   const rewrittenResume = serializeStructuredResume(structuredResume, sourceBranding);
   const bullets = parsedSource.experience.flatMap((entry) => entry.bullets).slice(0, 8);
   const matchBreakdown = buildLocalMatchBreakdown(scoreResult.score);
@@ -2458,7 +2460,7 @@ function canonicalResumeHeading(value: string) {
   }
 
   if (/^(PROJECTS|PROJECT EXPERIENCE|SELECTED PROJECTS|AI PROJECTS|AI & AUTOMATION PROJECTS)$/.test(heading)) {
-    return "AI & AUTOMATION PROJECTS";
+    return "PROJECTS";
   }
 
   if (/^(EDUCATION|ACADEMIC BACKGROUND)$/.test(heading)) {
@@ -2477,6 +2479,14 @@ function canonicalResumeHeading(value: string) {
     return "TOOLS / TECHNOLOGIES";
   }
 
+  if (/^(LEADERSHIP|LEADERSHIP EXPERIENCE|AWARDS|HONORS|AWARDS & HONORS|VOLUNTEER|VOLUNTEER EXPERIENCE|COMMUNITY LEADERSHIP)$/.test(heading)) {
+    return heading.includes("AWARD") || heading.includes("HONOR")
+      ? "AWARDS"
+      : heading.includes("VOLUNTEER")
+        ? "VOLUNTEER EXPERIENCE"
+        : "LEADERSHIP";
+  }
+
   return heading;
 }
 
@@ -2489,7 +2499,7 @@ function isRecognizedResumeHeading(value: string) {
   }
 
   if (
-    /^(PROFILE|SUMMARY|PROFESSIONAL SUMMARY|CAREER SUMMARY|EXECUTIVE SUMMARY|CORE SKILLS|SKILLS|KEY SKILLS|TECHNICAL SKILLS|COMPETENCIES|AREAS OF EXPERTISE|EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|EMPLOYMENT|EMPLOYMENT HISTORY|CAREER EXPERIENCE|PROJECTS|PROJECT EXPERIENCE|SELECTED PROJECTS|AI PROJECTS|AI & AUTOMATION PROJECTS|EDUCATION|ACADEMIC BACKGROUND|CERTIFICATIONS|CERTIFICATES|LICENSES|LICENSES & CERTIFICATIONS|PUBLICATIONS|RESEARCH|PUBLICATIONS \/ RESEARCH|PUBLICATIONS & RESEARCH|TOOLS|TECHNOLOGIES|TOOLS \/ TECHNOLOGIES|TECHNICAL TOOLS|PLATFORMS)$/i.test(cleaned)
+    /^(PROFILE|SUMMARY|PROFESSIONAL SUMMARY|CAREER SUMMARY|EXECUTIVE SUMMARY|CORE SKILLS|SKILLS|KEY SKILLS|TECHNICAL SKILLS|COMPETENCIES|AREAS OF EXPERTISE|EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|EMPLOYMENT|EMPLOYMENT HISTORY|CAREER EXPERIENCE|PROJECTS|PROJECT EXPERIENCE|SELECTED PROJECTS|AI PROJECTS|AI & AUTOMATION PROJECTS|EDUCATION|ACADEMIC BACKGROUND|CERTIFICATIONS|CERTIFICATES|LICENSES|LICENSES & CERTIFICATIONS|PUBLICATIONS|RESEARCH|PUBLICATIONS \/ RESEARCH|PUBLICATIONS & RESEARCH|TOOLS|TECHNOLOGIES|TOOLS \/ TECHNOLOGIES|TECHNICAL TOOLS|PLATFORMS|LEADERSHIP|LEADERSHIP EXPERIENCE|AWARDS|HONORS|AWARDS & HONORS|VOLUNTEER|VOLUNTEER EXPERIENCE|COMMUNITY LEADERSHIP)$/i.test(cleaned)
   ) {
     return true;
   }
@@ -2642,6 +2652,44 @@ function isLikelyProjectLine(line: string) {
   return /\b(?:project|portfolio|prototype|implementation|automation|dashboard|model|platform|app|application|system|tool)\b/i.test(
     line,
   );
+}
+
+function isLikelyLeadershipLine(line: string) {
+  return /\b(?:leadership|chair|president|board|committee|mentor|mentored|led|founded|captain|officer|community|volunteer)\b/i.test(
+    line,
+  );
+}
+
+function isLikelyAwardLine(line: string) {
+  return /\b(?:award|honor|honour|dean'?s list|scholarship|recognition|recognized|winner|finalist|fellowship)\b/i.test(
+    line,
+  );
+}
+
+function inferProjectSectionTitle(projects: string[], industryTarget?: string) {
+  const joined = projects.join(" ").toLowerCase();
+
+  if (/research|publication|study|methodology/.test(joined) || /academic|research/i.test(industryTarget || "")) {
+    return "RESEARCH PROJECTS";
+  }
+
+  if (/product|roadmap|launch|user|saas/.test(joined)) {
+    return "PRODUCT PROJECTS";
+  }
+
+  if (/finance|fintech|bank|risk|portfolio/.test(joined)) {
+    return "FINANCE PROJECTS";
+  }
+
+  if (/operation|workflow|supply|logistics/.test(joined)) {
+    return "OPERATIONS PROJECTS";
+  }
+
+  if (/technical|api|automation|ai|machine learning|model|platform|system/.test(joined)) {
+    return "TECHNICAL PROJECTS";
+  }
+
+  return "PROJECTS";
 }
 
 function parseExperienceLine(line: string) {
@@ -3087,6 +3135,85 @@ function inferListFromResumeText(
   ).slice(0, limit);
 }
 
+function generateExecutiveSummary({
+  sourceSummary,
+  targetRole,
+  jobDescription,
+  skills,
+  experience,
+}: {
+  sourceSummary: string;
+  targetRole: string;
+  jobDescription: string;
+  skills: string[];
+  experience: ExperienceEntry[];
+}) {
+  const cleanedSource = cleanEditorText(sourceSummary);
+  const role = titleCase(targetRole || firstMeaningfulLine(jobDescription, "Target Role"));
+  const leadershipSignal = experience.some((entry) =>
+    /\b(?:director|lead|manager|head|principal|senior|executive|founder)\b/i.test(
+      `${entry.title} ${entry.bullets.join(" ")}`,
+    ),
+  );
+  const skillPhrase = skills.slice(0, 5).join(", ");
+
+  if (cleanedSource && cleanedSource.length >= 80 && cleanedSource.length <= 420) {
+    return cleanEditorText(cleanedSource);
+  }
+
+  return [
+    role && role !== "Target Role" ? `${role}` : "Experienced professional",
+    leadershipSignal ? "with leadership experience" : "with cross-functional experience",
+    skillPhrase ? `spanning ${skillPhrase}` : "",
+    "Known for translating business priorities into structured execution, stakeholder alignment, and measurable outcomes while preserving source-verified achievements.",
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function validateCanonicalResume(structured: StructuredResume) {
+  const cleanList = (items: string[]) =>
+    uniqueStrings(
+      items
+        .map(cleanEditorText)
+        .filter(
+          (item) =>
+            item &&
+            !isResumeNoiseLine(item) &&
+            !isSourceArtifactHeading(item) &&
+            !isPlaceholderResumeText(item),
+        ),
+    );
+
+  return {
+    ...structured,
+    summary: cleanEditorText(structured.summary),
+    skills: prioritizeSkillsForJob(structured.skills, "", 18),
+    experience: dedupeExperience(
+      structured.experience
+        .map((entry, index) => normalizeExperience(entry, index))
+        .filter((entry): entry is ExperienceEntry => Boolean(entry)),
+    ),
+    projects: cleanList(structured.projects),
+    education: cleanList(structured.education),
+    certifications: cleanList(structured.certifications),
+    publications: cleanList(structured.publications),
+    leadership: cleanList(structured.leadership),
+    awards: cleanList(structured.awards),
+    volunteerExperience: cleanList(structured.volunteerExperience),
+    tools: cleanList(structured.tools),
+    additionalSections: structured.additionalSections.filter(
+      (section) =>
+        section.heading &&
+        !isSourceArtifactHeading(section.heading) &&
+        [...section.body, ...section.bullets].some((item) => cleanEditorText(item)),
+    ),
+    unmatchedSections: structured.unmatchedSections ?? [],
+  };
+}
+
 function structuredResumeFromText(resumeText: string): StructuredResume {
   const cleanedResumeText = sanitizeResumeSourceText(resumeText);
   const { sections } = parseResumePreview(cleanedResumeText);
@@ -3102,9 +3229,12 @@ function structuredResumeFromText(resumeText: string): StructuredResume {
     "EXPERIENCE",
   ]);
   const projectSection = findResumeSection(sections, [
-    "AI & AUTOMATION PROJECTS",
-    "AI PROJECTS",
     "PROJECTS",
+    "TECHNICAL PROJECTS",
+    "RESEARCH PROJECTS",
+    "PRODUCT PROJECTS",
+    "FINANCE PROJECTS",
+    "OPERATIONS PROJECTS",
   ]);
   const educationSection = findResumeSection(sections, ["EDUCATION"]);
   const certificationSection = findResumeSection(sections, ["CERTIFICATIONS"]);
@@ -3117,6 +3247,9 @@ function structuredResumeFromText(resumeText: string): StructuredResume {
     "TOOLS",
     "TECHNOLOGIES",
   ]);
+  const leadershipSection = findResumeSection(sections, ["LEADERSHIP"]);
+  const awardsSection = findResumeSection(sections, ["AWARDS", "HONORS"]);
+  const volunteerSection = findResumeSection(sections, ["VOLUNTEER"]);
   const knownSections = new Set(
     [
       summarySection,
@@ -3127,6 +3260,9 @@ function structuredResumeFromText(resumeText: string): StructuredResume {
       certificationSection,
       publicationSection,
       toolsSection,
+      leadershipSection,
+      awardsSection,
+      volunteerSection,
     ]
       .filter(Boolean)
       .map((section) => section?.heading),
@@ -3143,8 +3279,17 @@ function structuredResumeFromText(resumeText: string): StructuredResume {
   const parsedEducation = sectionItems(educationSection);
   const parsedCertifications = sectionItems(certificationSection);
   const parsedProjects = sectionItems(projectSection);
+  const unmatchedSections = sections.filter(
+    (section) =>
+      !knownSections.has(section.heading) &&
+      !isSourceArtifactHeading(section.heading),
+  );
+  const inferredAwards = sectionItems(awardsSection);
+  const inferredLeadership = sectionItems(leadershipSection);
+  const inferredVolunteer = sectionItems(volunteerSection);
 
-  return {
+  return validateCanonicalResume({
+    header: brandingFromResumeText(cleanedResumeText),
     summary: sectionItems(summarySection).join(" "),
     skills: inferredSkills,
     experience: inferredExperience,
@@ -3161,13 +3306,19 @@ function structuredResumeFromText(resumeText: string): StructuredResume {
         ? parsedCertifications
         : inferListFromResumeText(cleanedResumeText, isLikelyCertificationLine, 8),
     publications: sectionItems(publicationSection),
+    leadership:
+      inferredLeadership.length > 0
+        ? inferredLeadership
+        : inferListFromResumeText(cleanedResumeText, isLikelyLeadershipLine, 6),
+    awards:
+      inferredAwards.length > 0
+        ? inferredAwards
+        : inferListFromResumeText(cleanedResumeText, isLikelyAwardLine, 6),
+    volunteerExperience: inferredVolunteer,
     tools: splitResumeList(sectionItems(toolsSection).join(", ")),
-    additionalSections: sections.filter(
-      (section) =>
-        !knownSections.has(section.heading) &&
-        !isSourceArtifactHeading(section.heading),
-    ),
-  };
+    additionalSections: [],
+    unmatchedSections,
+  });
 }
 
 function serializeStructuredResume(
@@ -3261,10 +3412,13 @@ function serializeStructuredResume(
     }
   }
 
-  pushListSection("AI & AUTOMATION PROJECTS", structured.projects);
+  pushListSection(inferProjectSectionTitle(structured.projects), structured.projects);
   pushListSection("EDUCATION", structured.education);
   pushListSection("CERTIFICATIONS", structured.certifications);
   pushListSection("PUBLICATIONS / RESEARCH", structured.publications);
+  pushListSection("LEADERSHIP", structured.leadership);
+  pushListSection("AWARDS", structured.awards);
+  pushListSection("VOLUNTEER EXPERIENCE", structured.volunteerExperience);
 
   if (structured.tools.length > 0) {
     lines.push("", "TOOLS / TECHNOLOGIES", uniqueStrings(structured.tools).join(" | "));
@@ -9006,7 +9160,7 @@ function ModularResumeEditor({
 	        </div>
       </ModularSection>
 
-      <ModularListSection title="AI & Automation Projects" value={structured.projects.join("\n")} onChange={(value) => updateListField("projects", value)} onOptimize={() => applyListAiAction("projects", "AI & Automation Projects", "Optimize this section")} onReset={() => resetSection("projects")} onAiAction={(action) => applyListAiAction("projects", "AI & Automation Projects", action)} isOptimizing={optimizingKey.startsWith("projects-")} />
+      <ModularListSection title={titleCase(inferProjectSectionTitle(structured.projects))} value={structured.projects.join("\n")} onChange={(value) => updateListField("projects", value)} onOptimize={() => applyListAiAction("projects", "Projects", "Optimize this section")} onReset={() => resetSection("projects")} onAiAction={(action) => applyListAiAction("projects", "Projects", action)} isOptimizing={optimizingKey.startsWith("projects-")} />
       <ModularListSection title="Education" value={structured.education.join("\n")} onChange={(value) => updateListField("education", value)} onOptimize={() => applyListAiAction("education", "Education", "Optimize this section")} onReset={() => resetSection("education")} onAiAction={(action) => applyListAiAction("education", "Education", action)} isOptimizing={optimizingKey.startsWith("education-")} />
       <ModularListSection title="Certifications" value={structured.certifications.join("\n")} onChange={(value) => updateListField("certifications", value)} onOptimize={() => applyListAiAction("certifications", "Certifications", "Optimize this section")} onReset={() => resetSection("certifications")} onAiAction={(action) => applyListAiAction("certifications", "Certifications", action)} isOptimizing={optimizingKey.startsWith("certifications-")} />
       <ModularListSection title="Publications / Research" value={structured.publications.join("\n")} onChange={(value) => updateListField("publications", value)} onOptimize={() => applyListAiAction("publications", "Publications / Research", "Optimize this section")} onReset={() => resetSection("publications")} onAiAction={(action) => applyListAiAction("publications", "Publications / Research", action)} isOptimizing={optimizingKey.startsWith("publications-")} />
