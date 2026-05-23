@@ -8080,7 +8080,7 @@ function IseyaFooter() {
   return (
     <footer className="border-t border-[color-mix(in_srgb,var(--iseya-gold)_28%,var(--iseya-navy))] bg-[var(--iseya-navy)] text-white">
       <div className="mx-auto flex max-w-[112rem] flex-col gap-5 px-5 py-6 text-center sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:text-left">
-        <div className="flex flex-col items-center gap-2 lg:items-start">
+        <div className="flex flex-col items-center gap-1 lg:items-start">
           <Image
             src="/brand/iseya-logo.png"
             alt="ISEYA"
@@ -8088,12 +8088,14 @@ function IseyaFooter() {
             height={90}
             className="h-auto w-[120px] object-contain sm:w-[160px] lg:w-[180px]"
           />
-          <p className="text-sm font-medium text-white/85">
-            ISEYA by Jormp LLC.
-          </p>
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-            California, USA
-          </p>
+          <div className="text-center lg:pl-[26px] lg:text-left">
+            <p className="text-sm font-medium text-white/85">
+              ISEYA by Jormp LLC.
+            </p>
+            <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+              California, USA
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-col items-center gap-3 lg:items-end">
