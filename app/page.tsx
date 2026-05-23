@@ -6626,7 +6626,7 @@ export default function Home() {
                 Beyond Resume. Positioning.
               </p>
             </div>
-            <p className="mt-3 max-w-none text-base leading-7 text-white/85 lg:whitespace-nowrap">
+            <p className="mt-3 max-w-none text-base leading-7 text-white/85 sm:pl-[29px] lg:whitespace-nowrap">
               Career infrastructure for resumes, applications, job discovery, and recruiter access.
             </p>
           </div>
