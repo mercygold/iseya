@@ -255,6 +255,7 @@ type ResumeSection = {
   heading: string;
   body: string[];
   bullets: string[];
+  lines?: string[];
 };
 
 type ExperienceEntry = {
@@ -1595,6 +1596,28 @@ function normalizeApplicationKit(
   };
 }
 
+function isSourceArtifactHeading(value: string) {
+  return /^(SOURCE RESUME EXCERPT|SUPPORTING SOURCE MATERIAL|TAILORING NOTES|PARSER NOTES?|RAW EXTRACTED TEXT|EXTRACTED TEXT|SOURCE MATERIALS?)$/i.test(
+    cleanEditorText(value),
+  );
+}
+
+function isPlaceholderResumeText(value: string) {
+  return /jordan taylor|jordan@example\.com|555-0100|write a 3-?4 line|role title|company name|add 3-?5 measurable|replace this placeholder|paste the target job description/i.test(
+    value,
+  );
+}
+
+function sanitizeResumeSourceText(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !isSourceArtifactHeading(line) && !isPlaceholderResumeText(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function serializeLinkedInKit(linkedin: LinkedInKit) {
   return `LINKEDIN HEADLINE
 ${linkedin.headline}
@@ -2191,12 +2214,13 @@ function buildTailoredResume(
   jobDescription: string,
   targetRole: string,
 ): TailoringResult {
+  const sourceResume = sanitizeResumeSourceText(masterResume);
   const keywordGroups = inferJobKeywordGroups(jobDescription);
   const jobKeywords = dedupeKeywords([
     ...keywordGroups.required,
     ...keywordGroups.preferred,
   ]);
-  const resumeKeywords = extractKeywords(masterResume);
+  const resumeKeywords = extractKeywords(sourceResume);
   const matchedKeywords = jobKeywords.filter((keyword) =>
     resumeKeywords.includes(keyword),
   );
@@ -2204,7 +2228,7 @@ function buildTailoredResume(
     (keyword) => !resumeKeywords.includes(keyword),
   );
   const scoreResult = scoreResume(
-    masterResume,
+    sourceResume,
     jobDescription,
     matchedKeywords,
     keywordGroups.required,
@@ -2214,48 +2238,36 @@ function buildTailoredResume(
   const role = titleCase(
     targetRole || firstMeaningfulLine(jobDescription, "Target Role"),
   );
+  const parsedSource = structuredResumeFromText(sourceResume);
+  const sourceBranding = brandingFromResumeText(sourceResume);
+  const sourceSkills = parsedSource.skills.length > 0 ? parsedSource.skills : [];
   const strongestKeywords = matchedKeywords.slice(0, 12);
   const skills = Array.from(
     new Set([
+      ...sourceSkills,
       ...strongestKeywords,
-      "Product Requirements",
-      "Stakeholder Alignment",
-      "Delivery Planning",
-      "Resume Keyword Optimization",
-    ]),
-  );
-  const summary = `${role} with experience aligning business goals, user needs, and technical delivery. Brings hands-on strengths in ${strongestKeywords
-    .slice(0, 6)
-    .join(", ")} while translating complex requirements into clear roadmaps, launch plans, and measurable outcomes.`;
-  const bullets = [
-    `Repositioned product and delivery experience around ${role} responsibilities, emphasizing the keywords and outcomes requested in the job description.`,
-    "Translated stakeholder goals into requirements, prioritized delivery plans, and launch-ready workflows for technical and business teams.",
-    "Applied analytics, customer context, and quality review to improve product decisions, implementation readiness, and post-launch iteration.",
-    missingKeywords.length > 0
-      ? `Strengthened alignment with role expectations by weaving in ${missingKeywords
-          .slice(0, 5)
-          .join(", ")} where supported by the master resume.`
-      : "Preserved strong keyword coverage while tightening the language for ATS scanning and recruiter readability.",
-  ];
-  const candidateName = firstMeaningfulLine(masterResume, "");
-  const rewrittenResume = `${candidateName}
-${role}
-
-PROFESSIONAL SUMMARY
-${summary}
-
-CORE SKILLS
-${skills.join(" | ")}
-
-EXPERIENCE HIGHLIGHTS
-${bullets.map((bullet) => `- ${bullet}`).join("\n")}
-
-TAILORING NOTES
-- Matched keywords: ${matchedKeywords.length > 0 ? matchedKeywords.join(", ") : "None found yet"}
-- Keywords to strengthen: ${missingKeywords.length > 0 ? missingKeywords.join(", ") : "No major gaps found"}
-
-SOURCE RESUME EXCERPT
-${masterResume.trim()}`;
+    ].filter((skill) => !isPlaceholderResumeText(skill))),
+  ).slice(0, 28);
+  const summary =
+    parsedSource.summary ||
+    [
+      role && role !== "Target Role" ? `${role} candidate` : "Candidate",
+      skills.length > 0
+        ? `with experience across ${skills.slice(0, 5).join(", ")}`
+        : "",
+      "based on the provided resume source.",
+    ]
+      .filter(Boolean)
+      .join(" ");
+  const structuredResume: StructuredResume = {
+    ...parsedSource,
+    summary,
+    skills,
+    experience: parsedSource.experience,
+    additionalSections: [],
+  };
+  const rewrittenResume = serializeStructuredResume(structuredResume, sourceBranding);
+  const bullets = parsedSource.experience.flatMap((entry) => entry.bullets).slice(0, 8);
   const matchBreakdown = buildLocalMatchBreakdown(scoreResult.score);
   const baseResult = {
     score: scoreResult.score,
@@ -2341,12 +2353,20 @@ ${masterResume.trim()}`;
 }
 
 function parseResumePreview(resumeText: string) {
-  const lines = resumeText.split(/\r?\n/);
-  const name = lines[0]?.trim() || "";
-  const title = lines[1]?.trim() || "";
+  const lines = sanitizeResumeSourceText(resumeText).split(/\r?\n/);
+  const contact = extractContactInfoFromText(resumeText);
+  const headerLines = lines
+    .map((line) => cleanEditorText(line))
+    .filter(
+      (line) =>
+        line &&
+        !isLikelyContactLine(line, contact) &&
+        !isRecognizedResumeHeading(line),
+    );
+  const name = headerLines[0] || "";
+  const title = headerLines[1] || "";
   const sections: ResumeSection[] = [];
   let currentSection: ResumeSection | null = null;
-  const contact = extractContactInfoFromText(resumeText);
 
   for (const rawLine of lines.slice(2)) {
     const line = rawLine.trim();
@@ -2357,20 +2377,22 @@ function parseResumePreview(resumeText: string) {
 
     const cleanedLine = line.replace(/^#{1,6}\s*/, "").replace(/^\*+\s*/, "");
 
-    if (isLikelyContactLine(cleanedLine, contact)) {
+    if (
+      isLikelyContactLine(cleanedLine, contact) ||
+      isSourceArtifactHeading(cleanedLine) ||
+      isPlaceholderResumeText(cleanedLine)
+    ) {
       continue;
     }
 
-    const isHeading =
-      cleanedLine === cleanedLine.toUpperCase() &&
-      /^[A-Z0-9 &/+-]+$/.test(cleanedLine) &&
-      !cleanedLine.startsWith("-");
+    const isHeading = isRecognizedResumeHeading(cleanedLine);
 
     if (isHeading) {
       currentSection = {
-        heading: cleanedLine,
+        heading: canonicalResumeHeading(cleanedLine),
         body: [],
         bullets: [],
+        lines: [],
       };
       sections.push(currentSection);
       continue;
@@ -2381,18 +2403,81 @@ function parseResumePreview(resumeText: string) {
         heading: "PROFILE",
         body: [],
         bullets: [],
+        lines: [],
       };
       sections.push(currentSection);
     }
 
     if (/^[-*]\s+/.test(cleanedLine)) {
-      currentSection.bullets.push(cleanedLine.replace(/^[-*]\s+/, ""));
+      const bullet = cleanedLine.replace(/^[-*]\s+/, "");
+      currentSection.bullets.push(bullet);
+      currentSection.lines?.push(`- ${bullet}`);
     } else {
       currentSection.body.push(cleanedLine);
+      currentSection.lines?.push(cleanedLine);
     }
   }
 
   return { name, title, sections };
+}
+
+function canonicalResumeHeading(value: string) {
+  const heading = cleanEditorText(value).toUpperCase();
+
+  if (/^(PROFILE|SUMMARY|PROFESSIONAL SUMMARY|CAREER SUMMARY|EXECUTIVE SUMMARY)$/.test(heading)) {
+    return "PROFESSIONAL SUMMARY";
+  }
+
+  if (/^(CORE SKILLS|SKILLS|KEY SKILLS|TECHNICAL SKILLS|COMPETENCIES|AREAS OF EXPERTISE)$/.test(heading)) {
+    return "CORE SKILLS";
+  }
+
+  if (/^(EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|EMPLOYMENT|EMPLOYMENT HISTORY|CAREER EXPERIENCE)$/.test(heading)) {
+    return "PROFESSIONAL EXPERIENCE";
+  }
+
+  if (/^(PROJECTS|PROJECT EXPERIENCE|SELECTED PROJECTS|AI PROJECTS|AI & AUTOMATION PROJECTS)$/.test(heading)) {
+    return "AI & AUTOMATION PROJECTS";
+  }
+
+  if (/^(EDUCATION|ACADEMIC BACKGROUND)$/.test(heading)) {
+    return "EDUCATION";
+  }
+
+  if (/^(CERTIFICATIONS|CERTIFICATES|LICENSES|LICENSES & CERTIFICATIONS)$/.test(heading)) {
+    return "CERTIFICATIONS";
+  }
+
+  if (/^(PUBLICATIONS|RESEARCH|PUBLICATIONS \/ RESEARCH|PUBLICATIONS & RESEARCH)$/.test(heading)) {
+    return "PUBLICATIONS / RESEARCH";
+  }
+
+  if (/^(TOOLS|TECHNOLOGIES|TOOLS \/ TECHNOLOGIES|TECHNICAL TOOLS|PLATFORMS)$/.test(heading)) {
+    return "TOOLS / TECHNOLOGIES";
+  }
+
+  return heading;
+}
+
+function isRecognizedResumeHeading(value: string) {
+  const cleaned = cleanEditorText(value);
+  const heading = cleaned.toUpperCase();
+
+  if (isSourceArtifactHeading(cleaned) || cleaned.startsWith("-")) {
+    return false;
+  }
+
+  if (
+    /^(PROFILE|SUMMARY|PROFESSIONAL SUMMARY|CAREER SUMMARY|EXECUTIVE SUMMARY|CORE SKILLS|SKILLS|KEY SKILLS|TECHNICAL SKILLS|COMPETENCIES|AREAS OF EXPERTISE|EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|EMPLOYMENT|EMPLOYMENT HISTORY|CAREER EXPERIENCE|PROJECTS|PROJECT EXPERIENCE|SELECTED PROJECTS|AI PROJECTS|AI & AUTOMATION PROJECTS|EDUCATION|ACADEMIC BACKGROUND|CERTIFICATIONS|CERTIFICATES|LICENSES|LICENSES & CERTIFICATIONS|PUBLICATIONS|RESEARCH|PUBLICATIONS \/ RESEARCH|PUBLICATIONS & RESEARCH|TOOLS|TECHNOLOGIES|TOOLS \/ TECHNOLOGIES|TECHNICAL TOOLS|PLATFORMS)$/i.test(cleaned)
+  ) {
+    return true;
+  }
+
+  return (
+    cleaned === heading &&
+    /^[A-Z0-9 &/+-]+$/.test(cleaned) &&
+    cleaned.length <= 40
+  );
 }
 
 function findResumeSection(
@@ -2585,10 +2670,44 @@ function parseExperienceEntries(section?: ResumeSection): ExperienceEntry[] {
 
   const entries: ExperienceEntry[] = [];
   let current: ExperienceEntry | null = null;
-  const bodyLines = section.body.map(cleanEditorText).filter(Boolean);
+  const orderedLines = (section.lines && section.lines.length > 0
+    ? section.lines
+    : [...section.body, ...section.bullets.map((bullet) => `- ${bullet}`)]
+  )
+    .map((line) => line.trim())
+    .filter(Boolean);
   const isHighlightsOnly = /HIGHLIGHT/i.test(section.heading);
 
-  for (const line of bodyLines) {
+  for (const rawLine of orderedLines) {
+    const isBullet = /^[-*]\s+/.test(rawLine);
+    const line = cleanEditorText(rawLine.replace(/^[-*]\s+/, ""));
+
+    if (!line) {
+      continue;
+    }
+
+    if (isBullet) {
+      if (!current) {
+        const fallback = normalizeExperience(
+          {
+            id: `experience-${entries.length}`,
+            title: "",
+            company: "",
+            bullets: [],
+          },
+          entries.length,
+        );
+
+        if (fallback) {
+          current = fallback;
+          entries.push(current);
+        }
+      }
+
+      current?.bullets.push(line);
+      continue;
+    }
+
     const looksLikeMetaLine =
       current &&
       /\d{4}|present|current|now/i.test(line) &&
@@ -2642,24 +2761,6 @@ function parseExperienceEntries(section?: ResumeSection): ExperienceEntry[] {
     }
   }
 
-  if (entries.length === 0 && section.bullets.length > 0) {
-    const fallback = normalizeExperience(
-      {
-        id: "experience-0",
-        title: "",
-        company: "",
-        bullets: section.bullets,
-      },
-      0,
-    );
-
-    return fallback ? [fallback] : [];
-  }
-
-  if (current) {
-    current.bullets = cleanBullets([...current.bullets, ...section.bullets]);
-  }
-
   return dedupeExperience(
     entries
       .map((entry, index) => normalizeExperience(entry, index))
@@ -2668,7 +2769,7 @@ function parseExperienceEntries(section?: ResumeSection): ExperienceEntry[] {
 }
 
 function structuredResumeFromText(resumeText: string): StructuredResume {
-  const { sections } = parseResumePreview(resumeText);
+  const { sections } = parseResumePreview(sanitizeResumeSourceText(resumeText));
   const summarySection = findResumeSection(sections, [
     "PROFESSIONAL SUMMARY",
     "SUMMARY",
@@ -2720,7 +2821,11 @@ function structuredResumeFromText(resumeText: string): StructuredResume {
     certifications: sectionItems(certificationSection),
     publications: sectionItems(publicationSection),
     tools: splitResumeList(sectionItems(toolsSection).join(", ")),
-    additionalSections: sections.filter((section) => !knownSections.has(section.heading)),
+    additionalSections: sections.filter(
+      (section) =>
+        !knownSections.has(section.heading) &&
+        !isSourceArtifactHeading(section.heading),
+    ),
   };
 }
 
@@ -2826,10 +2931,19 @@ function serializeStructuredResume(
 
   for (const section of structured.additionalSections) {
     const heading = cleanEditorText(section.heading).toUpperCase();
-    const body = section.body.map(cleanEditorText).filter(Boolean);
-    const bullets = uniqueStrings(section.bullets);
+    const body = section.body
+      .map(cleanEditorText)
+      .filter((item) => item && !isSourceArtifactHeading(item) && !isPlaceholderResumeText(item));
+    const bullets = uniqueStrings(section.bullets).filter(
+      (item) => !isSourceArtifactHeading(item) && !isPlaceholderResumeText(item),
+    );
 
-    if (!heading || (body.length === 0 && bullets.length === 0)) {
+    if (
+      !heading ||
+      isSourceArtifactHeading(heading) ||
+      isPlaceholderResumeText(heading) ||
+      (body.length === 0 && bullets.length === 0)
+    ) {
       continue;
     }
 
