@@ -27,6 +27,7 @@ type Organization = {
 };
 
 type RecruiterModeration = {
+  id: string;
   user_id: string;
   company_name: string;
   recruiter_name: string;
@@ -48,6 +49,7 @@ type RecruiterModeration = {
   verification_status: string;
   verification_notes: string | null;
   created_at: string;
+  updated_at: string;
 };
 
 type JobPostModeration = {
@@ -133,9 +135,11 @@ export default function ManageDashboard() {
     optimizationCredits: 0,
   });
 
-  async function loadManageData() {
+  async function loadManageData(options?: { preserveStatus?: boolean }) {
     setLoading(true);
-    setStatus("");
+    if (!options?.preserveStatus) {
+      setStatus("");
+    }
 
     try {
       const response = await fetch("/api/manage/users", { cache: "no-store" });
@@ -249,7 +253,7 @@ export default function ManageDashboard() {
       }
 
       setStatus("Recruiter review status updated.");
-      await loadManageData();
+      await loadManageData({ preserveStatus: true });
       setSelectedRecruiter((current) =>
         current?.user_id === recruiter.user_id
           ? { ...current, verification_status: verificationStatus }
@@ -257,6 +261,35 @@ export default function ManageDashboard() {
       );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to update recruiter review status.");
+    }
+  }
+
+  async function deleteRecruiterProfile(recruiter: RecruiterModeration) {
+    const confirmed = window.confirm(
+      `Delete recruiter profile for ${recruiter.company_name || recruiter.work_email}?`,
+    );
+
+    if (!confirmed) return;
+
+    setStatus("");
+
+    try {
+      const response = await fetch("/api/manage/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recruiterProfileId: recruiter.id }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to delete recruiter profile.");
+      }
+
+      setStatus("Recruiter profile deleted.");
+      setSelectedRecruiter((current) => (current?.id === recruiter.id ? null : current));
+      await loadManageData({ preserveStatus: true });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to delete recruiter profile.");
     }
   }
 
@@ -497,14 +530,8 @@ export default function ManageDashboard() {
                       <button type="button" onClick={() => setSelectedRecruiter(recruiter)} className={secondaryButton}>
                         View
                       </button>
-                      <button type="button" onClick={() => updateRecruiterStatus(recruiter, "verified")} className={primaryButton}>
-                        Verify Company
-                      </button>
-                      <button type="button" onClick={() => updateRecruiterStatus(recruiter, "rejected")} className={secondaryButton}>
-                        Reject Company
-                      </button>
-                      <button type="button" onClick={() => updateRecruiterStatus(recruiter, "pending_review")} className={secondaryButton}>
-                        Pending Review
+                      <button type="button" onClick={() => deleteRecruiterProfile(recruiter)} className={secondaryButton}>
+                        Delete
                       </button>
                     </div>
                   </div>
@@ -587,6 +614,7 @@ export default function ManageDashboard() {
           recruiter={selectedRecruiter}
           onClose={() => setSelectedRecruiter(null)}
           onUpdate={(nextStatus) => updateRecruiterStatus(selectedRecruiter, nextStatus)}
+          onDelete={() => deleteRecruiterProfile(selectedRecruiter)}
         />
       ) : null}
     </div>
@@ -608,10 +636,12 @@ function RecruiterModal({
   recruiter,
   onClose,
   onUpdate,
+  onDelete,
 }: {
   recruiter: RecruiterModeration;
   onClose: () => void;
   onUpdate: (status: string) => void;
+  onDelete: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8">
@@ -665,6 +695,9 @@ function RecruiterModal({
           </button>
           <button type="button" onClick={() => onUpdate("pending_review")} className={secondaryButton}>
             Set Pending Review
+          </button>
+          <button type="button" onClick={onDelete} className={secondaryButton}>
+            Delete
           </button>
           <button type="button" onClick={onClose} className={secondaryButton}>
             Close

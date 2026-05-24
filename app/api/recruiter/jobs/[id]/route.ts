@@ -24,17 +24,23 @@ function skills(value: unknown) {
 }
 
 function numberOrNull(value: unknown) {
+  if (text(value) === "") {
+    return null;
+  }
+
   const numberValue = Number(value);
   return Number.isFinite(numberValue) && numberValue >= 0 ? numberValue : null;
 }
 
 const recruiterAllowedUpdateStatuses = new Set(["draft", "pending_review", "closed"]);
+const jobSaveErrorMessage =
+  "Unable to create job post right now. Please check the required fields and try again.";
 
 async function getUserContext() {
   const supabase = await createSupabaseServerClient();
 
   if (!supabase) {
-    return { supabase: null, userId: "", recruiterProfile: null };
+    return { supabase: null, userId: "", recruiterProfile: null, contextError: null };
   }
 
   const {
@@ -42,15 +48,25 @@ async function getUserContext() {
   } = await supabase.auth.getUser();
 
   const userId = user?.id ?? "";
-  const { data: recruiterProfile } = userId
+  const { data: recruiterProfile, error: recruiterProfileError } = userId
     ? await supabase
         .from("recruiter_profiles")
-        .select("company_name, recruiter_name, work_email, verification_status")
+        .select("company_name, recruiter_name, work_email, company_website, phone_number, address_line_1, city, state_region, country, hiring_focus, verification_status")
         .eq("user_id", userId)
         .maybeSingle()
-    : { data: null };
+    : { data: null, error: null };
 
-  return { supabase, userId, recruiterProfile };
+  if (recruiterProfileError) {
+    console.error("[recruiter-jobs] update context lookup failed", {
+      code: recruiterProfileError.code,
+      message: recruiterProfileError.message,
+      details: recruiterProfileError.details,
+      hint: recruiterProfileError.hint,
+      userId,
+    });
+  }
+
+  return { supabase, userId, recruiterProfile, contextError: recruiterProfileError };
 }
 
 function hasCompleteCompanyProfile(
@@ -58,17 +74,39 @@ function hasCompleteCompanyProfile(
     company_name: string | null;
     recruiter_name: string | null;
     work_email: string | null;
+    company_website: string | null;
+    phone_number: string | null;
+    address_line_1: string | null;
+    city: string | null;
+    state_region: string | null;
+    country: string | null;
+    hiring_focus: string | null;
   } | null,
 ) {
-  return Boolean(profile?.company_name && profile.recruiter_name && profile.work_email);
+  return Boolean(
+    profile?.company_name &&
+      profile.recruiter_name &&
+      profile.work_email &&
+      profile.company_website &&
+      profile.phone_number &&
+      profile.address_line_1 &&
+      profile.city &&
+      profile.state_region &&
+      profile.country &&
+      profile.hiring_focus,
+  );
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const { supabase, userId, recruiterProfile } = await getUserContext();
+  const { supabase, userId, recruiterProfile, contextError } = await getUserContext();
 
   if (!supabase || !userId) {
     return Response.json({ error: "Login required." }, { status: 401 });
+  }
+
+  if (contextError) {
+    return Response.json({ error: jobSaveErrorMessage }, { status: 500 });
   }
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
@@ -126,8 +164,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     .single();
 
   if (error) {
-    console.error("[recruiter-jobs] update failed", { code: error.code, message: error.message });
-    return Response.json({ error: "Unable to update job post." }, { status: 500 });
+    console.error("[recruiter-jobs] update failed", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      userId,
+      jobId: id,
+    });
+    return Response.json({ error: jobSaveErrorMessage }, { status: 500 });
   }
 
   return Response.json({ job: data });

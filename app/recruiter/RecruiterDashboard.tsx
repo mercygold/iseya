@@ -120,6 +120,14 @@ function normalizeCompanySize(value: string | null) {
   return (value ?? "").replace(/-/g, "–");
 }
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export default function RecruiterDashboard() {
   const pathname = usePathname();
   const router = useRouter();
@@ -148,6 +156,8 @@ export default function RecruiterDashboard() {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [editingJobId, setEditingJobId] = useState("");
+  const [profileSaveState, setProfileSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [jobSaveAction, setJobSaveAction] = useState<"" | "draft" | "pending_review">("");
 
   const stats = useMemo(
     () => ({
@@ -200,9 +210,11 @@ export default function RecruiterDashboard() {
           ? "Your company profile needs updates before jobs can be published."
           : "Your company profile is under review. You can prepare job drafts, but jobs will not be published until verification is complete.";
 
-  async function loadDashboard() {
+  async function loadDashboard(options?: { preserveStatus?: boolean }) {
     setLoading(true);
-    setStatus("");
+    if (!options?.preserveStatus) {
+      setStatus("");
+    }
 
     try {
       const [profileResponse, jobsResponse] = await Promise.all([
@@ -245,7 +257,7 @@ export default function RecruiterDashboard() {
       }
       if (jobsResponse.ok) {
         setJobs(jobsData.jobs ?? []);
-      } else {
+      } else if (!options?.preserveStatus) {
         setJobs([]);
         setStatus("Complete and save your company profile to activate recruiter job posting.");
       }
@@ -264,8 +276,18 @@ export default function RecruiterDashboard() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (profileSaveState !== "saved") {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setProfileSaveState("idle"), 1800);
+    return () => window.clearTimeout(timer);
+  }, [profileSaveState]);
+
   async function saveJob(nextStatus: "draft" | "pending_review") {
     setStatus("");
+    setJobSaveAction(nextStatus);
 
     try {
       if (!profileComplete) {
@@ -289,20 +311,36 @@ export default function RecruiterDashboard() {
       const data = (await response.json().catch(() => ({}))) as { error?: string };
 
       if (!response.ok) {
-        throw new Error(data.error || "Unable to save job.");
+        throw new Error(
+          data.error ||
+            "Unable to create job post right now. Please check the required fields and try again.",
+        );
       }
 
-      setStatus(nextStatus === "pending_review" ? "Job submitted for review." : editingJobId ? "Job draft updated." : "Job draft saved.");
+      setStatus(
+        nextStatus === "pending_review"
+          ? "Job submitted for review."
+          : editingJobId
+            ? "Job draft saved successfully."
+            : "Job draft saved successfully.",
+      );
       setEditingJobId("");
       setJobDraft(emptyJob);
-      await loadDashboard();
+      await loadDashboard({ preserveStatus: true });
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to save job.");
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Unable to create job post right now. Please check the required fields and try again.",
+      );
+    } finally {
+      setJobSaveAction("");
     }
   }
 
   async function saveProfile() {
     setStatus("");
+    setProfileSaveState("saving");
 
     try {
       const missingFields = [
@@ -320,6 +358,7 @@ export default function RecruiterDashboard() {
 
       if (missingFields.length > 0) {
         setStatus(`Missing required fields: ${missingFields.map(([label]) => label).join(", ")}.`);
+        setProfileSaveState("idle");
         return;
       }
 
@@ -336,13 +375,15 @@ export default function RecruiterDashboard() {
         );
       }
 
-      setStatus("Company profile saved.");
-      await loadDashboard();
+      setProfileSaveState("saved");
+      setStatus("Company profile saved successfully.");
+      await loadDashboard({ preserveStatus: true });
       if (pathname.startsWith("/recruiters/onboarding")) {
         router.replace("/recruiters/dashboard");
         router.refresh();
       }
     } catch (error) {
+      setProfileSaveState("idle");
       setStatus(
         error instanceof Error
           ? error.message
@@ -448,8 +489,17 @@ export default function RecruiterDashboard() {
                   Verification status: {statusLabel(profile?.verification_status ?? "pending_review")}
                 </p>
               </div>
-              <button type="button" onClick={saveProfile} className={secondaryButton}>
-                Save Company Profile
+              <button
+                type="button"
+                onClick={saveProfile}
+                disabled={profileSaveState === "saving"}
+                className={secondaryButton}
+              >
+                {profileSaveState === "saving"
+                  ? "Saving..."
+                  : profileSaveState === "saved"
+                    ? "Saved"
+                    : "Save Company Profile"}
               </button>
             </div>
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -492,11 +542,21 @@ export default function RecruiterDashboard() {
                 </h2>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => saveJob("draft")} disabled={!profileComplete} className={secondaryButton}>
-                  Save Draft
+                <button
+                  type="button"
+                  onClick={() => saveJob("draft")}
+                  disabled={!profileComplete || Boolean(jobSaveAction)}
+                  className={secondaryButton}
+                >
+                  {jobSaveAction === "draft" ? "Saving..." : "Save Draft"}
                 </button>
-                <button type="button" onClick={() => saveJob("pending_review")} disabled={!canSubmitJobForReview} className={primaryButton}>
-                  Submit for Review
+                <button
+                  type="button"
+                  onClick={() => saveJob("pending_review")}
+                  disabled={!canSubmitJobForReview || Boolean(jobSaveAction)}
+                  className={primaryButton}
+                >
+                  {jobSaveAction === "pending_review" ? "Submitting..." : "Submit for Review"}
                 </button>
               </div>
             </div>
@@ -564,6 +624,9 @@ export default function RecruiterDashboard() {
                         </p>
                         <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
                           {statusLabel(job.status)} | {job.applicants_count} applicants
+                        </p>
+                        <p className="mt-2 text-xs font-medium text-slate-500">
+                          Created {formatDate(job.created_at)}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">

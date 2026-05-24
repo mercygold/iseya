@@ -24,6 +24,8 @@ type JobBody = {
 };
 
 const recruiterAllowedCreateStatuses = new Set(["draft", "pending_review"]);
+const jobSaveErrorMessage =
+  "Unable to create job post right now. Please check the required fields and try again.";
 
 function text(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -42,6 +44,10 @@ function skills(value: unknown) {
 }
 
 function numberOrNull(value: unknown) {
+  if (text(value) === "") {
+    return null;
+  }
+
   const numberValue = Number(value);
   return Number.isFinite(numberValue) && numberValue >= 0 ? numberValue : null;
 }
@@ -50,7 +56,13 @@ async function getRecruiterContext() {
   const supabase = await createSupabaseServerClient();
 
   if (!supabase) {
-    return { supabase: null, userId: "", recruiter: false, recruiterProfile: null };
+    return {
+      supabase: null,
+      userId: "",
+      recruiter: false,
+      recruiterProfile: null,
+      contextError: null,
+    };
   }
 
   const {
@@ -59,10 +71,19 @@ async function getRecruiterContext() {
   const userId = user?.id ?? "";
 
   if (!userId) {
-    return { supabase, userId, recruiter: false, recruiterProfile: null };
+    return {
+      supabase,
+      userId,
+      recruiter: false,
+      recruiterProfile: null,
+      contextError: null,
+    };
   }
 
-  const [{ data: profile }, { data: recruiterProfile }] = await Promise.all([
+  const [
+    { data: profile, error: profileError },
+    { data: recruiterProfile, error: recruiterProfileError },
+  ] = await Promise.all([
     supabase
       .from("profiles")
       .select("account_type, role, app_role")
@@ -70,10 +91,22 @@ async function getRecruiterContext() {
       .maybeSingle(),
     supabase
       .from("recruiter_profiles")
-      .select("company_name, recruiter_name, work_email, verification_status")
+      .select("company_name, recruiter_name, work_email, company_website, phone_number, address_line_1, city, state_region, country, hiring_focus, verification_status")
       .eq("user_id", userId)
       .maybeSingle(),
   ]);
+
+  const contextError = profileError ?? recruiterProfileError;
+
+  if (contextError) {
+    console.error("[recruiter-jobs] recruiter context lookup failed", {
+      code: contextError.code,
+      message: contextError.message,
+      details: contextError.details,
+      hint: contextError.hint,
+      userId,
+    });
+  }
 
   return {
     supabase,
@@ -83,6 +116,7 @@ async function getRecruiterContext() {
       profile?.role === "admin" ||
       profile?.app_role === "admin",
     recruiterProfile,
+    contextError,
   };
 }
 
@@ -91,9 +125,27 @@ function hasCompleteCompanyProfile(
     company_name: string | null;
     recruiter_name: string | null;
     work_email: string | null;
+    company_website: string | null;
+    phone_number: string | null;
+    address_line_1: string | null;
+    city: string | null;
+    state_region: string | null;
+    country: string | null;
+    hiring_focus: string | null;
   } | null,
 ) {
-  return Boolean(profile?.company_name && profile.recruiter_name && profile.work_email);
+  return Boolean(
+    profile?.company_name &&
+      profile.recruiter_name &&
+      profile.work_email &&
+      profile.company_website &&
+      profile.phone_number &&
+      profile.address_line_1 &&
+      profile.city &&
+      profile.state_region &&
+      profile.country &&
+      profile.hiring_focus,
+  );
 }
 
 export async function GET() {
@@ -122,7 +174,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { supabase, userId, recruiter, recruiterProfile } = await getRecruiterContext();
+  const { supabase, userId, recruiter, recruiterProfile, contextError } =
+    await getRecruiterContext();
 
   if (!supabase || !userId) {
     return Response.json({ error: "Login required." }, { status: 401 });
@@ -130,6 +183,10 @@ export async function POST(request: Request) {
 
   if (!recruiter) {
     return Response.json({ error: "Recruiter account required." }, { status: 403 });
+  }
+
+  if (contextError) {
+    return Response.json({ error: jobSaveErrorMessage }, { status: 500 });
   }
 
   if (!hasCompleteCompanyProfile(recruiterProfile)) {
@@ -141,6 +198,14 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as JobBody;
   const status = text(body.status) || "draft";
+
+  console.info("[recruiter-jobs] create requested", {
+    userId,
+    status,
+    payloadKeys: Object.keys(body),
+    recruiterProfileExists: Boolean(recruiterProfile),
+    verificationStatus: recruiterProfile?.verification_status ?? null,
+  });
 
   if (
     !text(body.jobTitle) ||
@@ -195,9 +260,17 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    console.error("[recruiter-jobs] create failed", { code: error.code, message: error.message });
-    return Response.json({ error: "Unable to create job post." }, { status: 500 });
+    console.error("[recruiter-jobs] create failed", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      userId,
+      status,
+    });
+    return Response.json({ error: jobSaveErrorMessage }, { status: 500 });
   }
 
+  console.info("[recruiter-jobs] create succeeded", { userId, jobId: data.id, status });
   return Response.json({ job: data });
 }

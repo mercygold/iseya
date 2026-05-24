@@ -81,6 +81,7 @@ export async function GET() {
     seats_used: number;
   }> = [];
   let recruiters: Array<{
+    id: string;
     user_id: string;
     company_name: string;
     recruiter_name: string;
@@ -102,6 +103,7 @@ export async function GET() {
     verification_status: string;
     verification_notes: string | null;
     created_at: string;
+    updated_at: string;
   }> = [];
   let jobPosts: Array<{
     id: string;
@@ -117,8 +119,8 @@ export async function GET() {
     await Promise.all([
       serviceRole
         .from("recruiter_profiles")
-        .select("user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, company_location, industry, industry_other, company_size, hiring_focus, verification_status, verification_notes, created_at")
-        .order("created_at", { ascending: false })
+        .select("id, user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, company_location, industry, industry_other, company_size, hiring_focus, verification_status, verification_notes, created_at, updated_at")
+        .order("updated_at", { ascending: false })
         .limit(100),
       serviceRole
         .from("job_posts")
@@ -133,7 +135,15 @@ export async function GET() {
       message: recruiterError.message,
     });
   } else {
-    recruiters = recruiterRows ?? [];
+    const seenRecruiters = new Set<string>();
+    recruiters = (recruiterRows ?? []).filter((recruiter) => {
+      if (seenRecruiters.has(recruiter.user_id)) {
+        return false;
+      }
+
+      seenRecruiters.add(recruiter.user_id);
+      return true;
+    });
   }
 
   if (jobError) {
@@ -254,6 +264,42 @@ export async function PATCH(request: Request) {
   if (error) {
     console.error("[manage] user update failed", { code: error.code, message: error.message });
     return Response.json({ error: "Unable to update user." }, { status: 500 });
+  }
+
+  return Response.json({ ok: true });
+}
+
+export async function DELETE(request: Request) {
+  const { serviceRole, admin } = await getAdminClients();
+
+  if (!serviceRole || !admin) {
+    return Response.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const body = (await request.json().catch(() => ({}))) as {
+    recruiterProfileId?: unknown;
+  };
+  const recruiterProfileId =
+    typeof body.recruiterProfileId === "string" ? body.recruiterProfileId : "";
+
+  if (!recruiterProfileId) {
+    return Response.json({ error: "Invalid recruiter deletion request." }, { status: 400 });
+  }
+
+  const { error } = await serviceRole
+    .from("recruiter_profiles")
+    .delete()
+    .eq("id", recruiterProfileId);
+
+  if (error) {
+    console.error("[manage] recruiter deletion failed", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      recruiterProfileId,
+    });
+    return Response.json({ error: "Unable to delete recruiter profile." }, { status: 500 });
   }
 
   return Response.json({ ok: true });
