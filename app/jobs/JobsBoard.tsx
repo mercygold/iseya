@@ -38,10 +38,16 @@ type InterestDraft = {
   coverLetterFile: File | null;
 };
 
+type CandidateApplicationStatus = {
+  job_id: string;
+  status: string;
+};
+
 const primaryButton =
   "inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-3 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] disabled:cursor-not-allowed disabled:opacity-60";
 const secondaryButton =
   "inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]";
+const anonymousApplicationStorageKey = "iseya_anonymous_job_application_statuses";
 
 function label(value: string) {
   return value.replace(/_/g, " ").replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -63,6 +69,7 @@ function formatSalary(job: JobPost) {
 export default function JobsBoard() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState<JobPost[]>([]);
+  const [applicationsByJobId, setApplicationsByJobId] = useState<Record<string, string>>({});
   const [query, setQuery] = useState("");
   const [titleQuery, setTitleQuery] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
@@ -92,6 +99,11 @@ export default function JobsBoard() {
     () => jobs.find((job) => job.id === selectedJobId) ?? jobs[0] ?? null,
     [jobs, selectedJobId],
   );
+  const selectedApplicationStatus = selectedJob
+    ? selectedJob.status === "closed" && applicationsByJobId[selectedJob.id]
+      ? "closed"
+      : applicationsByJobId[selectedJob.id] ?? ""
+    : "";
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -107,7 +119,11 @@ export default function JobsBoard() {
       const response = await fetch(`/api/jobs?${params.toString()}`, {
         cache: "no-store",
       });
-      const data = (await response.json()) as { jobs?: JobPost[]; error?: string };
+      const data = (await response.json()) as {
+        jobs?: JobPost[];
+        applications?: CandidateApplicationStatus[];
+        error?: string;
+      };
 
       if (!response.ok) {
         throw new Error(data.error || "Unable to load jobs.");
@@ -115,12 +131,30 @@ export default function JobsBoard() {
 
       setJobs(data.jobs ?? []);
       setSelectedJobId((current) => current || data.jobs?.[0]?.id || "");
+      const nextStatuses = Object.fromEntries(
+        (data.applications ?? []).map((application) => [
+          application.job_id,
+          application.status,
+        ]),
+      );
+      let anonymousStatuses: Record<string, string> = {};
+      if (!user) {
+        try {
+          const storedStatuses = window.sessionStorage.getItem(anonymousApplicationStorageKey);
+          anonymousStatuses = storedStatuses
+            ? (JSON.parse(storedStatuses) as Record<string, string>)
+            : {};
+        } catch {
+          window.sessionStorage.removeItem(anonymousApplicationStorageKey);
+        }
+      }
+      setApplicationsByJobId(user ? nextStatuses : { ...anonymousStatuses, ...nextStatuses });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to load jobs.");
     } finally {
       setLoading(false);
     }
-  }, [employmentType, locationQuery, query, titleQuery, workplace]);
+  }, [employmentType, locationQuery, query, titleQuery, user, workplace]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -175,7 +209,10 @@ export default function JobsBoard() {
         method: "POST",
         body: formData,
       });
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      const data = (await response.json().catch(() => ({}))) as {
+        application?: CandidateApplicationStatus;
+        error?: string;
+      };
 
       if (!response.ok) {
         throw new Error(
@@ -186,6 +223,25 @@ export default function JobsBoard() {
       setInterestSubmitted(true);
       setInterestStatus("Interest submitted successfully.");
       setStatus("Interest submitted successfully.");
+      setApplicationsByJobId((current) => ({
+        ...current,
+        [interestJob.id]: data.application?.status ?? "submitted",
+      }));
+      if (!user) {
+        let parsed: Record<string, string> = {};
+        try {
+          const storedStatuses = window.sessionStorage.getItem(anonymousApplicationStorageKey);
+          parsed = storedStatuses
+            ? (JSON.parse(storedStatuses) as Record<string, string>)
+            : {};
+        } catch {
+          window.sessionStorage.removeItem(anonymousApplicationStorageKey);
+        }
+        window.sessionStorage.setItem(
+          anonymousApplicationStorageKey,
+          JSON.stringify({ ...parsed, [interestJob.id]: "submitted" }),
+        );
+      }
     } catch (error) {
       setInterestStatus(
         error instanceof Error
@@ -380,7 +436,12 @@ export default function JobsBoard() {
                 New opportunities are being added. Adjust your filters or subscribe for alerts.
               </div>
             ) : (
-              jobs.map((job) => (
+              jobs.map((job) => {
+                const applicationStatus =
+                  job.status === "closed" && applicationsByJobId[job.id]
+                    ? "closed"
+                    : applicationsByJobId[job.id];
+                return (
                 <button
                   key={job.id}
                   type="button"
@@ -403,8 +464,12 @@ export default function JobsBoard() {
                   <p className="mt-2 text-xs font-semibold text-slate-600">
                     {formatSalary(job)}
                   </p>
+                  {applicationStatus ? (
+                    <ApplicationStatusBadge status={applicationStatus} />
+                  ) : null}
                 </button>
-              ))
+                );
+              })
             )}
           </aside>
 
@@ -432,13 +497,17 @@ export default function JobsBoard() {
                     ) : null}
                   </div>
                   <div className="flex flex-col gap-2 sm:min-w-64">
-                    <button
-                      type="button"
-                      onClick={() => beginApplication(selectedJob)}
-                      className={primaryButton}
-                    >
-                      {selectedJob.application_url ? "Apply Externally" : "Express Interest"}
-                    </button>
+                    {selectedApplicationStatus ? (
+                      <ApplicationStatusBadge status={selectedApplicationStatus} prominent />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => beginApplication(selectedJob)}
+                        className={primaryButton}
+                      >
+                        {selectedJob.application_url ? "Apply Externally" : "Express Interest"}
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -662,5 +731,30 @@ function JobSection({ title, body }: { title: string; body: string }) {
       </h3>
       <p className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-650">{body}</p>
     </section>
+  );
+}
+
+function ApplicationStatusBadge({
+  status,
+  prominent = false,
+}: {
+  status: string;
+  prominent?: boolean;
+}) {
+  const tone =
+    status === "proceed"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : status === "rejected" || status === "closed"
+        ? "border-slate-200 bg-slate-100 text-slate-700"
+        : status === "reviewing"
+          ? "border-amber-200 bg-amber-50 text-amber-800"
+          : "border-[var(--iseya-gold)]/35 bg-[#FFF8E6] text-[var(--iseya-navy)]";
+
+  return (
+    <span
+      className={`${prominent ? "inline-flex min-h-10 items-center px-4" : "mt-2 inline-flex px-2.5 py-1"} rounded-full border text-xs font-bold uppercase tracking-[0.1em] ${tone}`}
+    >
+      {label(status)}
+    </span>
   );
 }

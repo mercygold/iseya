@@ -213,5 +213,8 @@ export async function POST(request: Request, context: RouteContext) {
     .update({ applicants_count: count ?? 1 })
     .eq("id", job.id);
 
-  return Response.json({ ok: true });
+  return Response.json({
+    ok: true,
+    application: { job_id: job.id, status: "submitted" },
+  });
 }

@@ -175,6 +175,7 @@ export default function RecruiterDashboard() {
   const [profileSaveState, setProfileSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [jobSaveAction, setJobSaveAction] = useState<"" | "draft" | "pending_review">("");
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [expandedApplicantsJobId, setExpandedApplicantsJobId] = useState("");
 
   const stats = useMemo(
     () => ({
@@ -197,6 +198,15 @@ export default function RecruiterDashboard() {
       profile.country &&
       profile.hiring_focus,
   );
+  const applicationsByJobId = useMemo(() => {
+    const grouped = new Map<string, Application[]>();
+    for (const application of applications) {
+      const existing = grouped.get(application.job_id) ?? [];
+      existing.push(application);
+      grouped.set(application.job_id, existing);
+    }
+    return grouped;
+  }, [applications]);
   const selectedCountryOption = countryOptions.includes(profileDraft.country)
     ? profileDraft.country
     : profileDraft.country
@@ -684,7 +694,10 @@ export default function RecruiterDashboard() {
                   No job posts yet. Create your first listing to start attracting career-ready candidates.
                 </div>
               ) : (
-                jobs.map((job) => (
+                jobs.map((job) => {
+                  const jobApplications = applicationsByJobId.get(job.id) ?? [];
+                  const applicantsExpanded = expandedApplicantsJobId === job.id;
+                  return (
                   <article key={job.id} className="rounded-xl border border-slate-200 p-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div>
@@ -695,13 +708,20 @@ export default function RecruiterDashboard() {
                           {job.company_name} | {job.location || "Location flexible"} | {statusLabel(job.workplace_type)}
                         </p>
                         <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
-                          {statusLabel(job.status)} | {job.applicants_count} applicants
+                          {statusLabel(job.status)} | {jobApplications.length} applicants
                         </p>
                         <p className="mt-2 text-xs font-medium text-slate-500">
                           Created {formatDate(job.created_at)}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedApplicantsJobId(applicantsExpanded ? "" : job.id)}
+                          className={secondaryButton}
+                        >
+                          {applicantsExpanded ? "Hide Applicants" : "View Applicants"}
+                        </button>
                         <button type="button" onClick={() => editJob(job)} className={secondaryButton}>
                           Edit Job
                         </button>
@@ -713,62 +733,56 @@ export default function RecruiterDashboard() {
                         </button>
                       </div>
                     </div>
-                  </article>
-                ))
-              )}
-            </div>
-          </section>
-
-          <section id="applicants" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-                Applicants
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
-                Submitted interests
-              </h2>
-            </div>
-            <div className="mt-5 space-y-3">
-              {applications.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm font-medium text-slate-600">
-                  No submitted interests yet.
-                </div>
-              ) : (
-                applications.map((application) => (
-                  <article key={application.id} className="rounded-xl border border-slate-200 p-4">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="min-w-0">
-                        <h3 className="text-base font-semibold text-[var(--iseya-navy)]">
-                          {application.full_name || "Applicant"}
-                        </h3>
-                        <p className="mt-1 text-sm font-medium text-slate-600">
-                          {application.job_title} | {application.candidate_email || "No email"} | {application.phone_number}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-600">{application.location}</p>
-                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
-                          {application.short_note}
-                        </p>
-                        <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
-                          {statusLabel(application.status)} | Submitted {formatDate(application.created_at)}
-                        </p>
+                    {applicantsExpanded ? (
+                      <div className="mt-4 border-t border-slate-200 pt-4">
+                        {jobApplications.length === 0 ? (
+                          <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-600">
+                            No submitted interests for this job yet.
+                          </p>
+                        ) : (
+                          <div className="space-y-3">
+                            {jobApplications.map((application) => (
+                              <article key={application.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                  <div className="min-w-0">
+                                    <h4 className="text-base font-semibold text-[var(--iseya-navy)]">
+                                      {application.full_name || "Applicant"}
+                                    </h4>
+                                    <p className="mt-1 text-sm font-medium text-slate-600">
+                                      {application.candidate_email || "No email"} | {application.phone_number}
+                                    </p>
+                                    <p className="mt-1 text-sm text-slate-600">{application.location}</p>
+                                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
+                                      {application.short_note}
+                                    </p>
+                                    <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
+                                      {statusLabel(application.status)} | Submitted {formatDate(application.created_at)}
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    <button type="button" onClick={() => setSelectedApplication(application)} className={secondaryButton}>
+                                      View
+                                    </button>
+                                    <button type="button" onClick={() => updateApplicationStatus(application, "reviewing")} className={secondaryButton}>
+                                      Mark Reviewing
+                                    </button>
+                                    <button type="button" onClick={() => updateApplicationStatus(application, "proceed")} className={primaryButton}>
+                                      Proceed
+                                    </button>
+                                    <button type="button" onClick={() => updateApplicationStatus(application, "rejected")} className={dangerButton}>
+                                      Reject
+                                    </button>
+                                  </div>
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={() => setSelectedApplication(application)} className={secondaryButton}>
-                          View
-                        </button>
-                        <button type="button" onClick={() => updateApplicationStatus(application, "reviewing")} className={secondaryButton}>
-                          Mark Reviewing
-                        </button>
-                        <button type="button" onClick={() => updateApplicationStatus(application, "proceed")} className={primaryButton}>
-                          Proceed
-                        </button>
-                        <button type="button" onClick={() => updateApplicationStatus(application, "rejected")} className={dangerButton}>
-                          Reject
-                        </button>
-                      </div>
-                    </div>
+                    ) : null}
                   </article>
-                ))
+                  );
+                })
               )}
             </div>
           </section>

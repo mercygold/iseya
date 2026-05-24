@@ -1,4 +1,7 @@
-import { createSupabaseServiceRoleClient } from "@/lib/supabaseServer";
+import {
+  createSupabaseServerClient,
+  createSupabaseServiceRoleClient,
+} from "@/lib/supabaseServer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,7 +42,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "Unable to load jobs." }, { status: 500 });
   }
 
-  const jobs = (data ?? []).filter((job) => {
+  function matchesFilters(job: NonNullable<typeof data>[number]) {
     const haystack = [
       job.job_title,
       job.company_name,
@@ -55,9 +58,69 @@ export async function GET(request: Request) {
     if (query && !haystack.includes(query)) return false;
     if (title && !String(job.job_title ?? "").toLowerCase().includes(title)) return false;
     if (location && !String(job.location ?? "").toLowerCase().includes(location)) return false;
+    if (workplace && job.workplace_type !== workplace) return false;
+    if (employmentType && job.employment_type !== employmentType) return false;
 
+    return true;
+  }
+
+  const publishedJobs = (data ?? []).filter(matchesFilters);
+  const authClient = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = authClient ? await authClient.auth.getUser() : { data: { user: null } };
+
+  if (!user) {
+    return Response.json({ jobs: publishedJobs, applications: [] });
+  }
+
+  const { data: applications, error: applicationError } = await supabase
+    .from("job_applications")
+    .select("job_id, status, created_at")
+    .eq("candidate_user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (applicationError) {
+    console.error("[jobs] candidate application status query failed", {
+      code: applicationError.code,
+      message: applicationError.message,
+      userId: user.id,
+    });
+    return Response.json({ jobs: publishedJobs, applications: [] });
+  }
+
+  const applicationsByJob = new Map<string, { job_id: string; status: string }>();
+  for (const application of applications ?? []) {
+    if (!applicationsByJob.has(application.job_id)) {
+      applicationsByJob.set(application.job_id, {
+        job_id: application.job_id,
+        status: application.status,
+      });
+    }
+  }
+
+  const appliedJobIds = [...applicationsByJob.keys()];
+  const { data: closedJobs, error: closedJobError } = appliedJobIds.length
+    ? await supabase.from("job_posts").select("*").in("id", appliedJobIds).eq("status", "closed")
+    : { data: [], error: null };
+
+  if (closedJobError) {
+    console.error("[jobs] candidate closed application query failed", {
+      code: closedJobError.code,
+      message: closedJobError.message,
+      userId: user.id,
+    });
+  }
+
+  const visibleIds = new Set(publishedJobs.map((job) => job.id));
+  const candidateClosedJobs = (closedJobs ?? []).filter(matchesFilters).filter((job) => {
+    if (visibleIds.has(job.id)) return false;
+    visibleIds.add(job.id);
     return true;
   });
 
-  return Response.json({ jobs });
+  return Response.json({
+    jobs: [...publishedJobs, ...candidateClosedJobs],
+    applications: [...applicationsByJob.values()],
+  });
 }
