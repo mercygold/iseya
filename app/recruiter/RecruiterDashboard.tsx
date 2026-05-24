@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import NotificationPanel from "@/components/NotificationPanel";
 import {
   countryOptions,
   countryRegions,
@@ -564,6 +565,11 @@ export default function RecruiterDashboard() {
               </div>
             ))}
           </section>
+
+          <NotificationPanel
+            title="Recruiter notifications"
+            subtitle="Application activity and moderation decisions appear here."
+          />
 
           <section id="company-profile" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

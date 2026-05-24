@@ -5,6 +5,7 @@ import {
   createSupabaseServerClient,
   createSupabaseServiceRoleClient,
 } from "@/lib/supabaseServer";
+import NotificationPanel from "@/components/NotificationPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -222,6 +223,13 @@ export default async function ApplicationsPage() {
           <Link href="/jobs" className={primaryButton}>
             Browse Jobs
           </Link>
+        </div>
+
+        <div className="mt-10">
+          <NotificationPanel
+            title="Application notifications"
+            subtitle="Updates on submitted interests and recruiter decisions appear here."
+          />
         </div>
 
         {result.error ? (

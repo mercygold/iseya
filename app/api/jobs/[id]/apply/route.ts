@@ -2,6 +2,8 @@ import {
   createSupabaseServerClient,
   createSupabaseServiceRoleClient,
 } from "@/lib/supabaseServer";
+import { sendRecruiterNewApplicationEmail } from "@/lib/notificationEmails";
+import { createNotification } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -212,6 +214,42 @@ export async function POST(request: Request, context: RouteContext) {
     .from("job_posts")
     .update({ applicants_count: count ?? 1 })
     .eq("id", job.id);
+
+  const attachments = [
+    resumeFilePath ? "resume" : "",
+    coverLetterFilePath ? "cover letter" : "",
+  ].filter(Boolean);
+
+  await createNotification(serviceRole, {
+    userId: user?.id ?? null,
+    email: candidateEmail || null,
+    type: "application_submitted",
+    title: "Interest submitted",
+    message: `Your interest in ${job.job_title} at ${job.company_name} has been submitted.`,
+    relatedJobId: job.id,
+    relatedApplicationId: applicationId,
+  });
+  await createNotification(serviceRole, {
+    userId: job.recruiter_id,
+    type: "new_application",
+    title: "New candidate interest received",
+    message: `${fullName} submitted interest for ${job.job_title}.`,
+    relatedJobId: job.id,
+    relatedApplicationId: applicationId,
+  });
+
+  if (attachments.length > 0) {
+    await createNotification(serviceRole, {
+      userId: job.recruiter_id,
+      type: "application_materials_uploaded",
+      title: "Application materials uploaded",
+      message: `${fullName} included a ${attachments.join(" and ")} for ${job.job_title}.`,
+      relatedJobId: job.id,
+      relatedApplicationId: applicationId,
+    });
+  }
+
+  await sendRecruiterNewApplicationEmail({ email: null, jobTitle: job.job_title });
 
   return Response.json({
     ok: true,

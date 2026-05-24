@@ -1,9 +1,10 @@
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabaseServer";
 import {
   chooseCanonicalRecruiterProfile,
   isCompleteRecruiterProfile,
   type RecruiterProfileRecord,
 } from "@/lib/recruiterProfile";
+import { createNotification } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -129,6 +130,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
+  const { data: existingJob } = requestedStatus === "closed"
+    ? await supabase
+        .from("job_posts")
+        .select("status, job_title")
+        .eq("id", id)
+        .eq("recruiter_id", userId)
+        .maybeSingle()
+    : { data: null };
+
   const update = {
     ...(typeof body.jobTitle === "string" ? { job_title: text(body.jobTitle) } : {}),
     ...(typeof body.companyName === "string" ? { company_name: text(body.companyName) } : {}),
@@ -169,6 +179,36 @@ export async function PATCH(request: Request, context: RouteContext) {
       jobId: id,
     });
     return Response.json({ error: jobSaveErrorMessage }, { status: 500 });
+  }
+
+  if (requestedStatus === "closed" && existingJob?.status !== "closed") {
+    const serviceRole = createSupabaseServiceRoleClient();
+    if (serviceRole) {
+      const { data: applications, error: applicationError } = await serviceRole
+        .from("job_applications")
+        .select("id, candidate_user_id, candidate_email")
+        .eq("job_id", id);
+
+      if (applicationError) {
+        console.error("[recruiter-jobs] closed-job applicant notification lookup failed", {
+          code: applicationError.code,
+          message: applicationError.message,
+          jobId: id,
+        });
+      } else {
+        for (const application of applications ?? []) {
+          await createNotification(serviceRole, {
+            userId: application.candidate_user_id,
+            email: application.candidate_email,
+            type: "job_closed",
+            title: "Job closed",
+            message: `The ${existingJob?.job_title ?? "job"} opportunity has been closed.`,
+            relatedJobId: id,
+            relatedApplicationId: application.id,
+          });
+        }
+      }
+    }
   }
 
   return Response.json({ job: data });

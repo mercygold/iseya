@@ -1,4 +1,6 @@
 import { enableInstitutionAccess } from "@/lib/featureFlags";
+import { sendRecruiterVerificationEmail } from "@/lib/notificationEmails";
+import { createMatchingJobAlertNotifications, createNotification } from "@/lib/notifications";
 import { chooseCanonicalRecruiterProfile } from "@/lib/recruiterProfile";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabaseServer";
 
@@ -234,9 +236,25 @@ export async function PATCH(request: Request) {
       return Response.json({ error: "Unable to update recruiter review status." }, { status: 500 });
     }
 
-    // TODO: Connect transactional email provider. When configured, notify work_email:
-    // verified -> "Your ISEYA recruiter profile has been verified"
-    // rejected -> "Your ISEYA recruiter profile needs updates"
+    if (
+      activeProfile.verification_status !== verificationStatus &&
+      (verificationStatus === "verified" || verificationStatus === "rejected")
+    ) {
+      const verified = verificationStatus === "verified";
+      await createNotification(serviceRole, {
+        userId: recruiterUserId,
+        email: activeProfile.work_email,
+        type: verified ? "recruiter_verified" : "recruiter_rejected",
+        title: verified ? "Company profile verified" : "Company profile needs updates",
+        message: verified
+          ? "Your company profile has been verified. You can now submit job posts for review on ISEYA."
+          : "Your company profile needs updates before job posts can be reviewed. Please update your company information and resubmit.",
+      });
+      await sendRecruiterVerificationEmail({
+        email: activeProfile.work_email,
+        status: verificationStatus,
+      });
+    }
 
     return Response.json({ ok: true });
   }
@@ -247,6 +265,21 @@ export async function PATCH(request: Request) {
 
     if (!validJobStatuses.has(jobStatus)) {
       return Response.json({ error: "Invalid job moderation update." }, { status: 400 });
+    }
+
+    const { data: jobPost, error: lookupError } = await serviceRole
+      .from("job_posts")
+      .select("id, recruiter_id, job_title, company_name, location, workplace_type, employment_type, skills, status")
+      .eq("id", jobPostId)
+      .maybeSingle();
+
+    if (lookupError || !jobPost) {
+      console.error("[manage] job moderation lookup failed", {
+        code: lookupError?.code,
+        message: lookupError?.message,
+        jobPostId,
+      });
+      return Response.json({ error: "Unable to update job post status." }, { status: 500 });
     }
 
     const { error } = await serviceRole
@@ -260,6 +293,53 @@ export async function PATCH(request: Request) {
         message: error.message,
       });
       return Response.json({ error: "Unable to update job post status." }, { status: 500 });
+    }
+
+    if (
+      jobPost.status !== jobStatus &&
+      (jobStatus === "published" || jobStatus === "rejected")
+    ) {
+      const published = jobStatus === "published";
+      await createNotification(serviceRole, {
+        userId: jobPost.recruiter_id,
+        type: published ? "job_published" : "job_rejected",
+        title: published ? "Job published" : "Job post needs updates",
+        message: published
+          ? `${jobPost.job_title} is now published on ISEYA.`
+          : `${jobPost.job_title} was not approved for publishing.`,
+        relatedJobId: jobPost.id,
+      });
+
+      if (published) {
+        await createMatchingJobAlertNotifications(serviceRole, jobPost);
+      }
+    }
+
+    if (jobPost.status !== jobStatus && jobStatus === "closed") {
+      const { data: applications, error: applicationError } = await serviceRole
+        .from("job_applications")
+        .select("id, candidate_user_id, candidate_email")
+        .eq("job_id", jobPost.id);
+
+      if (applicationError) {
+        console.error("[manage] closed-job applicant notification lookup failed", {
+          code: applicationError.code,
+          message: applicationError.message,
+          jobPostId,
+        });
+      } else {
+        for (const application of applications ?? []) {
+          await createNotification(serviceRole, {
+            userId: application.candidate_user_id,
+            email: application.candidate_email,
+            type: "job_closed",
+            title: "Job closed",
+            message: `The ${jobPost.job_title} opportunity has been closed.`,
+            relatedJobId: jobPost.id,
+            relatedApplicationId: application.id,
+          });
+        }
+      }
     }
 
     return Response.json({ ok: true });

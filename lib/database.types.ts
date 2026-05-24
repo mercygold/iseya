@@ -393,6 +393,44 @@ export type Database = {
           updated_at?: string;
         };
       };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          email: string | null;
+          type: string;
+          title: string;
+          message: string;
+          related_job_id: string | null;
+          related_application_id: string | null;
+          read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          email?: string | null;
+          type: string;
+          title: string;
+          message: string;
+          related_job_id?: string | null;
+          related_application_id?: string | null;
+          read?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          email?: string | null;
+          type?: string;
+          title?: string;
+          message?: string;
+          related_job_id?: string | null;
+          related_application_id?: string | null;
+          read?: boolean;
+          created_at?: string;
+        };
+      };
       resumes: {
         Row: {
           id: string;
