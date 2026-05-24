@@ -1,15 +1,8 @@
 import { redirect } from "next/navigation";
 import RecruiterDashboard from "@/app/recruiter/RecruiterDashboard";
+import { chooseCanonicalRecruiterProfile, isCompleteRecruiterProfile } from "@/lib/recruiterProfile";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import RecruiterShell from "../RecruiterShell";
-
-function isComplete(profile: {
-  company_name: string | null;
-  recruiter_name: string | null;
-  work_email: string | null;
-} | null) {
-  return Boolean(profile?.company_name && profile.recruiter_name && profile.work_email);
-}
 
 export default async function RecruitersDashboardPage() {
   const supabase = await createSupabaseServerClient();
@@ -28,13 +21,11 @@ export default async function RecruitersDashboardPage() {
 
   const { data: recruiterProfiles } = await supabase
     .from("recruiter_profiles")
-    .select("company_name, recruiter_name, work_email")
+    .select("company_name, recruiter_name, work_email, company_website, phone_number, address_line_1, city, state_region, country, hiring_focus, verification_status, created_at, updated_at")
     .eq("user_id", user.id)
-    .order("updated_at", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(1);
+    .order("updated_at", { ascending: false });
 
-  if (!isComplete(recruiterProfiles?.[0] ?? null)) {
+  if (!isCompleteRecruiterProfile(chooseCanonicalRecruiterProfile(recruiterProfiles))) {
     redirect("/recruiters/onboarding");
   }
 

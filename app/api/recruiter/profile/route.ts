@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { chooseCanonicalRecruiterProfile } from "@/lib/recruiterProfile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,9 +85,7 @@ export async function GET() {
       .from("recruiter_profiles")
       .select("*")
       .eq("user_id", userId)
-      .order("updated_at", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(2),
+      .order("updated_at", { ascending: false }),
   ]);
 
   if (error) {
@@ -98,13 +97,13 @@ export async function GET() {
   }
 
   if ((recruiterProfiles ?? []).length > 1) {
-    console.warn("[recruiter-profile] duplicate rows found for user; using newest row", {
+    console.warn("[recruiter-profile] duplicate rows found for user; using canonical row", {
       userId,
       rowCount: recruiterProfiles?.length,
     });
   }
 
-  const recruiterProfile = recruiterProfiles?.[0] ?? null;
+  const recruiterProfile = chooseCanonicalRecruiterProfile(recruiterProfiles);
 
   return Response.json({ profile, recruiterProfile });
 }
@@ -205,12 +204,10 @@ export async function PUT(request: Request) {
   const { data: existingRecruiterRows, error: existingProfileError } = await supabase
     .from("recruiter_profiles")
     .select(
-      "user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, industry, industry_other, company_size, hiring_focus, verification_status",
+      "id, user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, industry, industry_other, company_size, hiring_focus, verification_status, created_at, updated_at",
     )
     .eq("user_id", userId)
-    .order("updated_at", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(2);
+    .order("updated_at", { ascending: false });
 
   if (existingProfileError) {
     console.error("[recruiter-profile] existing profile lookup failed", {
@@ -224,13 +221,13 @@ export async function PUT(request: Request) {
   }
 
   if ((existingRecruiterRows ?? []).length > 1) {
-    console.warn("[recruiter-profile] duplicate rows found during save; using newest row", {
+    console.warn("[recruiter-profile] duplicate rows found during save; updating canonical row", {
       userId,
       rowCount: existingRecruiterRows?.length,
     });
   }
 
-  const existingRecruiterRow = existingRecruiterRows?.[0] ?? null;
+  const existingRecruiterRow = chooseCanonicalRecruiterProfile(existingRecruiterRows);
 
   console.info("[recruiter-profile] recruiter row state", {
     userId,
@@ -288,11 +285,19 @@ export async function PUT(request: Request) {
     verification_status: nextVerificationStatus,
   };
 
-  const saveResult = await supabase
-    .from("recruiter_profiles")
-    .upsert(recruiterProfilePayload, { onConflict: "user_id" })
-    .select("*")
-    .single();
+  const saveResult = existingRecruiterRow?.id
+    ? await supabase
+        .from("recruiter_profiles")
+        .update(recruiterProfilePayload)
+        .eq("id", existingRecruiterRow.id)
+        .eq("user_id", userId)
+        .select("*")
+        .single()
+    : await supabase
+        .from("recruiter_profiles")
+        .upsert(recruiterProfilePayload, { onConflict: "user_id" })
+        .select("*")
+        .single();
 
   const { data, error } = saveResult;
 

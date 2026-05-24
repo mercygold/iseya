@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { chooseCanonicalRecruiterProfile } from "@/lib/recruiterProfile";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabaseServer";
 
 async function requireAdmin() {
@@ -35,10 +36,18 @@ export default async function AdminRecruitersPage() {
   const serviceRole = await requireAdmin();
   const { data: recruiters } = await serviceRole
     .from("recruiter_profiles")
-    .select("user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, company_location, industry, industry_other, company_size, hiring_focus, verification_status, verification_notes, created_at")
-    .in("verification_status", ["pending_review", "rejected"])
-    .order("created_at", { ascending: false })
-    .limit(100);
+    .select("id, user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, company_location, industry, industry_other, company_size, hiring_focus, verification_status, verification_notes, created_at, updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(500);
+  const rowsByUser = new Map<string, NonNullable<typeof recruiters>>();
+
+  for (const recruiter of recruiters ?? []) {
+    rowsByUser.set(recruiter.user_id, [...(rowsByUser.get(recruiter.user_id) ?? []), recruiter]);
+  }
+
+  const reviewQueue = Array.from(rowsByUser.values())
+    .map((rows) => chooseCanonicalRecruiterProfile(rows))
+    .filter((recruiter) => recruiter && ["pending_review", "rejected"].includes(recruiter.verification_status));
 
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] px-5 py-10 text-[var(--iseya-text)] sm:px-8">
@@ -56,8 +65,8 @@ export default async function AdminRecruitersPage() {
           Open Manage Dashboard
         </Link>
         <div className="mt-6 space-y-3">
-          {(recruiters ?? []).length > 0 ? (
-            recruiters?.map((recruiter) => (
+          {reviewQueue.length > 0 ? (
+            reviewQueue.map((recruiter) => (
               <article key={recruiter.user_id} className="rounded-xl border border-slate-200 p-4">
                 <h2 className="font-semibold text-[var(--iseya-navy)]">
                   {recruiter.company_name || "Company pending"}

@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { chooseCanonicalRecruiterProfile, isCompleteRecruiterProfile } from "@/lib/recruiterProfile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -91,11 +92,9 @@ async function getRecruiterContext() {
       .maybeSingle(),
     supabase
       .from("recruiter_profiles")
-      .select("company_name, recruiter_name, work_email, company_website, phone_number, address_line_1, city, state_region, country, hiring_focus, verification_status")
+      .select("id, company_name, recruiter_name, work_email, company_website, phone_number, address_line_1, city, state_region, country, hiring_focus, verification_status, created_at, updated_at")
       .eq("user_id", userId)
-      .order("updated_at", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(2),
+      .order("updated_at", { ascending: false }),
   ]);
 
   const contextError = profileError ?? recruiterProfileError;
@@ -111,7 +110,7 @@ async function getRecruiterContext() {
   }
 
   if ((recruiterProfiles ?? []).length > 1) {
-    console.warn("[recruiter-jobs] duplicate recruiter rows found; using newest row", {
+    console.warn("[recruiter-jobs] duplicate recruiter rows found; using canonical row", {
       userId,
       rowCount: recruiterProfiles?.length,
     });
@@ -124,37 +123,9 @@ async function getRecruiterContext() {
       profile?.account_type === "recruiter" ||
       profile?.role === "admin" ||
       profile?.app_role === "admin",
-    recruiterProfile: recruiterProfiles?.[0] ?? null,
+    recruiterProfile: chooseCanonicalRecruiterProfile(recruiterProfiles),
     contextError,
   };
-}
-
-function hasCompleteCompanyProfile(
-  profile: {
-    company_name: string | null;
-    recruiter_name: string | null;
-    work_email: string | null;
-    company_website: string | null;
-    phone_number: string | null;
-    address_line_1: string | null;
-    city: string | null;
-    state_region: string | null;
-    country: string | null;
-    hiring_focus: string | null;
-  } | null,
-) {
-  return Boolean(
-    profile?.company_name &&
-      profile.recruiter_name &&
-      profile.work_email &&
-      profile.company_website &&
-      profile.phone_number &&
-      profile.address_line_1 &&
-      profile.city &&
-      profile.state_region &&
-      profile.country &&
-      profile.hiring_focus,
-  );
 }
 
 export async function GET() {
@@ -198,7 +169,7 @@ export async function POST(request: Request) {
     return Response.json({ error: jobSaveErrorMessage }, { status: 500 });
   }
 
-  if (!hasCompleteCompanyProfile(recruiterProfile)) {
+  if (!isCompleteRecruiterProfile(recruiterProfile)) {
     return Response.json(
       { error: "Create your company profile before posting jobs." },
       { status: 403 },

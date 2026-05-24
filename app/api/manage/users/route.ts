@@ -1,4 +1,5 @@
 import { enableInstitutionAccess } from "@/lib/featureFlags";
+import { chooseCanonicalRecruiterProfile } from "@/lib/recruiterProfile";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabaseServer";
 
 const validPlans = new Set(["free", "plus", "pro_monthly", "pro_annual"]);
@@ -104,6 +105,7 @@ export async function GET() {
     verification_notes: string | null;
     created_at: string;
     updated_at: string;
+    stale_duplicate_count: number;
   }> = [];
   let jobPosts: Array<{
     id: string;
@@ -121,7 +123,7 @@ export async function GET() {
         .from("recruiter_profiles")
         .select("id, user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, company_location, industry, industry_other, company_size, hiring_focus, verification_status, verification_notes, created_at, updated_at")
         .order("updated_at", { ascending: false })
-        .limit(100),
+        .limit(500),
       serviceRole
         .from("job_posts")
         .select("id, recruiter_id, job_title, company_name, status, applicants_count, created_at")
@@ -135,14 +137,15 @@ export async function GET() {
       message: recruiterError.message,
     });
   } else {
-    const seenRecruiters = new Set<string>();
-    recruiters = (recruiterRows ?? []).filter((recruiter) => {
-      if (seenRecruiters.has(recruiter.user_id)) {
-        return false;
-      }
+    const rowsByUser = new Map<string, NonNullable<typeof recruiterRows>>();
 
-      seenRecruiters.add(recruiter.user_id);
-      return true;
+    for (const recruiter of recruiterRows ?? []) {
+      rowsByUser.set(recruiter.user_id, [...(rowsByUser.get(recruiter.user_id) ?? []), recruiter]);
+    }
+
+    recruiters = Array.from(rowsByUser.values()).flatMap((rows) => {
+      const active = chooseCanonicalRecruiterProfile(rows);
+      return active ? [{ ...active, stale_duplicate_count: Math.max(0, rows.length - 1) }] : [];
     });
   }
 
@@ -203,10 +206,25 @@ export async function PATCH(request: Request) {
       return Response.json({ error: "Invalid recruiter moderation update." }, { status: 400 });
     }
 
+    const { data: recruiterRows, error: lookupError } = await serviceRole
+      .from("recruiter_profiles")
+      .select("id, user_id, company_name, recruiter_name, work_email, company_website, phone_number, address_line_1, city, state_region, country, hiring_focus, verification_status, created_at, updated_at")
+      .eq("user_id", recruiterUserId);
+    const activeProfile = chooseCanonicalRecruiterProfile(recruiterRows);
+
+    if (lookupError || !activeProfile?.id) {
+      console.error("[manage] recruiter moderation lookup failed", {
+        code: lookupError?.code,
+        message: lookupError?.message,
+        recruiterUserId,
+      });
+      return Response.json({ error: "Unable to update recruiter review status." }, { status: 500 });
+    }
+
     const { error } = await serviceRole
       .from("recruiter_profiles")
       .update({ verification_status: verificationStatus })
-      .eq("user_id", recruiterUserId);
+      .eq("id", activeProfile.id);
 
     if (error) {
       console.error("[manage] recruiter moderation update failed", {
@@ -278,18 +296,62 @@ export async function DELETE(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as {
     recruiterProfileId?: unknown;
+    deletionMode?: unknown;
   };
   const recruiterProfileId =
     typeof body.recruiterProfileId === "string" ? body.recruiterProfileId : "";
+  const deletionMode = typeof body.deletionMode === "string" ? body.deletionMode : "";
 
   if (!recruiterProfileId) {
     return Response.json({ error: "Invalid recruiter deletion request." }, { status: 400 });
   }
 
-  const { error } = await serviceRole
+  const { data: requestedProfile, error: requestedProfileError } = await serviceRole
     .from("recruiter_profiles")
-    .delete()
-    .eq("id", recruiterProfileId);
+    .select("id, user_id")
+    .eq("id", recruiterProfileId)
+    .maybeSingle();
+
+  if (requestedProfileError || !requestedProfile) {
+    console.error("[manage] recruiter deletion lookup failed", {
+      code: requestedProfileError?.code,
+      message: requestedProfileError?.message,
+      recruiterProfileId,
+    });
+    return Response.json({ error: "Unable to delete recruiter profile." }, { status: 500 });
+  }
+
+  const { data: recruiterRows, error: recruiterRowsError } = await serviceRole
+    .from("recruiter_profiles")
+    .select("id, user_id, company_name, recruiter_name, work_email, company_website, phone_number, address_line_1, city, state_region, country, hiring_focus, verification_status, created_at, updated_at")
+    .eq("user_id", requestedProfile.user_id);
+  const activeProfile = chooseCanonicalRecruiterProfile(recruiterRows);
+
+  if (recruiterRowsError || !activeProfile?.id) {
+    console.error("[manage] recruiter deletion canonical lookup failed", {
+      code: recruiterRowsError?.code,
+      message: recruiterRowsError?.message,
+      recruiterProfileId,
+    });
+    return Response.json({ error: "Unable to delete recruiter profile." }, { status: 500 });
+  }
+
+  if (deletionMode !== "stale_duplicates" && deletionMode !== "profile_reset") {
+    return Response.json({ error: "Invalid recruiter deletion request." }, { status: 400 });
+  }
+
+  const deleteQuery =
+    deletionMode === "stale_duplicates"
+      ? serviceRole
+          .from("recruiter_profiles")
+          .delete()
+          .eq("user_id", requestedProfile.user_id)
+          .neq("id", activeProfile.id)
+      : serviceRole
+          .from("recruiter_profiles")
+          .delete()
+          .eq("user_id", requestedProfile.user_id);
+  const { error } = await deleteQuery;
 
   if (error) {
     console.error("[manage] recruiter deletion failed", {
@@ -298,9 +360,10 @@ export async function DELETE(request: Request) {
       details: error.details,
       hint: error.hint,
       recruiterProfileId,
+      deletionMode,
     });
     return Response.json({ error: "Unable to delete recruiter profile." }, { status: 500 });
   }
 
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, deletionMode });
 }

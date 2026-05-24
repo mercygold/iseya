@@ -50,6 +50,7 @@ type RecruiterModeration = {
   verification_notes: string | null;
   created_at: string;
   updated_at: string;
+  stale_duplicate_count: number;
 };
 
 type JobPostModeration = {
@@ -264,9 +265,9 @@ export default function ManageDashboard() {
     }
   }
 
-  async function deleteRecruiterProfile(recruiter: RecruiterModeration) {
+  async function removeStaleRecruiterDuplicates(recruiter: RecruiterModeration) {
     const confirmed = window.confirm(
-      `Delete recruiter profile for ${recruiter.company_name || recruiter.work_email}?`,
+      `Remove ${recruiter.stale_duplicate_count} duplicate recruiter profile record(s) for ${recruiter.company_name || recruiter.work_email}? The active verified profile will be preserved.`,
     );
 
     if (!confirmed) return;
@@ -277,7 +278,35 @@ export default function ManageDashboard() {
       const response = await fetch("/api/manage/users", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recruiterProfileId: recruiter.id }),
+        body: JSON.stringify({ recruiterProfileId: recruiter.id, deletionMode: "stale_duplicates" }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to remove duplicate recruiter profiles.");
+      }
+
+      setStatus("Duplicate recruiter profiles removed. The active profile was preserved.");
+      await loadManageData({ preserveStatus: true });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to remove duplicate recruiter profiles.");
+    }
+  }
+
+  async function deleteRecruiterProfile(recruiter: RecruiterModeration) {
+    const confirmed = window.confirm(
+      `This will remove the recruiter’s company profile and reset their posting access. Delete profile for ${recruiter.company_name || recruiter.work_email}?`,
+    );
+
+    if (!confirmed) return;
+
+    setStatus("");
+
+    try {
+      const response = await fetch("/api/manage/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recruiterProfileId: recruiter.id, deletionMode: "profile_reset" }),
       });
       const data = (await response.json().catch(() => ({}))) as { error?: string };
 
@@ -530,9 +559,11 @@ export default function ManageDashboard() {
                       <button type="button" onClick={() => setSelectedRecruiter(recruiter)} className={secondaryButton}>
                         View
                       </button>
-                      <button type="button" onClick={() => deleteRecruiterProfile(recruiter)} className={secondaryButton}>
-                        Delete
-                      </button>
+                      {recruiter.stale_duplicate_count > 0 ? (
+                        <button type="button" onClick={() => removeStaleRecruiterDuplicates(recruiter)} className={secondaryButton}>
+                          Remove Duplicates
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -614,6 +645,7 @@ export default function ManageDashboard() {
           recruiter={selectedRecruiter}
           onClose={() => setSelectedRecruiter(null)}
           onUpdate={(nextStatus) => updateRecruiterStatus(selectedRecruiter, nextStatus)}
+          onRemoveDuplicates={() => removeStaleRecruiterDuplicates(selectedRecruiter)}
           onDelete={() => deleteRecruiterProfile(selectedRecruiter)}
         />
       ) : null}
@@ -636,11 +668,13 @@ function RecruiterModal({
   recruiter,
   onClose,
   onUpdate,
+  onRemoveDuplicates,
   onDelete,
 }: {
   recruiter: RecruiterModeration;
   onClose: () => void;
   onUpdate: (status: string) => void;
+  onRemoveDuplicates: () => void;
   onDelete: () => void;
 }) {
   return (
@@ -696,8 +730,13 @@ function RecruiterModal({
           <button type="button" onClick={() => onUpdate("pending_review")} className={secondaryButton}>
             Set Pending Review
           </button>
+          {recruiter.stale_duplicate_count > 0 ? (
+            <button type="button" onClick={onRemoveDuplicates} className={secondaryButton}>
+              Remove Duplicates
+            </button>
+          ) : null}
           <button type="button" onClick={onDelete} className={secondaryButton}>
-            Delete
+            Delete Profile
           </button>
           <button type="button" onClick={onClose} className={secondaryButton}>
             Close
