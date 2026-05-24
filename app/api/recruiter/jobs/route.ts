@@ -82,7 +82,7 @@ async function getRecruiterContext() {
 
   const [
     { data: profile, error: profileError },
-    { data: recruiterProfile, error: recruiterProfileError },
+    { data: recruiterProfiles, error: recruiterProfileError },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -93,7 +93,9 @@ async function getRecruiterContext() {
       .from("recruiter_profiles")
       .select("company_name, recruiter_name, work_email, company_website, phone_number, address_line_1, city, state_region, country, hiring_focus, verification_status")
       .eq("user_id", userId)
-      .maybeSingle(),
+      .order("updated_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(2),
   ]);
 
   const contextError = profileError ?? recruiterProfileError;
@@ -108,6 +110,13 @@ async function getRecruiterContext() {
     });
   }
 
+  if ((recruiterProfiles ?? []).length > 1) {
+    console.warn("[recruiter-jobs] duplicate recruiter rows found; using newest row", {
+      userId,
+      rowCount: recruiterProfiles?.length,
+    });
+  }
+
   return {
     supabase,
     userId,
@@ -115,7 +124,7 @@ async function getRecruiterContext() {
       profile?.account_type === "recruiter" ||
       profile?.role === "admin" ||
       profile?.app_role === "admin",
-    recruiterProfile,
+    recruiterProfile: recruiterProfiles?.[0] ?? null,
     contextError,
   };
 }

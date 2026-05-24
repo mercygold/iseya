@@ -26,13 +26,15 @@ export default async function RecruiterOnboardingPage() {
     redirect("/login?redirectedFrom=/recruiters/onboarding");
   }
 
-  const { data: recruiterProfile } = await supabase
+  const { data: recruiterProfiles } = await supabase
     .from("recruiter_profiles")
     .select("company_name, recruiter_name, work_email")
     .eq("user_id", user.id)
-    .maybeSingle();
+    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1);
 
-  if (isComplete(recruiterProfile)) {
+  if (isComplete(recruiterProfiles?.[0] ?? null)) {
     redirect("/recruiters/dashboard");
   }
 

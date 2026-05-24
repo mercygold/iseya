@@ -48,13 +48,15 @@ async function getUserContext() {
   } = await supabase.auth.getUser();
 
   const userId = user?.id ?? "";
-  const { data: recruiterProfile, error: recruiterProfileError } = userId
+  const { data: recruiterProfiles, error: recruiterProfileError } = userId
     ? await supabase
         .from("recruiter_profiles")
         .select("company_name, recruiter_name, work_email, company_website, phone_number, address_line_1, city, state_region, country, hiring_focus, verification_status")
         .eq("user_id", userId)
-        .maybeSingle()
-    : { data: null, error: null };
+        .order("updated_at", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(2)
+    : { data: [], error: null };
 
   if (recruiterProfileError) {
     console.error("[recruiter-jobs] update context lookup failed", {
@@ -66,7 +68,19 @@ async function getUserContext() {
     });
   }
 
-  return { supabase, userId, recruiterProfile, contextError: recruiterProfileError };
+  if ((recruiterProfiles ?? []).length > 1) {
+    console.warn("[recruiter-jobs] duplicate recruiter rows found during update; using newest row", {
+      userId,
+      rowCount: recruiterProfiles?.length,
+    });
+  }
+
+  return {
+    supabase,
+    userId,
+    recruiterProfile: recruiterProfiles?.[0] ?? null,
+    contextError: recruiterProfileError,
+  };
 }
 
 function hasCompleteCompanyProfile(

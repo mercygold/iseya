@@ -74,7 +74,7 @@ export async function GET() {
     return Response.json({ error: "Login required." }, { status: 401 });
   }
 
-  const [{ data: profile }, { data: recruiterProfile, error }] = await Promise.all([
+  const [{ data: profile }, { data: recruiterProfiles, error }] = await Promise.all([
     supabase
       .from("profiles")
       .select("id, email, full_name, account_type, role, app_role")
@@ -84,7 +84,9 @@ export async function GET() {
       .from("recruiter_profiles")
       .select("*")
       .eq("user_id", userId)
-      .maybeSingle(),
+      .order("updated_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(2),
   ]);
 
   if (error) {
@@ -94,6 +96,15 @@ export async function GET() {
     });
     return Response.json({ error: "Unable to load recruiter profile." }, { status: 500 });
   }
+
+  if ((recruiterProfiles ?? []).length > 1) {
+    console.warn("[recruiter-profile] duplicate rows found for user; using newest row", {
+      userId,
+      rowCount: recruiterProfiles?.length,
+    });
+  }
+
+  const recruiterProfile = recruiterProfiles?.[0] ?? null;
 
   return Response.json({ profile, recruiterProfile });
 }
@@ -191,13 +202,15 @@ export async function PUT(request: Request) {
     return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
 
-  const { data: existingRecruiterRow, error: existingProfileError } = await supabase
+  const { data: existingRecruiterRows, error: existingProfileError } = await supabase
     .from("recruiter_profiles")
     .select(
       "user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, industry, industry_other, company_size, hiring_focus, verification_status",
     )
     .eq("user_id", userId)
-    .maybeSingle();
+    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(2);
 
   if (existingProfileError) {
     console.error("[recruiter-profile] existing profile lookup failed", {
@@ -209,6 +222,15 @@ export async function PUT(request: Request) {
     });
     return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
+
+  if ((existingRecruiterRows ?? []).length > 1) {
+    console.warn("[recruiter-profile] duplicate rows found during save; using newest row", {
+      userId,
+      rowCount: existingRecruiterRows?.length,
+    });
+  }
+
+  const existingRecruiterRow = existingRecruiterRows?.[0] ?? null;
 
   console.info("[recruiter-profile] recruiter row state", {
     userId,

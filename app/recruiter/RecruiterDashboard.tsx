@@ -143,6 +143,13 @@ function formatDate(value: string) {
   });
 }
 
+function normalizeVerificationStatus(value: string | null | undefined) {
+  const status = (value ?? "").trim().toLowerCase();
+  return status === "verified" || status === "rejected" || status === "pending_review"
+    ? status
+    : "pending_review";
+}
+
 export default function RecruiterDashboard() {
   const pathname = usePathname();
   const router = useRouter();
@@ -225,11 +232,11 @@ export default function RecruiterDashboard() {
   const needsManualState =
     selectedCountryOption === manualLocationOption || selectedStateOption === manualLocationOption;
   const needsOtherIndustry = profileDraft.industry === "Other";
-  const verificationStatus = profile?.verification_status ?? "pending_review";
+  const verificationStatus = normalizeVerificationStatus(profile?.verification_status);
   const canEditJobDraft = profileComplete;
   const canSubmitJobForReview = profileComplete && verificationStatus === "verified";
   const verificationMessage =
-    !profileComplete
+    !profile
       ? "Create your company profile before posting jobs."
       : verificationStatus === "verified"
         ? "Your company profile is verified. You can submit jobs for publishing."
@@ -568,7 +575,7 @@ export default function RecruiterDashboard() {
                   {profile?.company_name || "Recruiter profile pending"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Verification status: {statusLabel(profile?.verification_status ?? "pending_review")}
+                  Verification status: {profile ? statusLabel(verificationStatus) : "Not submitted"}
                 </p>
               </div>
               <button
