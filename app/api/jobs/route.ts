@@ -77,7 +77,7 @@ export async function GET(request: Request) {
   const { data: applications, error: applicationError } = await supabase
     .from("job_applications")
     .select("job_id, status, created_at")
-    .eq("candidate_user_id", user.id)
+    .or(`candidate_user_id.eq.${user.id},candidate_id.eq.${user.id}`)
     .order("created_at", { ascending: false });
 
   if (applicationError) {

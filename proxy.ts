@@ -5,6 +5,7 @@ import { getSupabasePublicConfigStatus } from "./lib/supabaseConfig";
 const protectedRoutes = [
   "/dashboard",
   "/workspace",
+  "/applications",
   "/manage",
   "/admin",
   "/recruiter",
@@ -82,6 +83,8 @@ export const config = {
   matcher: [
     "/dashboard/:path*",
     "/workspace/:path*",
+    "/applications/:path*",
+    "/applications",
     "/manage/:path*",
     "/manage",
     "/admin/:path*",

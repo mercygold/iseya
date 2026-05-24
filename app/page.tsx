@@ -6632,12 +6632,22 @@ export default function Home() {
           </div>
           <div className="flex max-w-2xl flex-col gap-3 lg:items-end">
             <nav className="flex flex-wrap justify-start gap-x-4 gap-y-2 text-sm font-semibold text-white/80 lg:justify-end">
+              {authUser ? (
+                <Link className="transition hover:text-[var(--iseya-gold)]" href="/workspace">
+                  Dashboard
+                </Link>
+              ) : null}
               <a className="transition hover:text-[var(--iseya-gold)]" href="#resume-builder">
                 Career Assets
               </a>
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">
                 Jobs
               </Link>
+              {authUser ? (
+                <Link className="transition hover:text-[var(--iseya-gold)]" href="/applications">
+                  My Applications
+                </Link>
+              ) : null}
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters">
                 For Recruiters
               </Link>
@@ -6647,6 +6657,11 @@ export default function Home() {
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/contact">
                 Contact
               </Link>
+              {authUser ? (
+                <Link className="transition hover:text-[var(--iseya-gold)]" href="/account">
+                  Settings
+                </Link>
+              ) : null}
             </nav>
             <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
               {authUser ? (

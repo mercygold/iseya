@@ -130,7 +130,12 @@ export default function JobsBoard() {
       }
 
       setJobs(data.jobs ?? []);
-      setSelectedJobId((current) => current || data.jobs?.[0]?.id || "");
+      const requestedJobId = new URLSearchParams(window.location.search).get("job") ?? "";
+      setSelectedJobId((current) =>
+        (data.jobs ?? []).some((job) => job.id === requestedJobId)
+          ? requestedJobId
+          : current || data.jobs?.[0]?.id || "",
+      );
       const nextStatuses = Object.fromEntries(
         (data.applications ?? []).map((application) => [
           application.job_id,
@@ -318,18 +323,42 @@ export default function JobsBoard() {
             </p>
           </div>
           <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/">
-              For Candidates
-            </Link>
+            {user ? (
+              <>
+                <Link className="transition hover:text-[var(--iseya-gold)]" href="/workspace">
+                  Dashboard
+                </Link>
+                <Link className="transition hover:text-[var(--iseya-gold)]" href="/workspace#resume-builder">
+                  Career Assets
+                </Link>
+                <Link className="text-[var(--iseya-gold)]" href="/jobs">
+                  Jobs
+                </Link>
+                <Link className="transition hover:text-[var(--iseya-gold)]" href="/applications">
+                  My Applications
+                </Link>
+                <Link className="transition hover:text-[var(--iseya-gold)]" href="/account">
+                  Settings
+                </Link>
+              </>
+            ) : (
+              <Link className="transition hover:text-[var(--iseya-gold)]" href="/">
+                For Candidates
+              </Link>
+            )}
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters">
               For Recruiters
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
-              Pricing
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/login">
-              Sign In
-            </Link>
+            {!user ? (
+              <>
+                <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
+                  Pricing
+                </Link>
+                <Link className="transition hover:text-[var(--iseya-gold)]" href="/login">
+                  Sign In
+                </Link>
+              </>
+            ) : null}
           </nav>
         </div>
       </section>

@@ -315,6 +315,12 @@ export default function AccountPage() {
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/workspace">
               Workspace
             </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">
+              Jobs
+            </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/applications">
+              My Applications
+            </Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
               Pricing
             </Link>
