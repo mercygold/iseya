@@ -28,6 +28,14 @@ type JobPost = {
   created_at: string;
 };
 
+type InterestDraft = {
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  location: string;
+  shortNote: string;
+};
+
 const primaryButton =
   "inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-3 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] disabled:cursor-not-allowed disabled:opacity-60";
 const secondaryButton =
@@ -59,11 +67,22 @@ export default function JobsBoard() {
   const [employmentType, setEmploymentType] = useState("");
   const [workplace, setWorkplace] = useState("");
   const [alertEmail, setAlertEmail] = useState(user?.email ?? "");
-  const [interestEmail, setInterestEmail] = useState(user?.email ?? "");
   const [selectedJobId, setSelectedJobId] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [alertLoading, setAlertLoading] = useState(false);
+  const [alertSubscribed, setAlertSubscribed] = useState(false);
+  const [interestJob, setInterestJob] = useState<JobPost | null>(null);
+  const [interestDraft, setInterestDraft] = useState<InterestDraft>({
+    fullName: "",
+    email: user?.email ?? "",
+    phoneNumber: "",
+    location: "",
+    shortNote: "",
+  });
+  const [interestSubmitting, setInterestSubmitting] = useState(false);
+  const [interestSubmitted, setInterestSubmitted] = useState(false);
+  const [interestStatus, setInterestStatus] = useState("");
 
   const selectedJob = useMemo(
     () => jobs.find((job) => job.id === selectedJobId) ?? jobs[0] ?? null,
@@ -107,34 +126,64 @@ export default function JobsBoard() {
     return () => window.clearTimeout(timer);
   }, [loadJobs]);
 
-  async function applyToJob(job: JobPost) {
+  function beginApplication(job: JobPost) {
     if (job.application_url) {
       window.open(job.application_url, "_blank", "noopener,noreferrer");
       return;
     }
 
-    setStatus("");
+    setInterestJob(job);
+    setInterestSubmitted(false);
+    setInterestStatus("");
+    setInterestDraft({
+      fullName:
+        typeof user?.user_metadata?.full_name === "string" ? user.user_metadata.full_name : "",
+      email: user?.email ?? "",
+      phoneNumber: "",
+      location: "",
+      shortNote: "",
+    });
+  }
+
+  async function submitInterest() {
+    if (!interestJob) {
+      return;
+    }
+
+    setInterestSubmitting(true);
+    setInterestStatus("");
 
     try {
-      const response = await fetch(`/api/jobs/${job.id}/apply`, {
+      const response = await fetch(`/api/jobs/${interestJob.id}/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: interestEmail }),
+        body: JSON.stringify(interestDraft),
       });
       const data = (await response.json().catch(() => ({}))) as { error?: string };
 
       if (!response.ok) {
-        throw new Error(data.error || "Unable to express interest.");
+        throw new Error(
+          data.error || "Unable to submit interest right now. Please check the form and try again.",
+        );
       }
 
-      setStatus("Interest submitted.");
+      setInterestSubmitted(true);
+      setInterestStatus("Interest submitted successfully.");
+      setStatus("Interest submitted successfully.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to submit interest right now.");
+      setInterestStatus(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit interest right now. Please check the form and try again.",
+      );
+    } finally {
+      setInterestSubmitting(false);
     }
   }
 
   async function subscribeToAlerts() {
     setAlertLoading(true);
+    setAlertSubscribed(false);
     setStatus("");
 
     try {
@@ -157,12 +206,13 @@ export default function JobsBoard() {
         throw new Error(data.error || "Unable to save job alert.");
       }
 
+      setAlertSubscribed(true);
       setStatus("You’re subscribed to job alerts.");
     } catch (error) {
       setStatus(
         error instanceof Error && /valid email/i.test(error.message)
           ? error.message
-          : "Job alerts are being prepared. Please try again shortly.",
+          : "Unable to subscribe to job alerts right now. Please try again.",
       );
     } finally {
       setAlertLoading(false);
@@ -289,7 +339,11 @@ export default function JobsBoard() {
             disabled={alertLoading}
             className={secondaryButton}
           >
-            {alertLoading ? "Saving..." : "Subscribe to Job Alerts"}
+            {alertLoading
+              ? "Subscribing..."
+              : alertSubscribed
+                ? "Subscribed"
+                : "Subscribe to Job Alerts"}
           </button>
         </div>
 
@@ -362,18 +416,9 @@ export default function JobsBoard() {
                     ) : null}
                   </div>
                   <div className="flex flex-col gap-2 sm:min-w-64">
-                    {!selectedJob.application_url ? (
-                      <input
-                        type="email"
-                        value={interestEmail}
-                        onChange={(event) => setInterestEmail(event.target.value)}
-                        placeholder="Email for interest"
-                        className="rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
-                      />
-                    ) : null}
                     <button
                       type="button"
-                      onClick={() => applyToJob(selectedJob)}
+                      onClick={() => beginApplication(selectedJob)}
                       className={primaryButton}
                     >
                       {selectedJob.application_url ? "Apply Externally" : "Express Interest"}
@@ -404,7 +449,7 @@ export default function JobsBoard() {
                   ) : null}
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-sm font-semibold text-[var(--iseya-navy)]">
-                      ISEYA application MVP
+                      ISEYA application beta
                     </p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
                       {selectedJob.application_url
@@ -425,7 +470,151 @@ export default function JobsBoard() {
           </section>
         </div>
       </section>
+      {interestJob ? (
+        <InterestModal
+          job={interestJob}
+          draft={interestDraft}
+          submitting={interestSubmitting}
+          submitted={interestSubmitted}
+          status={interestStatus}
+          onChange={setInterestDraft}
+          onClose={() => setInterestJob(null)}
+          onSubmit={submitInterest}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function InterestModal({
+  job,
+  draft,
+  submitting,
+  submitted,
+  status,
+  onChange,
+  onClose,
+  onSubmit,
+}: {
+  job: JobPost;
+  draft: InterestDraft;
+  submitting: boolean;
+  submitted: boolean;
+  status: string;
+  onChange: (draft: InterestDraft) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8">
+      <section className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+              Express Interest
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
+              Submit Interest
+            </h2>
+            <p className="mt-2 text-sm font-medium text-slate-600">
+              {job.job_title} | {job.company_name}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className={secondaryButton}>
+            Close
+          </button>
+        </div>
+
+        <p className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+          Express interest without creating a public candidate profile. If you are signed in,
+          ISEYA can connect this interest to your private workspace.
+        </p>
+        {status ? (
+          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">
+            {status}
+          </p>
+        ) : null}
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <ApplicationField label="Full name" value={draft.fullName} onChange={(value) => onChange({ ...draft, fullName: value })} required />
+          <ApplicationField label="Email" type="email" value={draft.email} onChange={(value) => onChange({ ...draft, email: value })} required />
+          <ApplicationField label="Phone number" value={draft.phoneNumber} onChange={(value) => onChange({ ...draft, phoneNumber: value })} required />
+          <ApplicationField label="Location" value={draft.location} onChange={(value) => onChange({ ...draft, location: value })} required />
+          <label className="block text-sm font-semibold text-[var(--iseya-navy)] sm:col-span-2">
+            Short note <span className="text-red-600">*</span>
+            <textarea
+              required
+              value={draft.shortNote}
+              onChange={(event) => onChange({ ...draft, shortNote: event.target.value })}
+              className="mt-2 min-h-28 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+              placeholder="Briefly describe your interest and relevant experience."
+            />
+          </label>
+          <ApplicationFileField label="Resume optional" />
+          <ApplicationFileField label="Cover letter optional" />
+        </div>
+
+        <p className="mt-4 text-xs leading-5 text-slate-500">
+          PDF, DOC, or DOCX attachments will be supported in a later update. Your submitted
+          contact details and note are saved now.
+        </p>
+
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={onClose} className={secondaryButton}>
+            Close
+          </button>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={submitting || submitted}
+            className={primaryButton}
+          >
+            {submitting ? "Submitting..." : submitted ? "Submitted" : "Submit Interest"}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ApplicationField({
+  label,
+  type = "text",
+  value,
+  required = false,
+  onChange,
+}: {
+  label: string;
+  type?: string;
+  value: string;
+  required?: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+      {label} {required ? <span className="text-red-600">*</span> : null}
+      <input
+        type={type}
+        value={value}
+        required={required}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+      />
+    </label>
+  );
+}
+
+function ApplicationFileField({ label }: { label: string }) {
+  return (
+    <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
+      {label}
+      <input
+        type="file"
+        accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        disabled
+        className="mt-2 block w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500"
+      />
+    </label>
   );
 }
 

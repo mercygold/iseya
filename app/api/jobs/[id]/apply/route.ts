@@ -18,16 +18,23 @@ function validEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+const submitErrorMessage =
+  "Unable to submit interest right now. Please check the form and try again.";
+
 export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const serviceRole = createSupabaseServiceRoleClient();
 
   if (!serviceRole) {
-    return Response.json({ error: "Interest submissions are being prepared. Please try again shortly." }, { status: 503 });
+    return Response.json({ error: submitErrorMessage }, { status: 503 });
   }
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const fullName = text(body.fullName);
   const providedEmail = text(body.email).toLowerCase();
+  const phoneNumber = text(body.phoneNumber);
+  const location = text(body.location);
+  const shortNote = text(body.shortNote);
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -52,11 +59,11 @@ export async function POST(request: Request, context: RouteContext) {
         .maybeSingle()
     : { data: null };
 
-  const candidateEmail = (profile?.email ?? user?.email ?? providedEmail).toLowerCase();
+  const candidateEmail = (providedEmail || profile?.email || user?.email || "").toLowerCase();
 
-  if (!user && !validEmail(candidateEmail)) {
+  if (!fullName || !validEmail(candidateEmail) || !phoneNumber || !location || !shortNote) {
     return Response.json(
-      { error: "Enter your email to express interest in this role." },
+      { error: "Complete all required interest fields before submitting." },
       { status: 400 },
     );
   }
@@ -67,38 +74,39 @@ export async function POST(request: Request, context: RouteContext) {
     candidate_user_id: user?.id ?? null,
     candidate_email: candidateEmail || null,
     recruiter_id: job.recruiter_id,
+    full_name: fullName,
+    phone_number: phoneNumber,
+    location,
+    short_note: shortNote,
+    resume_file_url: null,
+    cover_letter_file_url: null,
     status: "submitted",
     candidate_snapshot: {
       email: candidateEmail,
-      fullName: profile?.full_name ?? "",
+      fullName,
+      phoneNumber,
+      location,
+      shortNote,
       source: user ? "ISEYA career materials" : "Email interest",
     },
   };
 
-  let { error } = await serviceRole.from("job_applications").insert(applicationPayload);
-
-  if (
-    error &&
-    (error.code === "PGRST204" || error.message.includes("candidate_user_id"))
-  ) {
-    const legacyPayload = {
-      job_id: applicationPayload.job_id,
-      candidate_id: applicationPayload.candidate_id,
-      candidate_email: applicationPayload.candidate_email,
-      recruiter_id: applicationPayload.recruiter_id,
-      status: applicationPayload.status,
-      candidate_snapshot: applicationPayload.candidate_snapshot,
-    };
-    ({ error } = await serviceRole.from("job_applications").insert(legacyPayload));
-  }
+  const { error } = await serviceRole.from("job_applications").insert(applicationPayload);
 
   if (error) {
     if (error.code === "23505") {
       return Response.json({ error: "You already expressed interest in this role." }, { status: 409 });
     }
 
-    console.error("[jobs] application failed", { code: error.code, message: error.message });
-    return Response.json({ error: "Unable to submit interest right now." }, { status: 500 });
+    console.error("[jobs] application failed", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      jobId: id,
+      candidateUserIdExists: Boolean(user?.id),
+    });
+    return Response.json({ error: submitErrorMessage }, { status: 500 });
   }
 
   const { count } = await serviceRole

@@ -54,6 +54,21 @@ type JobPost = {
   created_at: string;
 };
 
+type Application = {
+  id: string;
+  job_id: string;
+  job_title: string;
+  candidate_email: string | null;
+  full_name: string;
+  phone_number: string;
+  location: string;
+  short_note: string;
+  resume_file_url: string | null;
+  cover_letter_file_url: string | null;
+  status: string;
+  created_at: string;
+};
+
 const inputClass =
   "mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25";
 const primaryButton =
@@ -133,6 +148,7 @@ export default function RecruiterDashboard() {
   const router = useRouter();
   const [profile, setProfile] = useState<RecruiterProfile | null>(null);
   const [jobs, setJobs] = useState<JobPost[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
   const [profileDraft, setProfileDraft] = useState({
     companyName: "",
     recruiterName: "",
@@ -158,15 +174,16 @@ export default function RecruiterDashboard() {
   const [editingJobId, setEditingJobId] = useState("");
   const [profileSaveState, setProfileSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [jobSaveAction, setJobSaveAction] = useState<"" | "draft" | "pending_review">("");
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
 
   const stats = useMemo(
     () => ({
       total: jobs.length,
       published: jobs.filter((job) => job.status === "published").length,
       draft: jobs.filter((job) => job.status === "draft").length,
-      applicants: jobs.reduce((sum, job) => sum + (job.applicants_count ?? 0), 0),
+      applicants: applications.length,
     }),
-    [jobs],
+    [applications.length, jobs],
   );
   const profileComplete = Boolean(
     profile?.company_name &&
@@ -217,15 +234,20 @@ export default function RecruiterDashboard() {
     }
 
     try {
-      const [profileResponse, jobsResponse] = await Promise.all([
+      const [profileResponse, jobsResponse, applicationsResponse] = await Promise.all([
         fetch("/api/recruiter/profile", { cache: "no-store" }),
         fetch("/api/recruiter/jobs", { cache: "no-store" }),
+        fetch("/api/recruiter/applications", { cache: "no-store" }),
       ]);
       const profileData = (await profileResponse.json()) as {
         recruiterProfile?: RecruiterProfile | null;
         error?: string;
       };
       const jobsData = (await jobsResponse.json()) as { jobs?: JobPost[]; error?: string };
+      const applicationsData = (await applicationsResponse.json()) as {
+        applications?: Application[];
+        error?: string;
+      };
 
       if (!profileResponse.ok) throw new Error(profileData.error || "Unable to load profile.");
 
@@ -260,6 +282,11 @@ export default function RecruiterDashboard() {
       } else if (!options?.preserveStatus) {
         setJobs([]);
         setStatus("Complete and save your company profile to activate recruiter job posting.");
+      }
+      if (applicationsResponse.ok) {
+        setApplications(applicationsData.applications ?? []);
+      } else {
+        setApplications([]);
       }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to load recruiter dashboard.");
@@ -432,6 +459,33 @@ export default function RecruiterDashboard() {
 
     await fetch(`/api/recruiter/jobs/${job.id}`, { method: "DELETE" });
     await loadDashboard();
+  }
+
+  async function updateApplicationStatus(application: Application, nextStatus: string) {
+    setStatus("");
+
+    try {
+      const response = await fetch("/api/recruiter/applications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: application.id, status: nextStatus }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to update applicant status right now.");
+      }
+
+      setStatus("Applicant status updated.");
+      setSelectedApplication((current) =>
+        current?.id === application.id ? { ...current, status: nextStatus } : current,
+      );
+      await loadDashboard({ preserveStatus: true });
+    } catch (error) {
+      setStatus(
+        error instanceof Error ? error.message : "Unable to update applicant status right now.",
+      );
+    }
   }
 
   return (
@@ -646,9 +700,158 @@ export default function RecruiterDashboard() {
               )}
             </div>
           </section>
+
+          <section id="applicants" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+                Applicants
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
+                Submitted interests
+              </h2>
+            </div>
+            <div className="mt-5 space-y-3">
+              {applications.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm font-medium text-slate-600">
+                  No submitted interests yet.
+                </div>
+              ) : (
+                applications.map((application) => (
+                  <article key={application.id} className="rounded-xl border border-slate-200 p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0">
+                        <h3 className="text-base font-semibold text-[var(--iseya-navy)]">
+                          {application.full_name || "Applicant"}
+                        </h3>
+                        <p className="mt-1 text-sm font-medium text-slate-600">
+                          {application.job_title} | {application.candidate_email || "No email"} | {application.phone_number}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-600">{application.location}</p>
+                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
+                          {application.short_note}
+                        </p>
+                        <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
+                          {statusLabel(application.status)} | Submitted {formatDate(application.created_at)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => setSelectedApplication(application)} className={secondaryButton}>
+                          View
+                        </button>
+                        <button type="button" onClick={() => updateApplicationStatus(application, "reviewing")} className={secondaryButton}>
+                          Mark Reviewing
+                        </button>
+                        <button type="button" onClick={() => updateApplicationStatus(application, "proceed")} className={primaryButton}>
+                          Proceed
+                        </button>
+                        <button type="button" onClick={() => updateApplicationStatus(application, "rejected")} className={dangerButton}>
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
+          </section>
         </div>
       )}
+      {selectedApplication ? (
+        <ApplicantModal
+          application={selectedApplication}
+          onClose={() => setSelectedApplication(null)}
+          onUpdate={(status) => updateApplicationStatus(selectedApplication, status)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function ApplicantModal({
+  application,
+  onClose,
+  onUpdate,
+}: {
+  application: Application;
+  onClose: () => void;
+  onUpdate: (status: string) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8">
+      <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+              Applicant Interest
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
+              {application.full_name || "Applicant"}
+            </h2>
+            <p className="mt-2 text-sm font-semibold text-slate-600">
+              {application.job_title} | {statusLabel(application.status)}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className={secondaryButton}>
+            Close
+          </button>
+        </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <ApplicantDetail label="Email" value={application.candidate_email} />
+          <ApplicantDetail label="Phone" value={application.phone_number} />
+          <ApplicantDetail label="Location" value={application.location} />
+          <ApplicantDetail label="Submitted" value={formatDate(application.created_at)} />
+          <ApplicantDetail label="Resume" value={application.resume_file_url} link />
+          <ApplicantDetail label="Cover Letter" value={application.cover_letter_file_url} link />
+          <div className="sm:col-span-2">
+            <ApplicantDetail label="Short note" value={application.short_note} />
+          </div>
+        </div>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <button type="button" onClick={() => onUpdate("reviewing")} className={secondaryButton}>
+            Mark Reviewing
+          </button>
+          <button type="button" onClick={() => onUpdate("proceed")} className={primaryButton}>
+            Proceed
+          </button>
+          <button type="button" onClick={() => onUpdate("rejected")} className={dangerButton}>
+            Reject
+          </button>
+          <button type="button" onClick={onClose} className={secondaryButton}>
+            Close
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ApplicantDetail({
+  label,
+  value,
+  link = false,
+}: {
+  label: string;
+  value: string | null;
+  link?: boolean;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{label}</p>
+      {link && value ? (
+        <a
+          href={value}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 block text-sm font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] underline-offset-4"
+        >
+          View attachment
+        </a>
+      ) : (
+        <p className="mt-1 whitespace-pre-line text-sm font-semibold text-[var(--iseya-navy)]">
+          {value || "Not provided"}
+        </p>
+      )}
+    </div>
   );
 }
 

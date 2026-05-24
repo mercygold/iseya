@@ -286,9 +286,16 @@ export type Database = {
           candidate_user_id: string | null;
           candidate_email: string | null;
           recruiter_id: string;
+          full_name: string;
+          phone_number: string;
+          location: string;
+          short_note: string;
+          resume_file_url: string | null;
+          cover_letter_file_url: string | null;
           status: string;
           candidate_snapshot: Json;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
@@ -297,9 +304,16 @@ export type Database = {
           candidate_user_id?: string | null;
           candidate_email?: string | null;
           recruiter_id: string;
+          full_name?: string;
+          phone_number?: string;
+          location?: string;
+          short_note?: string;
+          resume_file_url?: string | null;
+          cover_letter_file_url?: string | null;
           status?: string;
           candidate_snapshot?: Json;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
@@ -308,9 +322,16 @@ export type Database = {
           candidate_user_id?: string | null;
           candidate_email?: string | null;
           recruiter_id?: string;
+          full_name?: string;
+          phone_number?: string;
+          location?: string;
+          short_note?: string;
+          resume_file_url?: string | null;
+          cover_letter_file_url?: string | null;
           status?: string;
           candidate_snapshot?: Json;
           created_at?: string;
+          updated_at?: string;
         };
       };
       job_alert_subscriptions: {
