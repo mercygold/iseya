@@ -20,6 +20,41 @@ function validEmail(value: string) {
 
 const submitErrorMessage =
   "Unable to submit interest right now. Please check the form and try again.";
+const uploadErrorMessage = "Unable to upload file right now. Please try again.";
+const applicationFileBucket = "job-application-files";
+const maxAttachmentBytes = 5 * 1024 * 1024;
+const allowedAttachmentExtensions = new Set(["pdf", "doc", "docx"]);
+const allowedAttachmentTypes = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+
+function formText(formData: FormData, name: string) {
+  return text(formData.get(name));
+}
+
+function optionalFile(value: FormDataEntryValue | null) {
+  return value instanceof File && value.size > 0 ? value : null;
+}
+
+function fileExtension(filename: string) {
+  return filename.toLowerCase().split(".").pop() ?? "";
+}
+
+function attachmentValidationError(file: File | null) {
+  if (!file) return "";
+  if (file.size > maxAttachmentBytes) {
+    return "Upload PDF, DOC, or DOCX files no larger than 5MB each.";
+  }
+  if (
+    !allowedAttachmentExtensions.has(fileExtension(file.name)) ||
+    (file.type && !allowedAttachmentTypes.has(file.type))
+  ) {
+    return "Upload PDF, DOC, or DOCX files no larger than 5MB each.";
+  }
+  return "";
+}
 
 export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params;
@@ -28,13 +63,20 @@ export async function POST(request: Request, context: RouteContext) {
   if (!serviceRole) {
     return Response.json({ error: submitErrorMessage }, { status: 503 });
   }
+  const storageClient = serviceRole;
 
-  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-  const fullName = text(body.fullName);
-  const providedEmail = text(body.email).toLowerCase();
-  const phoneNumber = text(body.phoneNumber);
-  const location = text(body.location);
-  const shortNote = text(body.shortNote);
+  const formData = await request.formData().catch(() => null);
+  if (!formData) {
+    return Response.json({ error: submitErrorMessage }, { status: 400 });
+  }
+
+  const fullName = formText(formData, "fullName");
+  const providedEmail = formText(formData, "email").toLowerCase();
+  const phoneNumber = formText(formData, "phoneNumber");
+  const location = formText(formData, "location");
+  const shortNote = formText(formData, "shortNote");
+  const resumeFile = optionalFile(formData.get("resumeFile"));
+  const coverLetterFile = optionalFile(formData.get("coverLetterFile"));
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -68,7 +110,56 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
+  const fileError =
+    attachmentValidationError(resumeFile) || attachmentValidationError(coverLetterFile);
+  if (fileError) {
+    return Response.json({ error: fileError }, { status: 400 });
+  }
+
+  const jobId = job.id;
+  const applicationId = crypto.randomUUID();
+  const uploadedPaths: string[] = [];
+
+  async function uploadAttachment(file: File | null, label: "resume" | "cover-letter") {
+    if (!file) return null;
+
+    const extension = fileExtension(file.name);
+    const path = `${jobId}/${applicationId}/${label}.${extension}`;
+    const { error } = await storageClient.storage
+      .from(applicationFileBucket)
+      .upload(path, Buffer.from(await file.arrayBuffer()), {
+        contentType: file.type || undefined,
+        upsert: false,
+      });
+
+    if (error) {
+      console.error("[jobs] application attachment upload failed", {
+        code: error.name,
+        message: error.message,
+        jobId,
+        attachment: label,
+      });
+      throw new Error("attachment_upload_failed");
+    }
+
+    uploadedPaths.push(path);
+    return path;
+  }
+
+  let resumeFilePath: string | null = null;
+  let coverLetterFilePath: string | null = null;
+  try {
+    resumeFilePath = await uploadAttachment(resumeFile, "resume");
+    coverLetterFilePath = await uploadAttachment(coverLetterFile, "cover-letter");
+  } catch {
+    if (uploadedPaths.length) {
+      await storageClient.storage.from(applicationFileBucket).remove(uploadedPaths);
+    }
+    return Response.json({ error: uploadErrorMessage }, { status: 500 });
+  }
+
   const applicationPayload = {
+    id: applicationId,
     job_id: job.id,
     candidate_id: user?.id ?? null,
     candidate_user_id: user?.id ?? null,
@@ -78,8 +169,8 @@ export async function POST(request: Request, context: RouteContext) {
     phone_number: phoneNumber,
     location,
     short_note: shortNote,
-    resume_file_url: null,
-    cover_letter_file_url: null,
+    resume_file_url: resumeFilePath,
+    cover_letter_file_url: coverLetterFilePath,
     status: "submitted",
     candidate_snapshot: {
       email: candidateEmail,
@@ -94,6 +185,9 @@ export async function POST(request: Request, context: RouteContext) {
   const { error } = await serviceRole.from("job_applications").insert(applicationPayload);
 
   if (error) {
+    if (uploadedPaths.length) {
+      await storageClient.storage.from(applicationFileBucket).remove(uploadedPaths);
+    }
     if (error.code === "23505") {
       return Response.json({ error: "You already expressed interest in this role." }, { status: 409 });
     }

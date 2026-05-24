@@ -217,7 +217,7 @@ export default function RecruiterDashboard() {
   const needsOtherIndustry = profileDraft.industry === "Other";
   const verificationStatus = profile?.verification_status ?? "pending_review";
   const canEditJobDraft = profileComplete;
-  const canSubmitJobForReview = profileComplete && verificationStatus !== "rejected";
+  const canSubmitJobForReview = profileComplete && verificationStatus === "verified";
   const verificationMessage =
     !profileComplete
       ? "Create your company profile before posting jobs."
@@ -281,7 +281,11 @@ export default function RecruiterDashboard() {
         setJobs(jobsData.jobs ?? []);
       } else if (!options?.preserveStatus) {
         setJobs([]);
-        setStatus("Complete and save your company profile to activate recruiter job posting.");
+        setStatus(
+          profileData.recruiterProfile
+            ? "Unable to load job posts right now. Please try again."
+            : "Create your company profile before posting jobs.",
+        );
       }
       if (applicationsResponse.ok) {
         setApplications(applicationsData.applications ?? []);
@@ -322,8 +326,12 @@ export default function RecruiterDashboard() {
         return;
       }
 
-      if (verificationStatus === "rejected" && nextStatus === "pending_review") {
-        setStatus("Update your company profile before submitting jobs for review.");
+      if (verificationStatus !== "verified" && nextStatus === "pending_review") {
+        setStatus(
+          verificationStatus === "rejected"
+            ? "Update your company profile before submitting jobs for review."
+            : "Your company profile must be verified before submitting jobs for review.",
+        );
         return;
       }
 
@@ -335,7 +343,10 @@ export default function RecruiterDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...jobDraft, status: nextStatus }),
       });
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        sentForReview?: boolean;
+      };
 
       if (!response.ok) {
         throw new Error(
@@ -394,7 +405,10 @@ export default function RecruiterDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profileDraft),
       });
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        sentForReview?: boolean;
+      };
 
       if (!response.ok) {
         throw new Error(
@@ -403,7 +417,11 @@ export default function RecruiterDashboard() {
       }
 
       setProfileSaveState("saved");
-      setStatus("Company profile saved successfully.");
+      setStatus(
+        data.sentForReview
+          ? "Your company profile changes were saved and sent for review."
+          : "Company profile saved successfully.",
+      );
       await loadDashboard({ preserveStatus: true });
       if (pathname.startsWith("/recruiters/onboarding")) {
         router.replace("/recruiters/dashboard");

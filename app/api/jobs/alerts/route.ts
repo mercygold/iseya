@@ -52,6 +52,7 @@ export async function POST(request: Request) {
     status: "active",
   };
 
+  // TODO: Send matching-job email notifications once transactional email delivery is configured.
   const { error } = await serviceRole.from("job_alert_subscriptions").insert(alertPayload);
 
   if (error) {

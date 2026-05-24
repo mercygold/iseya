@@ -119,3 +119,20 @@ create index if not exists job_alert_subscriptions_email_idx
 
 create index if not exists job_alert_subscriptions_status_idx
   on public.job_alert_subscriptions(status);
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'job-application-files',
+  'job-application-files',
+  false,
+  5242880,
+  array[
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ]
+)
+on conflict (id) do update
+set public = false,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;

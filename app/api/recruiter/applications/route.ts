@@ -1,4 +1,7 @@
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import {
+  createSupabaseServerClient,
+  createSupabaseServiceRoleClient,
+} from "@/lib/supabaseServer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,10 +48,36 @@ export async function GET() {
     return Response.json({ error: "Unable to load applicants right now." }, { status: 500 });
   }
 
-  const applications = (data ?? []).map((application) => ({
-    ...application,
-    job_title: application.job_posts[0]?.job_title ?? "",
-  }));
+  const serviceRole = createSupabaseServiceRoleClient();
+  async function signedAttachmentUrl(path: string | null) {
+    if (!path) return null;
+    if (/^https?:\/\//i.test(path)) return path;
+    if (!serviceRole) return null;
+
+    const { data: signedData, error: signedError } = await serviceRole.storage
+      .from("job-application-files")
+      .createSignedUrl(path, 60 * 60);
+
+    if (signedError) {
+      console.error("[recruiter-applications] attachment link failed", {
+        code: signedError.name,
+        message: signedError.message,
+        userId,
+      });
+      return null;
+    }
+
+    return signedData.signedUrl;
+  }
+
+  const applications = await Promise.all(
+    (data ?? []).map(async (application) => ({
+      ...application,
+      resume_file_url: await signedAttachmentUrl(application.resume_file_url),
+      cover_letter_file_url: await signedAttachmentUrl(application.cover_letter_file_url),
+      job_title: application.job_posts[0]?.job_title ?? "",
+    })),
+  );
 
   return Response.json({ applications });
 }

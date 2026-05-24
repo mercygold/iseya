@@ -34,6 +34,8 @@ type InterestDraft = {
   phoneNumber: string;
   location: string;
   shortNote: string;
+  resumeFile: File | null;
+  coverLetterFile: File | null;
 };
 
 const primaryButton =
@@ -79,6 +81,8 @@ export default function JobsBoard() {
     phoneNumber: "",
     location: "",
     shortNote: "",
+    resumeFile: null,
+    coverLetterFile: null,
   });
   const [interestSubmitting, setInterestSubmitting] = useState(false);
   const [interestSubmitted, setInterestSubmitted] = useState(false);
@@ -142,6 +146,8 @@ export default function JobsBoard() {
       phoneNumber: "",
       location: "",
       shortNote: "",
+      resumeFile: null,
+      coverLetterFile: null,
     });
   }
 
@@ -154,10 +160,20 @@ export default function JobsBoard() {
     setInterestStatus("");
 
     try {
+      const formData = new FormData();
+      formData.set("fullName", interestDraft.fullName);
+      formData.set("email", interestDraft.email);
+      formData.set("phoneNumber", interestDraft.phoneNumber);
+      formData.set("location", interestDraft.location);
+      formData.set("shortNote", interestDraft.shortNote);
+      if (interestDraft.resumeFile) formData.set("resumeFile", interestDraft.resumeFile);
+      if (interestDraft.coverLetterFile) {
+        formData.set("coverLetterFile", interestDraft.coverLetterFile);
+      }
+
       const response = await fetch(`/api/jobs/${interestJob.id}/apply`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(interestDraft),
+        body: formData,
       });
       const data = (await response.json().catch(() => ({}))) as { error?: string };
 
@@ -322,8 +338,8 @@ export default function JobsBoard() {
               Job alerts
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Subscribe to job notifications using the current title, location, type,
-              and remote preferences. No social profile is created.
+              Save your preferences for future matching job alerts using the current title,
+              location, type, and remote filters. No social profile is created.
             </p>
             <input
               type="email"
@@ -550,13 +566,20 @@ function InterestModal({
               placeholder="Briefly describe your interest and relevant experience."
             />
           </label>
-          <ApplicationFileField label="Resume optional" />
-          <ApplicationFileField label="Cover letter optional" />
+          <ApplicationFileField
+            label="Resume optional"
+            file={draft.resumeFile}
+            onChange={(file) => onChange({ ...draft, resumeFile: file })}
+          />
+          <ApplicationFileField
+            label="Cover letter optional"
+            file={draft.coverLetterFile}
+            onChange={(file) => onChange({ ...draft, coverLetterFile: file })}
+          />
         </div>
 
         <p className="mt-4 text-xs leading-5 text-slate-500">
-          PDF, DOC, or DOCX attachments will be supported in a later update. Your submitted
-          contact details and note are saved now.
+          Optional attachments: PDF, DOC, or DOCX, up to 5MB per file.
         </p>
 
         <div className="mt-6 flex flex-wrap justify-end gap-2">
@@ -604,16 +627,25 @@ function ApplicationField({
   );
 }
 
-function ApplicationFileField({ label }: { label: string }) {
+function ApplicationFileField({
+  label,
+  file,
+  onChange,
+}: {
+  label: string;
+  file: File | null;
+  onChange: (file: File | null) => void;
+}) {
   return (
     <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
       {label}
       <input
         type="file"
         accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        disabled
-        className="mt-2 block w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500"
+        onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+        className="mt-2 block w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600"
       />
+      {file ? <span className="mt-1 block text-xs font-medium text-slate-500">{file.name}</span> : null}
     </label>
   );
 }

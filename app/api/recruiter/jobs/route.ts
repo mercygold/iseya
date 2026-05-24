@@ -227,9 +227,14 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid job status." }, { status: 400 });
   }
 
-  if (recruiterProfile?.verification_status === "rejected" && status !== "draft") {
+  if (status === "pending_review" && recruiterProfile?.verification_status !== "verified") {
     return Response.json(
-      { error: "Update your company profile before submitting jobs for review." },
+      {
+        error:
+          recruiterProfile?.verification_status === "rejected"
+            ? "Update your company profile before submitting jobs for review."
+            : "Your company profile must be verified before submitting jobs for review.",
+      },
       { status: 403 },
     );
   }

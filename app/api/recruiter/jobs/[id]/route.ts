@@ -126,9 +126,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
-  if (recruiterProfile?.verification_status === "rejected" && requestedStatus === "pending_review") {
+  if (requestedStatus === "pending_review" && recruiterProfile?.verification_status !== "verified") {
     return Response.json(
-      { error: "Update your company profile before submitting jobs for review." },
+      {
+        error:
+          recruiterProfile?.verification_status === "rejected"
+            ? "Update your company profile before submitting jobs for review."
+            : "Your company profile must be verified before submitting jobs for review.",
+      },
       { status: 403 },
     );
   }
