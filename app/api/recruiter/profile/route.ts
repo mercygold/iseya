@@ -3,8 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabaseServer";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const saveErrorMessage =
-  "Unable to save recruiter profile right now. Please check the required fields and try again.";
+const saveErrorMessage = "Unable to save recruiter profile right now. Please try again.";
 
 type RecruiterProfileBody = {
   companyName?: unknown;
@@ -140,6 +139,28 @@ export async function PUT(request: Request) {
     );
   }
 
+  const { data: existingProfile, error: profileLookupError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileLookupError) {
+    console.error("[recruiter-profile] base profile lookup failed", {
+      code: profileLookupError.code,
+      message: profileLookupError.message,
+      details: profileLookupError.details,
+      hint: profileLookupError.hint,
+      userId,
+    });
+    return Response.json({ error: saveErrorMessage }, { status: 500 });
+  }
+
+  console.info("[recruiter-profile] base profile state", {
+    userId,
+    profileExists: Boolean(existingProfile),
+  });
+
   const profileUpsert = await supabase
     .from("profiles")
     .upsert(
@@ -166,11 +187,9 @@ export async function PUT(request: Request) {
     return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
 
-  const { data: existingRecruiterProfile, error: existingProfileError } = await supabase
+  const { data: existingRecruiterRow, error: existingProfileError } = await supabase
     .from("recruiter_profiles")
-    .select(
-      "user_id, verification_status, linkedin_company_url, address_line_2, postal_code, industry, industry_other, company_size, verification_notes",
-    )
+    .select("user_id, verification_status")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -185,8 +204,40 @@ export async function PUT(request: Request) {
     return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
 
+  console.info("[recruiter-profile] recruiter row state", {
+    userId,
+    recruiterProfileExists: Boolean(existingRecruiterRow),
+  });
+
+  const { data: existingOptionalFields, error: optionalFieldsError } = existingRecruiterRow
+    ? await supabase
+        .from("recruiter_profiles")
+        .select("linkedin_company_url, address_line_2, postal_code, industry, industry_other, company_size")
+        .eq("user_id", userId)
+        .maybeSingle()
+    : { data: null, error: null };
+
+  if (optionalFieldsError) {
+    console.error("[recruiter-profile] structured field lookup failed", {
+      code: optionalFieldsError.code,
+      message: optionalFieldsError.message,
+      details: optionalFieldsError.details,
+      hint: optionalFieldsError.hint,
+      userId,
+      attemptedColumns: [
+        "linkedin_company_url",
+        "address_line_2",
+        "postal_code",
+        "industry",
+        "industry_other",
+        "company_size",
+      ],
+    });
+    return Response.json({ error: saveErrorMessage }, { status: 500 });
+  }
+
   const nextVerificationStatus =
-    existingRecruiterProfile?.verification_status === "verified" ? "verified" : "pending_review";
+    existingRecruiterRow?.verification_status === "verified" ? "verified" : "pending_review";
 
   const recruiterProfilePayload = {
     user_id: userId,
@@ -197,26 +248,26 @@ export async function PUT(request: Request) {
     linkedin_company_url: optionalProfileText(
       body,
       "linkedinCompanyUrl",
-      existingRecruiterProfile?.linkedin_company_url,
+      existingOptionalFields?.linkedin_company_url,
     ),
     phone_number: phoneNumber,
     address_line_1: addressLine1,
-    address_line_2: optionalProfileText(body, "addressLine2", existingRecruiterProfile?.address_line_2),
+    address_line_2: optionalProfileText(body, "addressLine2", existingOptionalFields?.address_line_2),
     city,
     state_region: stateRegion,
-    postal_code: optionalProfileText(body, "postalCode", existingRecruiterProfile?.postal_code),
+    postal_code: optionalProfileText(body, "postalCode", existingOptionalFields?.postal_code),
     country,
     company_location: text(body.companyLocation) || [city, stateRegion, country].filter(Boolean).join(", "),
-    industry: hasBodyKey(body, "industry") ? industry || null : existingRecruiterProfile?.industry ?? null,
+    industry: hasBodyKey(body, "industry") ? industry || null : existingOptionalFields?.industry ?? null,
     industry_other:
       industry === "Other"
-        ? industryOther || existingRecruiterProfile?.industry_other || null
+        ? industryOther || existingOptionalFields?.industry_other || null
         : hasBodyKey(body, "industry")
           ? null
-          : existingRecruiterProfile?.industry_other ?? null,
+          : existingOptionalFields?.industry_other ?? null,
     company_size: hasBodyKey(body, "companySize")
       ? companySize || null
-      : existingRecruiterProfile?.company_size ?? null,
+      : existingOptionalFields?.company_size ?? null,
     hiring_focus: hiringFocus,
     verification_status: nextVerificationStatus,
   };
@@ -236,11 +287,16 @@ export async function PUT(request: Request) {
       details: error.details,
       hint: error.hint,
       attemptedColumns: Object.keys(recruiterProfilePayload),
-      operation: existingRecruiterProfile ? "update" : "insert",
+      operation: existingRecruiterRow ? "update" : "insert",
       userId,
     });
     return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
+
+  console.info("[recruiter-profile] save succeeded", {
+    userId,
+    operation: existingRecruiterRow ? "update" : "insert",
+  });
 
   return Response.json({ recruiterProfile: data });
 }
