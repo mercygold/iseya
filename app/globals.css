@@ -30,6 +30,13 @@ body {
   border-bottom: 1px solid color-mix(in srgb, var(--iseya-gold) 22%, var(--iseya-navy));
 }
 
+.iseya-dashboard-nav {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
 button,
 input,
 select,

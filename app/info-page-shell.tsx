@@ -27,7 +27,10 @@ export function InfoPageShell({
           </Link>
           <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/">
-              Resume Builder
+              For Candidates
+            </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters">
+              For Recruiters
             </Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/about">
               About
@@ -64,7 +67,7 @@ export function InfoPageShell({
           <div>
             <p className="text-sm font-semibold">ISEYA</p>
             <p className="mt-1 text-sm text-white/75">
-              AI-powered career positioning by Jormp LLC.
+              Career readiness infrastructure by Jormp LLC.
             </p>
           </div>
           <p className="text-xs text-white/65">

@@ -19,7 +19,7 @@ export default function InstitutionsPage() {
               Institution Access
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
-              Career readiness infrastructure for learners.
+              Career readiness infrastructure for institutions.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-8 text-white/82">
               Equip students and program participants with structured career tools and access to verified opportunities through ISEYA.
@@ -47,7 +47,7 @@ export default function InstitutionsPage() {
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Institution Admin</p>
           <h2 className="mt-3 text-2xl font-semibold text-[var(--iseya-navy)]">Partnership access for programs</h2>
           <p className="mt-3 text-sm leading-7 text-slate-600">
-            Universities, colleges, bootcamps, workforce programs, and career centers can request managed learner access.
+            Universities, colleges, bootcamps, workforce programs, and career centers can request managed student and participant access.
           </p>
           <p className="mt-3 text-sm leading-7 text-slate-600">
             Packages are assigned after review. Contracting and payment are handled directly with ISEYA; public checkout is not used for institution access.
@@ -60,7 +60,7 @@ export default function InstitutionsPage() {
           </Link>
         </article>
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Student / Learner</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Student / Participant</p>
           <h2 className="mt-3 text-2xl font-semibold text-[var(--iseya-navy)]">Access covered by your institution</h2>
           <p className="mt-3 text-sm leading-7 text-slate-600">
             Students, graduates, and program participants can connect an eligible institution email to their private ISEYA workspace.
@@ -72,9 +72,9 @@ export default function InstitutionsPage() {
       </section>
       <section className="mx-auto grid max-w-[92rem] gap-5 px-5 py-10 sm:px-8 lg:grid-cols-3">
         {[
-          ["Domain-based access", "Prepare student access through approved institution email domains without public learner profiles."],
+          ["Domain-based access", "Prepare student access through approved institution email domains without public candidate profiles."],
           ["Career readiness", "Support structured resumes, applications, and career materials through private student workspaces."],
-          ["Verified opportunity access", "Connect learners to published roles while protecting private candidate materials."],
+          ["Verified opportunity access", "Connect students and participants to published roles while protecting private career materials."],
         ].map(([title, copy]) => (
           <article key={title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">ISEYA</p>

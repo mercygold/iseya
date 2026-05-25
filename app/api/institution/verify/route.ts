@@ -1,6 +1,6 @@
 export async function POST() {
   return Response.json(
-    { error: "Institution learner access is available through approved institution email domains." },
+    { error: "Institution student access is available through approved institution email domains." },
     { status: 410 },
   );
 }

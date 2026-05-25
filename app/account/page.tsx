@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
+import DashboardNavLink from "@/components/DashboardNavLink";
 import {
   normalizeSubscriptionPlan,
   planDownloadLimit,
@@ -308,19 +309,22 @@ export default function AccountPage() {
               priority
             />
           </Link>
-          <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/workspace">
+          <nav className="iseya-dashboard-nav text-sm font-semibold">
+            <DashboardNavLink href="/workspace">
               Workspace
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">
+            </DashboardNavLink>
+            <DashboardNavLink href="/jobs">
               Jobs
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/applications">
+            </DashboardNavLink>
+            <DashboardNavLink href="/applications">
               My Applications
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
+            </DashboardNavLink>
+            <DashboardNavLink href="/account">
+              Settings
+            </DashboardNavLink>
+            <DashboardNavLink href="/pricing">
               Pricing
-            </Link>
+            </DashboardNavLink>
           </nav>
         </div>
       </header>
@@ -355,6 +359,14 @@ export default function AccountPage() {
               <p className="text-sm font-semibold text-[var(--iseya-navy)]">
                 Loading account details...
               </p>
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3, 4, 5, 6].map((item) => (
+                  <div key={item} className="rounded-xl border border-slate-100 p-4">
+                    <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
+                    <div className="mt-3 h-4 w-32 animate-pulse rounded bg-slate-100" />
+                  </div>
+                ))}
+              </div>
             </div>
           ) : profile ? (
             <div className="mt-10 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">

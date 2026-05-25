@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ReactNode } from "react";
+import DashboardNavLink from "@/components/DashboardNavLink";
 
 export default function RecruiterShell({ children }: { children: ReactNode }) {
   return (
@@ -17,22 +18,25 @@ export default function RecruiterShell({ children }: { children: ReactNode }) {
               priority
             />
           </Link>
-          <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters/dashboard">
+          <nav className="iseya-dashboard-nav text-sm font-semibold">
+            <DashboardNavLink href="/recruiters/dashboard">
               Recruiter Dashboard
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters/jobs/new">
+            </DashboardNavLink>
+            <DashboardNavLink href="/recruiters/dashboard#post-job" highlightOnPath={false}>
               Post Job
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters/jobs">
+            </DashboardNavLink>
+            <DashboardNavLink href="/recruiters/dashboard#my-jobs" highlightOnPath={false}>
               My Jobs
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">
-              Public Jobs
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/account">
+            </DashboardNavLink>
+            <DashboardNavLink href="/recruiters/dashboard#my-jobs" highlightOnPath={false}>
+              Applicants
+            </DashboardNavLink>
+            <DashboardNavLink href="/recruiters/dashboard#company-profile" highlightOnPath={false}>
+              Company Profile
+            </DashboardNavLink>
+            <DashboardNavLink href="/account">
               Settings
-            </Link>
+            </DashboardNavLink>
           </nav>
         </div>
       </header>

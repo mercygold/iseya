@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         error:
-          "This email is registered as an institution administrator. Please sign in with a student or learner account under the approved institution domain.",
+          "This email is registered as an institution administrator. Please sign in with a student or participant account under the approved institution domain.",
       },
       { status: 403 },
     );
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
 
   if (claim.reason === "candidate_account_required") {
     return Response.json(
-      { error: "Institution learner access is available through a candidate account." },
+      { error: "Institution student access is available through a candidate account." },
       { status: 403 },
     );
   }
@@ -156,7 +156,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         error:
-          "This email is registered as an institution administrator. Please sign in with a student or learner account under the approved institution domain.",
+          "This email is registered as an institution administrator. Please sign in with a student or participant account under the approved institution domain.",
       },
       { status: 403 },
     );

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import DashboardNavLink from "@/components/DashboardNavLink";
 
 export default function InstitutionShell({ children }: { children: ReactNode }) {
   return (
@@ -17,19 +18,19 @@ export default function InstitutionShell({ children }: { children: ReactNode }) 
               priority
             />
           </Link>
-          <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions/dashboard">
+          <nav className="iseya-dashboard-nav text-sm font-semibold">
+            <DashboardNavLink href="/institutions/dashboard">
               Dashboard
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions/dashboard#students">
+            </DashboardNavLink>
+            <DashboardNavLink href="/institutions/dashboard#students" highlightOnPath={false}>
               Students
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions/dashboard#insights">
+            </DashboardNavLink>
+            <DashboardNavLink href="/institutions/dashboard#insights" highlightOnPath={false}>
               Insights
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/account">
+            </DashboardNavLink>
+            <DashboardNavLink href="/account">
               Settings
-            </Link>
+            </DashboardNavLink>
           </nav>
         </div>
       </header>

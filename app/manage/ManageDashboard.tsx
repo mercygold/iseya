@@ -115,10 +115,10 @@ const primaryButton =
 const secondaryButton =
   "inline-flex min-h-9 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] disabled:cursor-not-allowed disabled:opacity-60";
 const institutionPackages = [
-  "Pilot Access: up to 500 learners",
-  "Department Access: 501-2,000 learners",
-  "Campus Access: 2,001-10,000 learners",
-  "Enterprise Access: 10,000+ learners",
+  "Pilot Access: up to 500 students",
+  "Department Access: 501-2,000 students",
+  "Campus Access: 2,001-10,000 students",
+  "Enterprise Access: 10,000+ students",
 ];
 
 function packageValue(option: string) {

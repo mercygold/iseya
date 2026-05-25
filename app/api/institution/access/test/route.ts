@@ -69,7 +69,7 @@ export async function POST(request: Request) {
   const enteredDomain = emailDomain(learnerEmail);
 
   if (!institutionId || !learnerEmail || !enteredDomain) {
-    return Response.json({ error: "Select an institution and enter a test learner email." }, { status: 400 });
+    return Response.json({ error: "Select an institution and enter a test student email." }, { status: 400 });
   }
 
   const { data: institution, error } = await serviceRole
@@ -98,9 +98,9 @@ export async function POST(request: Request) {
 
   if (administratorEmail) {
     reason =
-      "This email appears to be an institution administrator email. Use a learner email for real access. Local test mode can still validate domain matching.";
+      "This email appears to be an institution administrator email. Use a student email for real access. Local test mode can still validate domain matching.";
   } else if (!institutionActive) {
-    reason = "Institution access is not active for learner claims.";
+    reason = "Institution access is not active for student claims.";
   } else if (!domainMatches) {
     reason = "Learner email domain does not match the selected institution domain.";
   } else if (!seatAvailable) {

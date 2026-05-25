@@ -202,7 +202,10 @@ export default function AuthForm({ mode }: AuthFormProps) {
           </Link>
           <nav className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm font-semibold text-white/80 sm:justify-end">
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/">
-              Resume Builder
+              For Candidates
+            </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters">
+              For Recruiters
             </Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
               Pricing
@@ -226,7 +229,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
             {isLogin ? "Welcome back" : "Create your workspace"}
           </h1>
           <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
-            Save resumes, restore tailored versions, and keep your career application materials synced across sessions.
+            Build private career assets, track applications, and access opportunities through your candidate, recruiter, or institution workspace.
           </p>
         </div>
 

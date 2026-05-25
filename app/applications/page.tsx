@@ -6,6 +6,7 @@ import {
   createSupabaseServiceRoleClient,
 } from "@/lib/supabaseServer";
 import NotificationPanel from "@/components/NotificationPanel";
+import DashboardNavLink from "@/components/DashboardNavLink";
 
 export const dynamic = "force-dynamic";
 
@@ -196,22 +197,22 @@ export default async function ApplicationsPage() {
               className="h-auto w-[150px] object-contain sm:w-[220px]"
             />
           </Link>
-          <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/workspace">
+          <nav className="iseya-dashboard-nav text-sm font-semibold">
+            <DashboardNavLink href="/workspace">
               Dashboard
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/workspace#resume-builder">
+            </DashboardNavLink>
+            <DashboardNavLink href="/workspace#resume-builder" highlightOnPath={false}>
               Career Assets
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">
+            </DashboardNavLink>
+            <DashboardNavLink href="/jobs">
               Jobs
-            </Link>
-            <Link className="text-[var(--iseya-gold)]" href="/applications">
+            </DashboardNavLink>
+            <DashboardNavLink href="/applications">
               My Applications
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/account">
+            </DashboardNavLink>
+            <DashboardNavLink href="/account">
               Settings
-            </Link>
+            </DashboardNavLink>
           </nav>
         </div>
       </header>

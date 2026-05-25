@@ -219,7 +219,7 @@ export default function InstitutionDashboard({
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">Institution Dashboard</p>
             <h1 className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)] sm:text-4xl">{profile.institution_name}</h1>
             <p className="mt-3 text-base leading-8 text-slate-600">
-              Manage student access, track career readiness, and connect learners to verified opportunities.
+              Manage student access, track career readiness, and connect participants to verified opportunities.
             </p>
           </div>
           <button type="button" onClick={() => setEditing(true)} className={secondaryButton}>
@@ -246,14 +246,18 @@ export default function InstitutionDashboard({
                   : "Unlimited"
                 : displayMetric(usagePercentage === null ? null : `${usagePercentage}%`),
             ],
-            ["Active Learners", displayMetric(analytics?.activeLearners)],
+            ["Active Students", displayMetric(analytics?.activeLearners)],
             ["Applications Submitted", displayMetric(analytics?.applicationsSubmitted)],
             ["Resume/Career Materials Improved", displayMetric(analytics?.materialsImproved)],
             ["Recruiter Engagements", displayMetric(analytics?.recruiterEngagements)],
           ].map(([label, value]) => (
             <article key={label} className="min-h-32 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">{label}</p>
-              <p className="mt-3 text-3xl font-semibold text-[var(--iseya-navy)]">{value}</p>
+              {analyticsLoading ? (
+                <div className="mt-4 h-9 w-24 animate-pulse rounded-md bg-slate-100" />
+              ) : (
+                <p className="mt-3 text-3xl font-semibold text-[var(--iseya-navy)]">{value}</p>
+              )}
             </article>
           ))}
         </section>
@@ -280,7 +284,7 @@ export default function InstitutionDashboard({
             </h2>
             {seatLimit === null ? (
               <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-7 text-slate-600">
-                Learner access is currently managed without a fixed seat ceiling.
+                Student access is currently managed without a fixed seat ceiling.
               </p>
             ) : (
               <>
@@ -304,7 +308,7 @@ export default function InstitutionDashboard({
         <section id="insights" className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Career Readiness</p>
-            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Aggregate learner actions</h2>
+            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Aggregate student actions</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <ReadinessRow label="Resume created/imported" value={displayMetric(analytics?.careerReadiness.resumeCreatedOrImported)} />
               <ReadinessRow label="Career materials completed" value={displayMetric(analytics?.careerReadiness.careerMaterialsCompleted)} />
@@ -317,7 +321,7 @@ export default function InstitutionDashboard({
               />
             </div>
             <p className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
-              Readiness scoring will improve as learners complete more career actions.
+              Readiness scoring will improve as students complete more career actions.
             </p>
           </article>
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -358,7 +362,7 @@ export default function InstitutionDashboard({
               </div>
             ) : (
               <p className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
-                Recruiter engagement insights will appear as linked learners engage with published opportunities.
+                Recruiter engagement insights will appear as linked students engage with published opportunities.
               </p>
             )}
           </article>
@@ -366,7 +370,7 @@ export default function InstitutionDashboard({
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Insights Coming Soon</p>
             <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Readiness trends</h2>
             <p className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
-              Trend comparisons and cohort-level progress reporting will be introduced as aggregate learner activity grows.
+              Trend comparisons and cohort-level progress reporting will be introduced as aggregate student activity grows.
             </p>
             <p id="students" className="mt-4 text-sm leading-7 text-slate-600">
               Student privacy is protected. Institution insights are shown in aggregate only.
@@ -387,6 +391,9 @@ export default function InstitutionDashboard({
       </h1>
       <p className="mt-3 text-base leading-8 text-slate-600">
         Sensitive changes to institution identity or student email domain require a new ISEYA review before access resumes.
+      </p>
+      <p className="mt-5 rounded-xl border border-slate-200 bg-white p-4 text-sm leading-7 text-slate-600">
+        Partnership requests are reviewed by ISEYA before student access is activated. Access packages, seats, and access dates are assigned during review.
       </p>
       {status ? <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">{status}</p> : null}
       <form onSubmit={saveProfile} className="mt-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

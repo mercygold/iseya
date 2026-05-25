@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Iseya by Jormp LLC",
-  description: "Tailor, optimize, and export application-ready resumes.",
+  description: "Career readiness infrastructure for candidates, recruiters, and institutions.",
   icons: {
     icon: "/favicon/favicon.ico",
     shortcut: "/favicon/favicon.ico",

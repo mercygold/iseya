@@ -109,9 +109,18 @@ export default function NotificationPanel({
       ) : null}
 
       {loading ? (
-        <p className="mt-5 text-sm text-slate-500">Loading notifications...</p>
+        <div className="mt-5 space-y-3" aria-label="Loading notifications">
+          {[1, 2].map((item) => (
+            <div key={item} className="rounded-xl border border-slate-100 p-4">
+              <div className="h-3 w-40 animate-pulse rounded bg-slate-100" />
+              <div className="mt-3 h-3 w-4/5 animate-pulse rounded bg-slate-100" />
+            </div>
+          ))}
+        </div>
       ) : items.length === 0 ? (
-        <p className="mt-5 text-sm text-slate-500">No notifications yet.</p>
+        <p className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-500">
+          No notifications yet. Updates will appear here when application or moderation activity changes.
+        </p>
       ) : (
         <div className="mt-5 space-y-3">
           {items.map((item) => (
@@ -147,4 +156,3 @@ export default function NotificationPanel({
     </section>
   );
 }
-

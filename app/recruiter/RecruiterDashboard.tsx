@@ -202,6 +202,7 @@ export default function RecruiterDashboard() {
   const [jobSaveAction, setJobSaveAction] = useState<"" | "draft" | "pending_review">("");
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [expandedApplicantsJobId, setExpandedApplicantsJobId] = useState("");
+  const [applicationFilter, setApplicationFilter] = useState("all");
 
   const stats = useMemo(
     () => ({
@@ -596,8 +597,19 @@ export default function RecruiterDashboard() {
       ) : null}
 
       {loading ? (
-        <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold text-[var(--iseya-navy)]">Loading recruiter workspace...</p>
+        <div className="mt-8 space-y-5" aria-label="Loading recruiter workspace">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[1, 2, 3, 4].map((item) => (
+              <div key={item} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="h-3 w-28 animate-pulse rounded bg-slate-100" />
+                <div className="mt-4 h-9 w-16 animate-pulse rounded bg-slate-100" />
+              </div>
+            ))}
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-sm font-semibold text-[var(--iseya-navy)]">Loading recruiter workspace...</p>
+            <div className="mt-4 h-4 max-w-xl animate-pulse rounded bg-slate-100" />
+          </div>
         </div>
       ) : (
         <div className="mt-8 space-y-6">
@@ -633,6 +645,9 @@ export default function RecruiterDashboard() {
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   Verification status: {profile ? statusLabel(verificationStatus) : "Not submitted"}
+                </p>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                  Verified company profiles help protect candidates from misleading listings. Submitted jobs remain subject to ISEYA moderation before public publication.
                 </p>
               </div>
               <button
@@ -751,6 +766,25 @@ export default function RecruiterDashboard() {
                 Post a Job
               </a>
             </div>
+            {applications.length > 0 ? (
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                <p className="mr-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Filter Applicants</p>
+                {["all", "submitted", "reviewing", "proceed", "rejected"].map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => setApplicationFilter(filter)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                      applicationFilter === filter
+                        ? "border-[var(--iseya-gold)] bg-[#FFF8E6] text-[var(--iseya-navy)]"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-[var(--iseya-gold)]"
+                    }`}
+                  >
+                    {statusLabel(filter)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             <div className="mt-5 space-y-3">
               {jobs.length === 0 ? (
@@ -760,6 +794,10 @@ export default function RecruiterDashboard() {
               ) : (
                 jobs.map((job) => {
                   const jobApplications = applicationsByJobId.get(job.id) ?? [];
+                  const visibleApplications =
+                    applicationFilter === "all"
+                      ? jobApplications
+                      : jobApplications.filter((application) => application.status === applicationFilter);
                   const applicantsExpanded = expandedApplicantsJobId === job.id;
                   return (
                   <article key={job.id} className="rounded-xl border border-slate-200 p-4">
@@ -803,9 +841,13 @@ export default function RecruiterDashboard() {
                           <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-600">
                             No submitted interests for this job yet.
                           </p>
+                        ) : visibleApplications.length === 0 ? (
+                          <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-600">
+                            No applicants match this status filter.
+                          </p>
                         ) : (
                           <div className="space-y-3">
-                            {jobApplications.map((application) => (
+                            {visibleApplications.map((application) => (
                               <article key={application.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                   <div className="min-w-0">

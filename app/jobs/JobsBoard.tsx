@@ -460,8 +460,14 @@ export default function JobsBoard() {
         <div className="mt-6 grid gap-5 lg:grid-cols-[380px_minmax(0,1fr)]">
           <aside className="space-y-3">
             {loading ? (
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-sm font-semibold text-[var(--iseya-navy)]">Loading jobs...</p>
+              <div className="space-y-3" aria-label="Loading job opportunities">
+                {[1, 2, 3].map((item) => (
+                  <div key={item} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="h-4 w-3/4 animate-pulse rounded bg-slate-100" />
+                    <div className="mt-3 h-3 w-1/2 animate-pulse rounded bg-slate-100" />
+                    <div className="mt-4 h-3 w-2/3 animate-pulse rounded bg-slate-100" />
+                  </div>
+                ))}
               </div>
             ) : jobs.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm font-medium text-slate-600">

@@ -3,7 +3,7 @@
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import type { Json } from "@/lib/database.types";
@@ -4632,6 +4632,8 @@ function isTransientSessionError(error: unknown) {
 
 export default function Home() {
   const router = useRouter();
+  const pathname = usePathname();
+  const isPublicLanding = pathname === "/";
   const [masterResume, setMasterResume] = useState(sampleResume);
   const [jobDescription, setJobDescription] = useState(sampleJob);
   const [targetRole, setTargetRole] = useState("Product Manager");
@@ -6632,13 +6634,22 @@ export default function Home() {
           <div className="flex max-w-2xl flex-col gap-3 lg:items-end">
             <nav className="flex flex-wrap justify-start gap-x-4 gap-y-2 text-sm font-semibold text-white/80 lg:justify-end">
               {authUser ? (
-                <Link className="transition hover:text-[var(--iseya-gold)]" href="/workspace">
+                <Link
+                  className={`transition hover:text-[var(--iseya-gold)] ${!isPublicLanding ? "text-[var(--iseya-gold)]" : ""}`}
+                  href="/workspace"
+                >
                   Dashboard
                 </Link>
               ) : null}
-              <a className="transition hover:text-[var(--iseya-gold)]" href="#resume-builder">
-                Career Assets
-              </a>
+              {authUser ? (
+                <a className="transition hover:text-[var(--iseya-gold)]" href="#resume-builder">
+                  Career Assets
+                </a>
+              ) : (
+                <Link className="text-[var(--iseya-gold)]" href="/">
+                  For Candidates
+                </Link>
+              )}
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">
                 Jobs
               </Link>
@@ -6719,6 +6730,8 @@ export default function Home() {
         </div>
       </section>
 
+      {isPublicLanding ? (
+        <>
       <section className="mx-auto max-w-[112rem] px-5 py-6 sm:px-8 sm:py-8">
         <div className="overflow-hidden rounded-3xl border border-[var(--iseya-gold)]/30 bg-white shadow-sm">
           <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:p-10">
@@ -6730,7 +6743,7 @@ export default function Home() {
                 Career infrastructure for modern talent.
               </h1>
               <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
-                ISEYA helps you structure your career profile, tailor career assets, refine LinkedIn positioning, and connect your experience to stronger role-fit signals.
+                ISEYA connects private career development, opportunity discovery, recruiter access, and institution-level readiness insight in one employability platform.
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
@@ -6763,8 +6776,8 @@ export default function Home() {
               {[
                 "Secure checkout powered by Stripe",
                 "Private career workspace",
-                "Structured workflow for students, job seekers, and career transitions",
-                "Job discovery and recruiter access",
+                "Private candidate workspaces and protected data",
+                "Verified opportunities and institution-safe insight",
               ].map((item) => (
                 <div
                   key={item}
@@ -6777,6 +6790,44 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <section className="mx-auto max-w-[112rem] px-5 pb-7 sm:px-8 sm:pb-9">
+        <div className="grid gap-4 lg:grid-cols-3">
+          {[
+            {
+              label: "Students / Candidates",
+              title: "Build career readiness",
+              copy: "Structure career assets, discover opportunities, and track applications in a private workspace.",
+              href: authUser ? "/workspace" : "/signup",
+              cta: "For Students",
+            },
+            {
+              label: "Recruiters",
+              title: "Discover prepared talent",
+              copy: "Post verified roles and review candidate interest through an operational recruiter workspace.",
+              href: "/recruiters",
+              cta: "For Recruiters",
+            },
+            {
+              label: "Institutions",
+              title: "Measure readiness safely",
+              copy: "Request partnership access for aggregate career readiness intelligence and managed student access.",
+              href: "/institutions",
+              cta: "For Institutions",
+            },
+          ].map((path) => (
+            <article key={path.label} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">{path.label}</p>
+              <h2 className="mt-3 text-xl font-semibold text-[var(--iseya-navy)]">{path.title}</h2>
+              <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">{path.copy}</p>
+              <Link href={path.href} className={`${secondaryButtonClass} ${buttonSizeMdClass} mt-5 w-fit`}>
+                {path.cta}
+              </Link>
+            </article>
+          ))}
+        </div>
+      </section>
+        </>
+      ) : null}
 
       <section id="resume-builder" className="mx-auto max-w-[112rem] px-5 pt-1 sm:px-8">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition sm:p-6">

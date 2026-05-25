@@ -157,13 +157,13 @@ export default function InstitutionAccess() {
         </div>
       </header>
       <section className="mx-auto max-w-2xl px-5 py-10 sm:px-8">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">Student / Learner Access</p>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">Student / Participant Access</p>
         <h1 className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)]">Access through my institution</h1>
         <p className="mt-3 text-base leading-8 text-slate-600">
           Connect an approved institution email to your private ISEYA workspace. Your career materials remain private.
         </p>
         <p className="mt-3 rounded-xl border border-slate-200 bg-white p-4 text-sm leading-7 text-slate-600">
-          Use your student, learner, or program email. Institution administrator emails are used for management access and cannot claim learner seats.
+          Use your student or program email. Institution administrator emails are used for management access and cannot claim student seats.
         </p>
         <form onSubmit={submitAccess} className="mt-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <label className="text-sm font-semibold text-[var(--iseya-navy)]">
@@ -208,7 +208,7 @@ export default function InstitutionAccess() {
           <form onSubmit={runDryTest} className="mt-7 rounded-2xl border border-dashed border-[var(--iseya-gold)] bg-[#FFF8E6] p-5">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">Local Test Mode</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Development dry run only. This check never claims a learner seat or changes an account.
+              Development dry run only. This check never claims a student seat or changes an account.
             </p>
             <label className="mt-4 block text-sm font-semibold text-[var(--iseya-navy)]">
               Institution to test
@@ -222,8 +222,8 @@ export default function InstitutionAccess() {
               </select>
             </label>
             <label className="mt-4 block text-sm font-semibold text-[var(--iseya-navy)]">
-              Test learner email
-              <input className={inputClass} value={testLearnerEmail} onChange={(event) => setTestLearnerEmail(event.target.value)} type="email" required placeholder="learner@school.edu" />
+              Test student email
+              <input className={inputClass} value={testLearnerEmail} onChange={(event) => setTestLearnerEmail(event.target.value)} type="email" required placeholder="student@school.edu" />
             </label>
             <button type="submit" disabled={testLoading || testInstitutions.length === 0} className={`${primaryButton} mt-5`}>
               {testLoading ? "Checking..." : "Run Dry Test"}

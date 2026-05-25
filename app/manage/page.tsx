@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabaseServer";
 import ManageDashboard from "./ManageDashboard";
+import DashboardNavLink from "@/components/DashboardNavLink";
 
 async function assertAdmin() {
   const supabase = await createSupabaseServerClient();
@@ -48,13 +49,16 @@ export default async function ManagePage() {
               priority
             />
           </Link>
-          <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/workspace">
+          <nav className="iseya-dashboard-nav text-sm font-semibold">
+            <DashboardNavLink href="/manage">
+              Manage
+            </DashboardNavLink>
+            <DashboardNavLink href="/workspace">
               Workspace
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/account">
+            </DashboardNavLink>
+            <DashboardNavLink href="/account">
               My Account
-            </Link>
+            </DashboardNavLink>
           </nav>
         </div>
       </header>

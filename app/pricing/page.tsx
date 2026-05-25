@@ -103,7 +103,10 @@ function PricingContent() {
           </Link>
           <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/">
-              Resume Builder
+              For Candidates
+            </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters">
+              For Recruiters
             </Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
               Pricing
@@ -131,9 +134,9 @@ function PricingContent() {
               Pricing
             </h1>
             <p className="mt-4 text-base leading-8 text-slate-600">
-              Choose the level of career workspace access that fits your job
-              search. Free users can draft and edit; paid plans unlock more
-              document exports, optimization, saved versions, and application materials.
+              Choose candidate workspace access for building career materials and
+              pursuing opportunities. Institution partnerships are reviewed and
+              assigned separately through the institution access process.
             </p>
           </div>
 
