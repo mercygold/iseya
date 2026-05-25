@@ -4800,9 +4800,6 @@ export default function Home() {
   const optimizationCreditsRemaining = Number.isFinite(optimizationCreditLimit)
     ? Math.max(0, optimizationCreditLimit - effectiveOptimizationCreditsUsed)
     : optimizationCreditLimit;
-  const downloadProgressPercent = Number.isFinite(downloadLimit)
-    ? Math.min(100, Math.round((effectiveDownloadsUsed / Math.max(1, documentExportLimit)) * 100))
-    : 100;
   const starterResumeExportUsed =
     isStarterPlan(subscriptionPlan) && effectiveDownloadsUsed >= 1;
   const optimizationProgressPercent = Number.isFinite(optimizationLimit)
@@ -4880,18 +4877,6 @@ export default function Home() {
     isStarterPlan(subscriptionPlan) && hasExtractedSourceText && isStarterBranding
       ? brandingFromResumeText(extractedSourceTextForPreview)
       : personalBranding;
-  const dashboardActivity = [
-    savedVersions.length > 0
-      ? `Last version saved: ${savedVersions[0].name}`
-      : "",
-    effectiveDownloadsUsed > 0
-      ? `${effectiveDownloadsUsed} document export${effectiveDownloadsUsed === 1 ? "" : "s"} used`
-      : "",
-    effectiveOptimizationCreditsUsed > 0
-      ? `${effectiveOptimizationCreditsUsed} optimization credit${effectiveOptimizationCreditsUsed === 1 ? "" : "s"} used`
-      : "",
-    result ? `Active document score: ${Math.round(result.score)}%` : "",
-  ].filter(Boolean);
 
   const buildSavedState = useCallback((): SavedState => {
     return {
@@ -6715,14 +6700,14 @@ export default function Home() {
             <nav className="flex min-w-0 items-center justify-end gap-x-2.5 text-[10px] font-medium text-white/80 2xl:gap-x-3 2xl:text-[11px]">
               {authUser ? (
                 <Link
-                  className={`transition hover:text-[var(--iseya-gold)] ${!isPublicLanding ? "text-[var(--iseya-gold)]" : ""}`}
+                  className="transition hover:text-[var(--iseya-gold)]"
                   href="/workspace"
                 >
                   Dashboard
                 </Link>
               ) : null}
               <Link
-                className={authUser ? "transition hover:text-[var(--iseya-gold)]" : "text-[var(--iseya-gold)]"}
+                className={!isPublicLanding ? "text-[var(--iseya-gold)]" : authUser ? "transition hover:text-[var(--iseya-gold)]" : "text-[var(--iseya-gold)]"}
                 href="/workspace"
               >
                 Career Assets
@@ -7039,109 +7024,59 @@ export default function Home() {
 
       {!isPublicLanding ? (
         <>
-      <section id="resume-builder" className="mx-auto max-w-[112rem] overflow-x-hidden px-4 pt-1 sm:px-8">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition sm:p-6">
+      <section id="resume-builder" className="mx-auto max-w-[112rem] overflow-x-hidden px-4 pt-6 sm:px-8 sm:pt-8">
+        <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-[0_10px_30px_rgb(15_23_42_/_0.04)] transition sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-                Workspace Dashboard
-              </p>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-3xl">
-                Career document command center
+              <h1 className="text-2xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-3xl">
+                Career Assets
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                Track your plan, usage, saved resume versions, and document readiness from one workspace.
+                Build, tailor, and optimize your career documents in one intelligent workspace.
               </p>
             </div>
-            <div className="rounded-full border border-[var(--iseya-gold)]/40 bg-[#FFF8E6] px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-navy)]">
-              {cloudSaveStatus || "Live workspace"}
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-full border border-[var(--iseya-gold)]/35 bg-[#FFF8E6] px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-navy)]">
+                {cloudSaveStatus || "Live workspace"}
+              </span>
             </div>
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MiniAnalyticsCard
-              label="Active plan"
-              value={currentPlanLabel}
-              detail={currentSubscriptionStatusLabel}
+              label="ATS Readiness"
+              value={`${Math.round(safeMatchBreakdown(workspaceResult.matchBreakdown, safeScore(workspaceResult.score, 0)).atsReadability)}/100`}
+              detail="Document strength"
+              progress={safeMatchBreakdown(workspaceResult.matchBreakdown, safeScore(workspaceResult.score, 0)).atsReadability}
+              tone="green"
             />
             <MiniAnalyticsCard
-              label="Document exports used"
-              value={String(effectiveDownloadsUsed)}
-              detail={Number.isFinite(documentExportLimit) ? `${documentExportLimit} included` : "Unlimited"}
-              progress={downloadProgressPercent}
+              label="Role Fit"
+              value={`${Math.round(safeMatchBreakdown(workspaceResult.matchBreakdown, safeScore(workspaceResult.score, 0)).roleFit)}/100`}
+              detail="Target alignment"
+              progress={safeMatchBreakdown(workspaceResult.matchBreakdown, safeScore(workspaceResult.score, 0)).roleFit}
+              tone="blue"
             />
             <MiniAnalyticsCard
-              label="Credits remaining"
-              value={String(optimizationCreditsRemaining)}
-              detail={`${effectiveOptimizationCreditsUsed} used of ${optimizationCreditLimit}`}
+              label="Optimization Credits"
+              value={`${optimizationCreditsRemaining}/${optimizationCreditLimit}`}
+              detail={`${effectiveOptimizationCreditsUsed} used`}
               progress={optimizationProgressPercent}
+              tone="gold"
             />
             <MiniAnalyticsCard
-              label="Saved versions"
-              value={String(activeSavedVersionsCount)}
-              detail={Number.isFinite(savedVersionLimit) ? `${savedVersionLimit} max` : "Unlimited"}
+              label="Saved Versions"
+              value={`${activeSavedVersionsCount}${Number.isFinite(savedVersionLimit) ? `/${savedVersionLimit}` : ""}`}
+              detail={Number.isFinite(savedVersionLimit) ? "Role-specific drafts" : "Unlimited version history"}
               progress={savedVersionProgressPercent}
+              tone="blue"
             />
-          </div>
-
-          <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
-                Recent Activity
-              </h2>
-              {authLoading || (authUser && cloudSaveStatus.toLowerCase().includes("loading")) ? (
-                <div className="mt-4 space-y-2">
-                  <div className="h-3 w-4/5 animate-pulse rounded-full bg-slate-200" />
-                  <div className="h-3 w-3/5 animate-pulse rounded-full bg-slate-200" />
-                  <div className="h-3 w-2/3 animate-pulse rounded-full bg-slate-200" />
-                </div>
-              ) : dashboardActivity.length > 0 ? (
-                <ul className="mt-3 grid gap-2 text-sm leading-6 text-slate-700 sm:grid-cols-2">
-                  {dashboardActivity.map((activity, index) => (
-                    <li
-                      key={`${activity}-${index}`}
-                      className="rounded-lg border border-white bg-white p-3 shadow-sm"
-                    >
-                      {activity}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-3 rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm leading-6 text-slate-500">
-                  No recent activity yet. Tailor a resume, export a document, or save a version to start building your history.
-                </p>
-              )}
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
-                Optimization Usage
-              </h2>
-              {effectiveOptimizationCreditsUsed > 0 ? (
-                <div className="mt-3">
-                  <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-                    <span>{effectiveOptimizationCreditsUsed} used</span>
-                    <span>{optimizationLimit} included</span>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-slate-200">
-                    <div
-                      className="h-2 rounded-full bg-[var(--iseya-gold)] transition-all"
-                      style={{ width: `${optimizationProgressPercent}%` }}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <p className="mt-3 rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm leading-6 text-slate-500">
-                  No optimization history yet. Use Tailor Resume or Optimization Actions to spend credits.
-                </p>
-              )}
-            </div>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-[112rem] gap-4 overflow-x-hidden px-4 py-5 sm:px-8 sm:py-6 lg:py-8 xl:grid-cols-[minmax(285px,0.82fr)_minmax(390px,1fr)_minmax(500px,1.45fr)] xl:items-start">
-        <div className="order-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition sm:p-5 xl:col-start-2 xl:row-start-1">
+      <section className="mx-auto max-w-[112rem] overflow-x-hidden px-4 py-5 sm:px-8 sm:py-6 lg:py-7">
+        <div className="hidden">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
             Resume Tailoring
           </p>
@@ -7251,21 +7186,6 @@ export default function Home() {
           </section>
 
           <div className="hidden">
-            <input
-              ref={uploadInputRef}
-              id="source-file-upload"
-              type="file"
-              multiple
-              accept={acceptedSourceFileTypes}
-              onChange={(event) => handleSourceFiles(event.target.files)}
-              className="sr-only"
-            />
-            <label
-              htmlFor="source-file-upload"
-              className={`${secondaryButtonClass} ${buttonSizeMdClass} cursor-pointer`}
-            >
-              Upload Files
-            </label>
             <p className="mt-2 text-xs leading-5 text-zinc-500">
               Accepts PDF, DOC, DOCX, TXT, PNG, JPG, JPEG, PPT, and PPTX.
               Text extraction is available for readable PDF, DOCX, TXT, and
@@ -7393,10 +7313,11 @@ export default function Home() {
           </section>
         </div>
 
-        <div className="order-1 space-y-4 xl:col-start-1 xl:row-start-1">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-              1 &nbsp; Target Role &amp; Job Description
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+          <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-navy)]">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--iseya-gold)] text-[var(--iseya-navy)]">1</span>
+              Target Role &amp; Job Description
             </p>
             <h2 className="mt-2 text-lg font-semibold text-[var(--iseya-navy)]">
               Opportunity alignment
@@ -7505,8 +7426,9 @@ export default function Home() {
             />
           </div>
 
-          <section id="source-materials" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-navy)]">
+          <section id="source-materials" className="scroll-mt-24 rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-navy)]">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--iseya-gold)] text-[var(--iseya-navy)]">3</span>
               Source Materials
             </p>
             <p className="mt-2 text-xs leading-5 text-slate-500">
@@ -7528,6 +7450,15 @@ export default function Home() {
             >
               Upload Files
             </label>
+            <input
+              ref={uploadInputRef}
+              id="source-file-upload"
+              type="file"
+              multiple
+              accept={acceptedSourceFileTypes}
+              onChange={(event) => handleSourceFiles(event.target.files)}
+              className="sr-only"
+            />
             <p className="mt-2 text-[11px] leading-5 text-slate-500">
               PDF, DOCX, TXT and supported image files.
             </p>
@@ -7574,9 +7505,10 @@ export default function Home() {
             )}
           </section>
 
-          <section id="optimization-settings" className="scroll-mt-24 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+          <section id="optimization-settings" className="scroll-mt-24 rounded-xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
             <details>
-              <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
+              <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)]">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--iseya-gold)] text-xs font-bold text-[var(--iseya-navy)]">4</span>
                 Optimization Settings
               </summary>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -8068,7 +8000,7 @@ export default function Home() {
           </div>
         </div>
 
-        <section className="order-3 min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 xl:col-start-3 xl:row-start-1">
+        <section className="hidden">
           <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
@@ -8157,12 +8089,12 @@ export default function Home() {
       ) : null}
 
       {workspaceResult ? (
-        <section className="mx-auto max-w-[118rem] overflow-x-hidden px-3 pb-10 sm:px-6 xl:px-8">
-          <div className="sticky top-0 z-30 mb-5 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+        <section className="mx-auto max-w-[112rem] overflow-x-hidden px-4 pb-10 sm:px-8">
+          <div className="mb-4 rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
             <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
               <div>
-                <h2 className="text-base font-semibold text-[var(--iseya-gold)]">
-                  Career Workspace
+                <h2 className="text-base font-semibold text-[var(--iseya-navy)]">
+                  Active document workspace
                 </h2>
                 <p className="mt-1 text-xs font-medium text-slate-500">
                   {isStarterWorkflowPreview
@@ -8267,11 +8199,11 @@ export default function Home() {
                       ? "Save Version"
                       : "🔒 Save Version")}
                 </button>
-              </div>
+	              </div>
             </div>
           </div>
 
-	          <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[370px_minmax(0,1fr)]">
+	          <div className="grid gap-4 xl:grid-cols-[252px_minmax(0,1fr)_292px]">
 	            <aside className="order-2 xl:order-1">
 	              <div className="space-y-3 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-auto xl:pr-1">
                 <WorkspaceNavigation
@@ -8281,31 +8213,33 @@ export default function Home() {
                   hasLinkedInAccess={hasLinkedInAccess}
                   hasApplicationKitAccess={hasApplicationKitAccess}
                   atsScore={safeMatchBreakdown(workspaceResult.matchBreakdown, safeScore(workspaceResult.score, 0)).atsReadability}
+                  roleFit={safeMatchBreakdown(workspaceResult.matchBreakdown, safeScore(workspaceResult.score, 0)).roleFit}
+                  onOptimize={() => runWithFeedback("tailor", "Optimizing...", "Optimized", tailorResume)}
                 />
                 {isStarterWorkflowPreview ? <StarterWorkspacePreviewNotice /> : null}
-                <CompactAiSidebar result={workspaceResult} />
-                <div id="career-intelligence" className="scroll-mt-24">
-                  <AdvancedIntelligencePanel
-                    analysis={workspaceResult.advancedAnalysis}
-                    onReplaceBullet={
-                      isStarterWorkflowPreview
-                        ? () => setSystemStatus("Upgrade to unlock advanced bullet rewriting.")
-                        : replaceBulletWithVersion
-                    }
-                  />
-                </div>
               </div>
             </aside>
 
-	            <section className="order-1 min-w-0 rounded-xl border border-slate-200 bg-slate-100/70 p-3 shadow-sm sm:p-4 xl:order-2">
+	            <section className="order-1 min-w-0 rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)] sm:p-4 xl:order-2">
+                <nav className="mb-4 flex gap-6 border-b border-slate-200 px-2 text-sm font-semibold text-slate-500" aria-label="Resume workflow">
+                  <button type="button" onClick={() => setActiveOutput("resume")} className="border-b-2 border-[var(--iseya-gold)] px-2 pb-3 text-[var(--iseya-gold)]">
+                    Tailor
+                  </button>
+                  <button type="button" onClick={() => runWithFeedback("tailor", "Optimizing...", "Optimized", tailorResume)} className="px-2 pb-3 transition hover:text-[var(--iseya-navy)]">
+                    Optimize
+                  </button>
+                  <a href="#career-intelligence" className="px-2 pb-3 transition hover:text-[var(--iseya-navy)]">
+                    Analyze
+                  </a>
+                </nav>
 	              <div className="mx-auto max-w-6xl">
                 {activeOutput === "resume" ? (
                   <DocumentFrame title="Let's tailor your resume" subtitle="Resume editor">
                     {isStarterWorkflowPreview ? (
                       <div className="space-y-5">
                         <PremiumPreviewBanner />
-                        <div className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(420px,1.1fr)]">
-                          <div id="resume-editor" className="min-w-0 scroll-mt-28 xl:max-h-[calc(100vh-9rem)] xl:overflow-auto xl:pr-1">
+                        <div className="grid gap-5 2xl:grid-cols-[minmax(0,0.9fr)_minmax(420px,1.1fr)]">
+                          <div id="resume-editor" className="min-w-0 scroll-mt-28 2xl:max-h-[calc(100vh-9rem)] 2xl:overflow-auto 2xl:pr-1">
                             <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4">
                               <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
@@ -8348,7 +8282,7 @@ export default function Home() {
                               onOptimizationUsed={() => undefined}
                             />
                           </div>
-                          <div className="min-w-0 scroll-mt-28 xl:sticky xl:top-24 xl:max-h-[calc(100vh-9rem)] xl:self-start xl:overflow-auto xl:pr-1">
+                          <div className="min-w-0 scroll-mt-28 2xl:sticky 2xl:top-24 2xl:max-h-[calc(100vh-9rem)] 2xl:self-start 2xl:overflow-auto 2xl:pr-1">
                             <ResumePreviewControls
                               template={template}
                               theme={theme}
@@ -8376,8 +8310,8 @@ export default function Home() {
                         bullets={workspaceResult.coach.weakBullets}
                         onApply={rewriteSuggestedBullet}
                       />
-	                      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)]">
-	                        <div id="resume-editor" className="min-w-0 scroll-mt-28 xl:max-h-[calc(100vh-9rem)] xl:overflow-auto xl:pr-1">
+	                      <div className="mt-5 grid gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)]">
+	                        <div id="resume-editor" className="min-w-0 scroll-mt-28 2xl:max-h-[calc(100vh-9rem)] 2xl:overflow-auto 2xl:pr-1">
                           <ModularResumeEditor
                             resumeText={workspaceResult.rewrittenResume}
                             resetSourceText={masterResume}
@@ -8403,7 +8337,7 @@ export default function Home() {
                         </div>
 	                        <div
 	                          id="resume-preview"
-	                          className={`min-w-0 scroll-mt-28 xl:sticky xl:top-24 xl:max-h-[calc(100vh-9rem)] xl:self-start xl:overflow-auto xl:pr-1 ${
+	                          className={`min-w-0 scroll-mt-28 2xl:sticky 2xl:top-24 2xl:max-h-[calc(100vh-9rem)] 2xl:self-start 2xl:overflow-auto 2xl:pr-1 ${
                               isPremiumTemplate(template) && isStarterPlan(subscriptionPlan)
                                 ? "blur-[1.5px]"
                                 : ""
@@ -8566,6 +8500,19 @@ export default function Home() {
               </div>
             </section>
 
+            <aside className="order-3 space-y-3 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-auto xl:pr-1">
+              <CompactAiSidebar result={workspaceResult} />
+              <div id="career-intelligence" className="scroll-mt-24">
+                <AdvancedIntelligencePanel
+                  analysis={workspaceResult.advancedAnalysis}
+                  onReplaceBullet={
+                    isStarterWorkflowPreview
+                      ? () => setSystemStatus("Upgrade to unlock advanced bullet rewriting.")
+                      : replaceBulletWithVersion
+                  }
+                />
+              </div>
+            </aside>
           </div>
         </section>
       ) : null}
@@ -8804,14 +8751,23 @@ function MiniAnalyticsCard({
   value,
   detail,
   progress,
+  tone = "gold",
 }: {
   label: string;
   value: string;
   detail: string;
   progress?: number;
+  tone?: "gold" | "green" | "blue";
 }) {
+  const progressClass =
+    tone === "green"
+      ? "bg-emerald-500"
+      : tone === "blue"
+        ? "bg-blue-500"
+        : "bg-[var(--iseya-gold)]";
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <div className="rounded-lg border border-slate-200/80 bg-white p-4 shadow-[0_5px_18px_rgb(15_23_42_/_0.035)] transition hover:-translate-y-0.5 hover:shadow-md">
       <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
         {label}
       </p>
@@ -8822,7 +8778,7 @@ function MiniAnalyticsCard({
       {typeof progress === "number" ? (
         <div className="mt-3 h-2 rounded-full bg-slate-200">
           <div
-            className="h-2 rounded-full bg-[var(--iseya-gold)] transition-all"
+            className={`h-2 rounded-full transition-all ${progressClass}`}
             style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
           />
         </div>
@@ -8838,6 +8794,8 @@ function WorkspaceNavigation({
   hasLinkedInAccess,
   hasApplicationKitAccess,
   atsScore,
+  roleFit,
+  onOptimize,
 }: {
   activeOutput: OutputTab;
   onOpen: (tab: OutputTab) => void;
@@ -8845,19 +8803,20 @@ function WorkspaceNavigation({
   hasLinkedInAccess: boolean;
   hasApplicationKitAccess: boolean;
   atsScore: number;
+  roleFit: number;
+  onOptimize: () => void;
 }) {
   const tabs: Array<{ id: OutputTab; label: string; icon: typeof FileText; locked?: boolean }> = [
     { id: "resume", label: "Resume", icon: FileText },
     { id: "cover", label: "Cover Letter", icon: ClipboardList, locked: !hasCoverLetterAccess },
     { id: "linkedin", label: "LinkedIn Profile", icon: UsersRound, locked: !hasLinkedInAccess },
     { id: "application", label: "Application Kit", icon: BriefcaseBusiness, locked: !hasApplicationKitAccess },
-    { id: "preview", label: "Preview", icon: FileText },
   ];
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+    <section className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
       <p className="px-2 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
-        Career Workspace
+        Workspace
       </p>
       <nav className="mt-1 grid gap-1" aria-label="Career workspace">
         {tabs.map((tab) => (
@@ -8867,7 +8826,7 @@ function WorkspaceNavigation({
             onClick={() => onOpen(tab.id)}
             className={`flex min-h-10 items-center justify-between rounded-md px-3 text-left text-sm font-semibold transition ${
               activeOutput === tab.id
-                ? "bg-[var(--iseya-navy)] text-white"
+                ? "border-l-2 border-[var(--iseya-gold)] bg-[var(--iseya-navy)] text-[var(--iseya-gold)]"
                 : "text-slate-700 hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]"
             }`}
           >
@@ -8891,19 +8850,42 @@ function WorkspaceNavigation({
           <Settings className="h-4 w-4" strokeWidth={1.8} /> Settings
         </a>
       </nav>
-      <div className="mt-4 rounded-lg bg-[var(--iseya-navy)] p-4 text-white">
-        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
-          ATS Readiness
+      <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50/70 p-4">
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+          Readiness Snapshot
         </p>
-        <div className="mt-2 flex items-end gap-1">
-          <span className="text-3xl font-semibold">{Math.round(atsScore)}</span>
-          <span className="pb-1 text-xs text-white/65">/100</span>
+        <div className="mt-3 flex items-center justify-between text-xs font-semibold text-slate-600">
+          <span>ATS Readiness</span>
+          <span>{Math.round(atsScore)}/100</span>
         </div>
-        <div className="mt-3 h-1.5 rounded-full bg-white/20">
+        <div className="mt-2 h-1.5 rounded-full bg-slate-200">
           <div
-            className="h-1.5 rounded-full bg-[var(--iseya-gold)]"
+            className="h-1.5 rounded-full bg-emerald-500"
             style={{ width: `${Math.min(100, Math.max(0, atsScore))}%` }}
           />
+        </div>
+        <div className="mt-4 flex items-center justify-between text-xs font-semibold text-slate-600">
+          <span>Role Fit</span>
+          <span>{Math.round(roleFit)}/100</span>
+        </div>
+        <div className="mt-2 h-1.5 rounded-full bg-slate-200">
+          <div className="h-1.5 rounded-full bg-blue-500" style={{ width: `${Math.min(100, Math.max(0, roleFit))}%` }} />
+        </div>
+      </div>
+      <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+          Quick Actions
+        </p>
+        <div className="mt-3 grid gap-2 text-xs font-semibold">
+          <a href="#career-intelligence" className="rounded-md border border-slate-200 px-3 py-2 text-slate-700 transition hover:border-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]">
+            Run ATS Check
+          </a>
+          <a href="#career-intelligence" className="rounded-md border border-slate-200 px-3 py-2 text-slate-700 transition hover:border-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]">
+            Keyword Match
+          </a>
+          <button type="button" onClick={onOptimize} className="rounded-md border border-slate-200 px-3 py-2 text-left text-slate-700 transition hover:border-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]">
+            Optimize Full Resume
+          </button>
         </div>
       </div>
     </section>
@@ -10081,9 +10063,31 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
 
   return (
     <div className="space-y-3">
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+        <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
+          Career Insights
+        </h2>
+        <p className="mt-2 text-xs leading-5 text-slate-500">
+          Get smart suggestions to strengthen your resume.
+        </p>
+        <ul className="mt-4 space-y-3 text-xs font-medium text-slate-700">
+          {[
+            ["Add measurable achievements", "bg-emerald-50 text-emerald-600"],
+            ["Strengthen your summary", "bg-blue-50 text-blue-600"],
+            ["Improve keyword alignment", "bg-[#FFF8E6] text-[var(--iseya-gold)]"],
+            ["Enhance impact and clarity", "bg-slate-100 text-[var(--iseya-navy)]"],
+          ].map(([label, color]) => (
+            <li key={label} className="flex items-center gap-3">
+              <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
+              {label}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-          ATS Scores
+          Insights Center
         </p>
         <div className="mt-3 flex items-end gap-2">
           <span className="text-4xl font-semibold tracking-tight text-[var(--iseya-navy)]">
@@ -10092,13 +10096,13 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
           <span className="pb-1 text-sm font-semibold text-slate-500">/100</span>
         </div>
         <div className="mt-3 grid gap-2">
-          <ScoreBar label="ATS readiness" score={breakdown.atsReadability} />
-          <ScoreBar label="Role fit" score={breakdown.roleFit} />
-          <ScoreBar label="Metrics" score={breakdown.metricStrength} />
+          <ScoreBar label="ATS Check" score={breakdown.atsReadability} />
+          <ScoreBar label="Keyword Match" score={breakdown.roleFit} />
+          <ScoreBar label="Content Insights" score={breakdown.metricStrength} />
         </div>
       </section>
 
-      <details open className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <details open className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
           Recruiter Simulation
         </summary>
@@ -10109,9 +10113,9 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
         </div>
       </details>
 
-      <details open className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <details open className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
-          Quick Critique
+          Content Insights
         </summary>
         <CoachInlineList items={quickCritiques} />
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -10132,16 +10136,16 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
         </div>
       </details>
 
-      <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <details className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
           Resume Integrity
         </summary>
         <CoachInlineList items={safeStringArray(result.riskFlags).map(userFacingGuidance)} />
       </details>
 
-      <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <details className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
-          Industry Alignment
+          Keyword Match
         </summary>
         <CoachInlineList items={[coach.industryAlignment, result.industryFit]} />
       </details>
