@@ -86,6 +86,15 @@ type JobPostModeration = {
   recruiter_id: string;
   job_title: string;
   company_name: string;
+  location: string;
+  country: string | null;
+  workplace_type: string;
+  employment_type: string;
+  salary_range: string | null;
+  application_url: string | null;
+  role_summary: string;
+  skills: string[];
+  application_deadline: string | null;
   status: string;
   opportunity_type: string;
   source_name: string | null;
@@ -98,6 +107,7 @@ type CuratedOpportunityDraft = {
   jobTitle: string;
   companyName: string;
   location: string;
+  country: string;
   workplaceType: string;
   employmentType: string;
   salaryRange: string;
@@ -142,6 +152,7 @@ const emptyCuratedOpportunityDraft: CuratedOpportunityDraft = {
   jobTitle: "",
   companyName: "",
   location: "",
+  country: "",
   workplaceType: "remote",
   employmentType: "full-time",
   salaryRange: "",
@@ -205,6 +216,8 @@ export default function ManageDashboard() {
     emptyCuratedOpportunityDraft,
   );
   const [curatedSaving, setCuratedSaving] = useState(false);
+  const [curatedImporting, setCuratedImporting] = useState(false);
+  const [editingCuratedId, setEditingCuratedId] = useState("");
   const [draft, setDraft] = useState({
     subscriptionPlan: "free",
     subscriptionStatus: "free",
@@ -501,7 +514,10 @@ export default function ManageDashboard() {
       const response = await fetch("/api/manage/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(curatedDraft),
+        body: JSON.stringify({
+          ...curatedDraft,
+          curatedJobPostId: editingCuratedId || undefined,
+        }),
       });
       const data = (await response.json().catch(() => ({}))) as { error?: string };
 
@@ -510,11 +526,14 @@ export default function ManageDashboard() {
       }
 
       setStatus(
-        curatedDraft.status === "published"
+        editingCuratedId
+          ? "Curated opportunity updated."
+          : curatedDraft.status === "published"
           ? "Curated opportunity published."
           : "Curated opportunity saved.",
       );
       setCuratedDraft(emptyCuratedOpportunityDraft);
+      setEditingCuratedId("");
       await loadManageData({ preserveStatus: true });
     } catch (error) {
       setStatus(
@@ -523,6 +542,60 @@ export default function ManageDashboard() {
     } finally {
       setCuratedSaving(false);
     }
+  }
+
+  async function importStarterCuratedOpportunities() {
+    if (!window.confirm("Import starter curated opportunities as drafts? Existing matching records will be skipped.")) {
+      return;
+    }
+
+    setStatus("");
+    setCuratedImporting(true);
+
+    try {
+      const response = await fetch("/api/manage/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "import_starter_curated_opportunities" }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        imported?: number;
+        skipped?: number;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to import starter opportunities right now.");
+      }
+
+      setStatus(
+        `${data.imported ?? 0} starter curated opportunities imported as drafts. ${data.skipped ?? 0} duplicates skipped.`,
+      );
+      await loadManageData({ preserveStatus: true });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to import starter opportunities right now.");
+    } finally {
+      setCuratedImporting(false);
+    }
+  }
+
+  function editCuratedOpportunity(job: JobPostModeration) {
+    setEditingCuratedId(job.id);
+    setCuratedDraft({
+      jobTitle: job.job_title,
+      companyName: job.company_name,
+      location: job.location,
+      country: job.country ?? "",
+      workplaceType: job.workplace_type,
+      employmentType: job.employment_type,
+      salaryRange: job.salary_range ?? "",
+      externalApplyUrl: job.application_url ?? "",
+      sourceName: job.source_name ?? "",
+      jobDescription: job.role_summary,
+      skillsKeywords: job.skills.join(", "),
+      applicationDeadline: job.application_deadline ?? "",
+      status: job.status,
+    });
   }
 
   async function deleteCuratedOpportunity(job: JobPostModeration) {
@@ -545,6 +618,10 @@ export default function ManageDashboard() {
       }
 
       setStatus("Curated opportunity deleted.");
+      if (editingCuratedId === job.id) {
+        setEditingCuratedId("");
+        setCuratedDraft(emptyCuratedOpportunityDraft);
+      }
       await loadManageData({ preserveStatus: true });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to delete curated opportunity.");
@@ -819,6 +896,24 @@ export default function ManageDashboard() {
         title="Curated Opportunity Posting"
         subtitle="Add external roles sourced by the ISEYA team. These opportunities always direct candidates to the original hiring channel."
       >
+        <div className="mb-5 flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-sm font-semibold text-[var(--iseya-navy)]">
+              Starter curated opportunity import
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Imports validated starter records as drafts only and skips matching external roles.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={curatedImporting}
+            onClick={importStarterCuratedOpportunities}
+            className={secondaryButton}
+          >
+            {curatedImporting ? "Importing..." : "Import Starter Curated Opportunities"}
+          </button>
+        </div>
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.12fr)_minmax(320px,0.88fr)]">
           <form onSubmit={createCuratedOpportunity} className="grid gap-3 sm:grid-cols-2">
             <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
@@ -834,6 +929,10 @@ export default function ManageDashboard() {
               <input required value={curatedDraft.location} onChange={(event) => setCuratedDraft((current) => ({ ...current, location: event.target.value }))} className={`${inputClass} mt-1.5 w-full normal-case tracking-normal`} />
             </label>
             <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+              Country
+              <input value={curatedDraft.country} onChange={(event) => setCuratedDraft((current) => ({ ...current, country: event.target.value }))} className={`${inputClass} mt-1.5 w-full normal-case tracking-normal`} />
+            </label>
+            <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
               Salary Range optional
               <input value={curatedDraft.salaryRange} onChange={(event) => setCuratedDraft((current) => ({ ...current, salaryRange: event.target.value }))} placeholder="USD 80,000 - 120,000 yearly" className={`${inputClass} mt-1.5 w-full normal-case tracking-normal`} />
             </label>
@@ -843,6 +942,7 @@ export default function ManageDashboard() {
                 <option value="remote">Remote</option>
                 <option value="hybrid">Hybrid</option>
                 <option value="onsite">Onsite</option>
+                <option value="not_specified">Not specified</option>
               </select>
             </label>
             <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
@@ -853,6 +953,7 @@ export default function ManageDashboard() {
                 <option value="contract">Contract</option>
                 <option value="internship">Internship</option>
                 <option value="temporary">Temporary</option>
+                <option value="not_specified">Not specified</option>
               </select>
             </label>
             <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500 sm:col-span-2">
@@ -869,6 +970,9 @@ export default function ManageDashboard() {
                 <option value="Ashby">Ashby</option>
                 <option value="YC Jobs">YC Jobs</option>
                 <option value="Recruiter Post">Recruiter Post</option>
+                <option value="Indeed discovery">Indeed discovery</option>
+                <option value="LinkedIn discovery">LinkedIn discovery</option>
+                <option value="Needs verification">Needs verification</option>
                 <option value="Other">Other</option>
               </select>
             </label>
@@ -893,9 +997,27 @@ export default function ManageDashboard() {
               </select>
             </label>
             <div className="flex items-end">
-              <button type="submit" disabled={curatedSaving} className={`${primaryButton} w-full`}>
-                {curatedSaving ? "Saving..." : "Save Curated Opportunity"}
-              </button>
+              <div className="flex w-full gap-2">
+                <button type="submit" disabled={curatedSaving} className={`${primaryButton} flex-1`}>
+                  {curatedSaving
+                    ? "Saving..."
+                    : editingCuratedId
+                      ? "Update Opportunity"
+                      : "Save Curated Opportunity"}
+                </button>
+                {editingCuratedId ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingCuratedId("");
+                      setCuratedDraft(emptyCuratedOpportunityDraft);
+                    }}
+                    className={secondaryButton}
+                  >
+                    Cancel
+                  </button>
+                ) : null}
+              </div>
             </div>
           </form>
           <section>
@@ -913,6 +1035,9 @@ export default function ManageDashboard() {
                       <option value="published">Published</option>
                       <option value="closed">Closed</option>
                     </select>
+                    <button type="button" onClick={() => editCuratedOpportunity(job)} className={secondaryButton}>
+                      Edit
+                    </button>
                     <button type="button" onClick={() => deleteCuratedOpportunity(job)} className={secondaryButton}>
                       Delete
                     </button>

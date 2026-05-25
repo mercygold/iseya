@@ -300,6 +300,7 @@ export type Database = {
           job_title: string;
           company_name: string;
           location: string;
+          country: string | null;
           workplace_type: string;
           employment_type: string;
           salary_range: string | null;
@@ -327,6 +328,7 @@ export type Database = {
           job_title: string;
           company_name: string;
           location?: string;
+          country?: string | null;
           workplace_type?: string;
           employment_type?: string;
           salary_range?: string | null;
@@ -354,6 +356,7 @@ export type Database = {
           job_title?: string;
           company_name?: string;
           location?: string;
+          country?: string | null;
           workplace_type?: string;
           employment_type?: string;
           salary_range?: string | null;

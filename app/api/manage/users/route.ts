@@ -3,6 +3,7 @@ import { sendRecruiterVerificationEmail } from "@/lib/notificationEmails";
 import { createMatchingJobAlertNotifications, createNotification } from "@/lib/notifications";
 import { chooseCanonicalRecruiterProfile } from "@/lib/recruiterProfile";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabaseServer";
+import { curatedOpportunitiesStarter, type CuratedOpportunitySeed } from "@/data/curated-opportunities-starter";
 
 const validPlans = new Set(["free", "plus", "pro_monthly", "pro_annual"]);
 const validStatuses = new Set(["free", "active", "canceled", "past_due", "inactive"]);
@@ -13,13 +14,14 @@ const validInstitutionPackages = new Set([
   "Enterprise Access",
 ]);
 const validCuratedStatuses = new Set(["draft", "published", "closed"]);
-const validWorkplaceTypes = new Set(["remote", "hybrid", "onsite"]);
+const validWorkplaceTypes = new Set(["remote", "hybrid", "onsite", "not_specified"]);
 const validEmploymentTypes = new Set([
   "full-time",
   "part-time",
   "contract",
   "internship",
   "temporary",
+  "not_specified",
 ]);
 
 function text(value: unknown) {
@@ -41,6 +43,54 @@ function validExternalUrl(value: string) {
   } catch {
     return false;
   }
+}
+
+function cleanExternalUrl(value: string) {
+  try {
+    const url = new URL(value);
+    for (const parameter of [...url.searchParams.keys()]) {
+      if (
+        parameter.toLowerCase().startsWith("utm_") ||
+        ["fbclid", "gclid", "ref", "source"].includes(parameter.toLowerCase())
+      ) {
+        url.searchParams.delete(parameter);
+      }
+    }
+    return url.toString();
+  } catch {
+    return value;
+  }
+}
+
+function curatedFingerprint(jobTitle: string, companyName: string, externalApplyUrl: string) {
+  return [
+    jobTitle.trim().toLowerCase(),
+    companyName.trim().toLowerCase(),
+    cleanExternalUrl(externalApplyUrl).toLowerCase(),
+  ].join("::");
+}
+
+function curatedSeedRow(seed: CuratedOpportunitySeed, adminUserId: string) {
+  return {
+    recruiter_id: adminUserId,
+    job_title: seed.title.trim(),
+    company_name: seed.company.trim(),
+    location: seed.location.trim(),
+    country: seed.country.trim() || null,
+    workplace_type: seed.workplace_type,
+    employment_type: seed.employment_type,
+    salary_range: seed.salary_range?.trim() || null,
+    role_summary: seed.description.trim(),
+    responsibilities: "",
+    requirements: "",
+    skills: seed.skills_keywords ?? [],
+    application_deadline: seed.application_deadline?.trim() || null,
+    application_url: cleanExternalUrl(seed.external_apply_url.trim()),
+    status: "draft",
+    opportunity_type: "curated_opportunity",
+    source_name: seed.source_name,
+    source_description: "Sourced from active external hiring channels",
+  };
 }
 
 async function getAdminClients() {
@@ -192,7 +242,16 @@ export async function GET() {
     recruiter_id: string;
     job_title: string;
     company_name: string;
+    location: string;
     status: string;
+    country: string | null;
+    workplace_type: string;
+    employment_type: string;
+    salary_range: string | null;
+    application_url: string | null;
+    role_summary: string;
+    skills: string[];
+    application_deadline: string | null;
     opportunity_type: string;
     source_name: string | null;
     source_description: string | null;
@@ -213,7 +272,7 @@ export async function GET() {
         .limit(500),
       serviceRole
         .from("job_posts")
-        .select("id, recruiter_id, job_title, company_name, status, opportunity_type, source_name, source_description, applicants_count, created_at")
+        .select("id, recruiter_id, job_title, company_name, location, country, workplace_type, employment_type, salary_range, application_url, role_summary, skills, application_deadline, status, opportunity_type, source_name, source_description, applicants_count, created_at")
         .order("created_at", { ascending: false })
         .limit(100),
       serviceRole
@@ -282,13 +341,91 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const action = text(body.action);
+
+  if (action === "import_starter_curated_opportunities") {
+    if (curatedOpportunitiesStarter.length === 0) {
+      return Response.json(
+        { error: "Starter curated opportunity source data has not been loaded yet." },
+        { status: 409 },
+      );
+    }
+
+    const invalidSeedCount = curatedOpportunitiesStarter.filter(
+      (job) =>
+        !job.title.trim() ||
+        !job.company.trim() ||
+        !validExternalUrl(job.external_apply_url.trim()),
+    ).length;
+
+    if (invalidSeedCount > 0) {
+      console.error("[manage] starter curated opportunity source data is invalid", {
+        invalidSeedCount,
+        adminUserId: userId,
+      });
+      return Response.json(
+        { error: "Starter opportunity data requires validation before import." },
+        { status: 400 },
+      );
+    }
+
+    const seedRows = curatedOpportunitiesStarter.map((job) => curatedSeedRow(job, userId));
+    const { data: existingRows, error: existingError } = await serviceRole
+      .from("job_posts")
+      .select("job_title, company_name, application_url")
+      .eq("opportunity_type", "curated_opportunity");
+
+    if (existingError) {
+      console.error("[manage] curated opportunity duplicate lookup failed", {
+        code: existingError.code,
+        message: existingError.message,
+        adminUserId: userId,
+      });
+      return Response.json({ error: "Unable to import starter opportunities right now." }, { status: 500 });
+    }
+
+    const existingFingerprints = new Set(
+      (existingRows ?? []).map((job) =>
+        curatedFingerprint(job.job_title, job.company_name, job.application_url ?? ""),
+      ),
+    );
+    const uniqueRows = seedRows.filter((job) => {
+      const fingerprint = curatedFingerprint(job.job_title, job.company_name, job.application_url);
+      if (existingFingerprints.has(fingerprint)) return false;
+      existingFingerprints.add(fingerprint);
+      return true;
+    });
+
+    if (uniqueRows.length > 0) {
+      const { error: insertError } = await serviceRole.from("job_posts").insert(uniqueRows);
+
+      if (insertError) {
+        console.error("[manage] starter curated opportunity import failed", {
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          adminUserId: userId,
+        });
+        return Response.json({ error: "Unable to import starter opportunities right now." }, { status: 500 });
+      }
+    }
+
+    return Response.json({
+      imported: uniqueRows.length,
+      skipped: curatedOpportunitiesStarter.length - uniqueRows.length,
+    });
+  }
+
+  const curatedJobPostId = text(body.curatedJobPostId);
   const jobTitle = text(body.jobTitle);
   const companyName = text(body.companyName);
   const location = text(body.location);
+  const country = text(body.country);
   const workplaceType = text(body.workplaceType).toLowerCase();
   const employmentType = text(body.employmentType).toLowerCase();
   const salaryRange = text(body.salaryRange);
-  const externalApplyUrl = text(body.externalApplyUrl);
+  const externalApplyUrl = cleanExternalUrl(text(body.externalApplyUrl));
   const sourceName = text(body.sourceName);
   const jobDescription = text(body.jobDescription);
   const status = text(body.status).toLowerCase() || "draft";
@@ -317,13 +454,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid curated opportunity status." }, { status: 400 });
   }
 
-  const { data, error } = await serviceRole
-    .from("job_posts")
-    .insert({
+  const values = {
       recruiter_id: userId,
       job_title: jobTitle,
       company_name: companyName,
       location,
+      country: country || null,
       workplace_type: workplaceType,
       employment_type: employmentType,
       salary_range: salaryRange || null,
@@ -337,17 +473,26 @@ export async function POST(request: Request) {
       opportunity_type: "curated_opportunity",
       source_name: sourceName || null,
       source_description: "Sourced from active external hiring channels",
-    })
+    };
+  const query = curatedJobPostId
+    ? serviceRole
+        .from("job_posts")
+        .update(values)
+        .eq("id", curatedJobPostId)
+        .eq("opportunity_type", "curated_opportunity")
+    : serviceRole.from("job_posts").insert(values);
+  const { data, error } = await query
     .select("id, job_title, company_name, status, opportunity_type, created_at")
     .single();
 
   if (error) {
-    console.error("[manage] curated opportunity create failed", {
+    console.error("[manage] curated opportunity save failed", {
       code: error.code,
       message: error.message,
       details: error.details,
       hint: error.hint,
       adminUserId: userId,
+      curatedJobPostId: curatedJobPostId || null,
     });
     return Response.json({ error: "Unable to save curated opportunity right now." }, { status: 500 });
   }
