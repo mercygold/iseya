@@ -86,6 +86,29 @@ export async function PUT(request: Request) {
     );
   }
 
+  const { data: existingProfile, error: existingProfileError } = await supabase
+    .from("institution_profiles")
+    .select("institution_name, admin_email, website, student_email_domain, access_status")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existingProfileError) {
+    console.error("[institution-profile] current profile lookup failed", {
+      code: existingProfileError.code,
+      message: existingProfileError.message,
+      userId,
+    });
+    return Response.json({ error: saveError }, { status: 500 });
+  }
+
+  const reviewRequired = Boolean(
+    existingProfile &&
+      (existingProfile.institution_name !== institutionName ||
+        existingProfile.admin_email !== adminEmail ||
+        existingProfile.website !== website ||
+        existingProfile.student_email_domain !== studentEmailDomain),
+  );
+
   const { error: baseProfileError } = await supabase.from("profiles").upsert(
     {
       id: userId,
@@ -121,6 +144,7 @@ export async function PUT(request: Request) {
         student_email_domain: studentEmailDomain,
         estimated_student_coverage: estimatedStudentCoverage,
         access_notes: text(body.accessNotes) || null,
+        ...(reviewRequired ? { access_status: "pending_review" } : {}),
       },
       { onConflict: "user_id" },
     )
@@ -138,5 +162,5 @@ export async function PUT(request: Request) {
     return Response.json({ error: saveError }, { status: 500 });
   }
 
-  return Response.json({ institutionProfile: data });
+  return Response.json({ institutionProfile: data, reviewRequired });
 }

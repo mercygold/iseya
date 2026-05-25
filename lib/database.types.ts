@@ -148,6 +148,10 @@ export type Database = {
           seat_limit: number | null;
           active_seats: number;
           plan_type: string | null;
+          package_type: string | null;
+          annual_contract_value: number | null;
+          price_per_student: number | null;
+          discount_notes: string | null;
           auto_domain_access: boolean;
           created_at: string;
           updated_at: string;
@@ -172,6 +176,10 @@ export type Database = {
           seat_limit?: number | null;
           active_seats?: number;
           plan_type?: string | null;
+          package_type?: string | null;
+          annual_contract_value?: number | null;
+          price_per_student?: number | null;
+          discount_notes?: string | null;
           auto_domain_access?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -196,6 +204,10 @@ export type Database = {
           seat_limit?: number | null;
           active_seats?: number;
           plan_type?: string | null;
+          package_type?: string | null;
+          annual_contract_value?: number | null;
+          price_per_student?: number | null;
+          discount_notes?: string | null;
           auto_domain_access?: boolean;
           created_at?: string;
           updated_at?: string;

@@ -7,7 +7,7 @@ export default function RecruiterShell({ children }: { children: ReactNode }) {
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <header className="iseya-header text-white">
         <div className="mx-auto flex max-w-[92rem] flex-col gap-5 px-5 py-7 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
-          <Link href="/recruiters/dashboard" className="inline-flex items-center">
+          <Link href="/" className="inline-flex items-center">
             <Image
               src="/brand/iseya-logo2.png"
               alt="ISEYA"

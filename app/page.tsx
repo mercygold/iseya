@@ -6611,14 +6611,16 @@ export default function Home() {
         <div className="mx-auto flex max-w-[112rem] flex-col gap-5 px-5 py-6 sm:px-8 sm:py-7 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0 max-w-5xl">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Image
-                src="/brand/iseya-logo2.png"
-                alt="ISEYA"
-                width={280}
-                height={140}
-                priority
-                className="h-auto w-[160px] object-contain sm:w-[240px] lg:w-[270px]"
-              />
+              <Link href="/" aria-label="ISEYA home">
+                <Image
+                  src="/brand/iseya-logo2.png"
+                  alt="ISEYA"
+                  width={280}
+                  height={140}
+                  priority
+                  className="h-auto w-[160px] object-contain sm:w-[240px] lg:w-[270px]"
+                />
+              </Link>
               <p className="border-l-0 border-[var(--iseya-gold)] text-sm font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)] sm:border-l sm:pl-4 sm:text-base">
                 Beyond Resume. Positioning.
               </p>

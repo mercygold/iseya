@@ -45,7 +45,10 @@ type InstitutionModeration = {
   estimated_student_coverage: number | null;
   seat_limit: number | null;
   active_seats: number;
-  plan_type: string | null;
+  package_type: string | null;
+  annual_contract_value: number | null;
+  price_per_student: number | null;
+  discount_notes: string | null;
   auto_domain_access: boolean;
   created_at: string;
   updated_at: string;
@@ -111,6 +114,13 @@ const primaryButton =
   "inline-flex min-h-9 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-3 py-2 text-xs font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] disabled:cursor-not-allowed disabled:opacity-60";
 const secondaryButton =
   "inline-flex min-h-9 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] disabled:cursor-not-allowed disabled:opacity-60";
+const institutionPackages = [
+  "Pilot Access",
+  "Department Access",
+  "Full Campus Access",
+  "Workforce Program Access",
+  "Custom Enterprise Access",
+];
 
 function formatDate(value: string | null) {
   if (!value) {
@@ -297,7 +307,10 @@ export default function ManageDashboard() {
     accessStatus: string,
     settings: {
       seatLimit: string;
-      planType: string;
+      packageType: string;
+      annualContractValue: string;
+      pricePerStudent: string;
+      discountNotes: string;
       accessStartDate: string;
       accessEndDate: string;
       autoDomainAccess: boolean;
@@ -317,7 +330,10 @@ export default function ManageDashboard() {
           institutionProfileId: institution.id,
           verificationStatus: accessStatus,
           institutionSeatLimit: settings.seatLimit,
-          institutionPlanType: settings.planType,
+          institutionPackageType: settings.packageType,
+          institutionAnnualContractValue: settings.annualContractValue,
+          institutionPricePerStudent: settings.pricePerStudent,
+          institutionDiscountNotes: settings.discountNotes,
           institutionAccessStartDate: settings.accessStartDate,
           institutionAccessEndDate: settings.accessEndDate,
           institutionAutoDomainAccess: settings.autoDomainAccess,
@@ -332,7 +348,10 @@ export default function ManageDashboard() {
               ...current,
               access_status: accessStatus,
               seat_limit: settings.seatLimit ? Number(settings.seatLimit) : null,
-              plan_type: settings.planType || null,
+              package_type: settings.packageType || null,
+              annual_contract_value: settings.annualContractValue ? Number(settings.annualContractValue) : null,
+              price_per_student: settings.pricePerStudent ? Number(settings.pricePerStudent) : null,
+              discount_notes: settings.discountNotes || null,
               access_start_date: settings.accessStartDate || null,
               access_end_date: settings.accessEndDate || null,
               auto_domain_access: settings.autoDomainAccess,
@@ -877,7 +896,10 @@ function InstitutionModal({
     status: string,
     settings: {
       seatLimit: string;
-      planType: string;
+      packageType: string;
+      annualContractValue: string;
+      pricePerStudent: string;
+      discountNotes: string;
       accessStartDate: string;
       accessEndDate: string;
       autoDomainAccess: boolean;
@@ -885,11 +907,14 @@ function InstitutionModal({
   ) => void;
 }) {
   const [seatLimit, setSeatLimit] = useState(institution.seat_limit === null ? "" : String(institution.seat_limit));
-  const [planType, setPlanType] = useState(institution.plan_type ?? "");
+  const [packageType, setPackageType] = useState(institution.package_type ?? "");
+  const [annualContractValue, setAnnualContractValue] = useState(institution.annual_contract_value === null ? "" : String(institution.annual_contract_value));
+  const [pricePerStudent, setPricePerStudent] = useState(institution.price_per_student === null ? "" : String(institution.price_per_student));
+  const [discountNotes, setDiscountNotes] = useState(institution.discount_notes ?? "");
   const [accessStartDate, setAccessStartDate] = useState(institution.access_start_date ?? "");
   const [accessEndDate, setAccessEndDate] = useState(institution.access_end_date ?? "");
   const [autoDomainAccess, setAutoDomainAccess] = useState(institution.auto_domain_access);
-  const settings = { seatLimit, planType, accessStartDate, accessEndDate, autoDomainAccess };
+  const settings = { seatLimit, packageType, annualContractValue, pricePerStudent, discountNotes, accessStartDate, accessEndDate, autoDomainAccess };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8">
@@ -919,6 +944,7 @@ function InstitutionModal({
           <Detail label="Country" value={institution.country} />
           <Detail label="Estimated coverage" value={institution.estimated_student_coverage === null ? null : String(institution.estimated_student_coverage)} />
           <Detail label="Active seats" value={String(institution.active_seats)} />
+          <Detail label="Institution Access Package" value={institution.package_type} />
           <Detail label="Access start date" value={institution.access_start_date} />
           <Detail label="Access end date" value={institution.access_end_date} />
           <div className="sm:col-span-2">
@@ -933,8 +959,11 @@ function InstitutionModal({
               <input className={`${inputClass} mt-2 w-full`} min="0" type="number" value={seatLimit} onChange={(event) => setSeatLimit(event.target.value)} placeholder="Unlimited / pilot" />
             </label>
             <label className="text-sm font-semibold text-[var(--iseya-navy)]">
-              Plan type optional
-              <input className={`${inputClass} mt-2 w-full`} value={planType} onChange={(event) => setPlanType(event.target.value)} placeholder="Institution Pilot" />
+              Institution Access Package
+              <select className={`${inputClass} mt-2 w-full`} value={packageType} onChange={(event) => setPackageType(event.target.value)}>
+                <option value="">Select after review</option>
+                {institutionPackages.map((option) => <option key={option} value={option}>{option}</option>)}
+              </select>
             </label>
             <label className="text-sm font-semibold text-[var(--iseya-navy)]">
               Access start date optional
@@ -943,6 +972,18 @@ function InstitutionModal({
             <label className="text-sm font-semibold text-[var(--iseya-navy)]">
               Access end date optional
               <input className={`${inputClass} mt-2 w-full`} type="date" value={accessEndDate} onChange={(event) => setAccessEndDate(event.target.value)} />
+            </label>
+            <label className="text-sm font-semibold text-[var(--iseya-navy)]">
+              Annual contract value optional
+              <input className={`${inputClass} mt-2 w-full`} min="0" step="0.01" type="number" value={annualContractValue} onChange={(event) => setAnnualContractValue(event.target.value)} />
+            </label>
+            <label className="text-sm font-semibold text-[var(--iseya-navy)]">
+              Price per student optional
+              <input className={`${inputClass} mt-2 w-full`} min="0" step="0.01" type="number" value={pricePerStudent} onChange={(event) => setPricePerStudent(event.target.value)} />
+            </label>
+            <label className="text-sm font-semibold text-[var(--iseya-navy)] sm:col-span-2">
+              Discount notes optional
+              <textarea className={`${inputClass} mt-2 min-h-20 w-full resize-y`} value={discountNotes} onChange={(event) => setDiscountNotes(event.target.value)} />
             </label>
           </div>
           <label className="mt-4 flex items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)]">

@@ -6,6 +6,13 @@ import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/l
 
 const validPlans = new Set(["free", "plus", "pro_monthly", "pro_annual"]);
 const validStatuses = new Set(["free", "active", "canceled", "past_due", "inactive"]);
+const validInstitutionPackages = new Set([
+  "Pilot Access",
+  "Department Access",
+  "Full Campus Access",
+  "Workforce Program Access",
+  "Custom Enterprise Access",
+]);
 
 async function getAdminClients() {
   const supabase = await createSupabaseServerClient();
@@ -39,6 +46,12 @@ async function getAdminClients() {
 function normalizeNumber(value: unknown, fallback = 0) {
   const numberValue = Number(value);
   return Number.isFinite(numberValue) ? Math.max(0, Math.round(numberValue)) : fallback;
+}
+
+function optionalAmount(value: unknown) {
+  if (value === null || value === "" || typeof value === "undefined") return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount >= 0 ? amount : Number.NaN;
 }
 
 export async function GET() {
@@ -102,7 +115,10 @@ export async function GET() {
     estimated_student_coverage: number | null;
     seat_limit: number | null;
     active_seats: number;
-    plan_type: string | null;
+    package_type: string | null;
+    annual_contract_value: number | null;
+    price_per_student: number | null;
+    discount_notes: string | null;
     auto_domain_access: boolean;
     created_at: string;
     updated_at: string;
@@ -161,7 +177,7 @@ export async function GET() {
         .limit(100),
       serviceRole
         .from("institution_profiles")
-        .select("id, user_id, institution_name, institution_type, admin_name, admin_email, website, country, state_region, city, student_email_domain, access_status, access_start_date, access_end_date, access_notes, estimated_student_coverage, seat_limit, active_seats, plan_type, auto_domain_access, created_at, updated_at")
+        .select("id, user_id, institution_name, institution_type, admin_name, admin_email, website, country, state_region, city, student_email_domain, access_status, access_start_date, access_end_date, access_notes, estimated_student_coverage, seat_limit, active_seats, package_type, annual_contract_value, price_per_student, discount_notes, auto_domain_access, created_at, updated_at")
         .order("updated_at", { ascending: false })
         .limit(100),
     ]);
@@ -236,7 +252,10 @@ export async function PATCH(request: Request) {
     verificationStatus?: unknown;
     jobStatus?: unknown;
     institutionSeatLimit?: unknown;
-    institutionPlanType?: unknown;
+    institutionPackageType?: unknown;
+    institutionAnnualContractValue?: unknown;
+    institutionPricePerStudent?: unknown;
+    institutionDiscountNotes?: unknown;
     institutionAccessStartDate?: unknown;
     institutionAccessEndDate?: unknown;
     institutionAutoDomainAccess?: unknown;
@@ -327,10 +346,24 @@ export async function PATCH(request: Request) {
       return Response.json({ error: "Invalid institution seat limit." }, { status: 400 });
     }
 
-    const planType =
-      typeof body.institutionPlanType === "string" && body.institutionPlanType.trim()
-        ? body.institutionPlanType.trim()
+    const packageType =
+      typeof body.institutionPackageType === "string" && body.institutionPackageType.trim()
+        ? body.institutionPackageType.trim()
         : null;
+    const annualContractValue = optionalAmount(body.institutionAnnualContractValue);
+    const pricePerStudent = optionalAmount(body.institutionPricePerStudent);
+    const discountNotes =
+      typeof body.institutionDiscountNotes === "string" && body.institutionDiscountNotes.trim()
+        ? body.institutionDiscountNotes.trim()
+        : null;
+
+    if (
+      (packageType !== null && !validInstitutionPackages.has(packageType)) ||
+      Number.isNaN(annualContractValue) ||
+      Number.isNaN(pricePerStudent)
+    ) {
+      return Response.json({ error: "Invalid institution package details." }, { status: 400 });
+    }
     const accessStartDate =
       typeof body.institutionAccessStartDate === "string" && body.institutionAccessStartDate
         ? body.institutionAccessStartDate
@@ -349,7 +382,10 @@ export async function PATCH(request: Request) {
       .update({
         access_status: accessStatus,
         seat_limit: seatLimit,
-        plan_type: planType,
+        package_type: packageType,
+        annual_contract_value: annualContractValue,
+        price_per_student: pricePerStudent,
+        discount_notes: discountNotes,
         access_start_date: accessStartDate,
         access_end_date: accessEndDate,
         auto_domain_access: autoDomainAccess,

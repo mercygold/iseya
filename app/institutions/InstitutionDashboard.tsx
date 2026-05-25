@@ -1,8 +1,13 @@
 "use client";
 
+import type { FormEvent } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { countryOptions } from "@/lib/recruiterLocationOptions";
+import {
+  countryOptions,
+  countryRegions,
+  manualLocationOption,
+} from "@/lib/recruiterLocationOptions";
 import { normalizeStudentEmailDomain, statusLabel } from "@/lib/institutionAccess";
 
 export type InstitutionProfile = {
@@ -23,13 +28,14 @@ export type InstitutionProfile = {
   estimated_student_coverage: number | null;
   seat_limit: number | null;
   active_seats: number;
-  plan_type: string | null;
+  package_type: string | null;
   auto_domain_access: boolean;
 };
 
 const institutionTypes = ["University", "College", "Bootcamp", "Career Program", "Workforce Development", "Other"];
 const inputClass = "mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25";
 const primaryButton = "inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-4 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] disabled:cursor-not-allowed disabled:opacity-60";
+const secondaryButton = "inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]";
 
 function dateRange(profile: InstitutionProfile) {
   if (!profile.access_start_date && !profile.access_end_date) return "To be assigned after review";
@@ -45,6 +51,7 @@ export default function InstitutionDashboard({
 }) {
   const router = useRouter();
   const [profile, setProfile] = useState(initialProfile);
+  const [editing, setEditing] = useState(onboarding);
   const [draft, setDraft] = useState({
     institutionName: initialProfile?.institution_name ?? "",
     institutionType: initialProfile?.institution_type ?? "University",
@@ -63,7 +70,25 @@ export default function InstitutionDashboard({
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
 
-  async function saveProfile(event: React.FormEvent) {
+  const selectedCountryOption = countryOptions.includes(draft.country)
+    ? draft.country
+    : draft.country
+      ? manualLocationOption
+      : "";
+  const stateOptions =
+    selectedCountryOption && selectedCountryOption !== manualLocationOption
+      ? countryRegions[selectedCountryOption] ?? [manualLocationOption]
+      : [manualLocationOption];
+  const selectedStateOption = stateOptions.includes(draft.stateRegion)
+    ? draft.stateRegion
+    : draft.stateRegion
+      ? manualLocationOption
+      : "";
+  const needsManualCountry = selectedCountryOption === manualLocationOption;
+  const needsManualState =
+    selectedCountryOption === manualLocationOption || selectedStateOption === manualLocationOption;
+
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setStatus("");
@@ -79,13 +104,21 @@ export default function InstitutionDashboard({
       });
       const data = (await response.json().catch(() => ({}))) as {
         institutionProfile?: InstitutionProfile;
+        reviewRequired?: boolean;
         error?: string;
       };
       if (!response.ok || !data.institutionProfile) {
         throw new Error(data.error || "Unable to save institution profile right now.");
       }
       setProfile(data.institutionProfile);
-      setStatus("Institution profile saved successfully.");
+      setStatus(
+        data.reviewRequired
+          ? "Your institution profile changes were saved and sent for review."
+          : onboarding
+            ? "Partnership request submitted successfully."
+            : "Institution profile saved successfully.",
+      );
+      setEditing(false);
       if (onboarding) {
         router.replace("/institutions/dashboard");
         router.refresh();
@@ -97,19 +130,25 @@ export default function InstitutionDashboard({
     }
   }
 
-  if (!onboarding && profile) {
+  if (!onboarding && profile && !editing) {
     return (
       <section className="mx-auto max-w-[92rem] space-y-6 px-5 py-8 sm:px-8">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">Institution Dashboard</p>
-          <h1 className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)] sm:text-4xl">{profile.institution_name}</h1>
-          <p className="mt-3 text-base leading-8 text-slate-600">
-            Manage student access, track career readiness, and connect learners to verified opportunities.
-          </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">Institution Dashboard</p>
+            <h1 className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)] sm:text-4xl">{profile.institution_name}</h1>
+            <p className="mt-3 text-base leading-8 text-slate-600">
+              Manage student access, track career readiness, and connect learners to verified opportunities.
+            </p>
+          </div>
+          <button type="button" onClick={() => setEditing(true)} className={secondaryButton}>
+            Edit Institution Profile
+          </button>
         </div>
+        {status ? <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">{status}</p> : null}
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            ["Students onboarded", "0"],
+            ["Students onboarded", String(profile.active_seats)],
             ["Resumes improved", "0"],
             ["Applications submitted", "0"],
             ["Recruiter engagements", "0"],
@@ -130,16 +169,10 @@ export default function InstitutionDashboard({
               <Summary label="Student domain" value={`@${profile.student_email_domain}`} />
               <Summary label="Location" value={[profile.city, profile.state_region, profile.country].filter(Boolean).join(", ")} />
               <Summary label="Access status" value={statusLabel(profile.access_status)} />
+              <Summary label="Institution Access Package" value={profile.package_type ?? "To be assigned after review."} />
+              <Summary label="Seat limit" value={profile.seat_limit === null ? "To be assigned after review." : String(profile.seat_limit)} />
+              <Summary label="Active seats" value={String(profile.active_seats)} />
               <Summary label="Access period" value={dateRange(profile)} />
-              <Summary label="Plan type" value={profile.plan_type ?? "To be assigned after review"} />
-              <Summary
-                label="Seats"
-                value={
-                  profile.seat_limit === null
-                    ? `${profile.active_seats} active / pilot mode`
-                    : `${profile.active_seats} active / ${profile.seat_limit} limit`
-                }
-              />
             </div>
           </article>
           <article id="insights" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -159,10 +192,14 @@ export default function InstitutionDashboard({
 
   return (
     <section className="mx-auto max-w-4xl px-5 py-8 sm:px-8">
-      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">Institution Onboarding</p>
-      <h1 className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)]">Request Institution Partnership</h1>
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
+        {onboarding ? "Institution Onboarding" : "Institution Profile"}
+      </p>
+      <h1 className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)]">
+        {onboarding ? "Request Institution Partnership" : "Edit Institution Profile"}
+      </h1>
       <p className="mt-3 text-base leading-8 text-slate-600">
-        Submit your institution details for review and prepare domain-based learner access. Access remains pending until approved by ISEYA.
+        Sensitive changes to institution identity or student email domain require a new ISEYA review before access resumes.
       </p>
       {status ? <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">{status}</p> : null}
       <form onSubmit={saveProfile} className="mt-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -172,18 +209,44 @@ export default function InstitutionDashboard({
           <Field label="Administrator name" value={draft.adminName} onChange={(value) => setDraft((current) => ({ ...current, adminName: value }))} required />
           <Field label="Administrator email" type="email" value={draft.adminEmail} onChange={(value) => setDraft((current) => ({ ...current, adminEmail: value }))} required />
           <Field label="Website" value={draft.website} onChange={(value) => setDraft((current) => ({ ...current, website: value }))} required />
-          <Field label="Student email domain" value={draft.studentEmailDomain} onChange={(value) => setDraft((current) => ({ ...current, studentEmailDomain: value }))} placeholder="uci.edu" required />
+          <Field label="Student email domain" value={draft.studentEmailDomain} onChange={(value) => setDraft((current) => ({ ...current, studentEmailDomain: value }))} placeholder="school.edu" required />
           <Field label="Estimated student coverage" type="number" value={draft.estimatedStudentCoverage} onChange={(value) => setDraft((current) => ({ ...current, estimatedStudentCoverage: value }))} placeholder="500" required />
-          <Select label="Country" value={draft.country} options={countryOptions.filter(Boolean)} onChange={(value) => setDraft((current) => ({ ...current, country: value }))} required />
-          <Field label="State/Region optional" value={draft.stateRegion} onChange={(value) => setDraft((current) => ({ ...current, stateRegion: value }))} />
+          <label className="text-sm font-semibold text-[var(--iseya-navy)]">
+            Country
+            <select
+              className={inputClass}
+              value={selectedCountryOption}
+              required
+              onChange={(event) => {
+                setDraft((current) => ({ ...current, country: event.target.value, stateRegion: "" }));
+              }}
+            >
+              {countryOptions.map((option) => <option key={option} value={option}>{option || "Select"}</option>)}
+            </select>
+          </label>
+          {needsManualCountry ? (
+            <Field label="Enter country/region manually" value={draft.country === manualLocationOption ? "" : draft.country} onChange={(value) => setDraft((current) => ({ ...current, country: value, stateRegion: "" }))} required />
+          ) : null}
+          {needsManualState ? (
+            <Field label="Enter state/region manually optional" value={draft.stateRegion === manualLocationOption ? "" : draft.stateRegion} onChange={(value) => setDraft((current) => ({ ...current, stateRegion: value }))} />
+          ) : (
+            <Select label="State/Region optional" value={selectedStateOption} options={stateOptions} onChange={(value) => setDraft((current) => ({ ...current, stateRegion: value }))} />
+          )}
           <Field label="City" value={draft.city} onChange={(value) => setDraft((current) => ({ ...current, city: value }))} required />
           <div className="sm:col-span-2">
             <TextArea label="Access notes optional" value={draft.accessNotes} onChange={(value) => setDraft((current) => ({ ...current, accessNotes: value }))} />
           </div>
         </div>
-        <button disabled={saving} type="submit" className={`${primaryButton} mt-6`}>
-          {saving ? "Submitting..." : "Submit Partnership Request"}
-        </button>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button disabled={saving} type="submit" className={primaryButton}>
+            {saving ? "Saving..." : onboarding ? "Submit Partnership Request" : "Save Institution Profile"}
+          </button>
+          {!onboarding ? (
+            <button type="button" onClick={() => setEditing(false)} className={secondaryButton}>
+              Cancel
+            </button>
+          ) : null}
+        </div>
       </form>
     </section>
   );
