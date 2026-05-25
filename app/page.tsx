@@ -560,19 +560,41 @@ const keywordBank = [
   "legal tech",
 ];
 
-const sampleResume = `Jordan Taylor
-Product Manager
-jordan@example.com | 555-0100 | City, State
+const sampleResume = `Avery Morgan
+Senior Product Manager
+avery.morgan@example.com | (949) 555-0142 | Irvine, CA | linkedin.com/in/averymorgan
 
-SUMMARY
-Write a 3-4 line professional summary here...
+PROFESSIONAL SUMMARY
+Product leader with eight years of experience delivering SaaS workflow products, translating customer needs into roadmap decisions, and guiding cross-functional launches across product, design, engineering, and operations.
 
-EXPERIENCE
-Role Title - Company Name
-City, State | Start Month Year - End Month Year
-- Add 3-5 measurable achievements for this role.
-- Describe the scope, tools, stakeholders, and outcomes.
-- Replace this placeholder with a concise impact statement.
+CORE SKILLS
+Product Strategy | Roadmapping | Agile Delivery | Jira | SQL | API Integrations | Stakeholder Management | Customer Discovery
+
+PROFESSIONAL EXPERIENCE
+Senior Product Manager - Meridian Cloud
+Irvine, CA | Jan 2022 - Present
+- Led roadmap delivery for a workflow automation portfolio serving 40 enterprise customers, improving feature adoption by 24%.
+- Partnered with engineering and design to launch onboarding improvements that reduced time-to-value from 21 days to 14 days.
+- Managed quarterly prioritization with sales, support, and operations leaders using customer evidence and product performance data.
+
+Product Manager - Northstar Payments
+Costa Mesa, CA | Jun 2018 - Dec 2021
+- Delivered merchant reporting enhancements that reduced manual reconciliation effort by 30% across operations teams.
+- Coordinated API integration requirements with compliance, engineering, and partner stakeholders for three platform releases.
+- Established release-readiness reviews and issue triage practices that improved launch predictability.
+
+PROJECTS
+- Customer Health Dashboard | Consolidated product usage and support signals into an account health view for customer success planning.
+
+EDUCATION
+- University of California, Irvine | Bachelor of Science, Business Information Management | 2017
+
+CERTIFICATIONS
+- Certified Scrum Product Owner (CSPO), Scrum Alliance
+- Pragmatic Institute Product Management Certification
+
+ACHIEVEMENTS
+- Recognized with the Meridian Cloud Product Excellence Award for cross-functional launch execution.
 `;
 
 const sampleJob = `Paste the target job description here.
@@ -924,6 +946,28 @@ function preparedPreviewSections(sections: ResumeSection[], template: TemplateId
       });
     } else {
       prepared.set(heading, { heading, body, bullets, lines });
+    }
+  }
+
+  const experienceBullets = new Set(
+    (prepared.get("PROFESSIONAL EXPERIENCE")?.bullets ?? []).map((bullet) =>
+      cleanExportBullet(bullet).toLowerCase(),
+    ),
+  );
+  const achievements = prepared.get("ACHIEVEMENTS");
+
+  if (achievements) {
+    const uniqueAchievements = achievements.bullets.filter(
+      (bullet) => !experienceBullets.has(cleanExportBullet(bullet).toLowerCase()),
+    );
+
+    if (achievements.body.length === 0 && uniqueAchievements.length === 0) {
+      prepared.delete("ACHIEVEMENTS");
+    } else {
+      prepared.set("ACHIEVEMENTS", {
+        ...achievements,
+        bullets: uniqueAchievements,
+      });
     }
   }
 
@@ -4871,8 +4915,8 @@ export default function Home() {
   const workspaceResult = result ?? starterWorkspacePreviewResult;
   const isStarterWorkflowPreview = !result && Boolean(workspaceResult) && isStarterPlan(subscriptionPlan);
   const isStarterBranding =
-    personalBranding.fullName === "Jordan Taylor" &&
-    personalBranding.email === "jordan@example.com";
+    personalBranding.fullName === "Avery Morgan" &&
+    personalBranding.email === "avery.morgan@example.com";
   const workspaceBranding =
     isStarterPlan(subscriptionPlan) && hasExtractedSourceText && isStarterBranding
       ? brandingFromResumeText(extractedSourceTextForPreview)
@@ -5067,11 +5111,11 @@ export default function Home() {
       aiSettings: defaultAiSettings,
       personalBranding: {
         ...brandingFromResumeText(sampleResume),
-        fullName: "Jordan Taylor",
-        professionalTitle: "Product Manager",
-        email: "jordan@example.com",
-        phone: "555-0100",
-        location: "City, State",
+        fullName: "Avery Morgan",
+        professionalTitle: "Senior Product Manager",
+        email: "avery.morgan@example.com",
+        phone: "(949) 555-0142",
+        location: "Irvine, CA",
       },
     }),
     [],
@@ -6246,8 +6290,8 @@ export default function Home() {
         const extractedBranding = brandingFromResumeText(nextExtractedText);
         setPersonalBranding((current) => {
           const currentIsStarter =
-            current.fullName === "Jordan Taylor" &&
-            current.email === "jordan@example.com";
+            current.fullName === "Avery Morgan" &&
+            current.email === "avery.morgan@example.com";
 
           return currentIsStarter
             ? {
@@ -10667,12 +10711,45 @@ function BulletVariantButton({
   );
 }
 
+function previewSectionItems(section: ResumeSection) {
+  return [...section.body, ...section.bullets]
+    .map((item) => cleanExportBullet(item))
+    .filter(Boolean);
+}
+
+function previewEntryParts(item: string) {
+  return item
+    .split(/\s+\|\s+/)
+    .map((part) => cleanEditorText(part))
+    .filter(Boolean);
+}
+
+function previewExperienceIdentity(line: string) {
+  const parts = line
+    .split(/\s+(?:-|–|—|\|)\s+/)
+    .map((part) => cleanEditorText(part))
+    .filter(Boolean);
+
+  if (parts.length < 2) {
+    return { company: "", title: line };
+  }
+
+  const [first, ...remaining] = parts;
+  const second = remaining.join(" | ");
+  const firstLooksCompany = companySignalRegex().test(first);
+  const secondLooksCompany = companySignalRegex().test(second);
+
+  return firstLooksCompany && !secondLooksCompany
+    ? { company: first, title: second }
+    : { company: second, title: first };
+}
+
 function ResumePreviewSectionContent({ section }: { section: ResumeSection }) {
   if (section.heading === "CORE SKILLS") {
-    const skills = splitResumeList([...section.body, ...section.bullets].join(" | "));
+    const skills = splitResumeList(previewSectionItems(section).join(" | "));
 
     return skills.length > 0 ? (
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-zinc-700">
+      <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1.5 text-xs font-medium text-zinc-700">
         {skills.map((skill) => (
           <span key={skill} className="flex items-center gap-2">
             <span className="h-1 w-1 rounded-full bg-slate-400" />
@@ -10683,20 +10760,70 @@ function ResumePreviewSectionContent({ section }: { section: ResumeSection }) {
     ) : null;
   }
 
+  if (/PROJECTS$/.test(section.heading)) {
+    return (
+      <div className="mt-3 space-y-3">
+        {previewSectionItems(section).map((project, projectIndex) => {
+          const [title, ...details] = previewEntryParts(project);
+
+          return (
+            <div key={`${project}-${projectIndex}`} className="break-inside-avoid">
+              <p className="text-sm font-semibold text-zinc-900">{title}</p>
+              {details.length > 0 ? (
+                <p className="mt-1 text-sm leading-6 text-zinc-700">{details.join(" | ")}</p>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (section.heading === "EDUCATION") {
+    return (
+      <div className="mt-3 space-y-3">
+        {previewSectionItems(section).map((education, educationIndex) => {
+          const [institution, ...credentialDetails] = previewEntryParts(education);
+
+          return (
+            <div key={`${education}-${educationIndex}`} className="break-inside-avoid">
+              <p className="text-sm font-semibold text-zinc-900">{institution}</p>
+              {credentialDetails.length > 0 ? (
+                <p className="mt-1 text-sm leading-6 text-zinc-700">
+                  {credentialDetails.join(" | ")}
+                </p>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (section.heading === "CERTIFICATIONS") {
+    return (
+      <div className="mt-3 space-y-1.5 text-sm leading-6 text-zinc-700">
+        {previewSectionItems(section).map((certification, certificationIndex) => (
+          <p key={`${certification}-${certificationIndex}`}>{certification}</p>
+        ))}
+      </div>
+    );
+  }
+
   if (section.heading !== "PROFESSIONAL EXPERIENCE") {
     return (
       <>
         {section.body.length > 0 ? (
-          <div className="mt-3 space-y-2">
+          <div className="mt-3 space-y-1.5">
             {section.body.map((paragraph, paragraphIndex) => (
-              <p key={`${paragraph}-${paragraphIndex}`} className="text-sm leading-7 text-zinc-700">
+              <p key={`${paragraph}-${paragraphIndex}`} className="text-sm leading-6 text-zinc-700">
                 {paragraph}
               </p>
             ))}
           </div>
         ) : null}
         {section.bullets.length > 0 ? (
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7 text-zinc-700">
+          <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-6 text-zinc-700">
             {section.bullets.map((bullet, bulletIndex) => (
               <li key={`${bullet}-${bulletIndex}`}>{cleanExportBullet(bullet)}</li>
             ))}
@@ -10740,7 +10867,7 @@ function ResumePreviewSectionContent({ section }: { section: ResumeSection }) {
   }
 
   return (
-    <div className="mt-4 space-y-5">
+    <div className="mt-3 space-y-4">
       {entries.map((entry, entryIndex) => {
         const metadata = entry.meta.split(/\s+\|\s+/).filter(Boolean);
         const dateIndex = metadata.findIndex((item) =>
@@ -10748,7 +10875,7 @@ function ResumePreviewSectionContent({ section }: { section: ResumeSection }) {
         );
         let date = dateIndex >= 0 ? metadata.splice(dateIndex, 1)[0] : "";
         let location = metadata.join(" | ");
-        let role = entry.role.replace(/\s+-\s+/, " | ");
+        let identity = previewExperienceIdentity(entry.role);
 
         if (!entry.meta && /\s+\|\s+/.test(entry.role)) {
           const inlineMetadata = entry.role.split(/\s+\|\s+/).filter(Boolean);
@@ -10757,19 +10884,26 @@ function ResumePreviewSectionContent({ section }: { section: ResumeSection }) {
           );
 
           date = inlineDateIndex >= 0 ? inlineMetadata.splice(inlineDateIndex, 1)[0] : date;
-          role = inlineMetadata.slice(0, 2).join(" | ").replace(/\s+-\s+/, " | ");
+          identity = previewExperienceIdentity(inlineMetadata.slice(0, 2).join(" | "));
           location = inlineMetadata.slice(2).join(" | ");
         }
 
         return (
           <div key={`${entry.role}-${entryIndex}`} className="break-inside-avoid">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-              <p className="text-sm font-semibold text-zinc-900">{role || entry.role}</p>
+            <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+              <p className="text-sm font-bold text-zinc-900">
+                {identity.company || identity.title || entry.role}
+              </p>
+              {location ? <p className="shrink-0 text-xs text-zinc-500">{location}</p> : null}
+            </div>
+            <div className="mt-0.5 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+              {identity.company && identity.title ? (
+                <p className="text-sm font-medium text-zinc-800">{identity.title}</p>
+              ) : null}
               {date ? <p className="shrink-0 text-xs font-semibold text-zinc-500">{date}</p> : null}
             </div>
-            {location ? <p className="mt-1 text-xs text-zinc-500">{location}</p> : null}
             {entry.bullets.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-6 text-zinc-700">
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
                 {entry.bullets.map((bullet, bulletIndex) => (
                   <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
                 ))}
