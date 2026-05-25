@@ -694,6 +694,21 @@ type TemplateProfile = {
   headingLabel: string;
 };
 
+const professionalResumeSectionOrder = [
+  "SUMMARY",
+  "SKILLS",
+  "EXPERIENCE",
+  "PROJECTS",
+  "EDUCATION",
+  "CERTIFICATIONS",
+  "TOOLS",
+  "LEADERSHIP",
+  "AWARDS",
+  "VOLUNTEER",
+  "PUBLICATIONS",
+  "RESEARCH",
+];
+
 const templates: Record<TemplateId, TemplateProfile> = {
   "executive-navy": {
     label: "Executive Navy",
@@ -701,7 +716,7 @@ const templates: Record<TemplateId, TemplateProfile> = {
     family: "executive",
     allowImage: true,
     headingLabel: "Leadership-first",
-    sectionOrder: ["SUMMARY", "SKILLS", "EXPERIENCE", "PROJECTS", "EDUCATION", "CERTIFICATIONS"],
+    sectionOrder: professionalResumeSectionOrder,
   },
   "modern-product": {
     label: "Modern Product",
@@ -709,7 +724,7 @@ const templates: Record<TemplateId, TemplateProfile> = {
     family: "product",
     allowImage: false,
     headingLabel: "Product outcomes",
-    sectionOrder: ["SUMMARY", "SKILLS", "PROJECTS", "EXPERIENCE", "TOOLS", "EDUCATION"],
+    sectionOrder: professionalResumeSectionOrder,
   },
   "ats-clean": {
     label: "ATS Clean",
@@ -717,7 +732,7 @@ const templates: Record<TemplateId, TemplateProfile> = {
     family: "ats",
     allowImage: false,
     headingLabel: "Parser-friendly",
-    sectionOrder: ["SUMMARY", "SKILLS", "EXPERIENCE", "PROJECTS", "EDUCATION", "CERTIFICATIONS"],
+    sectionOrder: professionalResumeSectionOrder,
   },
   "consulting-classic": {
     label: "Consulting Classic",
@@ -725,7 +740,7 @@ const templates: Record<TemplateId, TemplateProfile> = {
     family: "consulting",
     allowImage: false,
     headingLabel: "Consulting impact",
-    sectionOrder: ["SUMMARY", "EXPERIENCE", "SKILLS", "PROJECTS", "EDUCATION", "CERTIFICATIONS"],
+    sectionOrder: professionalResumeSectionOrder,
   },
   "tech-minimal": {
     label: "Tech Minimal",
@@ -733,7 +748,7 @@ const templates: Record<TemplateId, TemplateProfile> = {
     family: "technical",
     allowImage: false,
     headingLabel: "Technical clarity",
-    sectionOrder: ["SUMMARY", "TOOLS", "SKILLS", "PROJECTS", "EXPERIENCE", "EDUCATION"],
+    sectionOrder: professionalResumeSectionOrder,
   },
   "bold-leadership": {
     label: "Bold Leadership",
@@ -741,7 +756,7 @@ const templates: Record<TemplateId, TemplateProfile> = {
     family: "executive",
     allowImage: true,
     headingLabel: "Executive scope",
-    sectionOrder: ["SUMMARY", "EXPERIENCE", "SKILLS", "PROJECTS", "EDUCATION", "CERTIFICATIONS"],
+    sectionOrder: professionalResumeSectionOrder,
   },
   "ats-professional": {
     label: "ATS Professional",
@@ -749,7 +764,7 @@ const templates: Record<TemplateId, TemplateProfile> = {
     family: "ats",
     allowImage: false,
     headingLabel: "Parser-friendly",
-    sectionOrder: ["SUMMARY", "SKILLS", "EXPERIENCE", "PROJECTS", "TOOLS", "EDUCATION", "CERTIFICATIONS"],
+    sectionOrder: professionalResumeSectionOrder,
   },
   "executive-modern": {
     label: "Executive Modern",
@@ -757,15 +772,15 @@ const templates: Record<TemplateId, TemplateProfile> = {
     family: "executive",
     allowImage: true,
     headingLabel: "Leadership-first",
-    sectionOrder: ["SUMMARY", "EXPERIENCE", "SKILLS", "PROJECTS", "EDUCATION", "CERTIFICATIONS"],
+    sectionOrder: professionalResumeSectionOrder,
   },
   "academic-research": {
     label: "Academic Research",
-    description: "Research-first hierarchy emphasizing publications, teaching, methods, and credentials.",
+    description: "Academic preview with formal typography for research, teaching, methods, and credentials.",
     family: "academic",
     allowImage: false,
-    headingLabel: "Research-first",
-    sectionOrder: ["SUMMARY", "PUBLICATIONS", "RESEARCH", "PROJECTS", "EDUCATION", "CERTIFICATIONS", "SKILLS", "EXPERIENCE"],
+    headingLabel: "Academic clarity",
+    sectionOrder: professionalResumeSectionOrder,
   },
   "finance-fintech": {
     label: "Finance / Fintech",
@@ -773,23 +788,23 @@ const templates: Record<TemplateId, TemplateProfile> = {
     family: "finance",
     allowImage: false,
     headingLabel: "Impact and controls",
-    sectionOrder: ["SUMMARY", "EXPERIENCE", "SKILLS", "PROJECTS", "TOOLS", "EDUCATION", "CERTIFICATIONS"],
+    sectionOrder: professionalResumeSectionOrder,
   },
   "healthcare-health-it": {
     label: "Healthcare / Health IT",
-    description: "Credential and workflow-oriented layout for compliance, systems integration, and care operations.",
+    description: "Clinical-systems layout for compliance, integration, credentials, and care operations.",
     family: "healthcare",
     allowImage: false,
     headingLabel: "Systems and compliance",
-    sectionOrder: ["SUMMARY", "CERTIFICATIONS", "SKILLS", "EXPERIENCE", "PROJECTS", "TOOLS", "EDUCATION"],
+    sectionOrder: professionalResumeSectionOrder,
   },
   "creative-portfolio": {
     label: "Creative Portfolio",
-    description: "Portfolio-led preview with optional image, visual accents, and stronger link presentation.",
+    description: "Creative preview with optional image, visual accents, and stronger link presentation.",
     family: "creative",
     allowImage: true,
-    headingLabel: "Portfolio-led",
-    sectionOrder: ["SUMMARY", "PROJECTS", "SKILLS", "TOOLS", "EXPERIENCE", "EDUCATION", "CERTIFICATIONS"],
+    headingLabel: "Creative clarity",
+    sectionOrder: professionalResumeSectionOrder,
   },
   "legal-policy": {
     label: "Legal / Policy",
@@ -797,7 +812,7 @@ const templates: Record<TemplateId, TemplateProfile> = {
     family: "legal",
     allowImage: false,
     headingLabel: "Formal governance",
-    sectionOrder: ["SUMMARY", "EXPERIENCE", "PUBLICATIONS", "RESEARCH", "EDUCATION", "CERTIFICATIONS", "SKILLS"],
+    sectionOrder: professionalResumeSectionOrder,
   },
   "product-saas": {
     label: "Product / SaaS",
@@ -805,7 +820,7 @@ const templates: Record<TemplateId, TemplateProfile> = {
     family: "product",
     allowImage: false,
     headingLabel: "Product outcomes",
-    sectionOrder: ["SUMMARY", "SKILLS", "PROJECTS", "EXPERIENCE", "TOOLS", "EDUCATION", "CERTIFICATIONS"],
+    sectionOrder: professionalResumeSectionOrder,
   },
 };
 
@@ -6611,7 +6626,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <section className="iseya-header">
-        <div className="mx-auto flex max-w-[112rem] flex-col gap-5 px-5 py-6 sm:px-8 sm:py-7 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mx-auto flex max-w-[112rem] flex-col gap-4 px-5 py-4 sm:px-8 sm:py-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0 max-w-5xl">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link href="/" aria-label="ISEYA home">
@@ -6621,19 +6636,16 @@ export default function Home() {
                   width={280}
                   height={140}
                   priority
-                  className="h-auto w-[160px] object-contain sm:w-[240px] lg:w-[270px]"
+                  className="h-auto w-[150px] object-contain sm:w-[205px] lg:w-[225px]"
                 />
               </Link>
               <p className="border-l-0 border-[var(--iseya-gold)] text-sm font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)] sm:border-l sm:pl-4 sm:text-base">
                 Beyond Resume. Positioning.
               </p>
             </div>
-            <p className="mt-3 max-w-none text-base leading-7 text-white/85 sm:pl-[29px] lg:whitespace-nowrap">
-              Career infrastructure for resumes, applications, job discovery, and recruiter access.
-            </p>
           </div>
-          <div className="flex max-w-2xl flex-col gap-3 lg:items-end">
-            <nav className="flex flex-wrap justify-start gap-x-4 gap-y-2 text-sm font-semibold text-white/80 lg:justify-end">
+          <div className="flex max-w-3xl flex-col gap-3 lg:items-end">
+            <nav className="flex flex-wrap justify-start gap-x-5 gap-y-2 text-[13px] font-medium text-white/80 lg:justify-end">
               {authUser ? (
                 <Link
                   className={`transition hover:text-[var(--iseya-gold)] ${!isPublicLanding ? "text-[var(--iseya-gold)]" : ""}`}
@@ -6680,7 +6692,7 @@ export default function Home() {
                 </Link>
               ) : null}
             </nav>
-            <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
+            <div className="flex flex-wrap justify-start gap-2 lg:justify-end [&_button]:min-h-9 [&_button]:px-3 [&_button]:text-[13px] [&_a]:min-h-9 [&_a]:px-3 [&_a]:text-[13px]">
               {authUser ? (
                 <Link
                   href="/account"
@@ -6736,20 +6748,19 @@ export default function Home() {
 
       {isPublicLanding ? (
         <>
-      <section className="mx-auto max-w-[112rem] px-5 py-6 sm:px-8 sm:py-8">
-        <div className="overflow-hidden rounded-3xl border border-[var(--iseya-gold)]/30 bg-white shadow-sm">
-          <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:p-10">
+      <section className="mx-auto flex max-w-[112rem] items-center px-5 py-12 sm:px-8 sm:py-16 lg:min-h-[calc(100svh-8rem)] lg:py-20">
+          <div className="grid w-full gap-12 lg:grid-cols-[minmax(480px,1.05fr)_minmax(320px,0.7fr)] lg:items-center lg:gap-16">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
                 Beyond resume. Positioning.
               </p>
-              <h1 className="mt-3 max-w-4xl text-3xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-5xl">
+              <h1 className="mt-5 max-w-4xl text-4xl font-semibold leading-tight text-[var(--iseya-navy)] sm:text-6xl lg:text-[4.25rem]">
                 Career infrastructure for today&apos;s talent.
               </h1>
-              <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
+              <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
                 ISEYA connects private career development, opportunity discovery, recruiter access, and institution-level readiness insight in one employability platform.
               </p>
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
                   href={authUser ? "/workspace" : "/signup"}
                   className={`${primaryButtonClass} ${buttonSizeMdClass}`}
@@ -6776,7 +6787,7 @@ export default function Home() {
                 </Link>
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
               {[
                 "Secure checkout powered by Stripe",
                 "Private career workspace",
@@ -6785,16 +6796,15 @@ export default function Home() {
               ].map((item) => (
                 <div
                   key={item}
-                  className="rounded-2xl border border-slate-200 bg-[var(--iseya-soft-bg)] p-4 text-sm font-semibold leading-6 text-[var(--iseya-navy)]"
+                  className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-medium leading-6 text-[var(--iseya-navy)] shadow-sm sm:p-5"
                 >
                   {item}
                 </div>
               ))}
             </div>
           </div>
-        </div>
       </section>
-      <section className="mx-auto max-w-[112rem] px-5 pb-7 sm:px-8 sm:pb-9">
+      <section className="mx-auto max-w-[112rem] px-5 pb-10 sm:px-8 sm:pb-14">
         <div className="grid gap-4 lg:grid-cols-3">
           {[
             {
@@ -6833,7 +6843,7 @@ export default function Home() {
         </>
       ) : null}
 
-      <section id="resume-builder" className="mx-auto max-w-[112rem] px-5 pt-1 sm:px-8">
+      <section id="resume-builder" className="mx-auto max-w-[112rem] overflow-x-hidden px-4 pt-1 sm:px-8">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -6934,7 +6944,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-[112rem] gap-6 px-5 py-6 sm:px-8 lg:py-8 xl:grid-cols-[minmax(360px,0.92fr)_minmax(420px,1.08fr)]">
+      <section className="mx-auto grid max-w-[112rem] gap-5 overflow-x-hidden px-4 py-5 sm:px-8 sm:py-6 lg:py-8 xl:grid-cols-[minmax(340px,0.92fr)_minmax(420px,1.08fr)]">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition sm:p-6">
           <label
             htmlFor="master-resume"
@@ -7729,7 +7739,7 @@ export default function Home() {
       ) : null}
 
       {workspaceResult ? (
-        <section className="mx-auto max-w-[118rem] px-4 pb-10 sm:px-6 xl:px-8">
+        <section className="mx-auto max-w-[118rem] overflow-x-hidden px-3 pb-10 sm:px-6 xl:px-8">
           <div className="sticky top-0 z-30 mb-5 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
             <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
               <div>
@@ -7870,9 +7880,9 @@ export default function Home() {
             </div>
           </div>
 
-	          <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[370px_minmax(0,1fr)]">
-	            <aside className="order-2 lg:order-1">
-	              <div className="space-y-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-auto lg:pr-1">
+	          <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[370px_minmax(0,1fr)]">
+	            <aside className="order-2 xl:order-1">
+	              <div className="space-y-3 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-auto xl:pr-1">
                 {isStarterWorkflowPreview ? <StarterWorkspacePreviewNotice /> : null}
                 <CompactAiSidebar result={workspaceResult} />
                 <AdvancedIntelligencePanel
@@ -7886,7 +7896,7 @@ export default function Home() {
               </div>
             </aside>
 
-	            <section className="order-1 min-w-0 rounded-2xl border border-slate-200 bg-slate-100/70 p-4 shadow-sm lg:order-2">
+	            <section className="order-1 min-w-0 rounded-xl border border-slate-200 bg-slate-100/70 p-3 shadow-sm sm:p-4 xl:order-2">
 	              <div className="mx-auto max-w-6xl">
                 {activeOutput === "resume" ? (
                   <DocumentFrame title="Editable Resume" subtitle="Section editor">
@@ -9968,9 +9978,9 @@ function ResumePreview({
 
   return (
     <article
-      className={`mx-auto rounded-xl border border-slate-200 bg-white text-zinc-850 shadow-sm ${
+      className={`mx-auto overflow-hidden rounded-xl border border-slate-200 bg-white text-zinc-850 shadow-sm ${
         fullPage
-          ? "min-h-[11in] w-full max-w-[8.5in] overflow-hidden print:shadow-none"
+          ? "min-h-[11in] w-full max-w-[8.5in] print:shadow-none"
           : ""
       }`}
     >
@@ -10001,7 +10011,7 @@ function ResumePreview({
             {contact.title ? <p className={subtitleClass}>{contact.title}</p> : null}
             {contactItems.length > 0 ? (
               <p
-                className={`mt-3 text-xs leading-5 ${
+                className={`mt-3 break-words text-xs leading-5 ${
                   isExecutive || family === "finance" ? theme.subheadText : "text-zinc-600"
                 }`}
               >

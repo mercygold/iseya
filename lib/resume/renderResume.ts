@@ -101,11 +101,6 @@ export function resumeToPlainText(resume: CanonicalResume) {
           .map(formatExperience)
           .join("\n\n")}`
       : "",
-    keyAchievements(clean).length > 0
-      ? `KEY ACHIEVEMENTS\n${keyAchievements(clean)
-          .map((item) => `• ${item}`)
-          .join("\n")}`
-      : "",
     clean.projects.length > 0
       ? `${projectTitle(clean.projects).toUpperCase()}\n${clean.projects
           .map(formatProject)
@@ -116,6 +111,11 @@ export function resumeToPlainText(resume: CanonicalResume) {
       : "",
     clean.certifications.length > 0
       ? `CERTIFICATIONS\n${clean.certifications.join("\n")}`
+      : "",
+    keyAchievements(clean).length > 0
+      ? `KEY ACHIEVEMENTS\n${keyAchievements(clean)
+          .map((item) => `• ${item}`)
+          .join("\n")}`
       : "",
     clean.leadership.length > 0 ? `LEADERSHIP\n${clean.leadership.join("\n")}` : "",
     clean.awards.length > 0 ? `AWARDS\n${clean.awards.join("\n")}` : "",
@@ -151,19 +151,17 @@ export function renderResume(resume: CanonicalResume): RenderResumeState {
       ),
     );
   }
-  const achievements = keyAchievements(clean);
-  if (achievements.length > 0) {
-    sections.push(section("key-achievements", "Key Achievements", "list", achievements));
-  }
   if (clean.projects.length > 0) {
     sections.push(section("projects", projectTitle(clean.projects), "projects", clean.projects));
   }
   if (clean.education.length > 0) {
     sections.push(section("education", "Education", "education", clean.education));
   }
+  const achievements = keyAchievements(clean);
 
   const listSections: Array<[string, string, string[]]> = [
     ["certifications", "Certifications", clean.certifications],
+    ["key-achievements", "Key Achievements", achievements],
     ["leadership", "Leadership", clean.leadership],
     ["awards", "Awards", clean.awards],
     ["volunteer-experience", "Volunteer Experience", clean.volunteerExperience],
