@@ -3,7 +3,8 @@ import { sendRecruiterVerificationEmail } from "@/lib/notificationEmails";
 import { createMatchingJobAlertNotifications, createNotification } from "@/lib/notifications";
 import { chooseCanonicalRecruiterProfile } from "@/lib/recruiterProfile";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabaseServer";
-import { curatedOpportunitiesStarter, type CuratedOpportunitySeed } from "@/data/curated-opportunities-starter";
+import type { CuratedOpportunitySeed } from "@/data/curated-opportunities-starter";
+import curatedOpportunitiesData from "@/data/created-opportunities.data.json";
 
 const validPlans = new Set(["free", "plus", "pro_monthly", "pro_annual"]);
 const validStatuses = new Set(["free", "active", "canceled", "past_due", "inactive"]);
@@ -23,6 +24,8 @@ const validEmploymentTypes = new Set([
   "temporary",
   "not_specified",
 ]);
+const curatedOpportunitiesStarter =
+  curatedOpportunitiesData as readonly CuratedOpportunitySeed[];
 
 function text(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -62,6 +65,10 @@ function cleanExternalUrl(value: string) {
   }
 }
 
+function normalizeImportOption(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, "_");
+}
+
 function curatedFingerprint(jobTitle: string, companyName: string, externalApplyUrl: string) {
   return [
     jobTitle.trim().toLowerCase(),
@@ -77,8 +84,8 @@ function curatedSeedRow(seed: CuratedOpportunitySeed, adminUserId: string) {
     company_name: seed.company.trim(),
     location: seed.location.trim(),
     country: seed.country.trim() || null,
-    workplace_type: seed.workplace_type,
-    employment_type: seed.employment_type,
+    workplace_type: normalizeImportOption(seed.workplace_type),
+    employment_type: normalizeImportOption(seed.employment_type),
     salary_range: seed.salary_range?.trim() || null,
     role_summary: seed.description.trim(),
     responsibilities: "",
@@ -355,7 +362,12 @@ export async function POST(request: Request) {
       (job) =>
         !job.title.trim() ||
         !job.company.trim() ||
-        !validExternalUrl(job.external_apply_url.trim()),
+        !validExternalUrl(job.external_apply_url.trim()) ||
+        job.status !== "draft" ||
+        job.opportunity_type !== "curated_opportunity" ||
+        job.source_description !== "Sourced from active external hiring channels" ||
+        !validWorkplaceTypes.has(normalizeImportOption(job.workplace_type)) ||
+        !validEmploymentTypes.has(normalizeImportOption(job.employment_type)),
     ).length;
 
     if (invalidSeedCount > 0) {
