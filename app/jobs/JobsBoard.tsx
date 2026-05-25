@@ -3,6 +3,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  BadgeCheck,
+  Bookmark,
+  Building2,
+  ExternalLink,
+  FilePenLine,
+  Globe2,
+  UserRoundSearch,
+} from "lucide-react";
 import { useAuth } from "@/app/auth/AuthProvider";
 
 type JobPost = {
@@ -26,6 +35,11 @@ type JobPost = {
   application_url: string | null;
   status: string;
   created_at: string;
+  opportunity_type?: string | null;
+  source_type?: string | null;
+  source_description?: string | null;
+  recruiter_verified?: boolean | null;
+  employer_verified?: boolean | null;
 };
 
 type InterestDraft = {
@@ -43,11 +57,24 @@ type CandidateApplicationStatus = {
   status: string;
 };
 
+type OpportunityType = "curated" | "recruiter" | "verified_recruiter" | "direct_employer";
+
+type OpportunityProfile = {
+  type: OpportunityType;
+  label: string;
+  description: string;
+  badgeClass: string;
+  cardAccentClass: string;
+  icon: typeof Globe2;
+  nativeApply: boolean;
+};
+
 const primaryButton =
   "inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-3 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] disabled:cursor-not-allowed disabled:opacity-60";
 const secondaryButton =
   "inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]";
 const anonymousApplicationStorageKey = "iseya_anonymous_job_application_statuses";
+const savedOpportunityStorageKey = "iseya_saved_opportunity_ids";
 
 function label(value: string) {
   return value.replace(/_/g, " ").replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -64,6 +91,77 @@ function formatSalary(job: JobPost) {
   }
 
   return job.salary_range || "Salary not disclosed";
+}
+
+function opportunityProfile(job: JobPost): OpportunityProfile {
+  const source = `${job.opportunity_type ?? ""} ${job.source_type ?? ""}`.toLowerCase();
+
+  if (
+    job.application_url &&
+    /\b(curated|external|imported|greenhouse|lever|ashby|yc)\b/.test(source)
+  ) {
+    return {
+      type: "curated",
+      label: "Curated Opportunity",
+      description: job.source_description || "Sourced from active external hiring channels",
+      badgeClass: "border-slate-200 bg-slate-100 text-slate-700",
+      cardAccentClass: "border-l-slate-400",
+      icon: ExternalLink,
+      nativeApply: false,
+    };
+  }
+
+  if (job.employer_verified || /\b(direct employer|employer|company)\b/.test(source)) {
+    return {
+      type: "direct_employer",
+      label: "Direct Employer",
+      description: job.source_description || "Posted directly by an employer through ISEYA",
+      badgeClass: "border-amber-200 bg-[#FFF8E6] text-[var(--iseya-navy)]",
+      cardAccentClass: "border-l-[var(--iseya-gold)]",
+      icon: Building2,
+      nativeApply: !job.application_url,
+    };
+  }
+
+  if (job.recruiter_verified || /\bverified\b/.test(source)) {
+    return {
+      type: "verified_recruiter",
+      label: "Verified Recruiter",
+      description: job.source_description || "Posted by a verified recruiting partner",
+      badgeClass: "border-blue-200 bg-blue-50 text-blue-800",
+      cardAccentClass: "border-l-blue-500",
+      icon: BadgeCheck,
+      nativeApply: !job.application_url,
+    };
+  }
+
+  return {
+    type: "recruiter",
+    label: "Recruiter Posted",
+    description: job.source_description || "Posted directly through an ISEYA recruiter workspace",
+    badgeClass: "border-blue-100 bg-blue-50/70 text-blue-700",
+    cardAccentClass: "border-l-[#235c9d]",
+    icon: UserRoundSearch,
+    nativeApply: !job.application_url,
+  };
+}
+
+function tailorResumeHref(job: JobPost) {
+  const description = [
+    job.role_summary,
+    job.responsibilities ? `Responsibilities\n${job.responsibilities}` : "",
+    job.requirements ? `Requirements\n${job.requirements}` : "",
+    job.skills.length > 0 ? `Skills\n${job.skills.join(", ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+    .slice(0, 5000);
+  const params = new URLSearchParams({
+    opportunityRole: job.job_title,
+    opportunityDescription: description,
+  });
+
+  return `/workspace?${params.toString()}#resume-builder`;
 }
 
 export default function JobsBoard() {
@@ -94,6 +192,7 @@ export default function JobsBoard() {
   const [interestSubmitting, setInterestSubmitting] = useState(false);
   const [interestSubmitted, setInterestSubmitted] = useState(false);
   const [interestStatus, setInterestStatus] = useState("");
+  const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
 
   const selectedJob = useMemo(
     () => jobs.find((job) => job.id === selectedJobId) ?? jobs[0] ?? null,
@@ -104,6 +203,25 @@ export default function JobsBoard() {
       ? "closed"
       : applicationsByJobId[selectedJob.id] ?? ""
     : "";
+  const selectedOpportunity = selectedJob ? opportunityProfile(selectedJob) : null;
+  const SelectedOpportunityIcon = selectedOpportunity?.icon;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const storedJobs = window.localStorage.getItem(savedOpportunityStorageKey);
+        const parsed = storedJobs ? (JSON.parse(storedJobs) as unknown) : [];
+
+        if (Array.isArray(parsed)) {
+          setSavedJobIds(parsed.filter((id): id is string => typeof id === "string"));
+        }
+      } catch {
+        window.localStorage.removeItem(savedOpportunityStorageKey);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -296,6 +414,16 @@ export default function JobsBoard() {
     }
   }
 
+  function toggleSavedJob(jobId: string) {
+    setSavedJobIds((current) => {
+      const next = current.includes(jobId)
+        ? current.filter((id) => id !== jobId)
+        : [...current, jobId];
+      window.localStorage.setItem(savedOpportunityStorageKey, JSON.stringify(next));
+      return next;
+    });
+  }
+
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <section className="iseya-header text-white">
@@ -318,8 +446,8 @@ export default function JobsBoard() {
               Browse roles that fit your next move.
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-8 text-white/82">
-              Search public job listings, review role requirements, apply externally,
-              or express interest using your existing ISEYA career materials.
+              Discover trusted opportunities, understand each source, and move from
+              role discovery into tailored career materials with clarity.
             </p>
           </div>
           <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
@@ -381,6 +509,51 @@ export default function JobsBoard() {
       </section>
 
       <section className="mx-auto max-w-[92rem] px-5 py-8 sm:px-8">
+        <div className="mb-6">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+            Career Infrastructure + Opportunity Intelligence
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
+            Know where every opportunity comes from.
+          </h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              {
+                title: "Curated Opportunity",
+                copy: "External hiring channels selected by ISEYA.",
+                Icon: ExternalLink,
+                className: "border-slate-200 bg-white text-slate-700",
+              },
+              {
+                title: "Recruiter Posted",
+                copy: "Native roles submitted through ISEYA.",
+                Icon: UserRoundSearch,
+                className: "border-blue-100 bg-blue-50/50 text-blue-800",
+              },
+              {
+                title: "Verified Recruiter",
+                copy: "Reviewed recruiting partner trust layer.",
+                Icon: BadgeCheck,
+                className: "border-blue-200 bg-blue-50 text-blue-900",
+              },
+              {
+                title: "Direct Employer",
+                copy: "Company-posted roles with highest trust.",
+                Icon: Building2,
+                className: "border-amber-200 bg-[#FFF8E6]/70 text-[var(--iseya-navy)]",
+              },
+            ].map(({ title, copy, Icon, className }) => (
+              <div key={title} className={`rounded-xl border p-3.5 ${className}`}>
+                <div className="flex items-center gap-2">
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                  <p className="text-xs font-bold uppercase tracking-[0.12em]">{title}</p>
+                </div>
+                <p className="mt-2 text-xs leading-5 opacity-80">{copy}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1.2fr_1fr_1fr_180px_180px]">
           <input
             value={query}
@@ -478,37 +651,68 @@ export default function JobsBoard() {
               </div>
             ) : (
               jobs.map((job) => {
+                const source = opportunityProfile(job);
+                const SourceIcon = source.icon;
                 const applicationStatus =
                   job.status === "closed" && applicationsByJobId[job.id]
                     ? "closed"
                     : applicationsByJobId[job.id];
                 return (
-                <button
+                <article
                   key={job.id}
-                  type="button"
-                  onClick={() => setSelectedJobId(job.id)}
-                  className={`w-full rounded-2xl border p-4 text-left shadow-sm transition ${
+                  className={`w-full rounded-2xl border border-l-4 p-4 text-left shadow-sm transition ${source.cardAccentClass} ${
                     selectedJob?.id === job.id
                       ? "border-[var(--iseya-gold)] bg-[#FFF8E6]"
                       : "border-slate-200 bg-white hover:border-[var(--iseya-gold)]"
                   }`}
                 >
-                  <h2 className="text-base font-semibold text-[var(--iseya-navy)]">
-                    {job.job_title}
-                  </h2>
-                  <p className="mt-1 text-sm font-medium text-slate-600">
-                    {job.company_name}
-                  </p>
+                  <button type="button" onClick={() => setSelectedJobId(job.id)} className="w-full text-left">
+                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${source.badgeClass}`}>
+                      <SourceIcon className="h-3 w-3" aria-hidden="true" />
+                      {source.label}
+                    </span>
+                    <h2 className="mt-3 text-base font-semibold text-[var(--iseya-navy)]">
+                      {job.job_title}
+                    </h2>
+                    <p className="mt-1 text-sm font-medium text-slate-600">
+                      {job.company_name} | {job.location || "Location flexible"}
+                    </p>
+                  </button>
                   <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
                     {label(job.workplace_type)} | {label(job.employment_type)}
                   </p>
                   <p className="mt-2 text-xs font-semibold text-slate-600">
                     {formatSalary(job)}
                   </p>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">{source.description}</p>
                   {applicationStatus ? (
                     <ApplicationStatusBadge status={applicationStatus} />
                   ) : null}
-                </button>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <Link href={tailorResumeHref(job)} className={`${secondaryButton} min-h-8 px-2.5 py-1 text-xs`}>
+                      <FilePenLine className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                      Tailor Resume
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => toggleSavedJob(job.id)}
+                      className={`${secondaryButton} min-h-8 px-2.5 py-1 text-xs`}
+                      aria-pressed={savedJobIds.includes(job.id)}
+                    >
+                      <Bookmark className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                      {savedJobIds.includes(job.id) ? "Saved" : "Save Job"}
+                    </button>
+                    {!applicationStatus ? (
+                      <button
+                        type="button"
+                        onClick={() => beginApplication(job)}
+                        className={`${primaryButton} min-h-8 px-2.5 py-1 text-xs`}
+                      >
+                        {job.application_url ? "Apply External" : "Easy Apply"}
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
                 );
               })
             )}
@@ -519,9 +723,12 @@ export default function JobsBoard() {
               <article>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-                      Role fit opportunity
-                    </p>
+                    {selectedOpportunity && SelectedOpportunityIcon ? (
+                      <p className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold uppercase tracking-[0.12em] ${selectedOpportunity.badgeClass}`}>
+                        <SelectedOpportunityIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                        {selectedOpportunity.label}
+                      </p>
+                    ) : null}
                     <h2 className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)]">
                       {selectedJob.job_title}
                     </h2>
@@ -531,6 +738,11 @@ export default function JobsBoard() {
                     <p className="mt-2 text-sm font-semibold text-slate-600">
                       {formatSalary(selectedJob)}
                     </p>
+                    {selectedOpportunity ? (
+                      <p className="mt-3 text-sm leading-6 text-slate-500">
+                        {selectedOpportunity.description}
+                      </p>
+                    ) : null}
                     {selectedJob.application_deadline ? (
                       <p className="mt-2 text-sm font-medium text-slate-600">
                         Apply by {new Date(selectedJob.application_deadline).toLocaleDateString()}
@@ -538,6 +750,19 @@ export default function JobsBoard() {
                     ) : null}
                   </div>
                   <div className="flex flex-col gap-2 sm:min-w-64">
+                    <Link href={tailorResumeHref(selectedJob)} className={secondaryButton}>
+                      <FilePenLine className="mr-2 h-4 w-4" aria-hidden="true" />
+                      Tailor Resume
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => toggleSavedJob(selectedJob.id)}
+                      className={secondaryButton}
+                      aria-pressed={savedJobIds.includes(selectedJob.id)}
+                    >
+                      <Bookmark className="mr-2 h-4 w-4" aria-hidden="true" />
+                      {savedJobIds.includes(selectedJob.id) ? "Saved" : "Save Job"}
+                    </button>
                     {selectedApplicationStatus ? (
                       <ApplicationStatusBadge status={selectedApplicationStatus} prominent />
                     ) : (
@@ -546,7 +771,14 @@ export default function JobsBoard() {
                         onClick={() => beginApplication(selectedJob)}
                         className={primaryButton}
                       >
-                        {selectedJob.application_url ? "Apply Externally" : "Express Interest"}
+                        {selectedJob.application_url ? (
+                          <>
+                            <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
+                            Apply External
+                          </>
+                        ) : (
+                          "Easy Apply"
+                        )}
                       </button>
                     )}
                   </div>
@@ -579,11 +811,11 @@ export default function JobsBoard() {
                     </p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
                       {selectedJob.application_url
-                        ? "This employer accepts applications through an external application page."
-                        : "Express interest without creating a public candidate profile. If you are signed in, ISEYA can connect the interest to your private workspace."}
+                        ? "This opportunity accepts applications through an external hiring page."
+                        : "Apply without creating a public candidate profile. If you are signed in, ISEYA can connect this application to your private workspace."}
                     </p>
-                    <Link href="/workspace" className={`${secondaryButton} mt-3`}>
-                      Improve Career Materials
+                    <Link href={tailorResumeHref(selectedJob)} className={`${secondaryButton} mt-3`}>
+                      Tailor Resume for this Role
                     </Link>
                   </div>
                 </div>

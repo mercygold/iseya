@@ -4810,6 +4810,7 @@ export default function Home() {
   const cloudLoadInFlightUserRef = useRef<string | null>(null);
   const billingRefreshAttemptedRef = useRef(false);
   const subscriptionFetchFailedRef = useRef(false);
+  const opportunityPrefillRef = useRef("");
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const feedbackTimers = useRef<Record<string, number>>({});
   const previewTheme = previewThemes[theme];
@@ -5586,6 +5587,36 @@ export default function Home() {
     uploadedFiles,
     buildSavedState,
   ]);
+
+  useEffect(() => {
+    if (
+      pathname !== "/workspace" ||
+      !hydrated ||
+      (authUser && cloudLoadedForUser !== authUser.id)
+    ) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const opportunityRole = params.get("opportunityRole")?.trim() ?? "";
+    const opportunityDescription = params.get("opportunityDescription")?.trim() ?? "";
+    const prefillKey = `${opportunityRole}|${opportunityDescription}`;
+
+    if (
+      opportunityRole.length < 2 ||
+      opportunityDescription.length < 20 ||
+      opportunityPrefillRef.current === prefillKey
+    ) {
+      return;
+    }
+
+    opportunityPrefillRef.current = prefillKey;
+    setTargetRole(opportunityRole);
+    setJobDescription(opportunityDescription);
+    setResult(null);
+    setActiveOutput("resume");
+    setSystemStatus("Opportunity details loaded. Review your materials, then optimize for this role.");
+  }, [authUser, cloudLoadedForUser, hydrated, pathname]);
 
   useEffect(() => {
     if (!hydrated || authUser) {
