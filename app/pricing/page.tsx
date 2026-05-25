@@ -114,6 +114,9 @@ function PricingContent() {
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions">
               For Institutions
             </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/demo">
+              Demo
+            </Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href={user ? "/account" : "/login"}>
               Login / Sign up
             </Link>

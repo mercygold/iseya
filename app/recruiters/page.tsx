@@ -52,6 +52,9 @@ export default function RecruitersPage() {
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions">
               For Institutions
             </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/demo">
+              Demo
+            </Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
               Pricing
             </Link>

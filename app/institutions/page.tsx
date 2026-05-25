@@ -37,6 +37,7 @@ export default function InstitutionsPage() {
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/">For Candidates</Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters">For Recruiters</Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">Jobs</Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/demo">Demo</Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">Pricing</Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/login">Sign In</Link>
           </nav>

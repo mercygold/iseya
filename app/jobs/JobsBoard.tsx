@@ -352,6 +352,9 @@ export default function JobsBoard() {
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions">
               For Institutions
             </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/demo">
+              Demo
+            </Link>
             {!user ? (
               <>
                 <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
