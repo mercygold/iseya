@@ -7314,7 +7314,7 @@ export default function Home() {
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-          <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+          <div className="hidden">
             <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-navy)]">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--iseya-gold)] text-[var(--iseya-navy)]">1</span>
               Target Role &amp; Job Description
@@ -7426,7 +7426,7 @@ export default function Home() {
             />
           </div>
 
-          <section id="source-materials" className="scroll-mt-24 rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+          <section id="source-materials-legacy" className="hidden">
             <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-navy)]">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--iseya-gold)] text-[var(--iseya-navy)]">3</span>
               Source Materials
@@ -7451,7 +7451,6 @@ export default function Home() {
               Upload Files
             </label>
             <input
-              ref={uploadInputRef}
               id="source-file-upload"
               type="file"
               multiple
@@ -7505,7 +7504,7 @@ export default function Home() {
             )}
           </section>
 
-          <section id="optimization-settings" className="scroll-mt-24 rounded-xl border border-slate-200/80 bg-white p-5 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+          <section id="optimization-settings-legacy" className="hidden">
             <details>
               <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)]">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--iseya-gold)] text-xs font-bold text-[var(--iseya-navy)]">4</span>
@@ -7600,12 +7599,12 @@ export default function Home() {
             </details>
           </section>
 
-          <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+          <details className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+            <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
+              Billing &amp; Plan Actions
+            </summary>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
-                  Billing & Plan Actions
-                </p>
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold">
                   <span className="rounded-full border border-[var(--iseya-gold)]/50 bg-[#FFF8E6] px-3 py-1 text-[var(--iseya-navy)]">
                     Current Plan: {currentPlanLabel}
@@ -7636,10 +7635,10 @@ export default function Home() {
                 </button>
               </div>
             </div>
-          </section>
+          </details>
 
           <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-            <details open>
+            <details>
               <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
                 {canUseSubscriptionFeature(subscriptionPlan, "savedVersions") ? "" : "🔒 "}
                 Version History
@@ -8203,7 +8202,7 @@ export default function Home() {
             </div>
           </div>
 
-	          <div className="grid gap-4 xl:grid-cols-[252px_minmax(0,1fr)_292px]">
+	          <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
 	            <aside className="order-2 xl:order-1">
 	              <div className="space-y-3 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-auto xl:pr-1">
                 <WorkspaceNavigation
@@ -8217,12 +8216,31 @@ export default function Home() {
                   onOptimize={() => runWithFeedback("tailor", "Optimizing...", "Optimized", tailorResume)}
                 />
                 {isStarterWorkflowPreview ? <StarterWorkspacePreviewNotice /> : null}
+                <CompactAiSidebar result={workspaceResult} />
+                <div id="career-intelligence" className="scroll-mt-24">
+                  <AdvancedIntelligencePanel
+                    analysis={workspaceResult.advancedAnalysis}
+                    onReplaceBullet={
+                      isStarterWorkflowPreview
+                        ? () => setSystemStatus("Upgrade to unlock advanced bullet rewriting.")
+                        : replaceBulletWithVersion
+                    }
+                  />
+                </div>
               </div>
             </aside>
 
 	            <section className="order-1 min-w-0 rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)] sm:p-4 xl:order-2">
                 <nav className="mb-4 flex gap-6 border-b border-slate-200 px-2 text-sm font-semibold text-slate-500" aria-label="Resume workflow">
-                  <button type="button" onClick={() => setActiveOutput("resume")} className="border-b-2 border-[var(--iseya-gold)] px-2 pb-3 text-[var(--iseya-gold)]">
+                  <button
+                    type="button"
+                    onClick={() => setActiveOutput("resume")}
+                    className={`px-2 pb-3 transition ${
+                      activeOutput === "resume"
+                        ? "border-b-2 border-[var(--iseya-gold)] text-[var(--iseya-gold)]"
+                        : "hover:text-[var(--iseya-navy)]"
+                    }`}
+                  >
                     Tailor
                   </button>
                   <button type="button" onClick={() => runWithFeedback("tailor", "Optimizing...", "Optimized", tailorResume)} className="px-2 pb-3 transition hover:text-[var(--iseya-navy)]">
@@ -8231,15 +8249,195 @@ export default function Home() {
                   <a href="#career-intelligence" className="px-2 pb-3 transition hover:text-[var(--iseya-navy)]">
                     Analyze
                   </a>
+                  <button
+                    type="button"
+                    onClick={() => setActiveOutput("preview")}
+                    className={`px-2 pb-3 transition ${
+                      activeOutput === "preview"
+                        ? "border-b-2 border-[var(--iseya-gold)] text-[var(--iseya-gold)]"
+                        : "hover:text-[var(--iseya-navy)]"
+                    }`}
+                  >
+                    Preview
+                  </button>
                 </nav>
 	              <div className="mx-auto max-w-6xl">
                 {activeOutput === "resume" ? (
                   <DocumentFrame title="Let's tailor your resume" subtitle="Resume editor">
+                    <div className="mb-5 space-y-3">
+                      <details open className="rounded-xl border border-slate-200 bg-slate-50/55 p-4">
+                        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)]">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--iseya-gold)] text-xs font-bold text-[var(--iseya-navy)]">1</span>
+                          Target Role &amp; Job Description
+                        </summary>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                          <label className="text-xs font-semibold text-slate-700">
+                            Target Role / Job Title
+                            <input
+                              value={targetRole}
+                              onChange={(event) => setTargetRole(event.target.value)}
+                              className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                              placeholder="Example: Product Manager"
+                            />
+                          </label>
+                          <label className="text-xs font-semibold text-slate-700">
+                            Target Industry
+                            <select
+                              value={industryTarget}
+                              onChange={(event) => setIndustryTarget(event.target.value as IndustryTarget)}
+                              className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                            >
+                              {industryTargets.map((industry) => (
+                                <option key={industry} value={industry}>{industry}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                        <label className="mt-4 block text-xs font-semibold text-slate-700">
+                          Job Description
+                          <textarea
+                            value={jobDescription}
+                            onChange={(event) => setJobDescription(event.target.value)}
+                            className="mt-2 min-h-32 w-full resize-y rounded-md border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                            placeholder="Paste the target job description here..."
+                          />
+                        </label>
+                      </details>
+
+                      <details open className="rounded-xl border border-slate-200 bg-slate-50/55 p-4">
+                        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)]">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--iseya-gold)] text-xs font-bold text-[var(--iseya-navy)]">2</span>
+                          Personal Information
+                        </summary>
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          <ContactField label="Full Name" value={workspaceBranding.fullName} onChange={(value) => updatePersonalBranding("fullName", value)} />
+                          <ContactField label="Professional Title" value={workspaceBranding.professionalTitle} onChange={(value) => updatePersonalBranding("professionalTitle", value)} />
+                          <ContactField label="Email" value={workspaceBranding.email} onChange={(value) => updatePersonalBranding("email", value)} />
+                          <ContactField label="Phone" value={workspaceBranding.phone} onChange={(value) => updatePersonalBranding("phone", value)} />
+                          <ContactField label="Location" value={workspaceBranding.location} onChange={(value) => updatePersonalBranding("location", value)} />
+                          <ContactField label="LinkedIn URL" value={workspaceBranding.linkedInUrl} onChange={(value) => updatePersonalBranding("linkedInUrl", value)} />
+                          <ContactField label="Portfolio URL" value={workspaceBranding.portfolioUrl} onChange={(value) => updatePersonalBranding("portfolioUrl", value)} />
+                          <ContactField label="Website URL" value={workspaceBranding.websiteUrl} onChange={(value) => updatePersonalBranding("websiteUrl", value)} />
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <label className={`${secondaryButtonClass} ${buttonSizeSmClass} cursor-pointer`}>
+                            Optional Profile Image
+                            <input type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" className="sr-only" onChange={(event) => handleProfileImage(event.target.files?.[0])} />
+                          </label>
+                          {workspaceBranding.profileImageDataUrl ? (
+                            <button type="button" onClick={() => updatePersonalBranding("profileImageDataUrl", "")} className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
+                              Remove Image
+                            </button>
+                          ) : null}
+                        </div>
+                      </details>
+
+                      <details open id="source-materials" className="scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/55 p-4">
+                        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)]">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--iseya-gold)] text-xs font-bold text-[var(--iseya-navy)]">3</span>
+                          Source Materials
+                        </summary>
+                        <p className="mt-3 text-xs leading-5 text-slate-500">
+                          Paste a resume or upload supporting material for accurate tailoring.
+                        </p>
+                        <textarea
+                          value={masterResume}
+                          onChange={(event) => setMasterResume(event.target.value)}
+                          className="mt-3 min-h-28 w-full resize-y rounded-md border border-slate-300 bg-white p-3 text-xs leading-5 text-slate-700 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                          placeholder="Paste your source resume here..."
+                        />
+                        <label htmlFor="workspace-source-file-upload" className={`${secondaryButtonClass} ${buttonSizeSmClass} mt-3 cursor-pointer`}>
+                          Upload Files
+                        </label>
+                        <input
+                          ref={uploadInputRef}
+                          id="workspace-source-file-upload"
+                          type="file"
+                          multiple
+                          accept={acceptedSourceFileTypes}
+                          onChange={(event) => handleSourceFiles(event.target.files)}
+                          className="sr-only"
+                        />
+                        {uploadedFiles.length > 0 ? (
+                          <div className="mt-3 space-y-2">
+                            {uploadedFiles.map((file) => (
+                              <div key={file.id} className="rounded-md border border-slate-200 bg-white p-3 text-xs">
+                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                  <div>
+                                    <p className="font-semibold text-[var(--iseya-navy)]">{file.name}</p>
+                                    <p className="mt-1 text-slate-500">
+                                      {extractionStatusLabel(file.extractionStatus)} | {(file.extractedText?.length ?? 0).toLocaleString()} chars
+                                    </p>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button type="button" onClick={() => setPreviewSourceFileId((current) => current === file.id ? "" : file.id)} disabled={!file.extractedText} className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
+                                      Preview
+                                    </button>
+                                    <FeedbackButton onClick={() => removeSourceFile(file.id)} doneLabel="Removed" className={`${dangerButtonClass} ${buttonSizeSmClass}`}>
+                                      Remove
+                                    </FeedbackButton>
+                                  </div>
+                                </div>
+                                {previewSourceFileId === file.id && file.extractedText ? (
+                                  <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap rounded-md bg-slate-50 p-2 text-[11px] leading-5 text-slate-600">
+                                    {file.extractedText}
+                                  </pre>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </details>
+
+                      <details id="optimization-settings" className="scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/55 p-4">
+                        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)]">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--iseya-gold)] text-xs font-bold text-[var(--iseya-navy)]">4</span>
+                          Optimization Settings
+                        </summary>
+                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                          <label className="text-xs font-semibold text-slate-700">
+                            Positioning Mode
+                            <select
+                              value={aiSettings.positioningMode}
+                              onChange={(event) => setAiSettings((current) => ({ ...current, positioningMode: event.target.value as PositioningMode }))}
+                              className="mt-2 w-full rounded-md border border-slate-300 bg-white p-2.5 text-sm text-slate-800 outline-none focus:border-[var(--iseya-gold)]"
+                            >
+                              {positioningModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+                            </select>
+                          </label>
+                          <label className="text-xs font-semibold text-slate-700">
+                            Tone Style
+                            <select
+                              value={aiSettings.toneStyle}
+                              onChange={(event) => setAiSettings((current) => ({ ...current, toneStyle: event.target.value }))}
+                              className="mt-2 w-full rounded-md border border-slate-300 bg-white p-2.5 text-sm text-slate-800 outline-none focus:border-[var(--iseya-gold)]"
+                            >
+                              <option value="Executive concise">Executive concise</option>
+                              <option value="Technical precise">Technical precise</option>
+                              <option value="Consulting polished">Consulting polished</option>
+                              <option value="Academic evidence-based">Academic evidence-based</option>
+                            </select>
+                          </label>
+                          <label className="text-xs font-semibold text-slate-700">
+                            Creativity: {aiSettings.creativity}
+                            <input type="range" min="0" max="100" value={aiSettings.creativity} onChange={(event) => setAiSettings((current) => ({ ...current, creativity: Number(event.target.value) }))} className="mt-3 w-full" />
+                          </label>
+                          <label className="text-xs font-semibold text-slate-700">
+                            ATS Strictness: {aiSettings.atsStrictness}
+                            <input type="range" min="0" max="100" value={aiSettings.atsStrictness} onChange={(event) => setAiSettings((current) => ({ ...current, atsStrictness: Number(event.target.value) }))} className="mt-3 w-full" />
+                          </label>
+                          <label className="flex items-center gap-3 text-xs font-semibold text-slate-700">
+                            <input type="checkbox" checked={aiSettings.aggressiveOptimization} onChange={(event) => setAiSettings((current) => ({ ...current, aggressiveOptimization: event.target.checked }))} />
+                            Aggressive optimization
+                          </label>
+                        </div>
+                      </details>
+                    </div>
                     {isStarterWorkflowPreview ? (
                       <div className="space-y-5">
                         <PremiumPreviewBanner />
-                        <div className="grid gap-5 2xl:grid-cols-[minmax(0,0.9fr)_minmax(420px,1.1fr)]">
-                          <div id="resume-editor" className="min-w-0 scroll-mt-28 2xl:max-h-[calc(100vh-9rem)] 2xl:overflow-auto 2xl:pr-1">
+                        <div className="space-y-5">
+                          <div id="resume-editor" className="min-w-0 scroll-mt-28">
                             <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4">
                               <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
@@ -8282,7 +8480,7 @@ export default function Home() {
                               onOptimizationUsed={() => undefined}
                             />
                           </div>
-                          <div className="min-w-0 scroll-mt-28 2xl:sticky 2xl:top-24 2xl:max-h-[calc(100vh-9rem)] 2xl:self-start 2xl:overflow-auto 2xl:pr-1">
+                          <div className="hidden">
                             <ResumePreviewControls
                               template={template}
                               theme={theme}
@@ -8310,8 +8508,8 @@ export default function Home() {
                         bullets={workspaceResult.coach.weakBullets}
                         onApply={rewriteSuggestedBullet}
                       />
-	                      <div className="mt-5 grid gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)]">
-	                        <div id="resume-editor" className="min-w-0 scroll-mt-28 2xl:max-h-[calc(100vh-9rem)] 2xl:overflow-auto 2xl:pr-1">
+	                      <div className="mt-5 space-y-5">
+	                        <div id="resume-editor" className="min-w-0 scroll-mt-28">
                           <ModularResumeEditor
                             resumeText={workspaceResult.rewrittenResume}
                             resetSourceText={masterResume}
@@ -8337,7 +8535,7 @@ export default function Home() {
                         </div>
 	                        <div
 	                          id="resume-preview"
-	                          className={`min-w-0 scroll-mt-28 2xl:sticky 2xl:top-24 2xl:max-h-[calc(100vh-9rem)] 2xl:self-start 2xl:overflow-auto 2xl:pr-1 ${
+	                          className={`hidden ${
                               isPremiumTemplate(template) && isStarterPlan(subscriptionPlan)
                                 ? "blur-[1.5px]"
                                 : ""
@@ -8462,6 +8660,36 @@ export default function Home() {
                   </DocumentFrame>
                 ) : activeOutput === "preview" ? (
                   <DocumentFrame title="Resume Preview" subtitle="Download layout">
+                    <div className="mb-4 flex flex-wrap justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setActiveOutput("preview")}
+                        className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
+                      >
+                        Download Layout
+                      </button>
+                      <details className="relative">
+                        <summary className={`${secondaryButtonClass} ${buttonSizeSmClass} cursor-pointer list-none`}>
+                          Export
+                        </summary>
+                        <div className="absolute right-0 z-30 mt-2 w-44 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+                          <button type="button" onClick={() => runWithFeedback("previewExport", "Exporting...", "Exported", downloadResumePdf)} className={`${menuItemClass} text-xs`}>
+                            Resume PDF
+                          </button>
+                          <button type="button" onClick={() => runWithFeedback("previewExport", "Exporting...", "Exported", downloadResumeDocx)} className={`${menuItemClass} text-xs`}>
+                            Resume DOCX
+                          </button>
+                        </div>
+                      </details>
+                      <button
+                        type="button"
+                        onClick={() => runWithFeedback("saveVersion", "Saving...", "Saved", saveCurrentVersion)}
+                        disabled={!canSaveAnotherVersion}
+                        className={`${primaryButtonClass} ${buttonSizeSmClass}`}
+                      >
+                        {actionFeedback.saveVersion ?? "Save Version"}
+                      </button>
+                    </div>
                     <ResumePreviewControls
                       template={template}
                       theme={theme}
@@ -8500,19 +8728,6 @@ export default function Home() {
               </div>
             </section>
 
-            <aside className="order-3 space-y-3 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-auto xl:pr-1">
-              <CompactAiSidebar result={workspaceResult} />
-              <div id="career-intelligence" className="scroll-mt-24">
-                <AdvancedIntelligencePanel
-                  analysis={workspaceResult.advancedAnalysis}
-                  onReplaceBullet={
-                    isStarterWorkflowPreview
-                      ? () => setSystemStatus("Upgrade to unlock advanced bullet rewriting.")
-                      : replaceBulletWithVersion
-                  }
-                />
-              </div>
-            </aside>
           </div>
         </section>
       ) : null}
@@ -9562,6 +9777,7 @@ function ModularResumeEditor({
         ) : null}
       </section>
 
+      <div className="hidden">
       <ModularSection title="Personal Branding & Contact">
         <div className="grid gap-3 md:grid-cols-2">
           <ContactField label="Full Name" value={personalBranding.fullName} onChange={(value) => onPersonalBrandingChange("fullName", value)} />
@@ -9594,6 +9810,7 @@ function ModularResumeEditor({
           ) : null}
         </div>
       </ModularSection>
+      </div>
 
       <ModularSection
         title="Professional Summary"
@@ -10096,9 +10313,9 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
           <span className="pb-1 text-sm font-semibold text-slate-500">/100</span>
         </div>
         <div className="mt-3 grid gap-2">
-          <ScoreBar label="ATS Check" score={breakdown.atsReadability} />
-          <ScoreBar label="Keyword Match" score={breakdown.roleFit} />
-          <ScoreBar label="Content Insights" score={breakdown.metricStrength} />
+          <ScoreBar label="Readability score" score={breakdown.atsReadability} />
+          <ScoreBar label="Alignment score" score={breakdown.roleFit} />
+          <ScoreBar label="Evidence strength" score={breakdown.metricStrength} />
         </div>
       </section>
 
@@ -10115,7 +10332,7 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
 
       <details open className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
-          Content Insights
+          Content Feedback
         </summary>
         <CoachInlineList items={quickCritiques} />
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -10145,7 +10362,7 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
 
       <details className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
-          Keyword Match
+          Industry Alignment
         </summary>
         <CoachInlineList items={[coach.industryAlignment, result.industryFit]} />
       </details>
