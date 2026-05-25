@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   countryOptions,
@@ -30,6 +30,38 @@ export type InstitutionProfile = {
   active_seats: number;
   package_type: string | null;
   auto_domain_access: boolean;
+};
+
+type InstitutionAnalytics = {
+  studentsOnboarded: number;
+  activeLearners: number;
+  seatLimit: number | null;
+  activeSeats: number;
+  remainingSeats: number | null;
+  seatUsagePercentage: number | null;
+  applicationsSubmitted: number;
+  materialsImproved: number;
+  recruiterEngagements: number;
+  careerReadiness: {
+    resumeCreatedOrImported: number;
+    careerMaterialsCompleted: number;
+    applicationsSubmitted: number;
+    activeJobEngagement: number;
+    linkedinPositioningCompleted: number;
+    averageReadinessScore: number | null;
+  };
+  applicationActivity: {
+    submitted: number;
+    reviewing: number;
+    proceed: number;
+    rejected: number;
+    closed: number;
+  };
+  recruiterEngagement: {
+    publishedJobsAppliedTo: number;
+    recruiterResponses: number;
+    proceedRate: number | null;
+  };
 };
 
 const institutionTypes = ["University", "College", "Bootcamp", "Career Program", "Workforce Development", "Other"];
@@ -76,6 +108,40 @@ export default function InstitutionDashboard({
   });
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
+  const [analytics, setAnalytics] = useState<InstitutionAnalytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(Boolean(initialProfile && !onboarding));
+  const [analyticsError, setAnalyticsError] = useState("");
+
+  useEffect(() => {
+    if (!profile || onboarding || editing) return;
+
+    let current = true;
+
+    fetch("/api/institution/analytics", { cache: "no-store" })
+      .then(async (response) => {
+        const data = (await response.json().catch(() => ({}))) as {
+          analytics?: InstitutionAnalytics;
+          error?: string;
+        };
+        if (!response.ok || !data.analytics) {
+          throw new Error(data.error || "Institution insights are temporarily unavailable.");
+        }
+        if (current) {
+          setAnalytics(data.analytics);
+          setAnalyticsError("");
+        }
+      })
+      .catch(() => {
+        if (current) setAnalyticsError("Aggregate insights are temporarily unavailable.");
+      })
+      .finally(() => {
+        if (current) setAnalyticsLoading(false);
+      });
+
+    return () => {
+      current = false;
+    };
+  }, [profile, onboarding, editing]);
 
   const selectedCountryOption = countryOptions.includes(draft.country)
     ? draft.country
@@ -138,6 +204,14 @@ export default function InstitutionDashboard({
   }
 
   if (!onboarding && profile && !editing) {
+    const displayMetric = (value: number | string | null | undefined) => {
+      if (analyticsLoading) return "-";
+      return value === null || value === undefined ? "Not available" : String(value);
+    };
+    const seatLimit = analytics?.seatLimit ?? profile.seat_limit;
+    const activeSeats = analytics?.activeSeats ?? profile.active_seats;
+    const usagePercentage = analytics?.seatUsagePercentage ?? null;
+
     return (
       <section className="mx-auto max-w-[92rem] space-y-6 px-5 py-8 sm:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -156,22 +230,36 @@ export default function InstitutionDashboard({
         <p className="rounded-xl border border-[var(--iseya-gold)]/30 bg-[#FFF8E6] p-4 text-sm font-semibold text-[var(--iseya-navy)]">
           {accessStatusMessage(profile.access_status)}
         </p>
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {analyticsError ? (
+          <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+            {analyticsError}
+          </p>
+        ) : null}
+        <section aria-label="Institution analytics overview" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {[
-            ["Students onboarded", String(profile.active_seats)],
-            ["Resumes improved", "0"],
-            ["Applications submitted", "0"],
-            ["Recruiter engagements", "0"],
+            ["Students Onboarded", displayMetric(analytics?.studentsOnboarded ?? profile.active_seats)],
+            [
+              "Seats Used %",
+              seatLimit === null
+                ? analyticsLoading
+                  ? "-"
+                  : "Unlimited"
+                : displayMetric(usagePercentage === null ? null : `${usagePercentage}%`),
+            ],
+            ["Active Learners", displayMetric(analytics?.activeLearners)],
+            ["Applications Submitted", displayMetric(analytics?.applicationsSubmitted)],
+            ["Resume/Career Materials Improved", displayMetric(analytics?.materialsImproved)],
+            ["Recruiter Engagements", displayMetric(analytics?.recruiterEngagements)],
           ].map(([label, value]) => (
-            <article key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <article key={label} className="min-h-32 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">{label}</p>
               <p className="mt-3 text-3xl font-semibold text-[var(--iseya-navy)]">{value}</p>
             </article>
           ))}
         </section>
-        <section className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+        <section className="grid gap-5 lg:grid-cols-[1.08fr_0.92fr]">
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Profile Summary</p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Access Overview</p>
             <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">{profile.institution_type}</h2>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <Summary label="Administrator" value={profile.admin_name} />
@@ -180,19 +268,108 @@ export default function InstitutionDashboard({
               <Summary label="Location" value={[profile.city, profile.state_region, profile.country].filter(Boolean).join(", ")} />
               <Summary label="Access status" value={statusLabel(profile.access_status)} />
               <Summary label="Institution Access Package" value={profile.package_type ?? "To be assigned after review."} />
-              <Summary label="Seat limit" value={profile.seat_limit === null ? "To be assigned after review." : String(profile.seat_limit)} />
-              <Summary label="Active seats" value={String(profile.active_seats)} />
+              <Summary label="Seat limit" value={seatLimit === null ? "Pilot / unlimited access mode" : String(seatLimit)} />
+              <Summary label="Active seats" value={String(activeSeats)} />
               <Summary label="Access period" value={dateRange(profile)} />
             </div>
           </article>
-          <article id="insights" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Insights</p>
-            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Career readiness</h2>
-            <p className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm leading-7 text-slate-600">
-              Career readiness insights coming soon.
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Seat Utilization</p>
+            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">
+              {seatLimit === null ? "Pilot / unlimited access mode" : `${activeSeats} of ${seatLimit} seats used`}
+            </h2>
+            {seatLimit === null ? (
+              <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-7 text-slate-600">
+                Learner access is currently managed without a fixed seat ceiling.
+              </p>
+            ) : (
+              <>
+                <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-[var(--iseya-gold)] transition-all"
+                    style={{ width: `${Math.min(100, usagePercentage ?? 0)}%` }}
+                  />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  <Summary label="Remaining seats" value={displayMetric(analytics?.remainingSeats)} />
+                  <Summary label="Usage" value={displayMetric(usagePercentage === null ? null : `${usagePercentage}%`)} />
+                </div>
+              </>
+            )}
+            <p className="mt-5 text-sm leading-7 text-slate-600">
+              Student privacy is protected. Institution insights are shown in aggregate only.
+            </p>
+          </article>
+        </section>
+        <section id="insights" className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Career Readiness</p>
+            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Aggregate learner actions</h2>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <ReadinessRow label="Resume created/imported" value={displayMetric(analytics?.careerReadiness.resumeCreatedOrImported)} />
+              <ReadinessRow label="Career materials completed" value={displayMetric(analytics?.careerReadiness.careerMaterialsCompleted)} />
+              <ReadinessRow label="Applications submitted" value={displayMetric(analytics?.careerReadiness.applicationsSubmitted)} />
+              <ReadinessRow label="Active job engagement" value={displayMetric(analytics?.careerReadiness.activeJobEngagement)} />
+              <ReadinessRow label="LinkedIn/career positioning completed" value={displayMetric(analytics?.careerReadiness.linkedinPositioningCompleted)} />
+              <ReadinessRow
+                label="Average readiness score"
+                value={displayMetric(analytics?.careerReadiness.averageReadinessScore)}
+              />
+            </div>
+            <p className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
+              Readiness scoring will improve as learners complete more career actions.
+            </p>
+          </article>
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Application Activity</p>
+            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Aggregate outcomes</h2>
+            <div className="mt-5 space-y-3">
+              {[
+                ["Submitted", analytics?.applicationActivity.submitted],
+                ["Reviewing", analytics?.applicationActivity.reviewing],
+                ["Proceed", analytics?.applicationActivity.proceed],
+                ["Rejected", analytics?.applicationActivity.rejected],
+                ["Closed", analytics?.applicationActivity.closed],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-b-0">
+                  <p className="text-sm font-medium text-slate-600">{label}</p>
+                  <p className="text-lg font-semibold text-[var(--iseya-navy)]">{displayMetric(value as number | undefined)}</p>
+                </div>
+              ))}
+            </div>
+          </article>
+        </section>
+        <section className="grid gap-5 lg:grid-cols-2">
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Recruiter Engagement</p>
+            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Opportunity interaction</h2>
+            {analytics && analytics.applicationsSubmitted > 0 ? (
+              <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                <Summary label="Published jobs applied to" value={String(analytics.recruiterEngagement.publishedJobsAppliedTo)} />
+                <Summary label="Status updates" value={String(analytics.recruiterEngagement.recruiterResponses)} />
+                <Summary
+                  label="Proceed rate"
+                  value={
+                    analytics.recruiterEngagement.proceedRate === null
+                      ? "Not available"
+                      : `${analytics.recruiterEngagement.proceedRate}%`
+                  }
+                />
+              </div>
+            ) : (
+              <p className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
+                Recruiter engagement insights will appear as linked learners engage with published opportunities.
+              </p>
+            )}
+          </article>
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Insights Coming Soon</p>
+            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Readiness trends</h2>
+            <p className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
+              Trend comparisons and cohort-level progress reporting will be introduced as aggregate learner activity grows.
             </p>
             <p id="students" className="mt-4 text-sm leading-7 text-slate-600">
-              Student privacy is protected. Individual career materials are not visible to institution administrators.
+              Student privacy is protected. Institution insights are shown in aggregate only.
             </p>
           </article>
         </section>
@@ -264,6 +441,14 @@ export default function InstitutionDashboard({
 
 function Summary({ label, value }: { label: string; value: string }) {
   return <div><p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{label}</p><p className="mt-1 text-sm font-semibold text-[var(--iseya-navy)]">{value || "Not provided"}</p></div>;
+}
+function ReadinessRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+      <p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">{value}</p>
+    </div>
+  );
 }
 function Field({ label, value, onChange, type = "text", placeholder, required = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; required?: boolean }) {
   return <label className="text-sm font-semibold text-[var(--iseya-navy)]">{label}<input className={inputClass} type={type} value={value} placeholder={placeholder} required={required} onChange={(event) => onChange(event.target.value)} /></label>;
