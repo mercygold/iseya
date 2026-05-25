@@ -7024,9 +7024,9 @@ export default function Home() {
 
       {!isPublicLanding ? (
         <>
-      <section id="resume-builder" className="mx-auto max-w-[112rem] overflow-x-hidden px-4 pt-6 sm:px-8 sm:pt-8">
-        <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-[0_10px_30px_rgb(15_23_42_/_0.04)] transition sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <section id="resume-builder" className="mx-auto max-w-[112rem] overflow-x-hidden px-4 pt-4 sm:px-8 sm:pt-5">
+        <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_30px_rgb(15_23_42_/_0.04)] transition sm:p-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-3xl">
                 Career Assets
@@ -7042,7 +7042,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
             <MiniAnalyticsCard
               label="ATS Readiness"
               value={`${Math.round(safeMatchBreakdown(workspaceResult.matchBreakdown, safeScore(workspaceResult.score, 0)).atsReadability)}/100`}
@@ -7075,7 +7075,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[112rem] overflow-x-hidden px-4 py-5 sm:px-8 sm:py-6 lg:py-7">
+      <section className="mx-auto max-w-[112rem] overflow-x-hidden px-4 py-3 sm:px-8 sm:py-4">
         <div className="hidden">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
             Resume Tailoring
@@ -7599,7 +7599,7 @@ export default function Home() {
             </details>
           </section>
 
-          <details className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+          <details className="rounded-lg border border-zinc-200 bg-white p-3.5 shadow-sm">
             <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
               Billing &amp; Plan Actions
             </summary>
@@ -7637,7 +7637,7 @@ export default function Home() {
             </div>
           </details>
 
-          <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+          <section className="rounded-lg border border-zinc-200 bg-white p-3.5 shadow-sm">
             <details>
               <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
                 {canUseSubscriptionFeature(subscriptionPlan, "savedVersions") ? "" : "🔒 "}
@@ -7999,76 +7999,6 @@ export default function Home() {
           </div>
         </div>
 
-        <section className="hidden">
-          <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
-                3 &nbsp; Resume Preview
-              </p>
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                See your optimized resume update in real time.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveOutput("preview")}
-                className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
-              >
-                Download Layout
-              </button>
-              <details className="relative">
-                <summary className={`${secondaryButtonClass} ${buttonSizeSmClass} cursor-pointer list-none`}>
-                  Export
-                </summary>
-                <div className="absolute right-0 z-30 mt-2 w-40 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
-                  <button
-                    type="button"
-                    onClick={() => runWithFeedback("previewExport", "Exporting...", "Exported", downloadResumePdf)}
-                    className={`${menuItemClass} text-xs`}
-                  >
-                    Resume PDF
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => runWithFeedback("previewExport", "Exporting...", "Exported", downloadResumeDocx)}
-                    className={`${menuItemClass} text-xs`}
-                  >
-                    Resume DOCX
-                  </button>
-                </div>
-              </details>
-              <button
-                type="button"
-                onClick={() => runWithFeedback("saveVersion", "Saving...", "Saved", saveCurrentVersion)}
-                disabled={!canSaveAnotherVersion}
-                className={`${primaryButtonClass} ${buttonSizeSmClass}`}
-              >
-                {actionFeedback.saveVersion ?? "Save Version"}
-              </button>
-            </div>
-          </div>
-          <ResumePreviewControls
-            template={template}
-            theme={theme}
-            onTemplateChange={(nextTemplate) => {
-              if (requireTemplateAccess(nextTemplate)) {
-                setTemplate(nextTemplate);
-              }
-            }}
-            onThemeChange={setTheme}
-            onPreview={() => setActiveOutput("preview")}
-            onEdit={() => setActiveOutput("resume")}
-          />
-          <div className="overflow-hidden rounded-lg border border-slate-100 bg-slate-50 p-2">
-            <ResumePreview
-              resumeText={workspaceResult.rewrittenResume}
-              theme={previewTheme}
-              template={template}
-              branding={workspaceBranding}
-            />
-          </div>
-        </section>
       </section>
 
       {tailorError ? (
@@ -8088,8 +8018,8 @@ export default function Home() {
       ) : null}
 
       {workspaceResult ? (
-        <section className="mx-auto max-w-[112rem] overflow-x-hidden px-4 pb-10 sm:px-8">
-          <div className="mb-4 rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+        <section className="mx-auto max-w-[112rem] overflow-x-hidden px-4 pb-8 sm:px-8">
+          <div className="mb-3 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
             <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
               <div>
                 <h2 className="text-base font-semibold text-[var(--iseya-navy)]">
@@ -8202,9 +8132,9 @@ export default function Home() {
             </div>
           </div>
 
-	          <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
+	          <div className="grid gap-3 xl:grid-cols-[286px_minmax(0,1fr)]">
 	            <aside className="order-2 xl:order-1">
-	              <div className="space-y-3 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-auto xl:pr-1">
+	              <div className="space-y-2.5 xl:sticky xl:top-20 xl:max-h-[calc(100vh-5.75rem)] xl:overflow-y-auto xl:pr-1">
                 <WorkspaceNavigation
                   activeOutput={activeOutput}
                   onOpen={openOutputTab}
@@ -8230,8 +8160,8 @@ export default function Home() {
               </div>
             </aside>
 
-	            <section className="order-1 min-w-0 rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)] sm:p-4 xl:order-2">
-                <nav className="mb-4 flex gap-6 border-b border-slate-200 px-2 text-sm font-semibold text-slate-500" aria-label="Resume workflow">
+	            <section className="order-1 min-w-0 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)] sm:p-3 xl:order-2">
+                <nav className="mb-3 flex gap-5 border-b border-slate-200 px-2 text-sm font-semibold text-slate-500" aria-label="Resume workflow">
                   <button
                     type="button"
                     onClick={() => setActiveOutput("resume")}
@@ -8264,19 +8194,19 @@ export default function Home() {
 	              <div className="mx-auto max-w-6xl">
                 {activeOutput === "resume" ? (
                   <DocumentFrame title="Let's tailor your resume" subtitle="Resume editor">
-                    <div className="mb-5 space-y-3">
-                      <details open className="rounded-xl border border-slate-200 bg-slate-50/55 p-4">
+                    <div className="mb-4 space-y-2">
+                      <details open className="rounded-lg border border-slate-200 bg-slate-50/55 p-3">
                         <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)]">
                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--iseya-gold)] text-xs font-bold text-[var(--iseya-navy)]">1</span>
                           Target Role &amp; Job Description
                         </summary>
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
                           <label className="text-xs font-semibold text-slate-700">
                             Target Role / Job Title
                             <input
                               value={targetRole}
                               onChange={(event) => setTargetRole(event.target.value)}
-                              className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                              className="mt-1.5 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                               placeholder="Example: Product Manager"
                             />
                           </label>
@@ -8285,7 +8215,7 @@ export default function Home() {
                             <select
                               value={industryTarget}
                               onChange={(event) => setIndustryTarget(event.target.value as IndustryTarget)}
-                              className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                              className="mt-1.5 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                             >
                               {industryTargets.map((industry) => (
                                 <option key={industry} value={industry}>{industry}</option>
@@ -8293,23 +8223,23 @@ export default function Home() {
                             </select>
                           </label>
                         </div>
-                        <label className="mt-4 block text-xs font-semibold text-slate-700">
+                        <label className="mt-3 block text-xs font-semibold text-slate-700">
                           Job Description
                           <textarea
                             value={jobDescription}
                             onChange={(event) => setJobDescription(event.target.value)}
-                            className="mt-2 min-h-32 w-full resize-y rounded-md border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                            className="mt-1.5 min-h-24 w-full resize-y rounded-md border border-slate-300 bg-white p-2.5 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                             placeholder="Paste the target job description here..."
                           />
                         </label>
                       </details>
 
-                      <details open className="rounded-xl border border-slate-200 bg-slate-50/55 p-4">
+                      <details open className="rounded-lg border border-slate-200 bg-slate-50/55 p-3">
                         <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)]">
                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--iseya-gold)] text-xs font-bold text-[var(--iseya-navy)]">2</span>
                           Personal Information
                         </summary>
-                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
                           <ContactField label="Full Name" value={workspaceBranding.fullName} onChange={(value) => updatePersonalBranding("fullName", value)} />
                           <ContactField label="Professional Title" value={workspaceBranding.professionalTitle} onChange={(value) => updatePersonalBranding("professionalTitle", value)} />
                           <ContactField label="Email" value={workspaceBranding.email} onChange={(value) => updatePersonalBranding("email", value)} />
@@ -8319,7 +8249,7 @@ export default function Home() {
                           <ContactField label="Portfolio URL" value={workspaceBranding.portfolioUrl} onChange={(value) => updatePersonalBranding("portfolioUrl", value)} />
                           <ContactField label="Website URL" value={workspaceBranding.websiteUrl} onChange={(value) => updatePersonalBranding("websiteUrl", value)} />
                         </div>
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <div className="mt-2.5 flex flex-wrap items-center gap-2">
                           <label className={`${secondaryButtonClass} ${buttonSizeSmClass} cursor-pointer`}>
                             Optional Profile Image
                             <input type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" className="sr-only" onChange={(event) => handleProfileImage(event.target.files?.[0])} />
@@ -8332,21 +8262,21 @@ export default function Home() {
                         </div>
                       </details>
 
-                      <details open id="source-materials" className="scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/55 p-4">
+                      <details id="source-materials" className="scroll-mt-24 rounded-lg border border-slate-200 bg-slate-50/55 p-3">
                         <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)]">
                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--iseya-gold)] text-xs font-bold text-[var(--iseya-navy)]">3</span>
                           Source Materials
                         </summary>
-                        <p className="mt-3 text-xs leading-5 text-slate-500">
+                        <p className="mt-2.5 text-xs leading-5 text-slate-500">
                           Paste a resume or upload supporting material for accurate tailoring.
                         </p>
                         <textarea
                           value={masterResume}
                           onChange={(event) => setMasterResume(event.target.value)}
-                          className="mt-3 min-h-28 w-full resize-y rounded-md border border-slate-300 bg-white p-3 text-xs leading-5 text-slate-700 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                          className="mt-2.5 min-h-24 w-full resize-y rounded-md border border-slate-300 bg-white p-2.5 text-xs leading-5 text-slate-700 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                           placeholder="Paste your source resume here..."
                         />
-                        <label htmlFor="workspace-source-file-upload" className={`${secondaryButtonClass} ${buttonSizeSmClass} mt-3 cursor-pointer`}>
+                        <label htmlFor="workspace-source-file-upload" className={`${secondaryButtonClass} ${buttonSizeSmClass} mt-2.5 cursor-pointer`}>
                           Upload Files
                         </label>
                         <input
@@ -8389,12 +8319,12 @@ export default function Home() {
                         ) : null}
                       </details>
 
-                      <details id="optimization-settings" className="scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/55 p-4">
+                      <details id="optimization-settings" className="scroll-mt-24 rounded-lg border border-slate-200 bg-slate-50/55 p-3">
                         <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)]">
                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--iseya-gold)] text-xs font-bold text-[var(--iseya-navy)]">4</span>
                           Optimization Settings
                         </summary>
-                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
                           <label className="text-xs font-semibold text-slate-700">
                             Positioning Mode
                             <select
@@ -8982,18 +8912,18 @@ function MiniAnalyticsCard({
         : "bg-[var(--iseya-gold)]";
 
   return (
-    <div className="rounded-lg border border-slate-200/80 bg-white p-4 shadow-[0_5px_18px_rgb(15_23_42_/_0.035)] transition hover:-translate-y-0.5 hover:shadow-md">
+    <div className="rounded-lg border border-slate-200/80 bg-white p-3.5 shadow-[0_5px_18px_rgb(15_23_42_/_0.035)] transition hover:-translate-y-0.5 hover:shadow-md">
       <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
         {label}
       </p>
-      <p className="mt-2 truncate text-2xl font-semibold text-[var(--iseya-navy)]">
+      <p className="mt-1.5 truncate text-2xl font-semibold text-[var(--iseya-navy)]">
         {value}
       </p>
       <p className="mt-1 text-xs font-medium text-slate-500">{detail}</p>
       {typeof progress === "number" ? (
-        <div className="mt-3 h-2 rounded-full bg-slate-200">
+        <div className="mt-2.5 h-1.5 rounded-full bg-slate-200">
           <div
-            className={`h-2 rounded-full transition-all ${progressClass}`}
+            className={`h-1.5 rounded-full transition-all ${progressClass}`}
             style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
           />
         </div>
@@ -9029,8 +8959,8 @@ function WorkspaceNavigation({
   ];
 
   return (
-    <section className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
-      <p className="px-2 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+    <section className="rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+      <p className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
         Workspace
       </p>
       <nav className="mt-1 grid gap-1" aria-label="Career workspace">
@@ -9039,7 +8969,7 @@ function WorkspaceNavigation({
             key={tab.id}
             type="button"
             onClick={() => onOpen(tab.id)}
-            className={`flex min-h-10 items-center justify-between rounded-md px-3 text-left text-sm font-semibold transition ${
+            className={`flex min-h-9 items-center justify-between rounded-md px-3 text-left text-sm font-semibold transition ${
               activeOutput === tab.id
                 ? "border-l-2 border-[var(--iseya-gold)] bg-[var(--iseya-navy)] text-[var(--iseya-gold)]"
                 : "text-slate-700 hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]"
@@ -9052,24 +8982,24 @@ function WorkspaceNavigation({
             {tab.locked ? <span className="text-xs" aria-label="Premium preview">🔒</span> : null}
           </button>
         ))}
-        <a href="#career-intelligence" className="flex min-h-10 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
+        <a href="#career-intelligence" className="flex min-h-9 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
           <ClipboardList className="h-4 w-4" strokeWidth={1.8} /> Interview Prep
         </a>
-        <Link href="/applications" className="flex min-h-10 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
+        <Link href="/applications" className="flex min-h-9 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
           <BriefcaseBusiness className="h-4 w-4" strokeWidth={1.8} /> Job Tracker
         </Link>
-        <a href="#source-materials" className="flex min-h-10 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
+        <a href="#source-materials" className="flex min-h-9 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
           <FileText className="h-4 w-4" strokeWidth={1.8} /> Documents
         </a>
-        <a href="#optimization-settings" className="flex min-h-10 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
+        <a href="#optimization-settings" className="flex min-h-9 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
           <Settings className="h-4 w-4" strokeWidth={1.8} /> Settings
         </a>
       </nav>
-      <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50/70 p-4">
+      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3">
         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
           Readiness Snapshot
         </p>
-        <div className="mt-3 flex items-center justify-between text-xs font-semibold text-slate-600">
+        <div className="mt-2.5 flex items-center justify-between text-xs font-semibold text-slate-600">
           <span>ATS Readiness</span>
           <span>{Math.round(atsScore)}/100</span>
         </div>
@@ -9079,7 +9009,7 @@ function WorkspaceNavigation({
             style={{ width: `${Math.min(100, Math.max(0, atsScore))}%` }}
           />
         </div>
-        <div className="mt-4 flex items-center justify-between text-xs font-semibold text-slate-600">
+        <div className="mt-3 flex items-center justify-between text-xs font-semibold text-slate-600">
           <span>Role Fit</span>
           <span>{Math.round(roleFit)}/100</span>
         </div>
@@ -9087,11 +9017,11 @@ function WorkspaceNavigation({
           <div className="h-1.5 rounded-full bg-blue-500" style={{ width: `${Math.min(100, Math.max(0, roleFit))}%` }} />
         </div>
       </div>
-      <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+      <div className="mt-2.5 rounded-lg border border-slate-200 bg-white p-2.5">
         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
           Quick Actions
         </p>
-        <div className="mt-3 grid gap-2 text-xs font-semibold">
+        <div className="mt-2 grid gap-1.5 text-xs font-semibold">
           <a href="#career-intelligence" className="rounded-md border border-slate-200 px-3 py-2 text-slate-700 transition hover:border-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]">
             Run ATS Check
           </a>
@@ -9179,8 +9109,8 @@ function DocumentFrame({
   children: ReactNode;
 }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)]">
-      <div className="mb-5 flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+    <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+      <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
         <div>
           <h3 className="text-lg font-semibold tracking-tight text-[var(--iseya-navy)]">
             {title}
@@ -10279,15 +10209,15 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
   ] as const;
 
   return (
-    <div className="space-y-3">
-      <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+    <div className="space-y-2.5">
+      <section className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
           Career Insights
         </h2>
         <p className="mt-2 text-xs leading-5 text-slate-500">
           Get smart suggestions to strengthen your resume.
         </p>
-        <ul className="mt-4 space-y-3 text-xs font-medium text-slate-700">
+        <ul className="mt-3 space-y-2 text-xs font-medium text-slate-700">
           {[
             ["Add measurable achievements", "bg-emerald-50 text-emerald-600"],
             ["Strengthen your summary", "bg-blue-50 text-blue-600"],
@@ -10302,24 +10232,24 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
         </ul>
       </section>
 
-      <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+      <section className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
           Insights Center
         </p>
-        <div className="mt-3 flex items-end gap-2">
-          <span className="text-4xl font-semibold tracking-tight text-[var(--iseya-navy)]">
+        <div className="mt-2 flex items-end gap-2">
+          <span className="text-3xl font-semibold tracking-tight text-[var(--iseya-navy)]">
             {Math.round(score)}
           </span>
           <span className="pb-1 text-sm font-semibold text-slate-500">/100</span>
         </div>
-        <div className="mt-3 grid gap-2">
+        <div className="mt-2 grid gap-1.5">
           <ScoreBar label="Readability score" score={breakdown.atsReadability} />
           <ScoreBar label="Alignment score" score={breakdown.roleFit} />
           <ScoreBar label="Evidence strength" score={breakdown.metricStrength} />
         </div>
       </section>
 
-      <details open className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+      <details className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
           Recruiter Simulation
         </summary>
@@ -10330,7 +10260,7 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
         </div>
       </details>
 
-      <details open className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+      <details className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
           Content Feedback
         </summary>
@@ -10353,14 +10283,14 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
         </div>
       </details>
 
-      <details className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+      <details className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
           Resume Integrity
         </summary>
         <CoachInlineList items={safeStringArray(result.riskFlags).map(userFacingGuidance)} />
       </details>
 
-      <details className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+      <details className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
           Industry Alignment
         </summary>
@@ -10691,14 +10621,14 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
   const safeScoreValue = clampPercent(score, 0);
 
   return (
-    <div className="rounded-md border border-zinc-200 bg-white p-3">
-      <div className="flex items-center justify-between gap-3 text-sm">
+    <div className="rounded-md border border-zinc-200 bg-white p-2">
+      <div className="flex items-center justify-between gap-3 text-xs">
         <span className="font-medium text-zinc-700">{label}</span>
         <span className="font-semibold text-zinc-950">{safeScoreValue}/100</span>
       </div>
-      <div className="mt-2 h-2 rounded-full bg-zinc-200">
+      <div className="mt-1.5 h-1.5 rounded-full bg-zinc-200">
         <div
-          className="h-2 rounded-full bg-[var(--iseya-gold)]"
+          className="h-1.5 rounded-full bg-[var(--iseya-gold)]"
           style={{ width: `${safeScoreValue}%` }}
         />
       </div>
