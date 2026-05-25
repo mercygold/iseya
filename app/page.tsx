@@ -305,6 +305,53 @@ type StructuredResume = {
   unmatchedSections?: ResumeSection[];
 };
 
+type EditableExperienceEntry = Omit<ExperienceEntry, "bullets"> & {
+  bulletsText: string;
+};
+
+type EditableProjectEntry = {
+  id: string;
+  name: string;
+  context: string;
+  tools: string;
+  details: string;
+};
+
+type EditableEducationEntry = {
+  id: string;
+  school: string;
+  degree: string;
+  location: string;
+  dates: string;
+  details: string;
+};
+
+type EditableCertificationEntry = {
+  id: string;
+  name: string;
+  issuer: string;
+  year: string;
+};
+
+type EditableResumeDraft = Omit<
+  StructuredResume,
+  "summary" | "skills" | "experience" | "projects" | "education" | "certifications" | "publications" | "tools"
+> & {
+  summaryText: string;
+  skillsText: string;
+  experience: EditableExperienceEntry[];
+  projects: EditableProjectEntry[];
+  education: EditableEducationEntry[];
+  certifications: EditableCertificationEntry[];
+  publicationsText: string;
+  toolsText: string;
+};
+
+type EditableResumeSession = {
+  resumeText: string;
+  draft: EditableResumeDraft;
+};
+
 type AiOptimizationAction =
   | "Optimize Summary"
   | "Improve Skills"
@@ -3405,12 +3452,10 @@ function structuredResumeFromText(resumeText: string): StructuredResume {
 
   const parsedExperience = parseExperienceEntries(experienceSection);
   const inferredExperience =
-    parsedExperience.length > 0 ? parsedExperience : inferExperienceFromResumeText(cleanedResumeText);
+    experienceSection ? parsedExperience : inferExperienceFromResumeText(cleanedResumeText);
   const parsedSkills = splitResumeList(sectionItems(skillsSection).join(", "));
   const inferredSkills =
-    parsedSkills.length > 0
-      ? parsedSkills
-      : inferListFromResumeText(cleanedResumeText, isLikelySkillLine, 24);
+    skillsSection ? parsedSkills : inferListFromResumeText(cleanedResumeText, isLikelySkillLine, 24);
   const parsedEducation = sectionItems(educationSection);
   const parsedCertifications = sectionItems(certificationSection);
   const parsedProjects = sectionItems(projectSection);
@@ -3429,17 +3474,11 @@ function structuredResumeFromText(resumeText: string): StructuredResume {
     skills: inferredSkills,
     experience: inferredExperience,
     projects:
-      parsedProjects.length > 0
-        ? parsedProjects
-        : inferListFromResumeText(cleanedResumeText, isLikelyProjectLine, 8),
+      projectSection ? parsedProjects : inferListFromResumeText(cleanedResumeText, isLikelyProjectLine, 8),
     education:
-      parsedEducation.length > 0
-        ? parsedEducation
-        : inferListFromResumeText(cleanedResumeText, isLikelyEducationLine, 8),
+      educationSection ? parsedEducation : inferListFromResumeText(cleanedResumeText, isLikelyEducationLine, 8),
     certifications:
-      parsedCertifications.length > 0
-        ? parsedCertifications
-        : inferListFromResumeText(cleanedResumeText, isLikelyCertificationLine, 8),
+      certificationSection ? parsedCertifications : inferListFromResumeText(cleanedResumeText, isLikelyCertificationLine, 8),
     publications: sectionItems(publicationSection),
     leadership:
       inferredLeadership.length > 0
@@ -3459,9 +3498,11 @@ function structuredResumeFromText(resumeText: string): StructuredResume {
 function serializeStructuredResume(
   structured: StructuredResume,
   branding: PersonalBranding,
+  options: { preserveEmptySections?: boolean } = {},
 ) {
   const lines: string[] = [];
   const contact = normalizePersonalBranding(branding);
+  const preserveEmptySections = Boolean(options.preserveEmptySections);
 
   if (contact.fullName) {
     lines.push(contact.fullName);
@@ -3487,17 +3528,20 @@ function serializeStructuredResume(
   function pushTextSection(heading: string, body: string) {
     const cleaned = cleanEditorText(body);
 
-    if (!cleaned) {
+    if (!cleaned && !preserveEmptySections) {
       return;
     }
 
-    lines.push("", heading, cleaned);
+    lines.push("", heading);
+    if (cleaned) {
+      lines.push(cleaned);
+    }
   }
 
   function pushListSection(heading: string, items: string[]) {
     const cleanedItems = uniqueStrings(items);
 
-    if (cleanedItems.length === 0) {
+    if (cleanedItems.length === 0 && !preserveEmptySections) {
       return;
     }
 
@@ -3506,7 +3550,7 @@ function serializeStructuredResume(
 
   pushTextSection("PROFESSIONAL SUMMARY", structured.summary);
 
-  if (structured.skills.length > 0) {
+  if (structured.skills.length > 0 || preserveEmptySections) {
     lines.push("", "CORE SKILLS", uniqueStrings(structured.skills).join(" | "));
   }
 
@@ -3516,7 +3560,7 @@ function serializeStructuredResume(
       .filter((entry): entry is ExperienceEntry => Boolean(entry)),
   );
 
-  if (experience.length > 0) {
+  if (experience.length > 0 || preserveEmptySections) {
     lines.push("", "PROFESSIONAL EXPERIENCE");
 
     for (const entry of experience) {
@@ -3634,10 +3678,6 @@ function userFacingGuidance(value: string) {
     .replace(/\btheir\b/gi, "your")
     .replace(/\bthey\b/gi, "you")
     .replace(/\bthem\b/gi, "you");
-}
-
-function formatSectionText(items: string[]) {
-  return items.map(cleanEditorText).filter(Boolean).join("\n");
 }
 
 function optimizationFallbackText(value: string, action: AiOptimizationAction) {
@@ -4015,7 +4055,7 @@ async function createResumePdfBlob(
         : family === "academic" || family === "legal"
           ? 38
           : 36;
-	  const orderedSections = orderedResumeSections(resume.sections, template);
+	  const orderedSections = preparedPreviewSections(resume.sections, template);
   const contactSeparator = "  |  ";
 	  const styles = StyleSheet.create({
     page: {
@@ -4212,7 +4252,7 @@ async function createResumeDocxBlob(
   const accentColor = stripHash(theme.accentHex);
   const headerColor = stripHash(theme.headerHex);
   const textColor = stripHash(theme.textHex);
-  const orderedSections = orderedResumeSections(resume.sections, template);
+  const orderedSections = preparedPreviewSections(resume.sections, template);
   const headingSize = family === "academic" || family === "legal" ? 21 : 19;
   const bodySize = family === "ats" ? 20 : family === "executive" ? 22 : 21;
   const contactSize = family === "ats" ? 17 : 18;
@@ -4812,7 +4852,14 @@ export default function Home() {
   const subscriptionFetchFailedRef = useRef(false);
   const opportunityPrefillRef = useRef("");
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const [editableResumeSession, setEditableResumeSession] = useState<EditableResumeSession | null>(null);
   const feedbackTimers = useRef<Record<string, number>>({});
+  const persistEditableResumeDraft = useCallback(
+    (draft: EditableResumeDraft, resumeText: string) => {
+      setEditableResumeSession({ draft, resumeText });
+    },
+    [],
+  );
   const previewTheme = previewThemes[theme];
   const displayedSubscriptionPlan =
     authUserId && !subscriptionProfileLoaded ? null : subscriptionPlan;
@@ -6422,8 +6469,8 @@ export default function Home() {
         ? {
             ...current,
             rewrittenResume: value,
-            summary: structured.summary || current.summary,
-            skills: structured.skills.length > 0 ? structured.skills : current.skills,
+            summary: structured.summary,
+            skills: structured.skills,
           }
         : current,
     );
@@ -6436,11 +6483,8 @@ export default function Home() {
       setResult({
         ...workspaceResult,
         rewrittenResume: value,
-        summary: structured.summary || workspaceResult.summary,
-        skills:
-          structured.skills.length > 0
-            ? structured.skills
-            : workspaceResult.skills,
+        summary: structured.summary,
+        skills: structured.skills,
       });
       return;
     }
@@ -8478,6 +8522,8 @@ export default function Home() {
                               onPersonalBrandingChange={updatePersonalBranding}
                               onProfileImage={handleProfileImage}
                               onResumeTextChange={updateWorkspaceResumeOutput}
+                              persistedDraft={editableResumeSession}
+                              onDraftPersist={persistEditableResumeDraft}
                               canUseAiOptimization={false}
                               onUpgradeRequired={() =>
                                 requireOptimizationAccess("section optimization")
@@ -8528,6 +8574,8 @@ export default function Home() {
                             onPersonalBrandingChange={updatePersonalBranding}
                             onProfileImage={handleProfileImage}
                             onResumeTextChange={updateWorkspaceResumeOutput}
+                            persistedDraft={editableResumeSession}
+                            onDraftPersist={persistEditableResumeDraft}
                             canUseAiOptimization={
                               canUseSubscriptionFeature(subscriptionPlan, "aiGenerations") &&
                               optimizationCreditsRemaining > 0
@@ -9272,6 +9320,150 @@ function ResumePreviewControls({
   );
 }
 
+function editorEntryId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function pipeSeparatedParts(value: string) {
+  return value
+    .split(/\s+\|\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function editableProjectEntries(items: string[]): EditableProjectEntry[] {
+  return items.map((item, index) => {
+    const [name = "", ...details] = pipeSeparatedParts(item);
+
+    return {
+      id: `project-${index}`,
+      name,
+      context: "",
+      tools: "",
+      details: details.join(" | "),
+    };
+  });
+}
+
+function editableEducationEntries(items: string[]): EditableEducationEntry[] {
+  return items.map((item, index) => {
+    const [school = "", degree = "", ...metadata] = pipeSeparatedParts(item);
+    const dateIndex = metadata.findIndex((value) =>
+      /\b(?:19|20)\d{2}\b|\b(?:present|current)\b/i.test(value),
+    );
+    const dates = dateIndex >= 0 ? metadata[dateIndex] : "";
+    const location = dateIndex > 0 ? metadata.slice(0, dateIndex).join(" | ") : "";
+    const details = dateIndex >= 0 ? metadata.slice(dateIndex + 1) : metadata;
+
+    return {
+      id: `education-${index}`,
+      school,
+      degree,
+      location,
+      dates,
+      details: details.join(" | "),
+    };
+  });
+}
+
+function editableCertificationEntries(items: string[]): EditableCertificationEntry[] {
+  return items.map((item, index) => {
+    const segments = item.split(",").map((part) => part.trim()).filter(Boolean);
+    const possibleYear = segments.at(-1) ?? "";
+    const year = /\b(?:19|20)\d{2}\b/.test(possibleYear) ? segments.pop() ?? "" : "";
+
+    return {
+      id: `certification-${index}`,
+      name: segments.shift() ?? "",
+      issuer: segments.join(", "),
+      year,
+    };
+  });
+}
+
+function editableResumeDraftFromText(resumeText: string): EditableResumeDraft {
+  const structured = structuredResumeFromText(resumeText);
+
+  return {
+    header: structured.header,
+    summaryText: structured.summary,
+    skillsText: structured.skills.join(" | "),
+    experience: structured.experience.map((entry) => ({
+      ...entry,
+      bulletsText: entry.bullets.join("\n"),
+    })),
+    projects: editableProjectEntries(structured.projects),
+    education: editableEducationEntries(structured.education),
+    certifications: editableCertificationEntries(structured.certifications),
+    publicationsText: structured.publications.join("\n"),
+    leadership: structured.leadership,
+    awards: structured.awards,
+    volunteerExperience: structured.volunteerExperience,
+    toolsText: structured.tools.join(" | "),
+    additionalSections: structured.additionalSections,
+    unmatchedSections: structured.unmatchedSections,
+  };
+}
+
+function structuredResumeFromEditableDraft(draft: EditableResumeDraft): StructuredResume {
+  return {
+    header: draft.header,
+    summary: draft.summaryText,
+    skills: splitResumeList(draft.skillsText),
+    experience: draft.experience.map((entry) => ({
+      id: entry.id,
+      title: entry.title,
+      company: entry.company,
+      location: entry.location,
+      startDate: entry.startDate,
+      endDate: entry.endDate,
+      isCurrent: entry.isCurrent,
+      bullets: entry.bulletsText.split(/\r?\n/).filter((bullet) => bullet.trim().length > 0),
+    })),
+    projects: draft.projects
+      .map((project) =>
+        [project.name, project.context, project.tools, project.details.replace(/\r?\n/g, " / ")]
+          .filter((value) => value.trim().length > 0)
+          .join(" | "),
+      )
+      .filter(Boolean),
+    education: draft.education
+      .map((education) =>
+        [
+          education.school,
+          education.degree,
+          education.location,
+          education.dates,
+          education.details.replace(/\r?\n/g, " / "),
+        ]
+          .filter((value) => value.trim().length > 0)
+          .join(" | "),
+      )
+      .filter(Boolean),
+    certifications: draft.certifications
+      .map((certification) =>
+        [certification.name, certification.issuer, certification.year]
+          .filter((value) => value.trim().length > 0)
+          .join(", "),
+      )
+      .filter(Boolean),
+    publications: draft.publicationsText.split(/\r?\n/).filter((item) => item.trim().length > 0),
+    leadership: draft.leadership,
+    awards: draft.awards,
+    volunteerExperience: draft.volunteerExperience,
+    tools: splitResumeList(draft.toolsText),
+    additionalSections: draft.additionalSections,
+    unmatchedSections: draft.unmatchedSections,
+  };
+}
+
+function createEditableExperience(): EditableExperienceEntry {
+  return {
+    ...createEmptyExperience(),
+    bulletsText: "",
+  };
+}
+
 function ModularResumeEditor({
   resumeText,
   resetSourceText,
@@ -9285,6 +9477,8 @@ function ModularResumeEditor({
   onPersonalBrandingChange,
   onProfileImage,
   onResumeTextChange,
+  persistedDraft,
+  onDraftPersist,
   canUseAiOptimization,
   onUpgradeRequired,
   onOptimizationUsed,
@@ -9301,25 +9495,80 @@ function ModularResumeEditor({
   onPersonalBrandingChange: (field: keyof PersonalBranding, value: string) => void;
   onProfileImage: (file: File | undefined) => void;
   onResumeTextChange: (value: string) => void;
+  persistedDraft: EditableResumeSession | null;
+  onDraftPersist: (draft: EditableResumeDraft, resumeText: string) => void;
   canUseAiOptimization: boolean;
   onUpgradeRequired: () => boolean;
   onOptimizationUsed: () => void;
 }) {
   const [optimizingKey, setOptimizingKey] = useState("");
   const [optimizationStatus, setOptimizationStatus] = useState("");
-  const [draftExperiences, setDraftExperiences] = useState<ExperienceEntry[]>([]);
-  const [draftBulletsByExperience, setDraftBulletsByExperience] = useState<Record<string, string[]>>({});
-  const structured = structuredResumeFromText(resumeText);
-  const resetStructured = structuredResumeFromText(resetSourceText);
-  const displayedExperience = [...structured.experience, ...draftExperiences];
-  const unmatchedReviewSections = resetStructured.additionalSections.filter(
+  const [editableResume, setEditableResume] = useState<EditableResumeDraft>(() =>
+    persistedDraft?.resumeText === resumeText
+      ? persistedDraft.draft
+      : editableResumeDraftFromText(resumeText),
+  );
+  const editableResumeRef = useRef(editableResume);
+  const lastEmittedResumeTextRef = useRef(resumeText);
+  const lastLoadedResumeTextRef = useRef(resumeText);
+  const resetEditableResume = useMemo(
+    () => editableResumeDraftFromText(resetSourceText),
+    [resetSourceText],
+  );
+  const unmatchedReviewSections = resetEditableResume.additionalSections.filter(
     (section) =>
       !isSourceArtifactHeading(section.heading) &&
       [...section.body, ...section.bullets].some((item) => cleanEditorText(item)),
   );
 
-  function commit(next: StructuredResume) {
-    onResumeTextChange(serializeStructuredResume(next, personalBranding));
+  useEffect(() => {
+    if (
+      resumeText === lastEmittedResumeTextRef.current ||
+      resumeText === lastLoadedResumeTextRef.current
+    ) {
+      return;
+    }
+
+    lastLoadedResumeTextRef.current = resumeText;
+    const nextDraft = editableResumeDraftFromText(resumeText);
+    const timer = window.setTimeout(() => {
+      editableResumeRef.current = nextDraft;
+      setEditableResume(nextDraft);
+      onDraftPersist(nextDraft, resumeText);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [onDraftPersist, resumeText]);
+
+  function commitDraft(next: EditableResumeDraft) {
+    editableResumeRef.current = next;
+    setEditableResume(next);
+    const output = serializeStructuredResume(
+      structuredResumeFromEditableDraft(next),
+      personalBranding,
+      { preserveEmptySections: true },
+    );
+    lastEmittedResumeTextRef.current = output;
+    lastLoadedResumeTextRef.current = output;
+    onDraftPersist(next, output);
+    onResumeTextChange(output);
+  }
+
+  function commitStructured(next: StructuredResume) {
+    const output = serializeStructuredResume(next, personalBranding, {
+      preserveEmptySections: true,
+    });
+    const nextDraft = editableResumeDraftFromText(output);
+    lastEmittedResumeTextRef.current = output;
+    lastLoadedResumeTextRef.current = output;
+    editableResumeRef.current = nextDraft;
+    setEditableResume(nextDraft);
+    onDraftPersist(nextDraft, output);
+    onResumeTextChange(output);
+  }
+
+  function patchDraft(patch: Partial<EditableResumeDraft>) {
+    commitDraft({ ...editableResumeRef.current, ...patch });
   }
 
   async function optimizeWithBackend({
@@ -9408,13 +9657,6 @@ function ModularResumeEditor({
     }
   }
 
-  function updateListField(field: keyof Pick<StructuredResume, "projects" | "education" | "certifications" | "publications" | "tools">, value: string) {
-    commit({
-      ...structured,
-      [field]: splitResumeList(value),
-    });
-  }
-
   function resetSection(
     field:
       | "summary"
@@ -9426,10 +9668,18 @@ function ModularResumeEditor({
       | "publications"
       | "tools",
   ) {
-    commit({
-      ...structured,
-      [field]: resetStructured[field],
-    });
+    const next = { ...editableResumeRef.current };
+
+    if (field === "summary") next.summaryText = resetEditableResume.summaryText;
+    if (field === "skills") next.skillsText = resetEditableResume.skillsText;
+    if (field === "experience") next.experience = resetEditableResume.experience;
+    if (field === "projects") next.projects = resetEditableResume.projects;
+    if (field === "education") next.education = resetEditableResume.education;
+    if (field === "certifications") next.certifications = resetEditableResume.certifications;
+    if (field === "publications") next.publicationsText = resetEditableResume.publicationsText;
+    if (field === "tools") next.toolsText = resetEditableResume.toolsText;
+
+    commitDraft(next);
   }
 
   async function applySummaryAiAction(action: AiOptimizationAction) {
@@ -9437,11 +9687,11 @@ function ModularResumeEditor({
       key: `summary-${action}`,
       action,
       sectionName: "Professional Summary",
-      sectionText: structured.summary,
+      sectionText: editableResume.summaryText,
     });
 
     if (optimized) {
-      commit({ ...structured, summary: optimized.replace(/\n+/g, " ") });
+      patchDraft({ summaryText: optimized.replace(/\n+/g, " ") });
     }
   }
 
@@ -9450,31 +9700,65 @@ function ModularResumeEditor({
       key: `skills-${action}`,
       action,
       sectionName: "Core Skills",
-      sectionText: structured.skills.join(", "),
+      sectionText: editableResume.skillsText,
     });
 
     if (optimized) {
-      commit({ ...structured, skills: splitResumeList(optimized) });
+      patchDraft({ skillsText: optimized });
     }
   }
 
   async function applyListAiAction(
-    field: keyof Pick<
-      StructuredResume,
-      "projects" | "education" | "certifications" | "publications" | "tools"
-    >,
+    field: "publications" | "tools",
     title: string,
     action: AiOptimizationAction,
   ) {
+    const sourceText =
+      field === "publications" ? editableResume.publicationsText : editableResume.toolsText;
     const optimized = await optimizeWithBackend({
       key: `${field}-${action}`,
       action,
       sectionName: title,
-      sectionText: formatSectionText(structured[field]),
+      sectionText: sourceText,
     });
 
     if (optimized) {
-      commit({ ...structured, [field]: splitResumeList(optimized) });
+      commitDraft(
+        field === "publications"
+          ? { ...editableResumeRef.current, publicationsText: optimized }
+          : { ...editableResumeRef.current, toolsText: optimized },
+      );
+    }
+  }
+
+  async function applyEntryListAiAction(
+    field: "projects" | "education" | "certifications",
+    title: string,
+    action: AiOptimizationAction,
+  ) {
+    const source = structuredResumeFromEditableDraft(editableResume)[field];
+    const optimized = await optimizeWithBackend({
+      key: `${field}-${action}`,
+      action,
+      sectionName: title,
+      sectionText: source.join("\n"),
+    });
+
+    if (!optimized) {
+      return;
+    }
+
+    const items = optimized
+      .split(/\r?\n/)
+      .map((item) => item.replace(/^[-*]\s+/, "").trim())
+      .filter(Boolean);
+
+    if (field === "projects") {
+      patchDraft({ projects: editableProjectEntries(items) });
+    } else if (field === "education") {
+      patchDraft({ education: editableEducationEntries(items) });
+    } else {
+      patchDraft({ certifications: editableCertificationEntries(items) });
     }
   }
 
@@ -9483,7 +9767,7 @@ function ModularResumeEditor({
       key: `experience-${action}`,
       action,
       sectionName: "Professional Experience",
-      sectionText: structured.experience
+      sectionText: editableResume.experience
         .flatMap((entry) => [
           [entry.title, entry.company].filter(Boolean).join(" - "),
           [
@@ -9494,31 +9778,25 @@ function ModularResumeEditor({
           ]
             .filter(Boolean)
             .join(" | "),
-          ...entry.bullets,
+          entry.bulletsText,
         ])
         .filter(Boolean)
         .join("\n"),
     });
 
     if (optimized) {
-      commit({
-        ...structured,
-      experience: [
-          {
-            id: "experience-0",
-            title: "",
-            company: "",
-            location: "",
-            startDate: "",
-            endDate: "",
-            isCurrent: false,
-            bullets: optimized
-              .split(/\r?\n/)
-              .map((line) => line.replace(/^[-*]\s+/, "").trim())
-              .filter(Boolean),
-          },
-        ],
-      });
+      const optimizedExperience = structuredResumeFromText(
+        `PROFESSIONAL EXPERIENCE\n${optimized}`,
+      ).experience;
+
+      if (optimizedExperience.length > 0) {
+        patchDraft({
+          experience: optimizedExperience.map((entry) => ({
+            ...entry,
+            bulletsText: entry.bullets.join("\n"),
+          })),
+        });
+      }
     }
   }
 
@@ -9526,7 +9804,7 @@ function ModularResumeEditor({
     entryIndex: number,
     action: AiOptimizationAction,
   ) {
-    const entry = displayedExperience[entryIndex];
+    const entry = editableResume.experience[entryIndex];
 
     if (!entry) {
       return;
@@ -9541,42 +9819,20 @@ function ModularResumeEditor({
         [entry.location, [entry.startDate, entry.isCurrent ? "Present" : entry.endDate].filter(Boolean).join(" - ")]
           .filter(Boolean)
           .join(" | "),
-        ...entry.bullets,
+        entry.bulletsText,
       ]
         .filter(Boolean)
         .join("\n"),
     });
 
     if (optimized) {
-      updateExperience(entryIndex, {
-        bullets: optimized
-          .split(/\r?\n/)
-          .map((line) => line.replace(/^[-*]\s+/, "").trim())
-          .filter(Boolean),
-      });
-    }
-  }
-
-  async function applyBulletAiAction(
-    entryIndex: number,
-    bulletIndex: number,
-    action: AiOptimizationAction,
-  ) {
-    const entry = displayedExperience[entryIndex];
-    const bullet = entry?.bullets[bulletIndex] || "";
-    const optimized = await optimizeWithBackend({
-      key: `bullet-${entryIndex}-${bulletIndex}-${action}`,
-      action,
-      sectionName: "Experience Achievement",
-      sectionText: bullet,
-    });
-
-    if (optimized) {
-      updateExperienceBullet(
-        entryIndex,
-        bulletIndex,
-        optimized.split(/\r?\n/).filter(Boolean)[0] || optimized,
+      const currentIndex = editableResumeRef.current.experience.findIndex(
+        (currentEntry) => currentEntry.id === entry.id,
       );
+
+      if (currentIndex >= 0) {
+        updateExperience(currentIndex, { bulletsText: optimized });
+      }
     }
   }
 
@@ -9584,7 +9840,7 @@ function ModularResumeEditor({
     sectionIndex: number,
     action: AiOptimizationAction,
   ) {
-    const section = structured.additionalSections[sectionIndex];
+    const section = editableResume.additionalSections[sectionIndex];
 
     if (!section) {
       return;
@@ -9605,135 +9861,21 @@ function ModularResumeEditor({
     }
   }
 
-  function updateExperience(index: number, patch: Partial<ExperienceEntry>) {
-    if (index >= structured.experience.length) {
-      const draftIndex = index - structured.experience.length;
-      const nextDrafts = draftExperiences.map((entry, entryIndex) =>
-        entryIndex === draftIndex ? { ...entry, ...patch } : entry,
-      );
-      const updatedDraft = nextDrafts[draftIndex];
-      const normalized = normalizeExperience(updatedDraft, index);
-
-      if (normalized) {
-        commit({
-          ...structured,
-          experience: dedupeExperience([...structured.experience, normalized]),
-        });
-        setDraftExperiences((current) =>
-          current.filter((_, entryIndex) => entryIndex !== draftIndex),
-        );
-        return;
-      }
-
-      setDraftExperiences(nextDrafts);
-      return;
-    }
-
-    commit({
-      ...structured,
-      experience: dedupeExperience(
-        structured.experience
-          .map((entry, entryIndex) =>
-            entryIndex === index ? { ...entry, ...patch } : entry,
-          )
-          .map((entry, entryIndex) => normalizeExperience(entry, entryIndex))
-          .filter((entry): entry is ExperienceEntry => Boolean(entry)),
+  function updateExperience(index: number, patch: Partial<EditableExperienceEntry>) {
+    const current = editableResumeRef.current;
+    commitDraft({
+      ...current,
+      experience: current.experience.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, ...patch } : entry,
       ),
     });
   }
 
   function removeExperience(index: number) {
-    const entry = displayedExperience[index];
-
-    if (index >= structured.experience.length) {
-      const draftIndex = index - structured.experience.length;
-      setDraftExperiences((current) =>
-        current.filter((_, entryIndex) => entryIndex !== draftIndex),
-      );
-      if (entry) {
-        setDraftBulletsByExperience((current) => {
-          const next = { ...current };
-          delete next[entry.id];
-          return next;
-        });
-      }
-      return;
-    }
-
-    commit({
-      ...structured,
-      experience: structured.experience.filter((_, entryIndex) => entryIndex !== index),
-    });
-    if (entry) {
-      setDraftBulletsByExperience((current) => {
-        const next = { ...current };
-        delete next[entry.id];
-        return next;
-      });
-    }
-  }
-
-  function updateExperienceBullet(entryIndex: number, bulletIndex: number, value: string) {
-    const entry = displayedExperience[entryIndex];
-
-    if (!entry) {
-      return;
-    }
-
-    if (bulletIndex >= entry.bullets.length) {
-      const draftIndex = bulletIndex - entry.bullets.length;
-      const drafts = draftBulletsByExperience[entry.id] ?? [];
-      const nextDrafts = drafts.map((bullet, index) =>
-        index === draftIndex ? value : bullet,
-      );
-
-      if (!nextDrafts[draftIndex]) {
-        nextDrafts[draftIndex] = value;
-      }
-
-      if (cleanEditorText(value)) {
-        updateExperience(entryIndex, {
-          bullets: [...entry.bullets, value],
-        });
-        setDraftBulletsByExperience((current) => ({
-          ...current,
-          [entry.id]: nextDrafts.filter((_, index) => index !== draftIndex),
-        }));
-        return;
-      }
-
-      setDraftBulletsByExperience((current) => ({
-        ...current,
-        [entry.id]: nextDrafts,
-      }));
-      return;
-    }
-
-    updateExperience(entryIndex, {
-      bullets: entry.bullets.map((bullet, index) =>
-        index === bulletIndex ? value : bullet,
-      ),
-    });
-  }
-
-  function removeExperienceBullet(entryIndex: number, bulletIndex: number) {
-    const entry = displayedExperience[entryIndex];
-
-    if (!entry) {
-      return;
-    }
-
-    if (bulletIndex >= entry.bullets.length) {
-      const draftIndex = bulletIndex - entry.bullets.length;
-      setDraftBulletsByExperience((current) => ({
-        ...current,
-        [entry.id]: (current[entry.id] ?? []).filter((_, index) => index !== draftIndex),
-      }));
-      return;
-    }
-
-    updateExperience(entryIndex, {
-      bullets: entry.bullets.filter((_, index) => index !== bulletIndex),
+    const current = editableResumeRef.current;
+    commitDraft({
+      ...current,
+      experience: current.experience.filter((_, entryIndex) => entryIndex !== index),
     });
   }
 
@@ -9741,9 +9883,10 @@ function ModularResumeEditor({
     sectionIndex: number,
     patch: Partial<ResumeSection>,
   ) {
-    commit({
-      ...structured,
-      additionalSections: structured.additionalSections.map((section, index) =>
+    const current = editableResumeRef.current;
+    commitDraft({
+      ...current,
+      additionalSections: current.additionalSections.map((section, index) =>
         index === sectionIndex ? { ...section, ...patch } : section,
       ),
     });
@@ -9771,7 +9914,7 @@ function ModularResumeEditor({
               });
 
               if (optimized) {
-                onResumeTextChange(optimized);
+                commitStructured(structuredResumeFromText(optimized));
               }
             }}
           >
@@ -9828,9 +9971,9 @@ function ModularResumeEditor({
         isOptimizing={optimizingKey.startsWith("summary-")}
       >
         <textarea
-          value={structured.summary}
+          value={editableResume.summaryText}
           onChange={(event) =>
-            commit({ ...structured, summary: event.target.value })
+            patchDraft({ summaryText: event.target.value })
           }
           className="min-h-32 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
         />
@@ -9844,9 +9987,9 @@ function ModularResumeEditor({
         isOptimizing={optimizingKey.startsWith("skills-")}
       >
         <textarea
-          value={structured.skills.join(", ")}
+          value={editableResume.skillsText}
           onChange={(event) =>
-            commit({ ...structured, skills: splitResumeList(event.target.value) })
+            patchDraft({ skillsText: event.target.value })
           }
           className="min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
         />
@@ -9862,26 +10005,25 @@ function ModularResumeEditor({
 	        <div className="space-y-3">
 	          <div className="flex flex-wrap items-center justify-between gap-3">
 	            <p className="text-sm font-medium text-slate-600">
-	              {displayedExperience.length > 0
+	              {editableResume.experience.length > 0
 	                ? "Edit each role directly. Changes update the preview and exports immediately."
 	                : "No experience added yet. Add your first role."}
 	            </p>
 	            <FeedbackButton
 	              doneLabel="Added"
 	              onClick={() =>
-	                setDraftExperiences((current) => [
-	                  ...current,
-	                  createEmptyExperience(current.length + structured.experience.length),
-	                ])
+	                patchDraft({
+	                  experience: [...editableResume.experience, createEditableExperience()],
+	                })
 	              }
 	              className={`${primaryButtonClass} ${buttonSizeSmClass}`}
 	            >
 	              Add Experience
 	            </FeedbackButton>
 	          </div>
-	          {displayedExperience.map((entry, entryIndex) => (
+	          {editableResume.experience.map((entry, entryIndex) => (
 	            <div
-	              key={`${entry.id}-${entryIndex}`}
+	              key={entry.id}
 	              className="rounded-xl border border-slate-200 bg-slate-50 p-3"
 	            >
 	              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -9920,7 +10062,7 @@ function ModularResumeEditor({
 	                    onClick={() =>
 	                      updateExperience(
 	                        entryIndex,
-	                        resetStructured.experience[entryIndex] ?? createEmptyExperience(entryIndex),
+	                        resetEditableResume.experience[entryIndex] ?? createEditableExperience(),
 	                      )
 	                    }
 	                  >
@@ -9955,58 +10097,46 @@ function ModularResumeEditor({
 	                </label>
 	              </div>
 	              <div className="mt-3 space-y-2">
-	                {[...entry.bullets, ...(draftBulletsByExperience[entry.id] ?? [])].map((bullet, bulletIndex) => (
-	                  <div
-	                    key={`${entry.id}-achievement-${bulletIndex}`}
-                    className="rounded-lg border border-slate-200 bg-white p-2"
-                  >
-                    <textarea
-                      value={bullet}
-                      onChange={(event) =>
-                        updateExperienceBullet(
-                          entryIndex,
-                          bulletIndex,
-                          event.target.value,
-                        )
-                      }
-                      className="min-h-20 w-full resize-y rounded-md border border-slate-200 bg-white p-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
-                    />
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <EditorActionButton onClick={() => applyBulletAiAction(entryIndex, bulletIndex, "Rewrite Bullet")}>
-                        Improve
-                      </EditorActionButton>
-                      <EditorActionButton
-                        onClick={() => removeExperienceBullet(entryIndex, bulletIndex)}
-                        variant="danger"
-                      >
-                        Remove
-                      </EditorActionButton>
-                    </div>
-                  </div>
-                ))}
-	                <FeedbackButton
-	                  doneLabel="Added"
-	                  onClick={() =>
-	                    setDraftBulletsByExperience((current) => ({
-	                      ...current,
-	                      [entry.id]: [...(current[entry.id] ?? []), ""],
-	                    }))
-	                  }
-	                  className={`${primaryButtonClass} ${buttonSizeSmClass}`}
-	                >
-	                  Add Achievement
-	                </FeedbackButton>
+	                <label className="block text-xs font-semibold text-slate-700">
+	                  Bullets / Achievements
+	                  <textarea
+	                    value={entry.bulletsText}
+	                    onChange={(event) =>
+	                      updateExperience(entryIndex, { bulletsText: event.target.value })
+	                    }
+	                    placeholder="One achievement per line"
+	                    className="mt-2 min-h-28 w-full resize-y rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+	                  />
+	                </label>
               </div>
             </div>
           ))}
 	        </div>
       </ModularSection>
 
-      <ModularListSection title={titleCase(inferProjectSectionTitle(structured.projects))} value={structured.projects.join("\n")} onChange={(value) => updateListField("projects", value)} onOptimize={() => applyListAiAction("projects", "Projects", "Optimize this section")} onReset={() => resetSection("projects")} onAiAction={(action) => applyListAiAction("projects", "Projects", action)} isOptimizing={optimizingKey.startsWith("projects-")} />
-      <ModularListSection title="Education" value={structured.education.join("\n")} onChange={(value) => updateListField("education", value)} onOptimize={() => applyListAiAction("education", "Education", "Optimize this section")} onReset={() => resetSection("education")} onAiAction={(action) => applyListAiAction("education", "Education", action)} isOptimizing={optimizingKey.startsWith("education-")} />
-      <ModularListSection title="Certifications" value={structured.certifications.join("\n")} onChange={(value) => updateListField("certifications", value)} onOptimize={() => applyListAiAction("certifications", "Certifications", "Optimize this section")} onReset={() => resetSection("certifications")} onAiAction={(action) => applyListAiAction("certifications", "Certifications", action)} isOptimizing={optimizingKey.startsWith("certifications-")} />
-      <ModularListSection title="Publications / Research" value={structured.publications.join("\n")} onChange={(value) => updateListField("publications", value)} onOptimize={() => applyListAiAction("publications", "Publications / Research", "Optimize this section")} onReset={() => resetSection("publications")} onAiAction={(action) => applyListAiAction("publications", "Publications / Research", action)} isOptimizing={optimizingKey.startsWith("publications-")} />
-      <ModularListSection title="Tools / Technologies" value={structured.tools.join(", ")} onChange={(value) => updateListField("tools", value)} onOptimize={() => applyListAiAction("tools", "Tools / Technologies", "Optimize this section")} onReset={() => resetSection("tools")} onAiAction={(action) => applyListAiAction("tools", "Tools / Technologies", action)} isOptimizing={optimizingKey.startsWith("tools-")} />
+      <EditableProjectsSection
+        projects={editableResume.projects}
+        onChange={(projects) => patchDraft({ projects })}
+        onReset={() => resetSection("projects")}
+        onAiAction={(action) => applyEntryListAiAction("projects", "Projects", action)}
+        isOptimizing={optimizingKey.startsWith("projects-")}
+      />
+      <EditableEducationSection
+        education={editableResume.education}
+        onChange={(education) => patchDraft({ education })}
+        onReset={() => resetSection("education")}
+        onAiAction={(action) => applyEntryListAiAction("education", "Education", action)}
+        isOptimizing={optimizingKey.startsWith("education-")}
+      />
+      <EditableCertificationsSection
+        certifications={editableResume.certifications}
+        onChange={(certifications) => patchDraft({ certifications })}
+        onReset={() => resetSection("certifications")}
+        onAiAction={(action) => applyEntryListAiAction("certifications", "Certifications", action)}
+        isOptimizing={optimizingKey.startsWith("certifications-")}
+      />
+      <ModularListSection title="Publications / Research" value={editableResume.publicationsText} onChange={(value) => patchDraft({ publicationsText: value })} onOptimize={() => applyListAiAction("publications", "Publications / Research", "Optimize this section")} onReset={() => resetSection("publications")} onAiAction={(action) => applyListAiAction("publications", "Publications / Research", action)} isOptimizing={optimizingKey.startsWith("publications-")} />
+      <ModularListSection title="Tools / Technologies" value={editableResume.toolsText} onChange={(value) => patchDraft({ toolsText: value })} onOptimize={() => applyListAiAction("tools", "Tools / Technologies", "Optimize this section")} onReset={() => resetSection("tools")} onAiAction={(action) => applyListAiAction("tools", "Tools / Technologies", action)} isOptimizing={optimizingKey.startsWith("tools-")} />
 
       {unmatchedReviewSections.length > 0 ? (
         <ModularSection title="Review unmatched content">
@@ -10044,15 +10174,12 @@ function ModularResumeEditor({
         onOptimize={() => applyAdditionalSectionAiAction(0, "Optimize this section")}
         onAiAction={(action) => applyAdditionalSectionAiAction(0, action)}
         onReset={() =>
-          commit({
-            ...structured,
-            additionalSections: resetStructured.additionalSections,
-          })
+          patchDraft({ additionalSections: resetEditableResume.additionalSections })
         }
         isOptimizing={optimizingKey.startsWith("additional-")}
       >
         <div className="space-y-3">
-          {structured.additionalSections.map((section, sectionIndex) => (
+          {editableResume.additionalSections.map((section, sectionIndex) => (
             <div
               key={`${section.heading}-${sectionIndex}`}
               className="rounded-lg border border-slate-200 bg-slate-50 p-3"
@@ -10066,10 +10193,7 @@ function ModularResumeEditor({
                 value={[...section.body, ...section.bullets].join("\n")}
                 onChange={(event) =>
                   updateAdditionalSection(sectionIndex, {
-                    body: event.target.value
-                      .split(/\r?\n/)
-                      .map(cleanEditorText)
-                      .filter(Boolean),
+                    body: event.target.value.split(/\r?\n/),
                     bullets: [],
                   })
                 }
@@ -10080,10 +10204,9 @@ function ModularResumeEditor({
           <FeedbackButton
             doneLabel="Added"
             onClick={() =>
-              commit({
-                ...structured,
+              patchDraft({
                 additionalSections: [
-                  ...structured.additionalSections,
+                  ...editableResume.additionalSections,
                   { heading: "ADDITIONAL INFORMATION", body: [], bullets: [] },
                 ],
               })
@@ -10229,6 +10352,212 @@ function ModularListSection({
         onChange={(event) => onChange(event.target.value)}
         className="min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
       />
+    </ModularSection>
+  );
+}
+
+function EditableProjectsSection({
+  projects,
+  onChange,
+  onReset,
+  onAiAction,
+  isOptimizing,
+}: {
+  projects: EditableProjectEntry[];
+  onChange: (projects: EditableProjectEntry[]) => void;
+  onReset: () => void;
+  onAiAction: (action: AiOptimizationAction) => void;
+  isOptimizing: boolean;
+}) {
+  function updateEntry(index: number, patch: Partial<EditableProjectEntry>) {
+    onChange(projects.map((project, entryIndex) => (
+      entryIndex === index ? { ...project, ...patch } : project
+    )));
+  }
+
+  return (
+    <ModularSection
+      title="Projects"
+      onOptimize={() => onAiAction("Optimize this section")}
+      onReset={onReset}
+      onAiAction={onAiAction}
+      isOptimizing={isOptimizing}
+    >
+      <div className="space-y-3">
+        {projects.map((project, index) => (
+          <div key={project.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                Project {index + 1}
+              </p>
+              <EditorActionButton
+                variant="danger"
+                onClick={() => onChange(projects.filter((_, entryIndex) => entryIndex !== index))}
+              >
+                Remove Project
+              </EditorActionButton>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <ContactField label="Project Name" value={project.name} onChange={(value) => updateEntry(index, { name: value })} />
+              <ContactField label="Role / Context optional" value={project.context} onChange={(value) => updateEntry(index, { context: value })} />
+              <ContactField label="Tools optional" value={project.tools} onChange={(value) => updateEntry(index, { tools: value })} />
+            </div>
+            <label className="mt-3 block text-xs font-semibold text-slate-700">
+              Description / Bullets
+              <textarea
+                value={project.details}
+                onChange={(event) => updateEntry(index, { details: event.target.value })}
+                className="mt-2 min-h-24 w-full resize-y rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+              />
+            </label>
+          </div>
+        ))}
+        <FeedbackButton
+          doneLabel="Added"
+          onClick={() => onChange([
+            ...projects,
+            { id: editorEntryId("project"), name: "", context: "", tools: "", details: "" },
+          ])}
+          className={`${primaryButtonClass} ${buttonSizeSmClass}`}
+        >
+          Add Project
+        </FeedbackButton>
+      </div>
+    </ModularSection>
+  );
+}
+
+function EditableEducationSection({
+  education,
+  onChange,
+  onReset,
+  onAiAction,
+  isOptimizing,
+}: {
+  education: EditableEducationEntry[];
+  onChange: (education: EditableEducationEntry[]) => void;
+  onReset: () => void;
+  onAiAction: (action: AiOptimizationAction) => void;
+  isOptimizing: boolean;
+}) {
+  function updateEntry(index: number, patch: Partial<EditableEducationEntry>) {
+    onChange(education.map((entry, entryIndex) => (
+      entryIndex === index ? { ...entry, ...patch } : entry
+    )));
+  }
+
+  return (
+    <ModularSection
+      title="Education"
+      onOptimize={() => onAiAction("Optimize this section")}
+      onReset={onReset}
+      onAiAction={onAiAction}
+      isOptimizing={isOptimizing}
+    >
+      <div className="space-y-3">
+        {education.map((entry, index) => (
+          <div key={entry.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                Education {index + 1}
+              </p>
+              <EditorActionButton
+                variant="danger"
+                onClick={() => onChange(education.filter((_, entryIndex) => entryIndex !== index))}
+              >
+                Remove Education
+              </EditorActionButton>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <ContactField label="School" value={entry.school} onChange={(value) => updateEntry(index, { school: value })} />
+              <ContactField label="Degree / Program" value={entry.degree} onChange={(value) => updateEntry(index, { degree: value })} />
+              <ContactField label="Location" value={entry.location} onChange={(value) => updateEntry(index, { location: value })} />
+              <ContactField label="Start/End or Graduation Year" value={entry.dates} onChange={(value) => updateEntry(index, { dates: value })} />
+            </div>
+            <label className="mt-3 block text-xs font-semibold text-slate-700">
+              Details / Honors optional
+              <textarea
+                value={entry.details}
+                onChange={(event) => updateEntry(index, { details: event.target.value })}
+                className="mt-2 min-h-20 w-full resize-y rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+              />
+            </label>
+          </div>
+        ))}
+        <FeedbackButton
+          doneLabel="Added"
+          onClick={() => onChange([
+            ...education,
+            { id: editorEntryId("education"), school: "", degree: "", location: "", dates: "", details: "" },
+          ])}
+          className={`${primaryButtonClass} ${buttonSizeSmClass}`}
+        >
+          Add Education
+        </FeedbackButton>
+      </div>
+    </ModularSection>
+  );
+}
+
+function EditableCertificationsSection({
+  certifications,
+  onChange,
+  onReset,
+  onAiAction,
+  isOptimizing,
+}: {
+  certifications: EditableCertificationEntry[];
+  onChange: (certifications: EditableCertificationEntry[]) => void;
+  onReset: () => void;
+  onAiAction: (action: AiOptimizationAction) => void;
+  isOptimizing: boolean;
+}) {
+  function updateEntry(index: number, patch: Partial<EditableCertificationEntry>) {
+    onChange(certifications.map((entry, entryIndex) => (
+      entryIndex === index ? { ...entry, ...patch } : entry
+    )));
+  }
+
+  return (
+    <ModularSection
+      title="Certifications"
+      onOptimize={() => onAiAction("Optimize this section")}
+      onReset={onReset}
+      onAiAction={onAiAction}
+      isOptimizing={isOptimizing}
+    >
+      <div className="space-y-3">
+        {certifications.map((entry, index) => (
+          <div key={entry.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                Certification {index + 1}
+              </p>
+              <EditorActionButton
+                variant="danger"
+                onClick={() => onChange(certifications.filter((_, entryIndex) => entryIndex !== index))}
+              >
+                Remove Certification
+              </EditorActionButton>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <ContactField label="Certification Name" value={entry.name} onChange={(value) => updateEntry(index, { name: value })} />
+              <ContactField label="Issuer" value={entry.issuer} onChange={(value) => updateEntry(index, { issuer: value })} />
+              <ContactField label="Year optional" value={entry.year} onChange={(value) => updateEntry(index, { year: value })} />
+            </div>
+          </div>
+        ))}
+        <FeedbackButton
+          doneLabel="Added"
+          onClick={() => onChange([
+            ...certifications,
+            { id: editorEntryId("certification"), name: "", issuer: "", year: "" },
+          ])}
+          className={`${primaryButtonClass} ${buttonSizeSmClass}`}
+        >
+          Add Certification
+        </FeedbackButton>
+      </div>
     </ModularSection>
   );
 }
