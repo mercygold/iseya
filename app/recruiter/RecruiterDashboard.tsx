@@ -583,7 +583,7 @@ export default function RecruiterDashboard() {
           Recruiter Dashboard
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-4xl">
-          Career infrastructure for modern talent.
+          Career infrastructure for today&apos;s talent.
         </h1>
         <p className="mt-3 text-base leading-8 text-slate-600">
           Post jobs, manage listings, and prepare to review candidates through career readiness, skill alignment, and role-fit signals.

@@ -1103,7 +1103,7 @@ function scoreResume(
       `Preferred keyword match: ${Math.round(preferredScore * 20)}/20`,
       `Role/title alignment: ${Math.round(roleScore * 20)}/20`,
       `Metrics/impact language: ${Math.round(metricsScore * 15)}/15`,
-      `AI/ML project relevance: ${Math.round(aiScore * 10)}/10`,
+      `Technical project relevance: ${Math.round(aiScore * 10)}/10`,
     ],
   };
 }
@@ -1355,9 +1355,9 @@ function buildBulletImprovements(resumeText: string): BulletImprovement[] {
       suggestedMetrics: hasMetric
         ? ["Existing metric detected; verify accuracy before use."]
         : [
-            "AI suggestion - verify before use: number of stakeholders involved.",
-            "AI suggestion - verify before use: number of projects, launches, users, or workflows affected.",
-            "AI suggestion - verify before use: time saved, revenue influenced, cost reduced, or quality improved.",
+            "Suggested detail - verify before use: number of stakeholders involved.",
+            "Suggested detail - verify before use: number of projects, launches, users, or workflows affected.",
+            "Suggested detail - verify before use: time saved, revenue influenced, cost reduced, or quality improved.",
           ],
     };
   });
@@ -3497,6 +3497,7 @@ function cleanExportBullet(value: string) {
 
 function userFacingGuidance(value: string) {
   return value
+    .replace(/AI suggestion - verify before use:/gi, "Suggested detail - verify before use:")
     .replace(
       /Do not claim ([^.]+?) unless the candidate can verify that experience\.?/gi,
       "Only include $1 if you can confidently explain that experience in interviews.",
@@ -3531,7 +3532,7 @@ function optimizationFallbackText(value: string, action: AiOptimizationAction) {
 
   if (action === "Strengthen Metrics") {
     return [
-      "AI suggestion - verify before use: add only supported metric, scope, or outcome details.",
+      "Suggested detail - verify before use: add only supported metric, scope, or outcome details.",
       ...optimized,
     ].join("\n");
   }
@@ -5588,7 +5589,7 @@ export default function Home() {
       return false;
     }
 
-    setSystemStatus(`${label} is locked on Starter. Upgrade to Plus or Pro to unlock AI optimization.`);
+    setSystemStatus(`${label} is locked on Starter. Upgrade to Plus or Pro to unlock advanced optimization.`);
     return false;
   }
 
@@ -5984,7 +5985,7 @@ export default function Home() {
   }
 
   async function tailorResume() {
-    if (!requireOptimizationAccess("AI resume tailoring")) {
+    if (!requireOptimizationAccess("advanced resume tailoring")) {
       if (isStarterPlan(subscriptionPlan)) {
         const starterSourceText =
           extractedSourceText.trim().length > 0 &&
@@ -6002,7 +6003,7 @@ export default function Home() {
         setTailorError("");
         setResult(starterGeneratedResult);
         setSystemStatus(
-          "Starter preview generated one editable resume. Upgrade to unlock advanced AI optimization, premium exports, and saved versions.",
+          "Starter preview generated one editable resume. Upgrade to unlock advanced optimization, premium exports, and saved versions.",
         );
       }
       return;
@@ -6035,7 +6036,7 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        throw new Error("AI tailoring is unavailable right now.");
+        throw new Error("Resume tailoring is unavailable right now.");
       }
 
       const data = (await response.json()) as TailorApiResponse;
@@ -6051,7 +6052,7 @@ export default function Home() {
       trackUsage("optimizationCreditsUsed");
     } catch {
       setTailorError(
-        "AI tailoring could not complete, so I used a safe resume generation fallback and kept your draft editable.",
+        "Resume tailoring could not complete, so I used a safe fallback and kept your draft editable.",
       );
       setResult(
         buildTailoredResume(
@@ -6743,7 +6744,7 @@ export default function Home() {
                 Beyond resume. Positioning.
               </p>
               <h1 className="mt-3 max-w-4xl text-3xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-5xl">
-                Career infrastructure for modern talent.
+                Career infrastructure for today&apos;s talent.
               </h1>
               <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
                 ISEYA connects private career development, opportunity discovery, recruiter access, and institution-level readiness insight in one employability platform.
@@ -6925,7 +6926,7 @@ export default function Home() {
                 </div>
               ) : (
                 <p className="mt-3 rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm leading-6 text-slate-500">
-                  No optimization history yet. Use Tailor Resume or AI Actions to spend credits.
+                  No optimization history yet. Use Tailor Resume or Optimization Actions to spend credits.
                 </p>
               )}
             </div>
@@ -7163,7 +7164,7 @@ export default function Home() {
               value={targetRole}
               onChange={(event) => setTargetRole(event.target.value)}
               className="mt-3 w-full rounded-md border border-zinc-300 bg-white p-4 text-sm text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
-              placeholder="Example: AI Product Manager"
+              placeholder="Example: Product Manager"
             />
 
             <label
@@ -7245,24 +7246,9 @@ export default function Home() {
           <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
             <details>
               <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
-                AI Model Settings
+                Optimization Settings
               </summary>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <label className="text-sm font-semibold text-[var(--iseya-navy)]">
-                  Model
-                  <select
-                    value={aiSettings.model}
-                    onChange={(event) =>
-                      setAiSettings((current) => ({
-                        ...current,
-                        model: event.target.value,
-                      }))
-                    }
-                    className="mt-2 w-full rounded-md border border-zinc-300 bg-white p-3 text-sm text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
-                  >
-                    <option value="gpt-5.5">gpt-5.5</option>
-                  </select>
-                </label>
                 <label className="text-sm font-semibold text-[var(--iseya-navy)]">
                   Positioning Mode
                   <select
@@ -7748,7 +7734,7 @@ export default function Home() {
             <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
               <div>
                 <h2 className="text-base font-semibold text-[var(--iseya-gold)]">
-                  AI Workspace
+                  Career Workspace
                 </h2>
                 <p className="mt-1 text-xs font-medium text-slate-500">
                   {isStarterWorkflowPreview
@@ -7893,7 +7879,7 @@ export default function Home() {
                   analysis={workspaceResult.advancedAnalysis}
                   onReplaceBullet={
                     isStarterWorkflowPreview
-                      ? () => setSystemStatus("Upgrade to unlock AI bullet rewriting.")
+                      ? () => setSystemStatus("Upgrade to unlock advanced bullet rewriting.")
                       : replaceBulletWithVersion
                   }
                 />
@@ -7924,12 +7910,12 @@ export default function Home() {
                                 </Link>
                               </div>
                               <p className="mt-3 text-sm leading-6 text-slate-600">
-                                Edit your resume manually, preview the final document, and use your one included resume export. Premium AI actions, saved versions, and advanced document exports unlock on Plus or Pro.
+                                Edit your resume manually, preview the final document, and use your one included resume export. Premium optimization actions, saved versions, and advanced document exports unlock on Plus or Pro.
                               </p>
                             </div>
                             <WeakBulletEditor
                               bullets={workspaceResult.coach.weakBullets}
-                              onApply={() => setSystemStatus("Upgrade to unlock AI bullet rewriting.")}
+                              onApply={() => setSystemStatus("Upgrade to unlock advanced bullet rewriting.")}
                             />
                             <ModularResumeEditor
                               resumeText={workspaceResult.rewrittenResume}
@@ -7946,7 +7932,7 @@ export default function Home() {
                               onResumeTextChange={updateWorkspaceResumeOutput}
                               canUseAiOptimization={false}
                               onUpgradeRequired={() =>
-                                requireOptimizationAccess("AI section optimization")
+                                requireOptimizationAccess("section optimization")
                               }
                               onOptimizationUsed={() => undefined}
                             />
@@ -7987,7 +7973,7 @@ export default function Home() {
                               optimizationCreditsRemaining > 0
                             }
                             onUpgradeRequired={() =>
-                              requireOptimizationAccess("AI section optimization")
+                              requireOptimizationAccess("section optimization")
                             }
                             onOptimizationUsed={() => trackUsage("optimizationCreditsUsed")}
                           />
@@ -8257,7 +8243,7 @@ function StarterWorkspacePreviewNotice() {
         Full workflow visibility
       </h3>
       <p className="mt-2 text-xs leading-5 text-slate-600">
-        You can preview the AI Workspace, diagnostics, career intelligence, cover letter, LinkedIn, and application kit experience. Upgrade to unlock personalization, generation, exports, and saved versions.
+        You can preview the Career Workspace, diagnostics, career intelligence, cover letter, LinkedIn, and application kit experience. Upgrade to unlock personalization, generation, exports, and saved versions.
       </p>
       <Link href="/pricing" className={`${primaryButtonClass} ${buttonSizeSmClass} mt-3`}>
         Upgrade to unlock
@@ -8520,7 +8506,7 @@ function ModularResumeEditor({
 
     if (!canUseAiOptimization) {
       onUpgradeRequired();
-      setOptimizationStatus("AI section optimization is prepared for ISEYA Pro.");
+      setOptimizationStatus("Section optimization is prepared for ISEYA Pro.");
       return "";
     }
 
@@ -8933,7 +8919,7 @@ function ModularResumeEditor({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h4 className="text-sm font-semibold text-[var(--iseya-navy)]">
-              Continuous AI Optimization
+              Continuous Optimization
             </h4>
             <p className="mt-1 text-xs leading-5 text-slate-600">
               Improve one section or achievement at a time. Inferred suggestions should be verified before use.
@@ -9354,7 +9340,7 @@ function AiActionsMenu({
         className={`${secondaryButtonClass} ${buttonSizeSmClass} cursor-pointer list-none`}
         onClick={(event) => event.stopPropagation()}
       >
-        {isOptimizing ? "Optimizing..." : "AI Actions"}
+        {isOptimizing ? "Optimizing..." : "Optimization Actions"}
       </summary>
       <div className="absolute right-0 z-20 mt-2 w-64 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
         {actions.map((action, actionIndex) => (
@@ -9682,7 +9668,7 @@ function AdvancedIntelligencePanel({
       <div className="mt-4 space-y-3">
         <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
-            AI Interview Prep
+            Interview Preparation
           </summary>
           <div className="mt-3 space-y-4">
             <CoachBlock
@@ -9784,7 +9770,7 @@ function AdvancedIntelligencePanel({
 
         <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
-            AI Achievement Improvement Engine
+            Achievement Improvement
           </summary>
           <div className="mt-3 space-y-3">
             {analysis.bulletImprovements.length > 0 ? (
@@ -9840,7 +9826,7 @@ function AdvancedIntelligencePanel({
 
         <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
-            AI Suggestions
+            Optimization Suggestions
           </summary>
           <CoachBlock title="Smart Suggestions" items={analysis.aiSuggestions} />
         </details>
