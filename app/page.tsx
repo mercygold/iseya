@@ -9122,22 +9122,9 @@ function WorkspaceNavigation({
         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
           Readiness Snapshot
         </p>
-        <div className="mt-2 flex items-center justify-between text-xs font-semibold text-slate-600">
-          <span>ATS Readiness</span>
-          <span>{Math.round(atsScore)}/100</span>
-        </div>
-        <div className="mt-2 h-1.5 rounded-full bg-slate-200">
-          <div
-            className="h-1.5 rounded-full bg-emerald-500"
-            style={{ width: `${Math.min(100, Math.max(0, atsScore))}%` }}
-          />
-        </div>
-        <div className="mt-2.5 flex items-center justify-between text-xs font-semibold text-slate-600">
-          <span>Role Fit</span>
-          <span>{Math.round(roleFit)}/100</span>
-        </div>
-        <div className="mt-2 h-1.5 rounded-full bg-slate-200">
-          <div className="h-1.5 rounded-full bg-blue-500" style={{ width: `${Math.min(100, Math.max(0, roleFit))}%` }} />
+        <div className="mt-2 space-y-1.5">
+          <ScoreBar label="ATS Readiness" score={atsScore} tone="green" />
+          <ScoreBar label="Role Fit" score={roleFit} tone="blue" />
         </div>
       </div>
       <div className="mt-2 rounded-lg border border-slate-200 bg-white p-2.5">
@@ -10624,7 +10611,7 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
         <p className="mt-1 text-xs leading-5 text-slate-500">
           Get smart suggestions to strengthen your resume.
         </p>
-        <ul className="mt-2 grid grid-cols-2 gap-1.5 text-[11px] font-medium leading-4 text-slate-700">
+        <ul className="mt-2 space-y-1.5 text-[11px] font-medium leading-4 text-slate-700">
           {[
             ["Add measurable achievements", "bg-emerald-50 text-emerald-600"],
             ["Strengthen your summary", "bg-blue-50 text-blue-600"],
@@ -10632,8 +10619,8 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
             ["Enhance impact and clarity", "bg-slate-100 text-[var(--iseya-navy)]"],
           ].map(([label, color]) => (
             <li key={label} className="flex items-start gap-2 rounded-md border border-slate-100 bg-slate-50/60 px-2 py-1.5">
-              <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
-              {label}
+              <span className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${color}`} />
+              <span className="min-w-0 break-words">{label}</span>
             </li>
           ))}
         </ul>
@@ -10649,10 +10636,10 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
           </span>
           <span className="pb-1 text-sm font-semibold text-slate-500">/100</span>
         </div>
-        <div className="mt-1.5 grid grid-cols-3 gap-1">
-          <ScoreBar label="Readability score" score={breakdown.atsReadability} />
-          <ScoreBar label="Alignment score" score={breakdown.roleFit} />
-          <ScoreBar label="Evidence strength" score={breakdown.metricStrength} />
+        <div className="mt-1.5 space-y-1.5">
+          <ScoreBar label="Readability score" score={breakdown.atsReadability} tone="green" />
+          <ScoreBar label="Alignment score" score={breakdown.roleFit} tone="blue" />
+          <ScoreBar label="Evidence strength" score={breakdown.metricStrength} tone="gold" />
         </div>
       </section>
 
@@ -10661,9 +10648,9 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
           Recruiter Simulation
         </summary>
         <div className="mt-2 space-y-1.5">
-          <ScoreBar label="ATS screen" score={simulation.atsScreening.score} />
-          <ScoreBar label="Recruiter" score={simulation.recruiterReview.score} />
-          <ScoreBar label="Hiring manager" score={simulation.hiringManagerReview.score} />
+          <ScoreBar label="ATS screen" score={simulation.atsScreening.score} tone="green" />
+          <ScoreBar label="Recruiter" score={simulation.recruiterReview.score} tone="blue" />
+          <ScoreBar label="Hiring manager" score={simulation.hiringManagerReview.score} tone="gold" />
         </div>
       </details>
 
@@ -10672,7 +10659,7 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
           Content Feedback
         </summary>
         <CoachInlineList items={quickCritiques} />
-        <div className="mt-2 grid grid-cols-2 gap-1.5">
+        <div className="mt-2 space-y-1.5">
           {sectionCritiques.map(([title, items], sectionIndex) => (
             <details
               key={`${title}-${sectionIndex}`}
@@ -10680,7 +10667,7 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
             >
               <summary className="cursor-pointer list-none">
                 <p className="text-xs font-semibold text-[var(--iseya-navy)]">{title}</p>
-                <p className="mt-1 truncate text-[11px] leading-4 text-slate-500">
+                <p className="mt-1 break-words text-[11px] leading-4 text-slate-500">
                   {safeStringArray(items)[0] || "No detail yet."}
                 </p>
               </summary>
@@ -11024,21 +11011,44 @@ function AdvancedIntelligencePanel({
   );
 }
 
-function ScoreBar({ label, score }: { label: string; score: number }) {
+function ScoreBar({
+  label,
+  score,
+  tone = "gold",
+  helperText,
+}: {
+  label: string;
+  score: number;
+  tone?: "green" | "blue" | "gold";
+  helperText?: string;
+}) {
   const safeScoreValue = clampPercent(score, 0);
+  const progressClass =
+    tone === "green"
+      ? "bg-emerald-500"
+      : tone === "blue"
+        ? "bg-blue-500"
+        : "bg-[var(--iseya-gold)]";
 
   return (
-    <div className="rounded-md border border-zinc-200 bg-white p-2">
-      <div className="flex items-center justify-between gap-3 text-xs">
-        <span className="font-medium text-zinc-700">{label}</span>
-        <span className="font-semibold text-zinc-950">{safeScoreValue}/100</span>
-      </div>
-      <div className="mt-1.5 h-1.5 rounded-full bg-zinc-200">
+    <div className="min-w-0 rounded-md border border-slate-200 bg-white px-2.5 py-2">
+      <p className="break-words text-[11px] font-semibold leading-4 text-[var(--iseya-navy)]">
+        {label}
+      </p>
+      <p className="mt-0.5 text-base font-semibold leading-5 text-[var(--iseya-navy)]">
+        {safeScoreValue}<span className="text-xs font-medium text-slate-500">/100</span>
+      </p>
+      <div className="mt-1.5 h-1.5 rounded-full bg-slate-200">
         <div
-          className="h-1.5 rounded-full bg-[var(--iseya-gold)]"
+          className={`h-1.5 rounded-full ${progressClass}`}
           style={{ width: `${safeScoreValue}%` }}
         />
       </div>
+      {helperText ? (
+        <p className="mt-1.5 break-words text-[11px] leading-4 text-slate-500">
+          {helperText}
+        </p>
+      ) : null}
     </div>
   );
 }
