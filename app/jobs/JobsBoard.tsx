@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeCheck,
   Bookmark,
@@ -74,6 +74,48 @@ type OpportunityProfile = {
   icon: typeof Globe2;
   nativeApply: boolean;
 };
+
+const opportunitySourceCards: Array<{
+  type: OpportunityType;
+  title: string;
+  copy: string;
+  Icon: typeof Globe2;
+  className: string;
+  activeClassName: string;
+}> = [
+  {
+    type: "curated",
+    title: "Curated Opportunity",
+    copy: "External hiring channels selected by ISEYA.",
+    Icon: ExternalLink,
+    className: "border-slate-200 bg-white text-slate-700",
+    activeClassName: "border-slate-500 bg-slate-100 ring-2 ring-slate-300",
+  },
+  {
+    type: "recruiter",
+    title: "Recruiter Posted",
+    copy: "Native roles submitted through ISEYA.",
+    Icon: UserRoundSearch,
+    className: "border-blue-100 bg-blue-50/50 text-blue-800",
+    activeClassName: "border-blue-500 bg-blue-50 ring-2 ring-blue-200",
+  },
+  {
+    type: "verified_recruiter",
+    title: "Verified Recruiter",
+    copy: "Reviewed recruiting partner trust layer.",
+    Icon: BadgeCheck,
+    className: "border-blue-200 bg-blue-50 text-blue-900",
+    activeClassName: "border-blue-600 bg-blue-100 ring-2 ring-blue-200",
+  },
+  {
+    type: "direct_employer",
+    title: "Direct Employer",
+    copy: "Company-posted roles with highest trust.",
+    Icon: Building2,
+    className: "border-amber-200 bg-[#FFF8E6]/70 text-[var(--iseya-navy)]",
+    activeClassName: "border-[var(--iseya-gold)] bg-[#FFF8E6] ring-2 ring-amber-200",
+  },
+];
 
 const primaryButton =
   "inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-3 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] disabled:cursor-not-allowed disabled:opacity-60";
@@ -209,10 +251,19 @@ export default function JobsBoard() {
   const [interestSubmitted, setInterestSubmitted] = useState(false);
   const [interestStatus, setInterestStatus] = useState("");
   const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
+  const [sourceFilter, setSourceFilter] = useState<OpportunityType | "">("");
+  const firstVisibleJobRef = useRef<HTMLButtonElement | null>(null);
 
+  const visibleJobs = useMemo(
+    () =>
+      sourceFilter
+        ? jobs.filter((job) => opportunityProfile(job).type === sourceFilter)
+        : jobs,
+    [jobs, sourceFilter],
+  );
   const selectedJob = useMemo(
-    () => jobs.find((job) => job.id === selectedJobId) ?? jobs[0] ?? null,
-    [jobs, selectedJobId],
+    () => visibleJobs.find((job) => job.id === selectedJobId) ?? visibleJobs[0] ?? null,
+    [visibleJobs, selectedJobId],
   );
   const selectedApplicationStatus = selectedJob
     ? selectedJob.status === "closed" && applicationsByJobId[selectedJob.id]
@@ -302,6 +353,19 @@ export default function JobsBoard() {
 
     return () => window.clearTimeout(timer);
   }, [loadJobs]);
+
+  function filterBySource(source: OpportunityType | "") {
+    const matchingJobs = source
+      ? jobs.filter((job) => opportunityProfile(job).type === source)
+      : jobs;
+    setSourceFilter(source);
+    setSelectedJobId(matchingJobs[0]?.id ?? "");
+
+    window.requestAnimationFrame(() => {
+      firstVisibleJobRef.current?.focus();
+      firstVisibleJobRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  }
 
   function beginApplication(job: JobPost) {
     if (job.application_url) {
@@ -532,40 +596,40 @@ export default function JobsBoard() {
           <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
             Know where every opportunity comes from.
           </h2>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-slate-600">
+              {sourceFilter
+                ? `Filtering by ${opportunitySourceCards.find((card) => card.type === sourceFilter)?.title}.`
+                : "Showing all opportunity sources."}
+            </p>
+            <button
+              type="button"
+              onClick={() => filterBySource("")}
+              aria-pressed={!sourceFilter}
+              className={`${secondaryButton} min-h-9 px-3 py-1.5 text-xs ${
+                !sourceFilter ? "border-[var(--iseya-gold)] bg-[#FFF8E6]" : ""
+              }`}
+            >
+              All Opportunities
+            </button>
+          </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              {
-                title: "Curated Opportunity",
-                copy: "External hiring channels selected by ISEYA.",
-                Icon: ExternalLink,
-                className: "border-slate-200 bg-white text-slate-700",
-              },
-              {
-                title: "Recruiter Posted",
-                copy: "Native roles submitted through ISEYA.",
-                Icon: UserRoundSearch,
-                className: "border-blue-100 bg-blue-50/50 text-blue-800",
-              },
-              {
-                title: "Verified Recruiter",
-                copy: "Reviewed recruiting partner trust layer.",
-                Icon: BadgeCheck,
-                className: "border-blue-200 bg-blue-50 text-blue-900",
-              },
-              {
-                title: "Direct Employer",
-                copy: "Company-posted roles with highest trust.",
-                Icon: Building2,
-                className: "border-amber-200 bg-[#FFF8E6]/70 text-[var(--iseya-navy)]",
-              },
-            ].map(({ title, copy, Icon, className }) => (
-              <div key={title} className={`rounded-xl border p-3.5 ${className}`}>
+            {opportunitySourceCards.map(({ type, title, copy, Icon, className, activeClassName }) => (
+              <button
+                type="button"
+                key={title}
+                onClick={() => filterBySource(type)}
+                aria-pressed={sourceFilter === type}
+                className={`rounded-xl border p-3.5 text-left transition hover:-translate-y-px hover:shadow-sm ${
+                  sourceFilter === type ? activeClassName : className
+                }`}
+              >
                 <div className="flex items-center gap-2">
                   <Icon className="h-4 w-4" aria-hidden="true" />
                   <p className="text-xs font-bold uppercase tracking-[0.12em]">{title}</p>
                 </div>
                 <p className="mt-2 text-xs leading-5 opacity-80">{copy}</p>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -661,12 +725,14 @@ export default function JobsBoard() {
                   </div>
                 ))}
               </div>
-            ) : jobs.length === 0 ? (
+            ) : visibleJobs.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm font-medium text-slate-600">
-                New opportunities are being added. Adjust your filters or subscribe for alerts.
+                {sourceFilter
+                  ? "No published opportunities match this source and your current filters. Choose another source or reset to all opportunities."
+                  : "New opportunities are being added. Adjust your filters or subscribe for alerts."}
               </div>
             ) : (
-              jobs.map((job) => {
+              visibleJobs.map((job, index) => {
                 const source = opportunityProfile(job);
                 const SourceIcon = source.icon;
                 const applicationStatus =
@@ -682,7 +748,12 @@ export default function JobsBoard() {
                       : "border-slate-200 bg-white hover:border-[var(--iseya-gold)]"
                   }`}
                 >
-                  <button type="button" onClick={() => setSelectedJobId(job.id)} className="w-full text-left">
+                  <button
+                    ref={index === 0 ? firstVisibleJobRef : undefined}
+                    type="button"
+                    onClick={() => setSelectedJobId(job.id)}
+                    className="w-full text-left"
+                  >
                     <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${source.badgeClass}`}>
                       <SourceIcon className="h-3 w-3" aria-hidden="true" />
                       {source.label}
