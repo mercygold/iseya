@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { demoCandidate } from "@/lib/demoData";
-import { demoCard, demoPrimaryButton, demoSecondaryButton } from "../DemoShell";
+import { demoCard, demoLabel, demoPrimaryButton, demoSecondaryButton, demoStatusPill } from "../DemoShell";
 
 const statusStyles: Record<string, string> = {
   Submitted: "border-[#F4B321]/45 bg-[#FFF8E6] text-[var(--iseya-navy)]",
@@ -11,12 +11,12 @@ const statusStyles: Record<string, string> = {
 
 export default function CandidateDemoPage() {
   return (
-    <section className="mx-auto max-w-[92rem] space-y-6 px-5 py-9 sm:px-8 sm:py-12">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+    <section className="mx-auto max-w-[84rem] space-y-5 px-5 py-7 sm:px-8 sm:py-9">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">Candidate Experience</p>
-          <h1 className="mt-3 text-3xl font-semibold text-[var(--iseya-navy)] sm:text-4xl">{demoCandidate.name}</h1>
-          <p className="mt-3 text-base leading-7 text-slate-600">
+          <p className={demoLabel}>Candidate Experience</p>
+          <h1 className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)] sm:text-4xl">{demoCandidate.name}</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
             {demoCandidate.roleGoal} | {demoCandidate.location}
           </p>
         </div>
@@ -34,47 +34,47 @@ export default function CandidateDemoPage() {
           ["Active outcomes", "2", "Reviewing or proceeding"],
         ].map(([label, value, detail]) => (
           <article key={label} className={demoCard}>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">{label}</p>
-            <p className="mt-3 text-3xl font-semibold text-[var(--iseya-navy)]">{value}</p>
-            <p className="mt-2 text-xs font-medium text-slate-500">{detail}</p>
+            <p className={demoLabel}>{label}</p>
+            <p className="mt-2 text-3xl font-semibold leading-none text-[var(--iseya-navy)]">{value}</p>
+            <p className="mt-2 text-xs text-slate-500">{detail}</p>
           </article>
         ))}
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+      <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <article className={demoCard}>
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">Career Assets</p>
-          <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Readiness progress</h2>
-          <div className="mt-5 space-y-4">
+          <p className={demoLabel}>Career Assets</p>
+          <h2 className="mt-1.5 text-lg font-semibold text-[var(--iseya-navy)]">Readiness progress</h2>
+          <div className="mt-4 space-y-3.5">
             {demoCandidate.careerAssets.map((asset) => (
               <div key={asset.label}>
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <p className="font-semibold text-[var(--iseya-navy)]">{asset.label}</p>
                   <p className="font-medium text-slate-500">{asset.status}</p>
                 </div>
-                <div className="mt-2 h-2 rounded-full bg-slate-100">
-                  <div className="h-2 rounded-full bg-[var(--iseya-gold)]" style={{ width: `${asset.progress}%` }} />
+                <div className="mt-1.5 h-1.5 rounded-full bg-slate-100">
+                  <div className="h-1.5 rounded-full bg-[var(--iseya-gold)]" style={{ width: `${asset.progress}%` }} />
                 </div>
               </div>
             ))}
           </div>
-          <button type="button" disabled className={`${demoSecondaryButton} mt-6 cursor-default opacity-90`}>
+          <button type="button" disabled className={`${demoSecondaryButton} mt-5 cursor-default opacity-90`}>
             Improve Career Materials Preview
           </button>
         </article>
 
         <article className={demoCard}>
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">My Applications</p>
-          <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Application tracking</h2>
-          <div className="mt-5 space-y-3">
+          <p className={demoLabel}>My Applications</p>
+          <h2 className="mt-1.5 text-lg font-semibold text-[var(--iseya-navy)]">Application tracking</h2>
+          <div className="mt-4 divide-y divide-slate-100 rounded-md border border-slate-100">
             {demoCandidate.applications.map((application) => (
-              <div key={application.title} className="rounded-xl border border-slate-200 p-4">
+              <div key={application.title} className="px-3.5 py-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-[var(--iseya-navy)]">{application.title}</p>
+                    <p className="text-sm font-semibold text-[var(--iseya-navy)]">{application.title}</p>
                     <p className="mt-1 text-sm text-slate-600">{application.company} | {application.date}</p>
                   </div>
-                  <span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusStyles[application.status]}`}>
+                  <span className={`${demoStatusPill} ${statusStyles[application.status]}`}>
                     {application.status}
                   </span>
                 </div>
@@ -84,20 +84,20 @@ export default function CandidateDemoPage() {
         </article>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-2">
+      <section className="grid gap-4 lg:grid-cols-2">
         <article className={demoCard}>
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">Job Discovery Preview</p>
-          <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Recommended role direction</h2>
-          <p className="mt-4 rounded-xl border border-[var(--iseya-gold)]/35 bg-[#FFF8E6] p-4 text-sm leading-7 text-slate-700">
+          <p className={demoLabel}>Job Discovery Preview</p>
+          <h2 className="mt-1.5 text-lg font-semibold text-[var(--iseya-navy)]">Recommended role direction</h2>
+          <p className="mt-3 rounded-md border border-[var(--iseya-gold)]/35 bg-[#FFF8E6] p-3.5 text-sm leading-6 text-slate-700">
             Product analyst and associate product roles align with your selected positioning and application material progress.
           </p>
         </article>
         <article className={demoCard}>
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">Notifications</p>
-          <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Recent updates</h2>
-          <div className="mt-4 space-y-3">
+          <p className={demoLabel}>Notifications</p>
+          <h2 className="mt-1.5 text-lg font-semibold text-[var(--iseya-navy)]">Recent updates</h2>
+          <div className="mt-3 divide-y divide-slate-100 rounded-md border border-slate-100 bg-slate-50/60">
             {demoCandidate.notifications.map((notice) => (
-              <p key={notice} className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+              <p key={notice} className="p-3.5 text-sm leading-6 text-slate-600">
                 {notice}
               </p>
             ))}

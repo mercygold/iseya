@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { demoCard, demoPrimaryButton, demoSecondaryButton } from "./DemoShell";
+import { demoCard, demoLabel, demoPrimaryButton, demoSecondaryButton } from "./DemoShell";
 
 const pathways = [
   {
@@ -36,41 +36,41 @@ const flow = [
 export default function DemoPage() {
   return (
     <>
-      <section className="mx-auto max-w-[92rem] px-5 py-10 sm:px-8 sm:py-14">
+      <section className="mx-auto max-w-[84rem] px-5 py-8 sm:px-8 sm:py-10">
         <div className="max-w-4xl">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">ISEYA Demo</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-5xl">
+          <p className={demoLabel}>ISEYA Demo</p>
+          <h1 className="mt-3 text-3xl font-semibold leading-tight text-[var(--iseya-navy)] sm:text-5xl">
             Explore how ISEYA connects students, institutions, and recruiters through career readiness infrastructure.
           </h1>
-          <p className="mt-5 max-w-3xl text-base leading-8 text-slate-600">
+          <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
             This guided experience uses fictional, local-only sample information to demonstrate platform workflows without creating accounts, records, applications, or analytics activity.
           </p>
         </div>
-        <div className="mt-10 grid gap-5 lg:grid-cols-3">
+        <div className="mt-8 grid gap-4 lg:grid-cols-3">
           {pathways.map((pathway) => (
             <article key={pathway.label} className={`${demoCard} flex flex-col`}>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">{pathway.label}</p>
-              <h2 className="mt-3 text-2xl font-semibold text-[var(--iseya-navy)]">{pathway.title}</h2>
-              <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">{pathway.copy}</p>
-              <Link href={pathway.href} className={`${demoPrimaryButton} mt-6`}>
+              <p className={demoLabel}>{pathway.label}</p>
+              <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">{pathway.title}</h2>
+              <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{pathway.copy}</p>
+              <Link href={pathway.href} className={`${demoPrimaryButton} mt-5`}>
                 {pathway.cta}
               </Link>
             </article>
           ))}
         </div>
       </section>
-      <section className="mx-auto max-w-[92rem] px-5 pb-10 sm:px-8">
+      <section className="mx-auto max-w-[84rem] px-5 pb-9 sm:px-8">
         <article className={`${demoCard} border-[var(--iseya-gold)]/40`}>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Platform Journey</p>
-          <div className="mt-6 grid gap-3 md:grid-cols-5">
+          <p className={demoLabel}>Platform Journey</p>
+          <div className="mt-4 grid gap-3 md:grid-cols-5">
             {flow.map((step, index) => (
-              <div key={step} className="relative rounded-xl bg-[var(--iseya-soft-bg)] p-4">
+              <div key={step} className="relative rounded-md border border-slate-100 bg-[var(--iseya-soft-bg)] p-3.5">
                 <p className="text-xs font-bold text-[var(--iseya-gold)]">0{index + 1}</p>
-                <p className="mt-2 text-sm font-semibold leading-6 text-[var(--iseya-navy)]">{step}</p>
+                <p className="mt-1.5 text-sm font-semibold leading-5 text-[var(--iseya-navy)]">{step}</p>
               </div>
             ))}
           </div>
-          <div className="mt-7 flex flex-wrap gap-3">
+          <div className="mt-5 flex flex-wrap gap-3">
             <Link href="/signup" className={demoPrimaryButton}>Start Free</Link>
             <Link href="/institutions" className={demoSecondaryButton}>Request Partnership</Link>
           </div>
