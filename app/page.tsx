@@ -8251,9 +8251,9 @@ export default function Home() {
             </div>
           </div>
 
-	          <div className="grid gap-3 xl:grid-cols-[312px_minmax(0,1fr)]">
+	          <div className="grid gap-3 xl:grid-cols-[352px_minmax(0,1fr)]">
 	            <aside className="order-2 xl:order-1">
-	              <div className="space-y-2.5 xl:sticky xl:top-20 xl:max-h-[calc(100vh-5.75rem)] xl:overflow-y-auto xl:pr-1">
+	              <div className="space-y-2 xl:sticky xl:top-20">
                 <WorkspaceNavigation
                   activeOutput={activeOutput}
                   onOpen={openOutputTab}
@@ -8347,7 +8347,7 @@ export default function Home() {
                           <textarea
                             value={jobDescription}
                             onChange={(event) => setJobDescription(event.target.value)}
-                            className="mt-1.5 min-h-24 w-full resize-y rounded-md border border-slate-300 bg-white p-2.5 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                            className="mt-1.5 min-h-40 w-full resize-y rounded-md border border-slate-300 bg-white p-2.5 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                             placeholder="Paste the target job description here..."
                           />
                         </label>
@@ -8392,7 +8392,7 @@ export default function Home() {
                         <textarea
                           value={masterResume}
                           onChange={(event) => setMasterResume(event.target.value)}
-                          className="mt-2.5 min-h-24 w-full resize-y rounded-md border border-slate-300 bg-white p-2.5 text-xs leading-5 text-slate-700 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                          className="mt-2.5 min-h-72 w-full resize-y rounded-md border border-slate-300 bg-white p-2.5 text-xs leading-5 text-slate-700 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                           placeholder="Paste your source resume here..."
                         />
                         <label htmlFor="workspace-source-file-upload" className={`${secondaryButtonClass} ${buttonSizeSmClass} mt-2.5 cursor-pointer`}>
@@ -9082,47 +9082,47 @@ function WorkspaceNavigation({
   ];
 
   return (
-    <section className="rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
-      <p className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+    <section className="rounded-xl border border-slate-200/80 bg-white p-2 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+      <p className="px-2 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
         Workspace
       </p>
-      <nav className="mt-1 grid gap-1" aria-label="Career workspace">
+      <nav className="mt-1 grid grid-cols-2 gap-1" aria-label="Career workspace">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => onOpen(tab.id)}
-            className={`flex min-h-9 items-center justify-between rounded-md px-3 text-left text-sm font-semibold transition ${
+            className={`flex min-h-9 items-center justify-between rounded-md px-2.5 text-left text-xs font-semibold transition ${
               activeOutput === tab.id
                 ? "border-l-2 border-[var(--iseya-gold)] bg-[var(--iseya-navy)] text-[var(--iseya-gold)]"
                 : "text-slate-700 hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]"
             }`}
           >
-            <span className="flex items-center gap-2.5">
+            <span className="flex min-w-0 items-center gap-2">
               <tab.icon className="h-4 w-4" strokeWidth={1.8} />
               {tab.label}
             </span>
             {tab.locked ? <span className="text-xs" aria-label="Premium preview">🔒</span> : null}
           </button>
         ))}
-        <a href="#career-intelligence" className="flex min-h-9 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
+        <a href="#career-intelligence" className="flex min-h-9 items-center gap-2 rounded-md px-2.5 text-xs font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
           <ClipboardList className="h-4 w-4" strokeWidth={1.8} /> Interview Prep
         </a>
-        <Link href="/applications" className="flex min-h-9 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
+        <Link href="/applications" className="flex min-h-9 items-center gap-2 rounded-md px-2.5 text-xs font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
           <BriefcaseBusiness className="h-4 w-4" strokeWidth={1.8} /> Job Tracker
         </Link>
-        <a href="#source-materials" className="flex min-h-9 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
+        <a href="#source-materials" className="flex min-h-9 items-center gap-2 rounded-md px-2.5 text-xs font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
           <FileText className="h-4 w-4" strokeWidth={1.8} /> Documents
         </a>
-        <a href="#optimization-settings" className="flex min-h-9 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
+        <a href="#optimization-settings" className="flex min-h-9 items-center gap-2 rounded-md px-2.5 text-xs font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
           <Settings className="h-4 w-4" strokeWidth={1.8} /> Settings
         </a>
       </nav>
-      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+      <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/70 p-2.5">
         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
           Readiness Snapshot
         </p>
-        <div className="mt-2.5 flex items-center justify-between text-xs font-semibold text-slate-600">
+        <div className="mt-2 flex items-center justify-between text-xs font-semibold text-slate-600">
           <span>ATS Readiness</span>
           <span>{Math.round(atsScore)}/100</span>
         </div>
@@ -9132,7 +9132,7 @@ function WorkspaceNavigation({
             style={{ width: `${Math.min(100, Math.max(0, atsScore))}%` }}
           />
         </div>
-        <div className="mt-3 flex items-center justify-between text-xs font-semibold text-slate-600">
+        <div className="mt-2.5 flex items-center justify-between text-xs font-semibold text-slate-600">
           <span>Role Fit</span>
           <span>{Math.round(roleFit)}/100</span>
         </div>
@@ -9140,18 +9140,18 @@ function WorkspaceNavigation({
           <div className="h-1.5 rounded-full bg-blue-500" style={{ width: `${Math.min(100, Math.max(0, roleFit))}%` }} />
         </div>
       </div>
-      <div className="mt-2.5 rounded-lg border border-slate-200 bg-white p-2.5">
+      <div className="mt-2 rounded-lg border border-slate-200 bg-white p-2.5">
         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
           Quick Actions
         </p>
-        <div className="mt-2 grid gap-1.5 text-xs font-semibold">
+        <div className="mt-2 grid grid-cols-2 gap-1.5 text-xs font-semibold">
           <a href="#career-intelligence" className="rounded-md border border-slate-200 px-3 py-2 text-slate-700 transition hover:border-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]">
             Run ATS Check
           </a>
           <a href="#career-intelligence" className="rounded-md border border-slate-200 px-3 py-2 text-slate-700 transition hover:border-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]">
             Keyword Match
           </a>
-          <button type="button" onClick={onOptimize} className="rounded-md border border-slate-200 px-3 py-2 text-left text-slate-700 transition hover:border-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]">
+          <button type="button" onClick={onOptimize} className="col-span-2 rounded-md border border-slate-200 px-3 py-2 text-left text-slate-700 transition hover:border-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]">
             Optimize Full Resume
           </button>
         </div>
@@ -10616,22 +10616,22 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
   ] as const;
 
   return (
-    <div className="space-y-2.5">
-      <section className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+    <div className="space-y-2">
+      <section className="rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
           Career Insights
         </h2>
-        <p className="mt-2 text-xs leading-5 text-slate-500">
+        <p className="mt-1 text-xs leading-5 text-slate-500">
           Get smart suggestions to strengthen your resume.
         </p>
-        <ul className="mt-3 grid grid-cols-2 gap-2 text-[11px] font-medium leading-4 text-slate-700">
+        <ul className="mt-2 grid grid-cols-2 gap-1.5 text-[11px] font-medium leading-4 text-slate-700">
           {[
             ["Add measurable achievements", "bg-emerald-50 text-emerald-600"],
             ["Strengthen your summary", "bg-blue-50 text-blue-600"],
             ["Improve keyword alignment", "bg-[#FFF8E6] text-[var(--iseya-gold)]"],
             ["Enhance impact and clarity", "bg-slate-100 text-[var(--iseya-navy)]"],
           ].map(([label, color]) => (
-            <li key={label} className="flex items-start gap-2 rounded-md border border-slate-100 bg-slate-50/60 px-2 py-2">
+            <li key={label} className="flex items-start gap-2 rounded-md border border-slate-100 bg-slate-50/60 px-2 py-1.5">
               <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
               {label}
             </li>
@@ -10639,40 +10639,40 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
         </ul>
       </section>
 
-      <section className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+      <section className="rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
           Insights Center
         </p>
-        <div className="mt-2 flex items-end gap-2">
-          <span className="text-2xl font-semibold tracking-tight text-[var(--iseya-navy)]">
+        <div className="mt-1 flex items-end gap-2">
+          <span className="text-xl font-semibold tracking-tight text-[var(--iseya-navy)]">
             {Math.round(score)}
           </span>
           <span className="pb-1 text-sm font-semibold text-slate-500">/100</span>
         </div>
-        <div className="mt-2 grid grid-cols-2 gap-1.5">
+        <div className="mt-1.5 grid grid-cols-3 gap-1">
           <ScoreBar label="Readability score" score={breakdown.atsReadability} />
           <ScoreBar label="Alignment score" score={breakdown.roleFit} />
           <ScoreBar label="Evidence strength" score={breakdown.metricStrength} />
         </div>
       </section>
 
-      <details className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+      <details className="rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
           Recruiter Simulation
         </summary>
-        <div className="mt-3 space-y-2">
+        <div className="mt-2 space-y-1.5">
           <ScoreBar label="ATS screen" score={simulation.atsScreening.score} />
           <ScoreBar label="Recruiter" score={simulation.recruiterReview.score} />
           <ScoreBar label="Hiring manager" score={simulation.hiringManagerReview.score} />
         </div>
       </details>
 
-      <details className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+      <details className="rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
           Content Feedback
         </summary>
         <CoachInlineList items={quickCritiques} />
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-2 grid grid-cols-2 gap-1.5">
           {sectionCritiques.map(([title, items], sectionIndex) => (
             <details
               key={`${title}-${sectionIndex}`}
@@ -10690,14 +10690,14 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
         </div>
       </details>
 
-      <details className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+      <details className="rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
           Resume Integrity
         </summary>
         <CoachInlineList items={safeStringArray(result.riskFlags).map(userFacingGuidance)} />
       </details>
 
-      <details className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
+      <details className="rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
         <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
           Industry Alignment
         </summary>
@@ -10850,12 +10850,12 @@ function AdvancedIntelligencePanel({
   onReplaceBullet: (original: string, replacement: string) => void;
 }) {
   return (
-    <details className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+    <details className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
       <summary className="cursor-pointer list-none text-sm font-semibold text-[var(--iseya-navy)]">
         Career Intelligence
       </summary>
-      <div className="mt-3 space-y-2">
-        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2.5">
+      <div className="mt-2 space-y-1.5">
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             Interview Preparation
           </summary>
@@ -10888,7 +10888,7 @@ function AdvancedIntelligencePanel({
           </div>
         </details>
 
-        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2.5">
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             Gap Analysis
           </summary>
@@ -10914,7 +10914,7 @@ function AdvancedIntelligencePanel({
           </div>
         </details>
 
-        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2.5">
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             Job Description Intelligence
           </summary>
@@ -10957,7 +10957,7 @@ function AdvancedIntelligencePanel({
           </div>
         </details>
 
-        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2.5">
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             Achievement Improvement
           </summary>
@@ -11013,7 +11013,7 @@ function AdvancedIntelligencePanel({
           </div>
         </details>
 
-        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2.5">
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             Optimization Suggestions
           </summary>
