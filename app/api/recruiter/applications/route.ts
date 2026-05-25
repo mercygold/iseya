@@ -50,6 +50,26 @@ export async function GET() {
     return Response.json({ error: "Unable to load applicants right now." }, { status: 500 });
   }
 
+  const applicationIds = (data ?? []).map((application) => application.id);
+  const { data: recruiterNotes, error: noteError } = applicationIds.length
+    ? await supabase
+        .from("job_application_recruiter_notes")
+        .select("application_id, recruiter_note")
+        .eq("recruiter_id", userId)
+        .in("application_id", applicationIds)
+    : { data: [], error: null };
+
+  if (noteError) {
+    console.error("[recruiter-applications] internal notes lookup failed", {
+      code: noteError.code,
+      message: noteError.message,
+      userId,
+    });
+  }
+
+  const notesByApplication = new Map(
+    (recruiterNotes ?? []).map((note) => [note.application_id, note.recruiter_note]),
+  );
   const serviceRole = createSupabaseServiceRoleClient();
   async function signedAttachmentUrl(path: string | null) {
     if (!path) return null;
@@ -78,6 +98,7 @@ export async function GET() {
       resume_file_url: await signedAttachmentUrl(application.resume_file_url),
       cover_letter_file_url: await signedAttachmentUrl(application.cover_letter_file_url),
       job_title: application.job_posts[0]?.job_title ?? "",
+      recruiter_note: notesByApplication.get(application.id) ?? "",
     })),
   );
 
@@ -94,20 +115,58 @@ export async function PATCH(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     applicationId?: unknown;
     status?: unknown;
+    recruiterNote?: unknown;
   };
   const applicationId = typeof body.applicationId === "string" ? body.applicationId : "";
   const status = typeof body.status === "string" ? body.status : "";
+  const includesNote = typeof body.recruiterNote === "string";
+  const recruiterNote = includesNote ? String(body.recruiterNote).trim().slice(0, 3000) : "";
 
-  if (!applicationId || !validApplicationStatuses.has(status)) {
+  if (!applicationId || (!validApplicationStatuses.has(status) && !includesNote)) {
     return Response.json({ error: "Invalid applicant status update." }, { status: 400 });
   }
 
   const { data: currentApplication } = await supabase
     .from("job_applications")
-    .select("status")
+    .select("id, status")
     .eq("id", applicationId)
     .eq("recruiter_id", userId)
     .maybeSingle();
+
+  if (!currentApplication) {
+    return Response.json({ error: "Unable to update applicant status right now." }, { status: 404 });
+  }
+
+  if (includesNote) {
+    const { error: noteSaveError } = await supabase
+      .from("job_application_recruiter_notes")
+      .upsert(
+        { application_id: applicationId, recruiter_id: userId, recruiter_note: recruiterNote },
+        { onConflict: "application_id" },
+      );
+
+    if (noteSaveError) {
+      console.error("[recruiter-applications] internal note save failed", {
+        code: noteSaveError.code,
+        message: noteSaveError.message,
+        details: noteSaveError.details,
+        hint: noteSaveError.hint,
+        userId,
+        applicationId,
+      });
+      return Response.json({ error: "Unable to save internal note right now." }, { status: 500 });
+    }
+  }
+
+  if (!validApplicationStatuses.has(status)) {
+    return Response.json({
+      application: {
+        id: applicationId,
+        status: currentApplication.status,
+        recruiter_note: recruiterNote,
+      },
+    });
+  }
 
   const { data, error } = await supabase
     .from("job_applications")

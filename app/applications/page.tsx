@@ -16,6 +16,9 @@ type CandidateApplication = {
   job_id: string;
   status: string;
   created_at: string;
+  short_note: string;
+  resume_file_url: string | null;
+  cover_letter_file_url: string | null;
 };
 
 type ApplicationJob = {
@@ -36,6 +39,9 @@ type ApplicationCard = {
   workplaceType: string;
   submittedAt: string;
   status: ApplicationStatus;
+  shortNote: string;
+  resumeUploaded: boolean;
+  coverLetterUploaded: boolean;
 };
 
 const statusOrder: ApplicationStatus[] = [
@@ -107,7 +113,7 @@ async function loadApplications() {
 
   const { data, error } = await serviceRole
     .from("job_applications")
-    .select("id, job_id, status, created_at")
+    .select("id, job_id, status, created_at, short_note, resume_file_url, cover_letter_file_url")
     .or(`candidate_user_id.eq.${user.id},candidate_id.eq.${user.id}`)
     .order("created_at", { ascending: false });
 
@@ -158,6 +164,9 @@ async function loadApplications() {
           workplaceType: job.workplace_type,
           submittedAt: application.created_at,
           status: normalizedStatus(application.status, job.status),
+          shortNote: application.short_note,
+          resumeUploaded: Boolean(application.resume_file_url),
+          coverLetterUploaded: Boolean(application.cover_letter_file_url),
         } satisfies ApplicationCard;
       })
       .filter((application): application is ApplicationCard => Boolean(application)),
@@ -286,6 +295,30 @@ export default async function ApplicationsPage() {
                           Submitted {formatDate(application.submittedAt)}
                         </p>
                         <div className="mt-4 flex flex-wrap gap-2">
+                          <details className="w-full">
+                            <summary className={`${secondaryButton} cursor-pointer list-none`}>
+                              View Details
+                            </summary>
+                            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <ApplicationDetail label="Job title" value={application.jobTitle} />
+                                <ApplicationDetail label="Company" value={application.companyName} />
+                                <ApplicationDetail label="Submitted" value={formatDate(application.submittedAt)} />
+                                <ApplicationDetail label="Status" value={statusNames[application.status]} />
+                                <ApplicationDetail
+                                  label="Resume uploaded"
+                                  value={application.resumeUploaded ? "Yes" : "No"}
+                                />
+                                <ApplicationDetail
+                                  label="Cover letter uploaded"
+                                  value={application.coverLetterUploaded ? "Yes" : "No"}
+                                />
+                                <div className="sm:col-span-2">
+                                  <ApplicationDetail label="Your submitted note" value={application.shortNote || "No note submitted."} />
+                                </div>
+                              </div>
+                            </div>
+                          </details>
                           <Link href={`/jobs?job=${application.jobId}`} className={secondaryButton}>
                             View Job
                           </Link>
@@ -303,5 +336,16 @@ export default async function ApplicationsPage() {
         )}
       </section>
     </main>
+  );
+}
+
+function ApplicationDetail({ label: detailLabel, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+        {detailLabel}
+      </p>
+      <p className="mt-1 whitespace-pre-line font-semibold text-[var(--iseya-navy)]">{value}</p>
+    </div>
   );
 }

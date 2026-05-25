@@ -334,6 +334,29 @@ export type Database = {
           updated_at?: string;
         };
       };
+      job_application_recruiter_notes: {
+        Row: {
+          application_id: string;
+          recruiter_id: string;
+          recruiter_note: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          application_id: string;
+          recruiter_id: string;
+          recruiter_note?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          application_id?: string;
+          recruiter_id?: string;
+          recruiter_note?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       job_alert_subscriptions: {
         Row: {
           id: string;

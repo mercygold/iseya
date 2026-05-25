@@ -66,6 +66,7 @@ type Application = {
   short_note: string;
   resume_file_url: string | null;
   cover_letter_file_url: string | null;
+  recruiter_note: string;
   status: string;
   created_at: string;
 };
@@ -130,6 +131,23 @@ const emptyJob = {
 
 function statusLabel(value: string) {
   return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function ApplicationStatusBadge({ status }: { status: string }) {
+  const color =
+    status === "proceed"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : status === "rejected"
+        ? "border-slate-200 bg-slate-100 text-slate-700"
+        : status === "reviewing"
+          ? "border-amber-200 bg-amber-50 text-amber-800"
+          : "border-[#F4B321]/40 bg-[#FFF8E6] text-[var(--iseya-navy)]";
+
+  return (
+    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${color}`}>
+      {statusLabel(status)}
+    </span>
+  );
 }
 
 function normalizeCompanySize(value: string | null) {
@@ -524,6 +542,39 @@ export default function RecruiterDashboard() {
     }
   }
 
+  async function saveApplicationNote(application: Application, recruiterNote: string) {
+    setStatus("");
+
+    try {
+      const response = await fetch("/api/recruiter/applications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: application.id, recruiterNote }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to save internal note right now.");
+      }
+
+      setApplications((current) =>
+        current.map((entry) =>
+          entry.id === application.id ? { ...entry, recruiter_note: recruiterNote.trim() } : entry,
+        ),
+      );
+      setSelectedApplication((current) =>
+        current?.id === application.id
+          ? { ...current, recruiter_note: recruiterNote.trim() }
+          : current,
+      );
+      setStatus("Internal recruiter note saved.");
+      return true;
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to save internal note right now.");
+      return false;
+    }
+  }
+
   return (
     <section className="mx-auto max-w-[92rem] px-5 py-8 sm:px-8">
       <div className="max-w-4xl">
@@ -768,9 +819,20 @@ export default function RecruiterDashboard() {
                                     <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
                                       {application.short_note}
                                     </p>
-                                    <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
-                                      {statusLabel(application.status)} | Submitted {formatDate(application.created_at)}
-                                    </p>
+                                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                                      <ApplicationStatusBadge status={application.status} />
+                                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                        Submitted {formatDate(application.created_at)}
+                                      </span>
+                                    </div>
+                                    <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+                                      {application.resume_file_url ? (
+                                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1">Resume uploaded</span>
+                                      ) : null}
+                                      {application.cover_letter_file_url ? (
+                                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1">Cover letter uploaded</span>
+                                      ) : null}
+                                    </div>
                                   </div>
                                   <div className="flex flex-wrap gap-2">
                                     <button type="button" onClick={() => setSelectedApplication(application)} className={secondaryButton}>
@@ -803,9 +865,11 @@ export default function RecruiterDashboard() {
       )}
       {selectedApplication ? (
         <ApplicantModal
+          key={selectedApplication.id}
           application={selectedApplication}
           onClose={() => setSelectedApplication(null)}
           onUpdate={(status) => updateApplicationStatus(selectedApplication, status)}
+          onSaveNote={(note) => saveApplicationNote(selectedApplication, note)}
         />
       ) : null}
     </section>
@@ -816,11 +880,22 @@ function ApplicantModal({
   application,
   onClose,
   onUpdate,
+  onSaveNote,
 }: {
   application: Application;
   onClose: () => void;
   onUpdate: (status: string) => void;
+  onSaveNote: (note: string) => Promise<boolean>;
 }) {
+  const [internalNote, setInternalNote] = useState(application.recruiter_note ?? "");
+  const [noteSaving, setNoteSaving] = useState(false);
+
+  async function saveNote() {
+    setNoteSaving(true);
+    await onSaveNote(internalNote);
+    setNoteSaving(false);
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8">
       <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
@@ -832,15 +907,19 @@ function ApplicantModal({
             <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
               {application.full_name || "Applicant"}
             </h2>
-            <p className="mt-2 text-sm font-semibold text-slate-600">
-              {application.job_title} | {statusLabel(application.status)}
-            </p>
+            <p className="mt-2 text-sm font-semibold text-slate-600">{application.job_title}</p>
+            <div className="mt-3">
+              <ApplicationStatusBadge status={application.status} />
+            </div>
           </div>
           <button type="button" onClick={onClose} className={secondaryButton}>
             Close
           </button>
         </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <p className="mt-6 text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+          Applicant Details
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <ApplicantDetail label="Email" value={application.candidate_email} />
           <ApplicantDetail label="Phone" value={application.phone_number} />
           <ApplicantDetail label="Location" value={application.location} />
@@ -851,6 +930,27 @@ function ApplicantModal({
             <ApplicantDetail label="Short note" value={application.short_note} />
           </div>
         </div>
+        <section className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+            Internal Recruiter Note
+          </p>
+          <p className="mt-2 text-sm text-slate-600">
+            Visible only to recruiter and admin reviewers.
+          </p>
+          <textarea
+            value={internalNote}
+            onChange={(event) => setInternalNote(event.target.value)}
+            maxLength={3000}
+            placeholder="Add private review notes..."
+            className={`${inputClass} min-h-24 resize-y leading-6`}
+          />
+          <button type="button" onClick={saveNote} disabled={noteSaving} className={`${secondaryButton} mt-3`}>
+            {noteSaving ? "Saving..." : "Save Internal Note"}
+          </button>
+        </section>
+        <p className="mt-6 text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+          Decision
+        </p>
         <div className="mt-6 flex flex-wrap gap-2">
           <button type="button" onClick={() => onUpdate("reviewing")} className={secondaryButton}>
             Mark Reviewing
