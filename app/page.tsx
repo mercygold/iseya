@@ -7,14 +7,20 @@ import { usePathname, useRouter } from "next/navigation";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import {
   ArrowRight,
+  BarChart3,
   BriefcaseBusiness,
   Building2,
   ClipboardList,
   FileText,
+  FolderOpen,
+  Globe2,
+  GraduationCap,
   LockKeyhole,
+  Search,
   Settings,
   ShieldCheck,
   UsersRound,
+  Zap,
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import type { Json } from "@/lib/database.types";
@@ -6720,18 +6726,18 @@ export default function Home() {
                   Career Assets
                 </a>
               ) : (
-                <Link className="text-[var(--iseya-gold)]" href="/">
-                  For Candidates
-                </Link>
+                <a className="text-[var(--iseya-gold)]" href="#resume-builder">
+                  Career Assets
+                </a>
               )}
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">
                 Jobs
               </Link>
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters">
-                For Recruiters
+                Recruiters
               </Link>
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions">
-                For Institutions
+                Institutions
               </Link>
               {!authUser ? (
                 <Link className="transition hover:text-[var(--iseya-gold)]" href="/demo">
@@ -6793,12 +6799,12 @@ export default function Home() {
               </summary>
               <div className="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2.5rem))] rounded-lg border border-slate-200 bg-white p-3 shadow-xl">
                 <nav className="grid gap-1 text-sm font-semibold text-[var(--iseya-navy)]">
-                  {authUser ? <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/workspace">Dashboard</Link> : <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/">For Candidates</Link>}
-                  {authUser ? <a className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="#resume-builder">Career Assets</a> : null}
+                  {authUser ? <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/workspace">Dashboard</Link> : null}
+                  <a className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="#resume-builder">Career Assets</a>
                   <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/jobs">Jobs</Link>
                   {authUser ? <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/applications">My Applications</Link> : null}
-                  <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/recruiters">For Recruiters</Link>
-                  <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/institutions">For Institutions</Link>
+                  <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/recruiters">Recruiters</Link>
+                  <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/institutions">Institutions</Link>
                   <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/demo">Demo</Link>
                   <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/pricing">Pricing</Link>
                   <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/contact">Contact</Link>
@@ -6844,19 +6850,19 @@ export default function Home() {
 
       {isPublicLanding ? (
         <>
-      <section className="mx-auto flex max-w-[112rem] items-center px-5 py-12 sm:px-8 sm:py-16 lg:min-h-[calc(100svh-8rem)] lg:py-20">
-          <div className="grid w-full gap-12 lg:grid-cols-[minmax(480px,1.05fr)_minmax(320px,0.7fr)] lg:items-center lg:gap-16">
+      <section className="mx-auto max-w-[92rem] px-5 py-10 sm:px-8 sm:py-12 lg:py-14">
+          <div className="grid w-full gap-10 lg:grid-cols-[minmax(480px,1fr)_minmax(330px,0.62fr)] lg:items-center lg:gap-20">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
                 Beyond resume. Positioning.
               </p>
-              <h1 className="mt-5 max-w-4xl text-4xl font-semibold leading-tight text-[var(--iseya-navy)] sm:text-6xl lg:text-[4.25rem]">
+              <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-[1.08] text-[var(--iseya-navy)] sm:text-5xl lg:text-[3.7rem]">
                 Career infrastructure for today&apos;s talent.
               </h1>
-              <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
+              <p className="mt-5 max-w-xl text-sm leading-7 text-slate-600 sm:text-base">
                 ISEYA connects private career development, opportunity discovery, recruiter access, and institution-level readiness insight in one employability platform.
               </p>
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
                   href={authUser ? "/workspace" : "/signup"}
                   className={`${primaryButtonClass} ${buttonSizeMdClass}`}
@@ -6882,11 +6888,11 @@ export default function Home() {
                   Browse Jobs
                 </Link>
               </div>
-              <div className="mt-10 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
+              <div className="mt-8 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
                 {[
                   { label: "Privacy-first by design", icon: ShieldCheck },
                   { label: "Secure & enterprise-ready", icon: LockKeyhole },
-                  { label: "Trusted by students, recruiters & institutions", icon: UsersRound },
+                  { label: "Built for students, recruiters & institutions", icon: UsersRound },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-3 border-r border-slate-200 pr-3 font-medium leading-5 last:border-r-0">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-[var(--iseya-navy)] shadow-sm">
@@ -6897,7 +6903,7 @@ export default function Home() {
                 ))}
               </div>
             </div>
-            <div className="grid gap-4 lg:grid-cols-1">
+            <div className="grid gap-3 lg:translate-x-4">
               {[
                 {
                   title: "Private career workspace",
@@ -6920,7 +6926,7 @@ export default function Home() {
               ].map((item) => (
                 <div
                   key={item.title}
-                  className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_12px_32px_rgb(0_14_47_/_0.06)] sm:p-6"
+                  className="flex items-start gap-4 rounded-lg border border-slate-200/80 bg-white p-4 shadow-[0_10px_26px_rgb(0_14_47_/_0.05)] sm:p-5"
                 >
                   <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${item.iconClass}`}>
                     <item.icon className="h-7 w-7" strokeWidth={1.8} />
@@ -6934,40 +6940,86 @@ export default function Home() {
             </div>
           </div>
       </section>
-      <section className="mx-auto max-w-[112rem] px-5 pb-10 sm:px-8 sm:pb-14">
-        <div className="grid gap-4 lg:grid-cols-3">
+      <section className="border-y border-slate-200/70 bg-white">
+        <div className="mx-auto grid max-w-[92rem] gap-6 px-5 py-8 sm:px-8 lg:grid-cols-[240px_repeat(5,minmax(0,1fr))] lg:gap-0">
+          <div className="pr-6">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
+              Built for the career ecosystem
+            </p>
+            <h2 className="mt-4 text-2xl font-semibold leading-tight text-[var(--iseya-navy)]">
+              One platform.
+              <br />Every career connection.
+            </h2>
+          </div>
           {[
-            {
-              label: "Students / Candidates",
-              title: "Build career readiness",
-              copy: "Structure career assets, discover opportunities, and track applications in a private workspace.",
-              href: authUser ? "/workspace" : "/signup",
-              cta: "For Students",
-            },
-            {
-              label: "Recruiters",
-              title: "Discover prepared talent",
-              copy: "Post verified roles and review candidate interest through an operational recruiter workspace.",
-              href: "/recruiters",
-              cta: "For Recruiters",
-            },
-            {
-              label: "Institutions",
-              title: "Measure readiness safely",
-              copy: "Request partnership access for aggregate career readiness intelligence and managed student access.",
-              href: "/institutions",
-              cta: "For Institutions",
-            },
-          ].map((path) => (
-            <article key={path.label} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">{path.label}</p>
-              <h2 className="mt-3 text-xl font-semibold text-[var(--iseya-navy)]">{path.title}</h2>
-              <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">{path.copy}</p>
-              <Link href={path.href} className={`${secondaryButtonClass} ${buttonSizeMdClass} mt-5 w-fit`}>
-                {path.cta}
-              </Link>
+            { title: "Career Workspace", copy: "Build, optimize, and manage career documents with guidance.", icon: FolderOpen, href: "#resume-builder", color: "bg-blue-50 text-blue-600" },
+            { title: "Opportunity Discovery", copy: "Find verified jobs, internships, and programs matched to your goals.", icon: Search, href: "/jobs", color: "bg-emerald-50 text-emerald-600" },
+            { title: "Recruiter Access", copy: "Verified recruiters can discover and connect with talent.", icon: UsersRound, href: "/recruiters", color: "bg-violet-50 text-violet-600" },
+            { title: "Institution Insights", copy: "Institutions receive privacy-safe readiness insights.", icon: Building2, href: "/institutions", color: "bg-orange-50 text-orange-600" },
+            { title: "Career Co-pilots", copy: "Smart recommendations to help career materials get noticed.", icon: Zap, href: "#resume-builder", color: "bg-amber-50 text-amber-600" },
+          ].map((feature) => (
+            <article key={feature.title} className="border-slate-200/80 lg:border-l lg:px-6">
+              <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${feature.color}`}>
+                <feature.icon className="h-5 w-5" strokeWidth={1.8} />
+              </span>
+              <h3 className="mt-4 text-sm font-semibold text-[var(--iseya-navy)]">{feature.title}</h3>
+              <p className="mt-3 text-xs leading-5 text-slate-600">{feature.copy}</p>
+              <a href={feature.href} className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-blue-600 transition hover:text-[var(--iseya-navy)]">
+                Learn more <ArrowRight className="h-3.5 w-3.5" />
+              </a>
             </article>
           ))}
+        </div>
+      </section>
+      <section className="mx-auto max-w-[92rem] px-5 py-8 sm:px-8">
+        <div className="flex flex-col gap-6 rounded-xl border border-slate-200/80 bg-white p-6 shadow-[0_8px_24px_rgb(0_14_47_/_0.03)] lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
+              Start with confidence
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold text-[var(--iseya-navy)]">
+              Build your career workspace.
+            </h2>
+            <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-slate-600">
+              {["Free to get started", "Private workspace", "No credit card required"].map((item) => (
+                <span key={item} className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-[var(--iseya-gold)]" /> {item}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link href={authUser ? "/workspace" : "/signup"} className={`${primaryButtonClass} ${buttonSizeMdClass}`}>
+              Start Free
+            </Link>
+            <Link href="/demo" className={`${secondaryButtonClass} ${buttonSizeMdClass}`}>
+              Demo
+            </Link>
+          </div>
+        </div>
+      </section>
+      <section className="mx-auto max-w-[92rem] px-5 pb-10 sm:px-8 sm:pb-12">
+        <div className="rounded-xl border border-slate-200/80 bg-white px-5 py-5 sm:px-7">
+          <p className="text-center text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
+            Built For
+          </p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {[
+              { title: "Students & Graduates", copy: "Launch and grow your career.", icon: GraduationCap },
+              { title: "Career Switchers", copy: "Transition with clarity and confidence.", icon: BarChart3 },
+              { title: "International Professionals", copy: "Navigate opportunities globally.", icon: Globe2 },
+              { title: "Recruiters", copy: "Discover and connect with talent.", icon: UsersRound },
+              { title: "Institutions", copy: "Improve outcomes for your community.", icon: Building2 },
+            ].map((audience) => (
+              <div key={audience.title} className="flex items-start gap-3 border-slate-200/80 lg:border-l lg:px-5 first:lg:border-l-0">
+                <audience.icon className="mt-1 h-5 w-5 shrink-0 text-[var(--iseya-navy)]" strokeWidth={1.8} />
+                <div>
+                  <p className="text-xs font-semibold text-[var(--iseya-navy)]">{audience.title}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">{audience.copy}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
         </>
@@ -7074,8 +7126,8 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-[112rem] gap-5 overflow-x-hidden px-4 py-5 sm:px-8 sm:py-6 lg:py-8 xl:grid-cols-[minmax(340px,0.92fr)_minmax(420px,1.08fr)]">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition sm:p-6">
+      <section className="mx-auto grid max-w-[112rem] gap-4 overflow-x-hidden px-4 py-5 sm:px-8 sm:py-6 lg:py-8 xl:grid-cols-[minmax(285px,0.82fr)_minmax(390px,1fr)_minmax(500px,1.45fr)] xl:items-start">
+        <div className="order-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition sm:p-5 xl:col-start-2 xl:row-start-1">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
             Resume Tailoring
           </p>
@@ -7086,23 +7138,23 @@ export default function Home() {
             Add your details and target role so we can optimize your resume.
           </p>
           <label
-            htmlFor="master-resume"
-            className="mt-6 block text-base font-semibold text-[var(--iseya-navy)]"
+            htmlFor="source-resume-detail"
+            className="sr-only"
           >
             Source Resume
           </label>
-          <p className="mt-1 text-xs leading-5 text-slate-500">
+          <p className="sr-only">
             Paste your source resume or start from the neutral starter draft.
           </p>
           <textarea
-            id="master-resume"
+            id="source-resume-detail"
             value={masterResume}
             onChange={(event) => setMasterResume(event.target.value)}
-            className="mt-4 min-h-[360px] w-full resize-y rounded-lg border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6] lg:min-h-[460px]"
+            className="sr-only"
             placeholder="Paste your master resume here..."
           />
 
-          <section className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+          <section className="mt-5 rounded-lg border border-slate-200 bg-slate-50/70 p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
@@ -7157,7 +7209,34 @@ export default function Home() {
             </div>
           </section>
 
-          <div id="source-materials" className="mt-4 scroll-mt-24 border-t border-zinc-200 pt-4">
+          <section className="mt-4 rounded-lg border border-[var(--iseya-gold)]/25 bg-[#FFF8E6]/60 p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+              Readiness Assistant
+            </p>
+            <ul className="mt-3 space-y-2 text-xs leading-5 text-[var(--iseya-navy)]">
+              {[
+                "Add a clear professional summary",
+                "Include quantifiable achievements",
+                "Match keywords from the job description",
+                "Keep formatting clean and consistent",
+              ].map((tip) => (
+                <li key={tip} className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--iseya-gold)]" />
+                  {tip}
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => runWithFeedback("tailor", "Optimizing...", "Optimized", tailorResume)}
+              disabled={!canTailor || isTailoring}
+              className={`${primaryButtonClass} ${buttonSizeMdClass} mt-4 w-full`}
+            >
+              {isTailoring ? "Optimizing..." : "Optimize Resume"}
+            </button>
+          </section>
+
+          <div className="hidden">
             <input
               ref={uploadInputRef}
               id="source-file-upload"
@@ -7240,7 +7319,7 @@ export default function Home() {
             ) : null}
           </div>
 
-          <section className="mt-5 rounded-md border border-zinc-200 bg-zinc-50 p-4">
+          <section className="hidden">
             <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
               Source Materials
             </h2>
@@ -7300,10 +7379,10 @@ export default function Home() {
           </section>
         </div>
 
-        <div className="space-y-5">
-          <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+        <div className="order-1 space-y-4 xl:col-start-1 xl:row-start-1">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-              Target Role
+              1 &nbsp; Target Role &amp; Job Description
             </p>
             <h2 className="mt-2 text-lg font-semibold text-[var(--iseya-navy)]">
               Opportunity alignment
@@ -7343,7 +7422,7 @@ export default function Home() {
               ))}
             </select>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div className="hidden">
               <label className="block text-sm font-semibold text-[var(--iseya-navy)]">
                 Template
                 <select
@@ -7390,13 +7469,96 @@ export default function Home() {
               </label>
             </div>
 
-            <p className="mt-3 text-sm text-zinc-500">
+            <p className="hidden">
               {templates[template].description}
               {isPremiumTemplate(template) && isStarterPlan(subscriptionPlan)
                 ? " Premium preview locked on Starter."
                 : ""}
             </p>
+
+            <label
+              htmlFor="job-description"
+              className="mt-5 block text-sm font-semibold text-[var(--iseya-navy)]"
+            >
+              Job Description
+            </label>
+            <textarea
+              id="job-description"
+              value={jobDescription}
+              onChange={(event) => setJobDescription(event.target.value)}
+              className="mt-3 min-h-[180px] w-full resize-y rounded-md border border-zinc-300 bg-white p-3 text-sm leading-6 text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+              placeholder="Paste the target job description here..."
+            />
           </div>
+
+          <section id="source-materials" className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-navy)]">
+              Source Materials
+            </p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              Paste a resume or upload supporting material for accurate tailoring.
+            </p>
+            <label htmlFor="master-resume" className="mt-4 block text-xs font-semibold text-slate-700">
+              Pasted Resume
+            </label>
+            <textarea
+              id="master-resume"
+              value={masterResume}
+              onChange={(event) => setMasterResume(event.target.value)}
+              className="mt-2 min-h-[135px] w-full resize-y rounded-md border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-700 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+              placeholder="Paste your source resume here..."
+            />
+            <label
+              htmlFor="source-file-upload"
+              className={`${secondaryButtonClass} ${buttonSizeSmClass} mt-3 cursor-pointer`}
+            >
+              Upload Files
+            </label>
+            <p className="mt-2 text-[11px] leading-5 text-slate-500">
+              PDF, DOCX, TXT and supported image files.
+            </p>
+            {uploadedFiles.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {uploadedFiles.map((file) => (
+                  <div key={file.id} className="rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs">
+                    <p className="truncate font-semibold text-[var(--iseya-navy)]">{file.name}</p>
+                    <p className="mt-1 text-slate-500">
+                      {extractionStatusLabel(file.extractionStatus)} | {(file.extractedText?.length ?? 0).toLocaleString()} chars
+                    </p>
+                    {safeStringArray(file.warnings).length > 0 ? (
+                      <p className="mt-1 text-[11px] leading-5 text-amber-700">
+                        {safeStringArray(file.warnings).join(" ")}
+                      </p>
+                    ) : null}
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewSourceFileId((current) => current === file.id ? "" : file.id)}
+                        disabled={!file.extractedText}
+                        className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
+                      >
+                        Preview
+                      </button>
+                      <FeedbackButton
+                        onClick={() => removeSourceFile(file.id)}
+                        doneLabel="Removed"
+                        className={`${dangerButtonClass} ${buttonSizeSmClass}`}
+                      >
+                        Remove
+                      </FeedbackButton>
+                    </div>
+                    {previewSourceFileId === file.id && file.extractedText ? (
+                      <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap rounded-md bg-white p-2 text-[11px] leading-5 text-slate-600">
+                        {file.extractedText}
+                      </pre>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-slate-500">No uploaded files yet.</p>
+            )}
+          </section>
 
           <section id="optimization-settings" className="scroll-mt-24 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
             <details>
@@ -7849,22 +8011,22 @@ export default function Home() {
             </details>
           </section>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="hidden">
             <label
-              htmlFor="job-description"
+              htmlFor="legacy-job-description"
               className="block text-sm font-semibold text-[var(--iseya-navy)]"
             >
               Job Description
             </label>
             <textarea
-              id="job-description"
+              id="legacy-job-description"
               value={jobDescription}
               onChange={(event) => setJobDescription(event.target.value)}
               className="mt-3 min-h-[300px] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 text-sm leading-6 text-zinc-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
               placeholder="Paste the job description here..."
             />
           </div>
-          <div className="rounded-xl border border-[var(--iseya-gold)]/30 bg-[#FFF8E6] p-5 shadow-sm">
+          <div className="hidden">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
               Optimization Tips
             </p>
@@ -7891,6 +8053,77 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        <section className="order-3 min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 xl:col-start-3 xl:row-start-1">
+          <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+                3 &nbsp; Resume Preview
+              </p>
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                See your optimized resume update in real time.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveOutput("preview")}
+                className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
+              >
+                Download Layout
+              </button>
+              <details className="relative">
+                <summary className={`${secondaryButtonClass} ${buttonSizeSmClass} cursor-pointer list-none`}>
+                  Export
+                </summary>
+                <div className="absolute right-0 z-30 mt-2 w-40 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => runWithFeedback("previewExport", "Exporting...", "Exported", downloadResumePdf)}
+                    className={`${menuItemClass} text-xs`}
+                  >
+                    Resume PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => runWithFeedback("previewExport", "Exporting...", "Exported", downloadResumeDocx)}
+                    className={`${menuItemClass} text-xs`}
+                  >
+                    Resume DOCX
+                  </button>
+                </div>
+              </details>
+              <button
+                type="button"
+                onClick={() => runWithFeedback("saveVersion", "Saving...", "Saved", saveCurrentVersion)}
+                disabled={!canSaveAnotherVersion}
+                className={`${primaryButtonClass} ${buttonSizeSmClass}`}
+              >
+                {actionFeedback.saveVersion ?? "Save Version"}
+              </button>
+            </div>
+          </div>
+          <ResumePreviewControls
+            template={template}
+            theme={theme}
+            onTemplateChange={(nextTemplate) => {
+              if (requireTemplateAccess(nextTemplate)) {
+                setTemplate(nextTemplate);
+              }
+            }}
+            onThemeChange={setTheme}
+            onPreview={() => setActiveOutput("preview")}
+            onEdit={() => setActiveOutput("resume")}
+          />
+          <div className="overflow-hidden rounded-lg border border-slate-100 bg-slate-50 p-2">
+            <ResumePreview
+              resumeText={workspaceResult.rewrittenResume}
+              theme={previewTheme}
+              template={template}
+              branding={workspaceBranding}
+            />
+          </div>
+        </section>
       </section>
 
       {tailorError ? (
@@ -8328,54 +8561,88 @@ export default function Home() {
 }
 
 function IseyaFooter() {
-  const footerLinks = [
-    ["Terms", "/terms"],
-    ["Privacy", "/privacy"],
-    ["Contact", "/contact"],
+  const footerColumns = [
+    {
+      title: "Platform",
+      links: [
+        ["Career Workspace", "/workspace"],
+        ["Jobs", "/jobs"],
+        ["Career Co-pilots", "/workspace"],
+        ["Pricing", "/pricing"],
+      ],
+    },
+    {
+      title: "For You",
+      links: [
+        ["Build Resume", "/workspace"],
+        ["Browse Jobs", "/jobs"],
+        ["Career Assets", "/workspace"],
+        ["Dashboard", "/workspace"],
+      ],
+    },
+    {
+      title: "Resources",
+      links: [
+        ["Contact", "/contact"],
+        ["Settings", "/account"],
+        ["Help Center", "/contact"],
+      ],
+    },
+    {
+      title: "Company",
+      links: [
+        ["About ISEYA", "/about"],
+        ["Privacy Policy", "/privacy"],
+        ["Terms of Service", "/terms"],
+      ],
+    },
   ];
 
   return (
-    <footer className="border-t border-[color-mix(in_srgb,var(--iseya-gold)_28%,var(--iseya-navy))] bg-[var(--iseya-navy)] text-white">
-      <div className="mx-auto flex max-w-[112rem] flex-col gap-5 px-5 py-6 text-center sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:text-left">
-        <div className="flex flex-col items-center gap-1 lg:items-start">
-          <Image
-            src="/brand/iseya-logo.png"
-            alt="ISEYA"
-            width={180}
-            height={90}
-            className="h-auto w-[120px] object-contain sm:w-[160px] lg:w-[180px]"
-          />
-          <div className="text-center lg:pl-[26px] lg:text-left">
-            <p className="text-sm font-medium text-white/85">
-              ISEYA by Jormp LLC.
+    <footer className="border-t border-white/10 bg-[var(--iseya-navy)] text-white">
+      <div className="mx-auto max-w-[92rem] px-5 py-9 sm:px-8">
+        <div className="grid gap-8 lg:grid-cols-[1.35fr_repeat(4,0.82fr)]">
+          <div>
+            <Image
+              src="/brand/iseya-logo.png"
+              alt="ISEYA"
+              width={180}
+              height={90}
+              className="h-auto w-[122px] object-contain"
+            />
+            <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+              Beyond Resume. Positioning.
             </p>
-            <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-              California, USA
+            <p className="mt-4 max-w-xs text-sm leading-6 text-white/75">
+              ISEYA is the private career infrastructure built for today&apos;s talent and tomorrow&apos;s opportunities.
             </p>
+            <p className="mt-3 text-xs font-medium text-white/60">California, USA</p>
           </div>
+          {footerColumns.map((column) => (
+            <nav key={column.title} aria-label={column.title}>
+              <p className="text-sm font-semibold text-white">{column.title}</p>
+              <div className="mt-4 grid gap-3">
+                {column.links.map(([label, href]) => (
+                  <Link
+                    key={label}
+                    href={href}
+                    className="text-sm text-white/72 transition hover:text-[var(--iseya-gold)]"
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </nav>
+          ))}
         </div>
-
-        <div className="flex flex-col items-center gap-3 lg:items-end">
-          <nav aria-label="Footer" className="flex flex-wrap justify-center gap-x-4 gap-y-2 lg:justify-end">
-            {footerLinks.map(([label, href]) => {
-              const isExternal = href.startsWith("http");
-
-              return (
-                <a
-                  key={label}
-                  href={href}
-                  target={isExternal ? "_blank" : undefined}
-                  rel={isExternal ? "noreferrer" : undefined}
-                  className="text-sm font-semibold text-white/85 transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]"
-                >
-                  {label}
-                </a>
-              );
-            })}
-          </nav>
-          <p className="text-xs text-white/65">
-            © 2026 Jormp LLC. All rights reserved.
-          </p>
+        <div className="mt-8 flex flex-col gap-4 border-t border-white/10 pt-5 text-xs text-white/65 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            <p>© 2026 Jormp LLC. All rights reserved.</p>
+            <p>ISEYA by Jormp LLC</p>
+          </div>
+          <div className="rounded-md border border-[var(--iseya-gold)]/70 px-4 py-2 font-semibold text-[var(--iseya-gold)]">
+            English
+          </div>
         </div>
       </div>
     </footer>
