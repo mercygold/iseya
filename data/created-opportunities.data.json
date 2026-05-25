@@ -1,0 +1,95 @@
+[
+  {
+    "title": "Product Manager, Ecosystem Risk",
+    "company": "Stripe",
+    "location": "United States / Remote",
+    "country": "United States",
+    "workplace_type": "Remote",
+    "employment_type": "Full-time",
+    "salary_range": "",
+    "external_apply_url": "https://boards.greenhouse.io/stripe/jobs/7943244",
+    "source_name": "Greenhouse",
+    "source_description": "Sourced from active external hiring channels",
+    "opportunity_type": "curated_opportunity",
+    "status": "draft",
+    "description": "Product management role focused on ecosystem risk, platform trust, and cross-functional product execution.",
+    "skills_keywords": [
+      "Product Management",
+      "Risk",
+      "Trust",
+      "Platform",
+      "Fintech"
+    ],
+    "application_deadline": "",
+    "needs_verification": true
+  },
+  {
+    "title": "Principal Product Manager, AI Native",
+    "company": "Life360",
+    "location": "United States / Remote",
+    "country": "United States",
+    "workplace_type": "Remote",
+    "employment_type": "Full-time",
+    "salary_range": "",
+    "external_apply_url": "https://boards.greenhouse.io/life360/jobs/8562336002",
+    "source_name": "Greenhouse",
+    "source_description": "Sourced from active external hiring channels",
+    "opportunity_type": "curated_opportunity",
+    "status": "draft",
+    "description": "Senior product leadership role focused on AI-native product experiences and user-centered platform development.",
+    "skills_keywords": [
+      "AI",
+      "Product Strategy",
+      "Consumer Product",
+      "Roadmapping"
+    ],
+    "application_deadline": "",
+    "needs_verification": true
+  },
+  {
+    "title": "Senior Product Manager, AI",
+    "company": "Rula",
+    "location": "Remote",
+    "country": "United States",
+    "workplace_type": "Remote",
+    "employment_type": "Full-time",
+    "salary_range": "",
+    "external_apply_url": "https://jobs.ashbyhq.com/rula/40915141-68c6-4a00-9581-95b158da6d91/application",
+    "source_name": "Ashby",
+    "source_description": "Sourced from active external hiring channels",
+    "opportunity_type": "curated_opportunity",
+    "status": "draft",
+    "description": "Product role focused on AI-enabled healthcare workflows, user experience, and product execution.",
+    "skills_keywords": [
+      "Product Management",
+      "AI",
+      "Healthcare",
+      "User Experience"
+    ],
+    "application_deadline": "",
+    "needs_verification": true
+  },
+  {
+    "title": "Technical Product Manager",
+    "company": "Kunai",
+    "location": "United States",
+    "country": "United States",
+    "workplace_type": "Not specified",
+    "employment_type": "Full-time",
+    "salary_range": "",
+    "external_apply_url": "https://boards.greenhouse.io/kunai/jobs/5124554007",
+    "source_name": "Greenhouse",
+    "source_description": "Sourced from active external hiring channels",
+    "opportunity_type": "curated_opportunity",
+    "status": "draft",
+    "description": "Technical product role requiring coordination across product, engineering, and stakeholder teams.",
+    "skills_keywords": [
+      "Technical Product Management",
+      "APIs",
+      "Agile",
+      "Stakeholder Management"
+    ],
+    "application_deadline": "",
+    "needs_verification": true
+  }
+]
