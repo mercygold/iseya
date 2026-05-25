@@ -5,6 +5,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  Building2,
+  ClipboardList,
+  FileText,
+  LockKeyhole,
+  Settings,
+  ShieldCheck,
+  UsersRound,
+} from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import type { Json } from "@/lib/database.types";
 import {
@@ -701,6 +712,7 @@ const professionalResumeSectionOrder = [
   "PROJECTS",
   "EDUCATION",
   "CERTIFICATIONS",
+  "ACHIEVEMENTS",
   "TOOLS",
   "LEADERSHIP",
   "AWARDS",
@@ -864,6 +876,52 @@ function orderedResumeSections(sections: ResumeSection[], template: TemplateId) 
       return leftScore === rightScore ? left.index - right.index : leftScore - rightScore;
     })
     .map(({ section }) => section);
+}
+
+function preparedPreviewSections(sections: ResumeSection[], template: TemplateId) {
+  const prepared = new Map<string, ResumeSection>();
+
+  for (const section of sections) {
+    const heading = canonicalResumeHeading(section.heading);
+
+    if (!heading || isSourceArtifactHeading(heading) || isPlaceholderResumeText(heading)) {
+      continue;
+    }
+
+    const body = uniqueStrings(section.body);
+    const bullets = uniqueStrings(section.bullets);
+    const lines = Array.from(
+      new Set(
+        (section.lines ?? [])
+          .map((line) => line.trim())
+          .filter(
+            (line) =>
+              line &&
+              !isSourceArtifactHeading(cleanEditorText(line)) &&
+              !isPlaceholderResumeText(cleanEditorText(line)),
+          ),
+      ),
+    );
+
+    if (body.length === 0 && bullets.length === 0 && lines.length === 0) {
+      continue;
+    }
+
+    const existing = prepared.get(heading);
+
+    if (existing) {
+      prepared.set(heading, {
+        heading,
+        body: uniqueStrings([...existing.body, ...body]),
+        bullets: uniqueStrings([...existing.bullets, ...bullets]),
+        lines: Array.from(new Set([...(existing.lines ?? []), ...lines])),
+      });
+    } else {
+      prepared.set(heading, { heading, body, bullets, lines });
+    }
+  }
+
+  return orderedResumeSections(Array.from(prepared.values()), template);
 }
 
 function isIndustryTarget(value: unknown): value is IndustryTarget {
@@ -2494,6 +2552,10 @@ function canonicalResumeHeading(value: string) {
     return "CERTIFICATIONS";
   }
 
+  if (/^(ACHIEVEMENTS|KEY ACHIEVEMENTS|CAREER ACHIEVEMENTS|SELECTED ACHIEVEMENTS)$/.test(heading)) {
+    return "ACHIEVEMENTS";
+  }
+
   if (/^(PUBLICATIONS|RESEARCH|PUBLICATIONS \/ RESEARCH|PUBLICATIONS & RESEARCH)$/.test(heading)) {
     return "PUBLICATIONS / RESEARCH";
   }
@@ -2522,7 +2584,7 @@ function isRecognizedResumeHeading(value: string) {
   }
 
   if (
-    /^(PROFILE|SUMMARY|PROFESSIONAL SUMMARY|CAREER SUMMARY|EXECUTIVE SUMMARY|CORE SKILLS|SKILLS|KEY SKILLS|TECHNICAL SKILLS|COMPETENCIES|AREAS OF EXPERTISE|EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|EMPLOYMENT|EMPLOYMENT HISTORY|CAREER EXPERIENCE|PROJECTS|PROJECT EXPERIENCE|SELECTED PROJECTS|AI PROJECTS|AI & AUTOMATION PROJECTS|EDUCATION|ACADEMIC BACKGROUND|CERTIFICATIONS|CERTIFICATES|LICENSES|LICENSES & CERTIFICATIONS|PUBLICATIONS|RESEARCH|PUBLICATIONS \/ RESEARCH|PUBLICATIONS & RESEARCH|TOOLS|TECHNOLOGIES|TOOLS \/ TECHNOLOGIES|TECHNICAL TOOLS|PLATFORMS|LEADERSHIP|LEADERSHIP EXPERIENCE|AWARDS|HONORS|AWARDS & HONORS|VOLUNTEER|VOLUNTEER EXPERIENCE|COMMUNITY LEADERSHIP)$/i.test(cleaned)
+    /^(PROFILE|SUMMARY|PROFESSIONAL SUMMARY|CAREER SUMMARY|EXECUTIVE SUMMARY|CORE SKILLS|SKILLS|KEY SKILLS|TECHNICAL SKILLS|COMPETENCIES|AREAS OF EXPERTISE|EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|EMPLOYMENT|EMPLOYMENT HISTORY|CAREER EXPERIENCE|PROJECTS|PROJECT EXPERIENCE|SELECTED PROJECTS|AI PROJECTS|AI & AUTOMATION PROJECTS|EDUCATION|ACADEMIC BACKGROUND|CERTIFICATIONS|CERTIFICATES|LICENSES|LICENSES & CERTIFICATIONS|ACHIEVEMENTS|KEY ACHIEVEMENTS|CAREER ACHIEVEMENTS|SELECTED ACHIEVEMENTS|PUBLICATIONS|RESEARCH|PUBLICATIONS \/ RESEARCH|PUBLICATIONS & RESEARCH|TOOLS|TECHNOLOGIES|TOOLS \/ TECHNOLOGIES|TECHNICAL TOOLS|PLATFORMS|LEADERSHIP|LEADERSHIP EXPERIENCE|AWARDS|HONORS|AWARDS & HONORS|VOLUNTEER|VOLUNTEER EXPERIENCE|COMMUNITY LEADERSHIP)$/i.test(cleaned)
   ) {
     return true;
   }
@@ -6626,9 +6688,9 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <section className="iseya-header">
-        <div className="mx-auto flex max-w-[112rem] flex-col gap-4 px-5 py-4 sm:px-8 sm:py-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0 max-w-5xl">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="mx-auto max-w-[112rem] px-5 py-4 sm:px-8">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
               <Link href="/" aria-label="ISEYA home">
                 <Image
                   src="/brand/iseya-logo2.png"
@@ -6636,16 +6698,15 @@ export default function Home() {
                   width={280}
                   height={140}
                   priority
-                  className="h-auto w-[150px] object-contain sm:w-[205px] lg:w-[225px]"
+                  className="h-auto w-[150px] object-contain sm:w-[185px] xl:w-[170px] 2xl:w-[185px]"
                 />
               </Link>
-              <p className="border-l-0 border-[var(--iseya-gold)] text-sm font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)] sm:border-l sm:pl-4 sm:text-base">
+              <p className="border-l-0 border-[var(--iseya-gold)] text-sm font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)] sm:border-l sm:pl-4 xl:text-[11px] xl:tracking-[0.14em] 2xl:text-xs">
                 Beyond Resume. Positioning.
               </p>
             </div>
-          </div>
-          <div className="flex max-w-3xl flex-col gap-3 lg:items-end">
-            <nav className="flex flex-wrap justify-start gap-x-5 gap-y-2 text-[13px] font-medium text-white/80 lg:justify-end">
+            <div className="hidden min-w-0 flex-1 items-center justify-end gap-3 xl:flex 2xl:gap-4">
+            <nav className="flex min-w-0 items-center justify-end gap-x-2.5 text-[10px] font-medium text-white/80 2xl:gap-x-3 2xl:text-[11px]">
               {authUser ? (
                 <Link
                   className={`transition hover:text-[var(--iseya-gold)] ${!isPublicLanding ? "text-[var(--iseya-gold)]" : ""}`}
@@ -6666,20 +6727,17 @@ export default function Home() {
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">
                 Jobs
               </Link>
-              {authUser ? (
-                <Link className="transition hover:text-[var(--iseya-gold)]" href="/applications">
-                  My Applications
-                </Link>
-              ) : null}
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters">
                 For Recruiters
               </Link>
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions">
                 For Institutions
               </Link>
-              <Link className="transition hover:text-[var(--iseya-gold)]" href="/demo">
-                Demo
-              </Link>
+              {!authUser ? (
+                <Link className="transition hover:text-[var(--iseya-gold)]" href="/demo">
+                  Demo
+                </Link>
+              ) : null}
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
                 Pricing
               </Link>
@@ -6692,7 +6750,7 @@ export default function Home() {
                 </Link>
               ) : null}
             </nav>
-            <div className="flex flex-wrap justify-start gap-2 lg:justify-end [&_button]:min-h-9 [&_button]:px-3 [&_button]:text-[13px] [&_a]:min-h-9 [&_a]:px-3 [&_a]:text-[13px]">
+            <div className="flex shrink-0 items-center gap-2 [&_button]:min-h-9 [&_button]:px-2.5 [&_button]:text-[11px] [&_a]:min-h-9 [&_a]:px-2.5 [&_a]:text-[11px] 2xl:[&_button]:px-3 2xl:[&_a]:px-3">
               {authUser ? (
                 <Link
                   href="/account"
@@ -6728,8 +6786,47 @@ export default function Home() {
                 {isTailoring ? "Tailoring..." : actionFeedback.tailor ?? "Tailor Resume"}
               </button>
             </div>
+            </div>
+            <details className="relative xl:hidden">
+              <summary className="inline-flex min-h-10 cursor-pointer list-none items-center rounded-md border border-white/30 px-3 text-sm font-semibold text-white">
+                Menu
+              </summary>
+              <div className="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2.5rem))] rounded-lg border border-slate-200 bg-white p-3 shadow-xl">
+                <nav className="grid gap-1 text-sm font-semibold text-[var(--iseya-navy)]">
+                  {authUser ? <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/workspace">Dashboard</Link> : <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/">For Candidates</Link>}
+                  {authUser ? <a className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="#resume-builder">Career Assets</a> : null}
+                  <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/jobs">Jobs</Link>
+                  {authUser ? <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/applications">My Applications</Link> : null}
+                  <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/recruiters">For Recruiters</Link>
+                  <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/institutions">For Institutions</Link>
+                  <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/demo">Demo</Link>
+                  <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/pricing">Pricing</Link>
+                  <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/contact">Contact</Link>
+                  {authUser ? <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/account">Settings</Link> : null}
+                </nav>
+                <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3">
+                  <Link href={authUser ? "/account" : "/login"} className={`${secondaryButtonClass} ${buttonSizeMdClass}`}>
+                    {authUser ? "My Account" : "Login / Sign up"}
+                  </Link>
+                  {authUser ? (
+                    <button type="button" onClick={openMyResumesPlaceholder} className={`${secondaryButtonClass} ${buttonSizeMdClass}`}>
+                      My Resumes
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => runWithFeedback("tailor", "Tailoring...", "Done", tailorResume)}
+                    disabled={!canTailor || isTailoring}
+                    className={`${primaryButtonClass} ${buttonSizeMdClass}`}
+                  >
+                    {isTailoring ? "Tailoring..." : actionFeedback.tailor ?? "Tailor Resume"}
+                  </button>
+                </div>
+              </div>
+            </details>
+          </div>
             {accountStatus ? (
-              <div className="rounded-md border border-white/15 bg-white/10 p-3 text-xs font-medium text-white/80">
+              <div className="mt-3 rounded-md border border-white/15 bg-white/10 p-3 text-xs font-medium text-white/80">
                 <p>{accountStatus}</p>
                 {authUser ? (
                   <button
@@ -6742,7 +6839,6 @@ export default function Home() {
                 ) : null}
               </div>
             ) : null}
-          </div>
         </div>
       </section>
 
@@ -6765,7 +6861,7 @@ export default function Home() {
                   href={authUser ? "/workspace" : "/signup"}
                   className={`${primaryButtonClass} ${buttonSizeMdClass}`}
                 >
-                  Start Free
+                  Start Free <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
                 <Link
                   href="/pricing"
@@ -6786,19 +6882,53 @@ export default function Home() {
                   Browse Jobs
                 </Link>
               </div>
+              <div className="mt-10 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
+                {[
+                  { label: "Privacy-first by design", icon: ShieldCheck },
+                  { label: "Secure & enterprise-ready", icon: LockKeyhole },
+                  { label: "Trusted by students, recruiters & institutions", icon: UsersRound },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-3 border-r border-slate-200 pr-3 font-medium leading-5 last:border-r-0">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-[var(--iseya-navy)] shadow-sm">
+                      <item.icon className="h-5 w-5" strokeWidth={1.8} />
+                    </span>
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="grid gap-4 lg:grid-cols-1">
               {[
-                "Secure checkout powered by Stripe",
-                "Private career workspace",
-                "Private candidate workspaces and protected data",
-                "Verified opportunities and institution-safe insight",
+                {
+                  title: "Private career workspace",
+                  copy: "Your space. Your data. Your growth.",
+                  icon: ShieldCheck,
+                  iconClass: "bg-blue-50 text-blue-600",
+                },
+                {
+                  title: "Private candidate workspaces and protected data",
+                  copy: "Built for trust. Designed for you.",
+                  icon: UsersRound,
+                  iconClass: "bg-emerald-50 text-emerald-600",
+                },
+                {
+                  title: "Verified opportunities and institution-safe insight",
+                  copy: "Real opportunities. Real outcomes.",
+                  icon: Building2,
+                  iconClass: "bg-violet-50 text-violet-600",
+                },
               ].map((item) => (
                 <div
-                  key={item}
-                  className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-medium leading-6 text-[var(--iseya-navy)] shadow-sm sm:p-5"
+                  key={item.title}
+                  className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_12px_32px_rgb(0_14_47_/_0.06)] sm:p-6"
                 >
-                  {item}
+                  <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${item.iconClass}`}>
+                    <item.icon className="h-7 w-7" strokeWidth={1.8} />
+                  </span>
+                  <div>
+                    <p className="text-base font-semibold leading-6 text-[var(--iseya-navy)]">{item.title}</p>
+                    <p className="mt-1.5 text-sm leading-6 text-slate-600">{item.copy}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -6946,11 +7076,20 @@ export default function Home() {
 
       <section className="mx-auto grid max-w-[112rem] gap-5 overflow-x-hidden px-4 py-5 sm:px-8 sm:py-6 lg:py-8 xl:grid-cols-[minmax(340px,0.92fr)_minmax(420px,1.08fr)]">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition sm:p-6">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+            Resume Tailoring
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--iseya-navy)]">
+            Let&apos;s tailor your resume
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Add your details and target role so we can optimize your resume.
+          </p>
           <label
             htmlFor="master-resume"
-            className="text-base font-semibold text-[var(--iseya-navy)]"
+            className="mt-6 block text-base font-semibold text-[var(--iseya-navy)]"
           >
-            Master Resume
+            Source Resume
           </label>
           <p className="mt-1 text-xs leading-5 text-slate-500">
             Paste your source resume or start from the neutral starter draft.
@@ -6967,7 +7106,7 @@ export default function Home() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
-                  Personal Branding & Contact
+                  Personal Information
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
                   These details control the resume preview and exports without
@@ -7018,7 +7157,7 @@ export default function Home() {
             </div>
           </section>
 
-          <div className="mt-4 border-t border-zinc-200 pt-4">
+          <div id="source-materials" className="mt-4 scroll-mt-24 border-t border-zinc-200 pt-4">
             <input
               ref={uploadInputRef}
               id="source-file-upload"
@@ -7032,7 +7171,7 @@ export default function Home() {
               htmlFor="source-file-upload"
               className={`${secondaryButtonClass} ${buttonSizeMdClass} cursor-pointer`}
             >
-              Upload Resume / Supporting Files
+              Upload Files
             </label>
             <p className="mt-2 text-xs leading-5 text-zinc-500">
               Accepts PDF, DOC, DOCX, TXT, PNG, JPG, JPEG, PPT, and PPTX.
@@ -7163,11 +7302,17 @@ export default function Home() {
 
         <div className="space-y-5">
           <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+              Target Role
+            </p>
+            <h2 className="mt-2 text-lg font-semibold text-[var(--iseya-navy)]">
+              Opportunity alignment
+            </h2>
             <label
               htmlFor="target-role"
-              className="text-sm font-semibold text-[var(--iseya-navy)]"
+              className="mt-5 block text-sm font-semibold text-[var(--iseya-navy)]"
             >
-              Target Role
+              Target Role / Job Title
             </label>
             <input
               id="target-role"
@@ -7181,7 +7326,7 @@ export default function Home() {
               htmlFor="industry-target"
               className="mt-5 block text-sm font-semibold text-[var(--iseya-navy)]"
             >
-              Industry Target
+              Target Industry
             </label>
             <select
               id="industry-target"
@@ -7253,7 +7398,7 @@ export default function Home() {
             </p>
           </div>
 
-          <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+          <section id="optimization-settings" className="scroll-mt-24 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
             <details>
               <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
                 Optimization Settings
@@ -7719,6 +7864,32 @@ export default function Home() {
               placeholder="Paste the job description here..."
             />
           </div>
+          <div className="rounded-xl border border-[var(--iseya-gold)]/30 bg-[#FFF8E6] p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+              Optimization Tips
+            </p>
+            <ul className="mt-4 space-y-3 text-sm leading-6 text-[var(--iseya-navy)]">
+              {[
+                "Add a clear professional summary",
+                "Include quantifiable achievements",
+                "Match keywords from the job description",
+                "Keep formatting clean and consistent",
+              ].map((tip) => (
+                <li key={tip} className="flex items-start gap-2">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--iseya-gold)]" />
+                  <span>{tip}</span>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => runWithFeedback("tailor", "Optimizing...", "Optimized", tailorResume)}
+              disabled={!canTailor || isTailoring}
+              className={`${primaryButtonClass} ${buttonSizeMdClass} mt-5 w-full`}
+            >
+              {isTailoring ? "Optimizing..." : "Optimize Resume"}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -7754,39 +7925,12 @@ export default function Home() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {[
-                  ["resume", "Resume"],
-                  ["cover", "Cover Letter"],
-                  ["linkedin", "LinkedIn"],
-                  ["application", "Application Kit"],
-                  ["preview", "Preview"],
-                ].map(([id, label]) => {
-                  const locked =
-                    (id === "cover" && !hasCoverLetterAccess) ||
-                    (id === "linkedin" && !hasLinkedInAccess) ||
-                    (id === "application" && !hasApplicationKitAccess);
-
-                  return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => openOutputTab(id as OutputTab)}
-                    className={`${buttonBaseClass} ${buttonSizeMdClass} ${
-                      activeOutput === id
-                        ? "border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]"
-                        : "border border-[var(--iseya-border)] bg-[var(--iseya-white)] text-[var(--iseya-navy)] hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]"
-                    }`}
-                  >
-                    {locked ? "🔒 " : ""}{label}
-                  </button>
-                  );
-                })}
                 <button
                   type="button"
-                  onClick={() => setActiveOutput("resume")}
+                  onClick={() => setActiveOutput("preview")}
                   className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
                 >
-                  Edit Resume
+                  Download Layout
                 </button>
                 <details className="relative">
                   <summary className={`${primaryButtonClass} ${buttonSizeMdClass} cursor-pointer list-none`}>
@@ -7883,28 +8027,38 @@ export default function Home() {
 	          <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[370px_minmax(0,1fr)]">
 	            <aside className="order-2 xl:order-1">
 	              <div className="space-y-3 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-auto xl:pr-1">
+                <WorkspaceNavigation
+                  activeOutput={activeOutput}
+                  onOpen={openOutputTab}
+                  hasCoverLetterAccess={hasCoverLetterAccess}
+                  hasLinkedInAccess={hasLinkedInAccess}
+                  hasApplicationKitAccess={hasApplicationKitAccess}
+                  atsScore={safeMatchBreakdown(workspaceResult.matchBreakdown, safeScore(workspaceResult.score, 0)).atsReadability}
+                />
                 {isStarterWorkflowPreview ? <StarterWorkspacePreviewNotice /> : null}
                 <CompactAiSidebar result={workspaceResult} />
-                <AdvancedIntelligencePanel
-                  analysis={workspaceResult.advancedAnalysis}
-                  onReplaceBullet={
-                    isStarterWorkflowPreview
-                      ? () => setSystemStatus("Upgrade to unlock advanced bullet rewriting.")
-                      : replaceBulletWithVersion
-                  }
-                />
+                <div id="career-intelligence" className="scroll-mt-24">
+                  <AdvancedIntelligencePanel
+                    analysis={workspaceResult.advancedAnalysis}
+                    onReplaceBullet={
+                      isStarterWorkflowPreview
+                        ? () => setSystemStatus("Upgrade to unlock advanced bullet rewriting.")
+                        : replaceBulletWithVersion
+                    }
+                  />
+                </div>
               </div>
             </aside>
 
 	            <section className="order-1 min-w-0 rounded-xl border border-slate-200 bg-slate-100/70 p-3 shadow-sm sm:p-4 xl:order-2">
 	              <div className="mx-auto max-w-6xl">
                 {activeOutput === "resume" ? (
-                  <DocumentFrame title="Editable Resume" subtitle="Section editor">
+                  <DocumentFrame title="Let's tailor your resume" subtitle="Resume editor">
                     {isStarterWorkflowPreview ? (
                       <div className="space-y-5">
                         <PremiumPreviewBanner />
                         <div className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(420px,1.1fr)]">
-                          <div className="min-w-0 scroll-mt-28 xl:max-h-[calc(100vh-9rem)] xl:overflow-auto xl:pr-1">
+                          <div id="resume-editor" className="min-w-0 scroll-mt-28 xl:max-h-[calc(100vh-9rem)] xl:overflow-auto xl:pr-1">
                             <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4">
                               <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
@@ -7948,6 +8102,18 @@ export default function Home() {
                             />
                           </div>
                           <div className="min-w-0 scroll-mt-28 xl:sticky xl:top-24 xl:max-h-[calc(100vh-9rem)] xl:self-start xl:overflow-auto xl:pr-1">
+                            <ResumePreviewControls
+                              template={template}
+                              theme={theme}
+                              onTemplateChange={(nextTemplate) => {
+                                if (requireTemplateAccess(nextTemplate)) {
+                                  setTemplate(nextTemplate);
+                                }
+                              }}
+                              onThemeChange={setTheme}
+                              onPreview={() => setActiveOutput("preview")}
+                              onEdit={() => setActiveOutput("resume")}
+                            />
                             <ResumePreview
                               resumeText={workspaceResult.rewrittenResume}
                               theme={previewTheme}
@@ -7988,14 +8154,26 @@ export default function Home() {
                             onOptimizationUsed={() => trackUsage("optimizationCreditsUsed")}
                           />
                         </div>
-                        <div
+	                        <div
 	                          id="resume-preview"
 	                          className={`min-w-0 scroll-mt-28 xl:sticky xl:top-24 xl:max-h-[calc(100vh-9rem)] xl:self-start xl:overflow-auto xl:pr-1 ${
                               isPremiumTemplate(template) && isStarterPlan(subscriptionPlan)
                                 ? "blur-[1.5px]"
                                 : ""
                             }`}
-	                        >
+	                          >
+                          <ResumePreviewControls
+                            template={template}
+                            theme={theme}
+                            onTemplateChange={(nextTemplate) => {
+                              if (requireTemplateAccess(nextTemplate)) {
+                                setTemplate(nextTemplate);
+                              }
+                            }}
+                            onThemeChange={setTheme}
+                            onPreview={() => setActiveOutput("preview")}
+                            onEdit={() => setActiveOutput("resume")}
+                          />
                           <ResumePreview
                             resumeText={workspaceResult.rewrittenResume}
                             theme={previewTheme}
@@ -8103,6 +8281,18 @@ export default function Home() {
                   </DocumentFrame>
                 ) : activeOutput === "preview" ? (
                   <DocumentFrame title="Resume Preview" subtitle="Download layout">
+                    <ResumePreviewControls
+                      template={template}
+                      theme={theme}
+                      onTemplateChange={(nextTemplate) => {
+                        if (requireTemplateAccess(nextTemplate)) {
+                          setTemplate(nextTemplate);
+                        }
+                      }}
+                      onThemeChange={setTheme}
+                      onPreview={() => setActiveOutput("preview")}
+                      onEdit={() => setActiveOutput("resume")}
+                    />
                     <div className="rounded-2xl bg-slate-200/70 px-3 py-6 sm:px-6 lg:px-10">
                       <ResumePreview
                         resumeText={workspaceResult.rewrittenResume}
@@ -8358,6 +8548,85 @@ function MiniAnalyticsCard({
   );
 }
 
+function WorkspaceNavigation({
+  activeOutput,
+  onOpen,
+  hasCoverLetterAccess,
+  hasLinkedInAccess,
+  hasApplicationKitAccess,
+  atsScore,
+}: {
+  activeOutput: OutputTab;
+  onOpen: (tab: OutputTab) => void;
+  hasCoverLetterAccess: boolean;
+  hasLinkedInAccess: boolean;
+  hasApplicationKitAccess: boolean;
+  atsScore: number;
+}) {
+  const tabs: Array<{ id: OutputTab; label: string; icon: typeof FileText; locked?: boolean }> = [
+    { id: "resume", label: "Resume", icon: FileText },
+    { id: "cover", label: "Cover Letter", icon: ClipboardList, locked: !hasCoverLetterAccess },
+    { id: "linkedin", label: "LinkedIn Profile", icon: UsersRound, locked: !hasLinkedInAccess },
+    { id: "application", label: "Application Kit", icon: BriefcaseBusiness, locked: !hasApplicationKitAccess },
+    { id: "preview", label: "Preview", icon: FileText },
+  ];
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <p className="px-2 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+        Career Workspace
+      </p>
+      <nav className="mt-1 grid gap-1" aria-label="Career workspace">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onOpen(tab.id)}
+            className={`flex min-h-10 items-center justify-between rounded-md px-3 text-left text-sm font-semibold transition ${
+              activeOutput === tab.id
+                ? "bg-[var(--iseya-navy)] text-white"
+                : "text-slate-700 hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]"
+            }`}
+          >
+            <span className="flex items-center gap-2.5">
+              <tab.icon className="h-4 w-4" strokeWidth={1.8} />
+              {tab.label}
+            </span>
+            {tab.locked ? <span className="text-xs" aria-label="Premium preview">🔒</span> : null}
+          </button>
+        ))}
+        <a href="#career-intelligence" className="flex min-h-10 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
+          <ClipboardList className="h-4 w-4" strokeWidth={1.8} /> Interview Prep
+        </a>
+        <Link href="/applications" className="flex min-h-10 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
+          <BriefcaseBusiness className="h-4 w-4" strokeWidth={1.8} /> Job Tracker
+        </Link>
+        <a href="#source-materials" className="flex min-h-10 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
+          <FileText className="h-4 w-4" strokeWidth={1.8} /> Documents
+        </a>
+        <a href="#optimization-settings" className="flex min-h-10 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
+          <Settings className="h-4 w-4" strokeWidth={1.8} /> Settings
+        </a>
+      </nav>
+      <div className="mt-4 rounded-lg bg-[var(--iseya-navy)] p-4 text-white">
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+          ATS Readiness
+        </p>
+        <div className="mt-2 flex items-end gap-1">
+          <span className="text-3xl font-semibold">{Math.round(atsScore)}</span>
+          <span className="pb-1 text-xs text-white/65">/100</span>
+        </div>
+        <div className="mt-3 h-1.5 rounded-full bg-white/20">
+          <div
+            className="h-1.5 rounded-full bg-[var(--iseya-gold)]"
+            style={{ width: `${Math.min(100, Math.max(0, atsScore))}%` }}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ContactField({
   label,
   value,
@@ -8443,6 +8712,75 @@ function DocumentFrame({
       </div>
       {children}
     </article>
+  );
+}
+
+function ResumePreviewControls({
+  template,
+  theme,
+  onTemplateChange,
+  onThemeChange,
+  onPreview,
+  onEdit,
+}: {
+  template: TemplateId;
+  theme: ThemeId;
+  onTemplateChange: (template: TemplateId) => void;
+  onThemeChange: (theme: ThemeId) => void;
+  onPreview: () => void;
+  onEdit: () => void;
+}) {
+  return (
+    <div className="mb-4 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div className="flex rounded-md bg-slate-100 p-1 text-xs font-semibold text-slate-600">
+          <button type="button" onClick={onPreview} className="rounded-sm bg-white px-3 py-2 text-[var(--iseya-navy)] shadow-sm">
+            Preview
+          </button>
+          <a href="#career-intelligence" className="rounded-sm px-3 py-2 transition hover:text-[var(--iseya-navy)]">
+            ATS Report
+          </a>
+        </div>
+        <div className="flex items-center gap-2">
+          <a href="#resume-editor" className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
+            Sections
+          </a>
+          <button type="button" onClick={onEdit} className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
+            Edit Sections
+          </button>
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <label className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+          Template
+          <select
+            value={template}
+            onChange={(event) => onTemplateChange(event.target.value as TemplateId)}
+            className="mt-1.5 w-full rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold normal-case tracking-normal text-[var(--iseya-navy)] outline-none focus:border-[var(--iseya-gold)]"
+          >
+            {Object.entries(templates).map(([id, profile]) => (
+              <option key={id} value={id}>{profile.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+          Theme
+          <select
+            value={theme}
+            onChange={(event) => onThemeChange(event.target.value as ThemeId)}
+            className="mt-1.5 w-full rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold normal-case tracking-normal text-[var(--iseya-navy)] outline-none focus:border-[var(--iseya-gold)]"
+          >
+            <option value="deep-navy">Deep Navy</option>
+            <option value="modern-teal">Modern Teal</option>
+            <option value="royal-blue">Royal Blue</option>
+            <option value="emerald">Emerald</option>
+            <option value="slate-gray">Slate Gray</option>
+            <option value="minimal-black">Minimal Black</option>
+            <option value="purple-executive">Purple Executive</option>
+          </select>
+        </label>
+      </div>
+    </div>
   );
 }
 
@@ -9892,6 +10230,121 @@ function BulletVariantButton({
   );
 }
 
+function ResumePreviewSectionContent({ section }: { section: ResumeSection }) {
+  if (section.heading === "CORE SKILLS") {
+    const skills = splitResumeList([...section.body, ...section.bullets].join(" | "));
+
+    return skills.length > 0 ? (
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-zinc-700">
+        {skills.map((skill) => (
+          <span key={skill} className="flex items-center gap-2">
+            <span className="h-1 w-1 rounded-full bg-slate-400" />
+            {skill}
+          </span>
+        ))}
+      </div>
+    ) : null;
+  }
+
+  if (section.heading !== "PROFESSIONAL EXPERIENCE") {
+    return (
+      <>
+        {section.body.length > 0 ? (
+          <div className="mt-3 space-y-2">
+            {section.body.map((paragraph, paragraphIndex) => (
+              <p key={`${paragraph}-${paragraphIndex}`} className="text-sm leading-7 text-zinc-700">
+                {paragraph}
+              </p>
+            ))}
+          </div>
+        ) : null}
+        {section.bullets.length > 0 ? (
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7 text-zinc-700">
+            {section.bullets.map((bullet, bulletIndex) => (
+              <li key={`${bullet}-${bulletIndex}`}>{cleanExportBullet(bullet)}</li>
+            ))}
+          </ul>
+        ) : null}
+      </>
+    );
+  }
+
+  const lines = section.lines ?? [
+    ...section.body,
+    ...section.bullets.map((bullet) => `- ${bullet}`),
+  ];
+  const entries: Array<{ role: string; meta: string; bullets: string[] }> = [];
+  let current: { role: string; meta: string; bullets: string[] } | null = null;
+
+  for (const rawLine of lines) {
+    const line = cleanEditorText(rawLine);
+
+    if (!line) {
+      continue;
+    }
+
+    if (/^[-*•]\s+/.test(rawLine.trim())) {
+      current?.bullets.push(cleanExportBullet(line.replace(/^[-*•]\s+/, "")));
+      continue;
+    }
+
+    if (!current || (current.meta && current.bullets.length > 0)) {
+      current = { role: line, meta: "", bullets: [] };
+      entries.push(current);
+    } else if (current.meta && line.length > 34 && /[.!?]$/.test(line)) {
+      current.bullets.push(cleanExportBullet(line));
+    } else {
+      current.meta = line;
+    }
+  }
+
+  if (entries.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 space-y-5">
+      {entries.map((entry, entryIndex) => {
+        const metadata = entry.meta.split(/\s+\|\s+/).filter(Boolean);
+        const dateIndex = metadata.findIndex((item) =>
+          /\b(?:present|current|\d{4}|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(item),
+        );
+        let date = dateIndex >= 0 ? metadata.splice(dateIndex, 1)[0] : "";
+        let location = metadata.join(" | ");
+        let role = entry.role.replace(/\s+-\s+/, " | ");
+
+        if (!entry.meta && /\s+\|\s+/.test(entry.role)) {
+          const inlineMetadata = entry.role.split(/\s+\|\s+/).filter(Boolean);
+          const inlineDateIndex = inlineMetadata.findIndex((item) =>
+            /\b(?:present|current|\d{4}|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(item),
+          );
+
+          date = inlineDateIndex >= 0 ? inlineMetadata.splice(inlineDateIndex, 1)[0] : date;
+          role = inlineMetadata.slice(0, 2).join(" | ").replace(/\s+-\s+/, " | ");
+          location = inlineMetadata.slice(2).join(" | ");
+        }
+
+        return (
+          <div key={`${entry.role}-${entryIndex}`} className="break-inside-avoid">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+              <p className="text-sm font-semibold text-zinc-900">{role || entry.role}</p>
+              {date ? <p className="shrink-0 text-xs font-semibold text-zinc-500">{date}</p> : null}
+            </div>
+            {location ? <p className="mt-1 text-xs text-zinc-500">{location}</p> : null}
+            {entry.bullets.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-6 text-zinc-700">
+                {entry.bullets.map((bullet, bulletIndex) => (
+                  <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function ResumePreview({
   resumeText,
   theme,
@@ -9918,17 +10371,17 @@ function ResumePreview({
   const profile = templateProfile(template);
   const family = profile.family;
   const isExecutive = family === "executive";
-  const orderedSections = orderedResumeSections(resume.sections, template);
+  const orderedSections = preparedPreviewSections(resume.sections, template);
   const bodyClassByFamily: Record<TemplateFamily, string> = {
-    ats: fullPage ? "space-y-3 px-10 py-8" : "space-y-4 p-6",
-    executive: fullPage ? "space-y-6 px-12 py-10" : "space-y-7 p-8",
-    consulting: fullPage ? "space-y-4 px-11 py-9" : "space-y-5 p-7",
+    ats: fullPage ? "space-y-4 px-10 py-8" : "space-y-4 p-6",
+    executive: fullPage ? "space-y-5 px-12 py-9" : "space-y-5 p-7",
+    consulting: fullPage ? "space-y-4 px-11 py-9" : "space-y-4 p-7",
     academic: fullPage ? "space-y-4 px-12 py-9" : "space-y-5 p-7",
     finance: fullPage ? "space-y-4 px-11 py-9" : "space-y-5 p-7",
     healthcare: fullPage ? "space-y-4 px-11 py-9" : "space-y-5 p-7",
     creative: fullPage ? "space-y-5 px-10 py-9" : "space-y-6 p-7",
     legal: fullPage ? "space-y-4 px-12 py-9" : "space-y-5 p-7",
-    product: fullPage ? "space-y-5 px-11 py-9" : "space-y-6 p-7",
+    product: fullPage ? "space-y-5 px-11 py-9" : "space-y-5 p-7",
     technical: fullPage ? "space-y-4 px-10 py-8" : "space-y-5 p-6",
   };
   const bodyClass = bodyClassByFamily[family];
@@ -9939,9 +10392,9 @@ function ResumePreview({
     academic: `border-b border-zinc-300 bg-white ${fullPage ? "px-12 py-7" : "px-7 py-5"} font-serif text-zinc-950`,
     finance: `border-b border-zinc-200 ${fullPage ? "px-11 py-7" : "px-7 py-5"} ${theme.headerBg} ${theme.headerText}`,
     healthcare: `border-b-4 bg-white ${fullPage ? "px-11 py-7" : "px-7 py-5"} text-zinc-950 ${theme.accentBorder}`,
-    creative: `border-b border-zinc-200 border-l-8 bg-white ${fullPage ? "px-10 py-8" : "px-7 py-6"} text-zinc-950 ${theme.accentBorder}`,
+    creative: `border-b border-zinc-200 bg-white ${fullPage ? "px-10 py-8" : "px-7 py-6"} text-zinc-950 ${theme.accentBorder}`,
     legal: `border-y-4 bg-white ${fullPage ? "px-12 py-7" : "px-7 py-5"} font-serif text-zinc-950 ${theme.accentBorder}`,
-    product: `border-b border-zinc-200 border-l-4 bg-white ${fullPage ? "px-10 py-7" : "px-6 py-5"} text-zinc-950 ${theme.accentBorder}`,
+    product: `border-b border-zinc-200 bg-white ${fullPage ? "px-10 py-7" : "px-6 py-5"} text-zinc-950 ${theme.accentBorder}`,
     technical: `border-b border-zinc-200 bg-white ${fullPage ? "px-10 py-6" : "px-6 py-4"} text-zinc-950`,
   };
   const headerClass = headerClassByFamily[family];
@@ -9953,15 +10406,15 @@ function ResumePreview({
     : theme.accentText;
   const sectionClassByFamily: Record<TemplateFamily, string> = {
     ats: "break-inside-avoid",
-    executive: "break-inside-avoid rounded-sm border-l-4 border-zinc-100 pl-4",
-    consulting: "break-inside-avoid border border-zinc-100 p-3",
+    executive: "break-inside-avoid",
+    consulting: "break-inside-avoid",
     academic: "break-inside-avoid font-serif",
-    finance: "break-inside-avoid border-l-4 border-zinc-100 pl-4",
-    healthcare: "break-inside-avoid rounded-md border border-zinc-100 bg-zinc-50/40 p-3",
-    creative: "break-inside-avoid rounded-lg border border-zinc-100 p-3",
+    finance: "break-inside-avoid",
+    healthcare: "break-inside-avoid",
+    creative: "break-inside-avoid",
     legal: "break-inside-avoid font-serif",
-    product: "break-inside-avoid border-l-2 border-zinc-100 pl-4",
-    technical: "break-inside-avoid border-l-2 border-zinc-100 pl-4",
+    product: "break-inside-avoid",
+    technical: "break-inside-avoid",
   };
   const headingClassByFamily: Record<TemplateFamily, string> = {
     ats: `border-b pb-1 text-[11px] font-bold uppercase ${theme.accentText} ${theme.accentBorder}`,
@@ -10047,27 +10500,7 @@ function ResumePreview({
             <h5 className={headingClassByFamily[family]}>
               {section.heading}
             </h5>
-            {section.body.length > 0 ? (
-              <div className="mt-3 space-y-2">
-                {section.body.map((paragraph, paragraphIndex) => (
-                  <p
-                    key={`${paragraph}-${paragraphIndex}`}
-                    className="text-sm leading-7 text-zinc-700"
-                  >
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
-            ) : null}
-            {section.bullets.length > 0 ? (
-              <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7 text-zinc-700">
-	                {section.bullets.map((bullet, bulletIndex) => (
-	                  <li key={`${bullet}-${bulletIndex}`}>
-	                    {cleanExportBullet(bullet)}
-	                  </li>
-	                ))}
-              </ul>
-            ) : null}
+            <ResumePreviewSectionContent section={section} />
           </section>
         ))}
       </div>
