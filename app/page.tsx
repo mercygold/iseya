@@ -8038,7 +8038,7 @@ export default function Home() {
                   onClick={() => setActiveOutput("preview")}
                   className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
                 >
-                  Download Layout
+                  Templates
                 </button>
                 <details className="relative">
                   <summary className={`${primaryButtonClass} ${buttonSizeMdClass} cursor-pointer list-none`}>
@@ -8132,7 +8132,7 @@ export default function Home() {
             </div>
           </div>
 
-	          <div className="grid gap-3 xl:grid-cols-[286px_minmax(0,1fr)]">
+	          <div className="grid gap-3 xl:grid-cols-[312px_minmax(0,1fr)]">
 	            <aside className="order-2 xl:order-1">
 	              <div className="space-y-2.5 xl:sticky xl:top-20 xl:max-h-[calc(100vh-5.75rem)] xl:overflow-y-auto xl:pr-1">
                 <WorkspaceNavigation
@@ -8589,14 +8589,14 @@ export default function Home() {
                     </div>
                   </DocumentFrame>
                 ) : activeOutput === "preview" ? (
-                  <DocumentFrame title="Resume Preview" subtitle="Download layout">
+                      <DocumentFrame title="Resume Preview" subtitle="Template & theme">
                     <div className="mb-4 flex flex-wrap justify-end gap-2">
                       <button
                         type="button"
                         onClick={() => setActiveOutput("preview")}
                         className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
                       >
-                        Download Layout
+                        Templates
                       </button>
                       <details className="relative">
                         <summary className={`${secondaryButtonClass} ${buttonSizeSmClass} cursor-pointer list-none`}>
@@ -9142,6 +9142,9 @@ function ResumePreviewControls({
 }) {
   return (
     <div className="mb-4 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+      <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-navy)]">
+        Template &amp; Theme
+      </p>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
         <div className="flex rounded-md bg-slate-100 p-1 text-xs font-semibold text-slate-600">
           <button type="button" onClick={onPreview} className="rounded-sm bg-white px-3 py-2 text-[var(--iseya-navy)] shadow-sm">
@@ -10217,14 +10220,14 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
         <p className="mt-2 text-xs leading-5 text-slate-500">
           Get smart suggestions to strengthen your resume.
         </p>
-        <ul className="mt-3 space-y-2 text-xs font-medium text-slate-700">
+        <ul className="mt-3 grid grid-cols-2 gap-2 text-[11px] font-medium leading-4 text-slate-700">
           {[
             ["Add measurable achievements", "bg-emerald-50 text-emerald-600"],
             ["Strengthen your summary", "bg-blue-50 text-blue-600"],
             ["Improve keyword alignment", "bg-[#FFF8E6] text-[var(--iseya-gold)]"],
             ["Enhance impact and clarity", "bg-slate-100 text-[var(--iseya-navy)]"],
           ].map(([label, color]) => (
-            <li key={label} className="flex items-center gap-3">
+            <li key={label} className="flex items-start gap-2 rounded-md border border-slate-100 bg-slate-50/60 px-2 py-2">
               <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
               {label}
             </li>
@@ -10237,12 +10240,12 @@ function CompactAiSidebar({ result }: { result: TailoringResult }) {
           Insights Center
         </p>
         <div className="mt-2 flex items-end gap-2">
-          <span className="text-3xl font-semibold tracking-tight text-[var(--iseya-navy)]">
+          <span className="text-2xl font-semibold tracking-tight text-[var(--iseya-navy)]">
             {Math.round(score)}
           </span>
           <span className="pb-1 text-sm font-semibold text-slate-500">/100</span>
         </div>
-        <div className="mt-2 grid gap-1.5">
+        <div className="mt-2 grid grid-cols-2 gap-1.5">
           <ScoreBar label="Readability score" score={breakdown.atsReadability} />
           <ScoreBar label="Alignment score" score={breakdown.roleFit} />
           <ScoreBar label="Evidence strength" score={breakdown.metricStrength} />
@@ -10443,12 +10446,12 @@ function AdvancedIntelligencePanel({
   onReplaceBullet: (original: string, replacement: string) => void;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-semibold text-[var(--iseya-navy)]">
+    <details className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <summary className="cursor-pointer list-none text-sm font-semibold text-[var(--iseya-navy)]">
         Career Intelligence
-      </h2>
-      <div className="mt-4 space-y-3">
-        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+      </summary>
+      <div className="mt-3 space-y-2">
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2.5">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             Interview Preparation
           </summary>
@@ -10481,7 +10484,7 @@ function AdvancedIntelligencePanel({
           </div>
         </details>
 
-        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2.5">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             Gap Analysis
           </summary>
@@ -10507,7 +10510,7 @@ function AdvancedIntelligencePanel({
           </div>
         </details>
 
-        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2.5">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             Job Description Intelligence
           </summary>
@@ -10550,7 +10553,7 @@ function AdvancedIntelligencePanel({
           </div>
         </details>
 
-        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2.5">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             Achievement Improvement
           </summary>
@@ -10606,14 +10609,14 @@ function AdvancedIntelligencePanel({
           </div>
         </details>
 
-        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+        <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2.5">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             Optimization Suggestions
           </summary>
           <CoachBlock title="Smart Suggestions" items={analysis.aiSuggestions} />
         </details>
       </div>
-    </div>
+    </details>
   );
 }
 
