@@ -14,7 +14,7 @@ import {
 import { getAuthRedirectUrl } from "@/lib/supabaseConfig";
 
 type AuthMode = "login" | "signup";
-type SignupPath = "individual" | "recruiter" | "institution";
+type SignupPath = "individual" | "recruiter" | "institution" | "institution_admin";
 
 type AuthFormProps = {
   mode: AuthMode;
@@ -61,6 +61,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const isLogin = mode === "login";
   const useInstitutionSignup = enableInstitutionAccess && signupPath === "institution";
   const useRecruiterSignup = !isLogin && signupPath === "recruiter";
+  const useInstitutionAdminSignup = !isLogin && signupPath === "institution_admin";
   const signupEmail = useInstitutionSignup ? schoolEmail : email;
   const selectedCountryOption = countryOptions.includes(country)
     ? country
@@ -86,6 +87,10 @@ export default function AuthForm({ mode }: AuthFormProps) {
       const timer = window.setTimeout(() => setSignupPath("recruiter"), 0);
       return () => window.clearTimeout(timer);
     }
+    if (!isLogin && requestedType === "institution_admin") {
+      const timer = window.setTimeout(() => setSignupPath("institution_admin"), 0);
+      return () => window.clearTimeout(timer);
+    }
 
     return undefined;
   }, [isLogin, requestedType]);
@@ -108,7 +113,11 @@ export default function AuthForm({ mode }: AuthFormProps) {
         email: signupEmail,
         password,
         fullName,
-        accountType: useRecruiterSignup ? "recruiter" : "candidate",
+        accountType: useRecruiterSignup
+          ? "recruiter"
+          : useInstitutionAdminSignup
+            ? "institution"
+            : "candidate",
         emailRedirectTo: getAuthRedirectUrl(redirectedFrom),
       });
 
@@ -165,6 +174,12 @@ export default function AuthForm({ mode }: AuthFormProps) {
         }
       }
 
+      if (useInstitutionAdminSignup) {
+        router.replace("/institutions/onboarding");
+        router.refresh();
+        return;
+      }
+
       router.replace(redirectedFrom);
       router.refresh();
     } catch (authError) {
@@ -214,6 +229,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
               Pricing
             </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions">
+              For Institutions
+            </Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/contact">
               Contact
             </Link>
@@ -244,6 +262,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
                   {[
                     ["individual", "Individual"],
                     ["recruiter", "Recruiter"],
+                    ...(requestedType === "institution_admin"
+                      ? [["institution_admin", "Institution Administrator"]]
+                      : []),
                     ...(enableInstitutionAccess
                       ? [["institution", "Student / Institution Access"]]
                       : []),

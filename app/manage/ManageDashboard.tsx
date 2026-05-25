@@ -26,6 +26,26 @@ type Organization = {
   seats_used: number;
 };
 
+type InstitutionModeration = {
+  id: string;
+  user_id: string;
+  institution_name: string;
+  institution_type: string;
+  admin_name: string;
+  admin_email: string;
+  website: string;
+  country: string;
+  state_region: string | null;
+  city: string;
+  student_email_domain: string;
+  access_status: string;
+  access_start_date: string | null;
+  access_end_date: string | null;
+  access_notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type RecruiterModeration = {
   id: string;
   user_id: string;
@@ -75,6 +95,7 @@ type ManagePayload = {
     recentPaidUsers: ManagedUser[];
   };
   organizations: Organization[];
+  institutions: InstitutionModeration[];
   recruiters: RecruiterModeration[];
   jobPosts: JobPostModeration[];
 };
@@ -129,6 +150,7 @@ export default function ManageDashboard() {
   const [query, setQuery] = useState("");
   const [editingUserId, setEditingUserId] = useState("");
   const [selectedRecruiter, setSelectedRecruiter] = useState<RecruiterModeration | null>(null);
+  const [selectedInstitution, setSelectedInstitution] = useState<InstitutionModeration | null>(null);
   const [draft, setDraft] = useState({
     subscriptionPlan: "free",
     subscriptionStatus: "free",
@@ -262,6 +284,34 @@ export default function ManageDashboard() {
       );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to update recruiter review status.");
+    }
+  }
+
+  async function updateInstitutionStatus(institution: InstitutionModeration, accessStatus: string) {
+    const confirmed = window.confirm(
+      `Set ${institution.institution_name} to ${statusLabel(accessStatus)}?`,
+    );
+    if (!confirmed) return;
+    setStatus("");
+
+    try {
+      const response = await fetch("/api/manage/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          institutionProfileId: institution.id,
+          verificationStatus: accessStatus,
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) throw new Error(data.error || "Unable to update institution access status.");
+      setStatus("Institution access status updated.");
+      setSelectedInstitution((current) =>
+        current?.id === institution.id ? { ...current, access_status: accessStatus } : current,
+      );
+      await loadManageData({ preserveStatus: true });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to update institution access status.");
     }
   }
 
@@ -612,6 +662,38 @@ export default function ManageDashboard() {
         </ModerationCard>
       </section>
 
+      <ModerationCard
+        title="Institution Moderation"
+        subtitle="Review institution access requests without exposing individual student materials."
+      >
+        {(payload.institutions ?? []).length > 0 ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {payload.institutions.map((institution) => (
+              <article key={institution.id} className="rounded-xl border border-slate-200 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--iseya-navy)]">
+                      {institution.institution_name}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      {institution.institution_type} | {institution.admin_email}
+                    </p>
+                    <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
+                      {statusLabel(institution.access_status)}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => setSelectedInstitution(institution)} className={secondaryButton}>
+                    View
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">No institution access requests yet.</p>
+        )}
+      </ModerationCard>
+
       {enableInstitutionAccess ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
@@ -647,6 +729,13 @@ export default function ManageDashboard() {
           onUpdate={(nextStatus) => updateRecruiterStatus(selectedRecruiter, nextStatus)}
           onRemoveDuplicates={() => removeStaleRecruiterDuplicates(selectedRecruiter)}
           onDelete={() => deleteRecruiterProfile(selectedRecruiter)}
+        />
+      ) : null}
+      {selectedInstitution ? (
+        <InstitutionModal
+          institution={selectedInstitution}
+          onClose={() => setSelectedInstitution(null)}
+          onUpdate={(nextStatus) => updateInstitutionStatus(selectedInstitution, nextStatus)}
         />
       ) : null}
     </div>
@@ -741,6 +830,59 @@ function RecruiterModal({
           <button type="button" onClick={onClose} className={secondaryButton}>
             Close
           </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function InstitutionModal({
+  institution,
+  onClose,
+  onUpdate,
+}: {
+  institution: InstitutionModeration;
+  onClose: () => void;
+  onUpdate: (status: string) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8">
+      <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+              Institution Review
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
+              {institution.institution_name}
+            </h2>
+            <p className="mt-1 text-sm font-medium text-slate-600">
+              {statusLabel(institution.access_status)}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className={secondaryButton}>Close</button>
+        </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <Detail label="Institution type" value={institution.institution_type} />
+          <Detail label="Administrator" value={institution.admin_name} />
+          <Detail label="Admin email" value={institution.admin_email} />
+          <Detail label="Website" value={institution.website} />
+          <Detail label="Student domain" value={`@${institution.student_email_domain}`} />
+          <Detail label="City" value={institution.city} />
+          <Detail label="State/Region" value={institution.state_region} />
+          <Detail label="Country" value={institution.country} />
+          <Detail label="Access start date" value={institution.access_start_date} />
+          <Detail label="Access end date" value={institution.access_end_date} />
+          <div className="sm:col-span-2">
+            <Detail label="Access notes" value={institution.access_notes} />
+          </div>
+        </div>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <button type="button" onClick={() => onUpdate("active")} className={primaryButton}>Approve</button>
+          <button type="button" onClick={() => onUpdate("rejected")} className={secondaryButton}>Reject</button>
+          <button type="button" onClick={() => onUpdate("expired")} className={secondaryButton}>Mark Expired</button>
+          <button type="button" onClick={() => onUpdate("pending_review")} className={secondaryButton}>Pending Review</button>
+          <button type="button" onClick={onClose} className={secondaryButton}>Close</button>
         </div>
       </section>
     </div>

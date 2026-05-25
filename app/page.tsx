@@ -6651,6 +6651,9 @@ export default function Home() {
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters">
                 For Recruiters
               </Link>
+              <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions">
+                For Institutions
+              </Link>
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
                 Pricing
               </Link>

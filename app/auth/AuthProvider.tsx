@@ -26,7 +26,7 @@ type AuthContextValue = {
     password: string;
     fullName?: string;
     emailRedirectTo?: string;
-    accountType?: "candidate" | "recruiter";
+    accountType?: "candidate" | "recruiter" | "institution";
   }) => Promise<{ needsEmailConfirmation: boolean }>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -217,7 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: string;
         email: string | null;
         full_name: string | null;
-        account_type?: "recruiter";
+        account_type?: "recruiter" | "institution";
       } = {
         id: profileUser.id,
         email: profileUser.email ?? null,
@@ -229,9 +229,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (profileUser.user_metadata?.account_type === "recruiter") {
         profilePayload.account_type = "recruiter";
+      } else if (profileUser.user_metadata?.account_type === "institution") {
+        profilePayload.account_type = "institution";
       }
 
       await supabase.from("profiles").upsert(profilePayload, { onConflict: "id" });
+
+      if (
+        profileUser.user_metadata?.account_type !== "recruiter" &&
+        profileUser.user_metadata?.account_type !== "institution"
+      ) {
+        await fetch("/api/institution/associate", { method: "POST" }).catch(() => undefined);
+      }
     },
     [supabase],
   );

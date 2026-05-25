@@ -83,6 +83,25 @@ export async function GET() {
     seats_allowed: number;
     seats_used: number;
   }> = [];
+  let institutions: Array<{
+    id: string;
+    user_id: string;
+    institution_name: string;
+    institution_type: string;
+    admin_name: string;
+    admin_email: string;
+    website: string;
+    country: string;
+    state_region: string | null;
+    city: string;
+    student_email_domain: string;
+    access_status: string;
+    access_start_date: string | null;
+    access_end_date: string | null;
+    access_notes: string | null;
+    created_at: string;
+    updated_at: string;
+  }> = [];
   let recruiters: Array<{
     id: string;
     user_id: string;
@@ -119,7 +138,11 @@ export async function GET() {
     created_at: string;
   }> = [];
 
-  const [{ data: recruiterRows, error: recruiterError }, { data: jobRows, error: jobError }] =
+  const [
+    { data: recruiterRows, error: recruiterError },
+    { data: jobRows, error: jobError },
+    { data: institutionRows, error: institutionError },
+  ] =
     await Promise.all([
       serviceRole
         .from("recruiter_profiles")
@@ -130,6 +153,11 @@ export async function GET() {
         .from("job_posts")
         .select("id, recruiter_id, job_title, company_name, status, applicants_count, created_at")
         .order("created_at", { ascending: false })
+        .limit(100),
+      serviceRole
+        .from("institution_profiles")
+        .select("id, user_id, institution_name, institution_type, admin_name, admin_email, website, country, state_region, city, student_email_domain, access_status, access_start_date, access_end_date, access_notes, created_at, updated_at")
+        .order("updated_at", { ascending: false })
         .limit(100),
     ]);
 
@@ -160,6 +188,15 @@ export async function GET() {
     jobPosts = jobRows ?? [];
   }
 
+  if (institutionError) {
+    console.error("[manage] institution moderation query failed", {
+      code: institutionError.code,
+      message: institutionError.message,
+    });
+  } else {
+    institutions = institutionRows ?? [];
+  }
+
   if (enableInstitutionAccess) {
     const { data: organizationRows, error: organizationError } = await serviceRole
       .from("organizations")
@@ -172,7 +209,7 @@ export async function GET() {
     }
   }
 
-  return Response.json({ users: safeUsers, stats, organizations, recruiters, jobPosts });
+  return Response.json({ users: safeUsers, stats, organizations, institutions, recruiters, jobPosts });
 }
 
 export async function PATCH(request: Request) {
@@ -185,6 +222,7 @@ export async function PATCH(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     userId?: unknown;
     recruiterUserId?: unknown;
+    institutionProfileId?: unknown;
     jobPostId?: unknown;
     subscriptionPlan?: unknown;
     subscriptionStatus?: unknown;
@@ -195,6 +233,8 @@ export async function PATCH(request: Request) {
   };
   const userId = typeof body.userId === "string" ? body.userId : "";
   const recruiterUserId = typeof body.recruiterUserId === "string" ? body.recruiterUserId : "";
+  const institutionProfileId =
+    typeof body.institutionProfileId === "string" ? body.institutionProfileId : "";
   const jobPostId = typeof body.jobPostId === "string" ? body.jobPostId : "";
   const subscriptionPlan = typeof body.subscriptionPlan === "string" ? body.subscriptionPlan : "";
   const subscriptionStatus = typeof body.subscriptionStatus === "string" ? body.subscriptionStatus : "";
@@ -254,6 +294,31 @@ export async function PATCH(request: Request) {
         email: activeProfile.work_email,
         status: verificationStatus,
       });
+    }
+
+    return Response.json({ ok: true });
+  }
+
+  if (institutionProfileId) {
+    const accessStatus = typeof body.verificationStatus === "string" ? body.verificationStatus : "";
+    const validAccessStatuses = new Set(["pending_review", "active", "rejected", "expired"]);
+
+    if (!validAccessStatuses.has(accessStatus)) {
+      return Response.json({ error: "Invalid institution moderation update." }, { status: 400 });
+    }
+
+    const { error } = await serviceRole
+      .from("institution_profiles")
+      .update({ access_status: accessStatus })
+      .eq("id", institutionProfileId);
+
+    if (error) {
+      console.error("[manage] institution moderation update failed", {
+        code: error.code,
+        message: error.message,
+        institutionProfileId,
+      });
+      return Response.json({ error: "Unable to update institution access status." }, { status: 500 });
     }
 
     return Response.json({ ok: true });

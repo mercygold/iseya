@@ -19,6 +19,7 @@ export type Database = {
           stripe_customer_id: string | null;
           stripe_subscription_id: string | null;
           organization_id: string | null;
+          institution_id: string | null;
           organization_access_type: string | null;
           organization_verified_at: string | null;
           role: string | null;
@@ -42,6 +43,7 @@ export type Database = {
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
           organization_id?: string | null;
+          institution_id?: string | null;
           organization_access_type?: string | null;
           organization_verified_at?: string | null;
           role?: string | null;
@@ -65,6 +67,7 @@ export type Database = {
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
           organization_id?: string | null;
+          institution_id?: string | null;
           organization_access_type?: string | null;
           organization_verified_at?: string | null;
           role?: string | null;
@@ -122,6 +125,65 @@ export type Database = {
           start_date?: string | null;
           end_date?: string | null;
           created_at?: string;
+        };
+      };
+      institution_profiles: {
+        Row: {
+          id: string;
+          user_id: string;
+          institution_name: string;
+          institution_type: string;
+          admin_name: string;
+          admin_email: string;
+          website: string;
+          country: string;
+          state_region: string | null;
+          city: string;
+          student_email_domain: string;
+          access_status: string;
+          access_start_date: string | null;
+          access_end_date: string | null;
+          access_notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          institution_name?: string;
+          institution_type?: string;
+          admin_name?: string;
+          admin_email?: string;
+          website?: string;
+          country?: string;
+          state_region?: string | null;
+          city?: string;
+          student_email_domain?: string;
+          access_status?: string;
+          access_start_date?: string | null;
+          access_end_date?: string | null;
+          access_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          institution_name?: string;
+          institution_type?: string;
+          admin_name?: string;
+          admin_email?: string;
+          website?: string;
+          country?: string;
+          state_region?: string | null;
+          city?: string;
+          student_email_domain?: string;
+          access_status?: string;
+          access_start_date?: string | null;
+          access_end_date?: string | null;
+          access_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
         };
       };
       recruiter_profiles: {

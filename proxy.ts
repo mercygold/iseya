@@ -12,6 +12,8 @@ const protectedRoutes = [
   "/recruiters/dashboard",
   "/recruiters/onboarding",
   "/recruiters/jobs",
+  "/institutions/dashboard",
+  "/institutions/onboarding",
 ];
 const authRoutes = ["/login", "/signup"];
 
@@ -97,6 +99,10 @@ export const config = {
     "/recruiters/onboarding",
     "/recruiters/jobs/:path*",
     "/recruiters/jobs",
+    "/institutions/dashboard/:path*",
+    "/institutions/dashboard",
+    "/institutions/onboarding/:path*",
+    "/institutions/onboarding",
     "/login",
     "/signup",
   ],

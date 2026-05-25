@@ -35,6 +35,9 @@ export function InfoPageShell({
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
               Pricing
             </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions">
+              For Institutions
+            </Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/contact">
               Contact
             </Link>
