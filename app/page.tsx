@@ -6721,15 +6721,12 @@ export default function Home() {
                   Dashboard
                 </Link>
               ) : null}
-              {authUser ? (
-                <a className="transition hover:text-[var(--iseya-gold)]" href="#resume-builder">
-                  Career Assets
-                </a>
-              ) : (
-                <a className="text-[var(--iseya-gold)]" href="#resume-builder">
-                  Career Assets
-                </a>
-              )}
+              <Link
+                className={authUser ? "transition hover:text-[var(--iseya-gold)]" : "text-[var(--iseya-gold)]"}
+                href="/workspace"
+              >
+                Career Assets
+              </Link>
               <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">
                 Jobs
               </Link>
@@ -6781,16 +6778,25 @@ export default function Home() {
                     My Resumes
                   </button>
               ) : null}
-              <button
-                type="button"
-                onClick={() =>
-                  runWithFeedback("tailor", "Tailoring...", "Done", tailorResume)
-                }
-                disabled={!canTailor || isTailoring}
-                className={`${buttonBaseClass} ${buttonSizeMdClass} border border-[var(--iseya-gold)] bg-[var(--iseya-gold)] text-[var(--iseya-navy)] hover:border-white hover:bg-white disabled:bg-white/30 disabled:text-white/70`}
-              >
-                {isTailoring ? "Tailoring..." : actionFeedback.tailor ?? "Tailor Resume"}
-              </button>
+              {isPublicLanding ? (
+                <Link
+                  href="/workspace"
+                  className={`${buttonBaseClass} ${buttonSizeMdClass} border border-[var(--iseya-gold)] bg-[var(--iseya-gold)] text-[var(--iseya-navy)] hover:border-white hover:bg-white`}
+                >
+                  Tailor Resume
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    runWithFeedback("tailor", "Tailoring...", "Done", tailorResume)
+                  }
+                  disabled={!canTailor || isTailoring}
+                  className={`${buttonBaseClass} ${buttonSizeMdClass} border border-[var(--iseya-gold)] bg-[var(--iseya-gold)] text-[var(--iseya-navy)] hover:border-white hover:bg-white disabled:bg-white/30 disabled:text-white/70`}
+                >
+                  {isTailoring ? "Tailoring..." : actionFeedback.tailor ?? "Tailor Resume"}
+                </button>
+              )}
             </div>
             </div>
             <details className="relative xl:hidden">
@@ -6800,7 +6806,7 @@ export default function Home() {
               <div className="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2.5rem))] rounded-lg border border-slate-200 bg-white p-3 shadow-xl">
                 <nav className="grid gap-1 text-sm font-semibold text-[var(--iseya-navy)]">
                   {authUser ? <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/workspace">Dashboard</Link> : null}
-                  <a className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="#resume-builder">Career Assets</a>
+                  <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/workspace">Career Assets</Link>
                   <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/jobs">Jobs</Link>
                   {authUser ? <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/applications">My Applications</Link> : null}
                   <Link className="rounded-md px-3 py-2 hover:bg-[#FFF8E6]" href="/recruiters">Recruiters</Link>
@@ -6819,14 +6825,20 @@ export default function Home() {
                       My Resumes
                     </button>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={() => runWithFeedback("tailor", "Tailoring...", "Done", tailorResume)}
-                    disabled={!canTailor || isTailoring}
-                    className={`${primaryButtonClass} ${buttonSizeMdClass}`}
-                  >
-                    {isTailoring ? "Tailoring..." : actionFeedback.tailor ?? "Tailor Resume"}
-                  </button>
+                  {isPublicLanding ? (
+                    <Link href="/workspace" className={`${primaryButtonClass} ${buttonSizeMdClass}`}>
+                      Tailor Resume
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => runWithFeedback("tailor", "Tailoring...", "Done", tailorResume)}
+                      disabled={!canTailor || isTailoring}
+                      className={`${primaryButtonClass} ${buttonSizeMdClass}`}
+                    >
+                      {isTailoring ? "Tailoring..." : actionFeedback.tailor ?? "Tailor Resume"}
+                    </button>
+                  )}
                 </div>
               </div>
             </details>
@@ -6875,12 +6887,12 @@ export default function Home() {
                 >
                   View Pricing
                 </Link>
-              <a
-                href="#resume-builder"
+              <Link
+                href="/workspace"
                 className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
               >
                   Build Resume
-              </a>
+              </Link>
                 <Link
                   href="/jobs"
                   className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
@@ -6952,11 +6964,11 @@ export default function Home() {
             </h2>
           </div>
           {[
-            { title: "Career Workspace", copy: "Build, optimize, and manage career documents with guidance.", icon: FolderOpen, href: "#resume-builder", color: "bg-blue-50 text-blue-600" },
+            { title: "Career Workspace", copy: "Build, optimize, and manage career documents with guidance.", icon: FolderOpen, href: "/workspace", color: "bg-blue-50 text-blue-600" },
             { title: "Opportunity Discovery", copy: "Find verified jobs, internships, and programs matched to your goals.", icon: Search, href: "/jobs", color: "bg-emerald-50 text-emerald-600" },
             { title: "Recruiter Access", copy: "Verified recruiters can discover and connect with talent.", icon: UsersRound, href: "/recruiters", color: "bg-violet-50 text-violet-600" },
             { title: "Institution Insights", copy: "Institutions receive privacy-safe readiness insights.", icon: Building2, href: "/institutions", color: "bg-orange-50 text-orange-600" },
-            { title: "Career Co-pilots", copy: "Smart recommendations to help career materials get noticed.", icon: Zap, href: "#resume-builder", color: "bg-amber-50 text-amber-600" },
+            { title: "Career Co-pilots", copy: "Smart recommendations to help career materials get noticed.", icon: Zap, href: "/workspace", color: "bg-amber-50 text-amber-600" },
           ].map((feature) => (
             <article key={feature.title} className="border-slate-200/80 lg:border-l lg:px-6">
               <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${feature.color}`}>
@@ -7025,6 +7037,8 @@ export default function Home() {
         </>
       ) : null}
 
+      {!isPublicLanding ? (
+        <>
       <section id="resume-builder" className="mx-auto max-w-[112rem] overflow-x-hidden px-4 pt-1 sm:px-8">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -8554,6 +8568,8 @@ export default function Home() {
 
           </div>
         </section>
+      ) : null}
+        </>
       ) : null}
       <IseyaFooter />
     </main>
