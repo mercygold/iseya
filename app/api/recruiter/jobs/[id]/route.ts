@@ -46,7 +46,13 @@ async function getUserContext() {
   const supabase = await createSupabaseServerClient();
 
   if (!supabase) {
-    return { supabase: null, userId: "", recruiterProfile: null, contextError: null };
+    return {
+      supabase: null,
+      userId: "",
+      recruiter: false,
+      recruiterProfile: null,
+      contextError: null,
+    };
   }
 
   const {
@@ -54,20 +60,31 @@ async function getUserContext() {
   } = await supabase.auth.getUser();
 
   const userId = user?.id ?? "";
-  const { data: recruiterProfiles, error: recruiterProfileError } = userId
-    ? await supabase
-        .from("recruiter_profiles")
-        .select("id, company_name, recruiter_name, work_email, company_website, phone_number, address_line_1, city, state_region, country, hiring_focus, verification_status, created_at, updated_at")
-        .eq("user_id", userId)
-        .order("updated_at", { ascending: false })
-    : { data: [], error: null };
+  const [
+    { data: profile, error: profileError },
+    { data: recruiterProfiles, error: recruiterProfileError },
+  ] = userId
+    ? await Promise.all([
+        supabase
+          .from("profiles")
+          .select("account_type, role, app_role")
+          .eq("id", userId)
+          .maybeSingle(),
+        supabase
+          .from("recruiter_profiles")
+          .select("id, company_name, recruiter_name, work_email, company_website, phone_number, address_line_1, city, state_region, country, hiring_focus, verification_status, created_at, updated_at")
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false }),
+      ])
+    : [{ data: null, error: null }, { data: [], error: null }];
 
-  if (recruiterProfileError) {
+  const contextError = profileError ?? recruiterProfileError;
+  if (contextError) {
     console.error("[recruiter-jobs] update context lookup failed", {
-      code: recruiterProfileError.code,
-      message: recruiterProfileError.message,
-      details: recruiterProfileError.details,
-      hint: recruiterProfileError.hint,
+      code: contextError.code,
+      message: contextError.message,
+      details: contextError.details,
+      hint: contextError.hint,
       userId,
     });
   }
@@ -82,19 +99,26 @@ async function getUserContext() {
   return {
     supabase,
     userId,
+    recruiter:
+      profile?.account_type === "recruiter" ||
+      profile?.role === "admin" ||
+      profile?.app_role === "admin",
     recruiterProfile: chooseCanonicalRecruiterProfile(
       recruiterProfiles as RecruiterProfileRecord[] | null,
     ),
-    contextError: recruiterProfileError,
+    contextError,
   };
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const { supabase, userId, recruiterProfile, contextError } = await getUserContext();
+  const { supabase, userId, recruiter, recruiterProfile, contextError } = await getUserContext();
 
   if (!supabase || !userId) {
     return Response.json({ error: "Login required." }, { status: 401 });
+  }
+  if (!recruiter) {
+    return Response.json({ error: "Recruiter account required." }, { status: 403 });
   }
 
   if (contextError) {
@@ -136,6 +160,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         .select("status, job_title")
         .eq("id", id)
         .eq("recruiter_id", userId)
+        .neq("opportunity_type", "curated_opportunity")
         .maybeSingle()
     : { data: null };
 
@@ -166,6 +191,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     .update(update)
     .eq("id", id)
     .eq("recruiter_id", userId)
+    .neq("opportunity_type", "curated_opportunity")
     .select("*")
     .single();
 
@@ -216,17 +242,21 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const { supabase, userId } = await getUserContext();
+  const { supabase, userId, recruiter } = await getUserContext();
 
   if (!supabase || !userId) {
     return Response.json({ error: "Login required." }, { status: 401 });
+  }
+  if (!recruiter) {
+    return Response.json({ error: "Recruiter account required." }, { status: 403 });
   }
 
   const { error } = await supabase
     .from("job_posts")
     .delete()
     .eq("id", id)
-    .eq("recruiter_id", userId);
+    .eq("recruiter_id", userId)
+    .neq("opportunity_type", "curated_opportunity");
 
   if (error) {
     console.error("[recruiter-jobs] delete failed", { code: error.code, message: error.message });

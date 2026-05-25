@@ -632,6 +632,7 @@ export default function RecruiterDashboard() {
           <NotificationPanel
             title="Recruiter notifications"
             subtitle="Application activity and moderation decisions appear here."
+            scope="recruiter"
           />
 
           <section id="company-profile" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -789,7 +790,7 @@ export default function RecruiterDashboard() {
             <div className="mt-5 space-y-3">
               {jobs.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm font-medium text-slate-600">
-                  No job posts yet. Create your first listing to start attracting career-ready candidates.
+                  Post your first job to start receiving applicants.
                 </div>
               ) : (
                 jobs.map((job) => {

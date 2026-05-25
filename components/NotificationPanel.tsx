@@ -27,9 +27,11 @@ function formatDate(value: string) {
 export default function NotificationPanel({
   title = "Notifications",
   subtitle = "Important updates from your ISEYA activity.",
+  scope,
 }: {
   title?: string;
   subtitle?: string;
+  scope?: "recruiter";
 }) {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +42,9 @@ export default function NotificationPanel({
   useEffect(() => {
     let active = true;
 
-    void fetch("/api/notifications", { cache: "no-store" })
+    const endpoint = scope ? `/api/notifications?scope=${scope}` : "/api/notifications";
+
+    void fetch(endpoint, { cache: "no-store" })
       .then(async (response) => {
         const data = (await response.json().catch(() => ({}))) as NotificationResponse;
         if (!response.ok) throw new Error(data.error || "Unable to load notifications right now.");
@@ -58,14 +62,15 @@ export default function NotificationPanel({
     return () => {
       active = false;
     };
-  }, []);
+  }, [scope]);
 
   async function markRead(notificationId: string) {
     setUpdatingId(notificationId);
     setStatus("");
 
     try {
-      const response = await fetch("/api/notifications", {
+      const endpoint = scope ? `/api/notifications?scope=${scope}` : "/api/notifications";
+      const response = await fetch(endpoint, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notificationId }),

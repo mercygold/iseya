@@ -143,6 +143,7 @@ export async function GET() {
     .from("job_posts")
     .select("*")
     .eq("recruiter_id", userId)
+    .neq("opportunity_type", "curated_opportunity")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -223,6 +224,7 @@ export async function POST(request: Request) {
     .from("job_posts")
     .insert({
       recruiter_id: userId,
+      opportunity_type: "recruiter_posted",
       job_title: text(body.jobTitle),
       company_name: text(body.companyName),
       location: text(body.location),

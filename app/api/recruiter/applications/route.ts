@@ -14,21 +14,72 @@ async function getUserContext() {
   const supabase = await createSupabaseServerClient();
 
   if (!supabase) {
-    return { supabase: null, userId: "" };
+    return { supabase: null, userId: "", recruiter: false };
   }
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return { supabase, userId: user?.id ?? "" };
+  const userId = user?.id ?? "";
+  const { data: profile } = userId
+    ? await supabase
+        .from("profiles")
+        .select("account_type, role, app_role")
+        .eq("id", userId)
+        .maybeSingle()
+    : { data: null };
+
+  return {
+    supabase,
+    userId,
+    recruiter:
+      profile?.account_type === "recruiter" ||
+      profile?.role === "admin" ||
+      profile?.app_role === "admin",
+  };
+}
+
+async function getOwnedNativeJobIds(
+  supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>,
+  userId: string,
+) {
+  const { data, error } = await supabase
+    .from("job_posts")
+    .select("id")
+    .eq("recruiter_id", userId)
+    .neq("opportunity_type", "curated_opportunity");
+
+  if (error) {
+    console.error("[recruiter-applications] owned job lookup failed", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      userId,
+    });
+    return { jobIds: [] as string[], error };
+  }
+
+  return { jobIds: (data ?? []).map((job) => job.id), error: null };
 }
 
 export async function GET() {
-  const { supabase, userId } = await getUserContext();
+  const { supabase, userId, recruiter } = await getUserContext();
 
   if (!supabase || !userId) {
     return Response.json({ error: "Login required." }, { status: 401 });
+  }
+  if (!recruiter) {
+    return Response.json({ error: "Recruiter account required." }, { status: 403 });
+  }
+
+  const { jobIds, error: jobLookupError } = await getOwnedNativeJobIds(supabase, userId);
+  if (jobLookupError) {
+    return Response.json({ error: "Unable to load applicants right now." }, { status: 500 });
+  }
+  if (jobIds.length === 0) {
+    return Response.json({ applications: [] });
   }
 
   const { data, error } = await supabase
@@ -37,6 +88,7 @@ export async function GET() {
       "id, job_id, recruiter_id, candidate_user_id, candidate_email, full_name, phone_number, location, short_note, resume_file_url, cover_letter_file_url, status, created_at, updated_at, job_posts!inner(job_title)",
     )
     .eq("recruiter_id", userId)
+    .in("job_id", jobIds)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -106,10 +158,13 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const { supabase, userId } = await getUserContext();
+  const { supabase, userId, recruiter } = await getUserContext();
 
   if (!supabase || !userId) {
     return Response.json({ error: "Login required." }, { status: 401 });
+  }
+  if (!recruiter) {
+    return Response.json({ error: "Recruiter account required." }, { status: 403 });
   }
 
   const body = (await request.json().catch(() => ({}))) as {
@@ -126,11 +181,20 @@ export async function PATCH(request: Request) {
     return Response.json({ error: "Invalid applicant status update." }, { status: 400 });
   }
 
+  const { jobIds, error: jobLookupError } = await getOwnedNativeJobIds(supabase, userId);
+  if (jobLookupError) {
+    return Response.json({ error: "Unable to update applicant status right now." }, { status: 500 });
+  }
+  if (jobIds.length === 0) {
+    return Response.json({ error: "Unable to update applicant status right now." }, { status: 404 });
+  }
+
   const { data: currentApplication } = await supabase
     .from("job_applications")
     .select("id, status")
     .eq("id", applicationId)
     .eq("recruiter_id", userId)
+    .in("job_id", jobIds)
     .maybeSingle();
 
   if (!currentApplication) {
@@ -173,6 +237,7 @@ export async function PATCH(request: Request) {
     .update({ status })
     .eq("id", applicationId)
     .eq("recruiter_id", userId)
+    .in("job_id", jobIds)
     .select("id, status, job_id, candidate_user_id, candidate_email, job_posts!inner(job_title)")
     .single();
 
