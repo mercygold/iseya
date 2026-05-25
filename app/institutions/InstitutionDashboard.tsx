@@ -20,6 +20,11 @@ export type InstitutionProfile = {
   access_start_date: string | null;
   access_end_date: string | null;
   access_notes: string | null;
+  estimated_student_coverage: number | null;
+  seat_limit: number | null;
+  active_seats: number;
+  plan_type: string | null;
+  auto_domain_access: boolean;
 };
 
 const institutionTypes = ["University", "College", "Bootcamp", "Career Program", "Workforce Development", "Other"];
@@ -50,6 +55,9 @@ export default function InstitutionDashboard({
     stateRegion: initialProfile?.state_region ?? "",
     city: initialProfile?.city ?? "",
     studentEmailDomain: initialProfile?.student_email_domain ?? "",
+    estimatedStudentCoverage: initialProfile?.estimated_student_coverage
+      ? String(initialProfile.estimated_student_coverage)
+      : "",
     accessNotes: initialProfile?.access_notes ?? "",
   });
   const [status, setStatus] = useState("");
@@ -123,6 +131,15 @@ export default function InstitutionDashboard({
               <Summary label="Location" value={[profile.city, profile.state_region, profile.country].filter(Boolean).join(", ")} />
               <Summary label="Access status" value={statusLabel(profile.access_status)} />
               <Summary label="Access period" value={dateRange(profile)} />
+              <Summary label="Plan type" value={profile.plan_type ?? "To be assigned after review"} />
+              <Summary
+                label="Seats"
+                value={
+                  profile.seat_limit === null
+                    ? `${profile.active_seats} active / pilot mode`
+                    : `${profile.active_seats} active / ${profile.seat_limit} limit`
+                }
+              />
             </div>
           </article>
           <article id="insights" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -143,9 +160,9 @@ export default function InstitutionDashboard({
   return (
     <section className="mx-auto max-w-4xl px-5 py-8 sm:px-8">
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">Institution Onboarding</p>
-      <h1 className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)]">Create your institution profile</h1>
+      <h1 className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)]">Request Institution Partnership</h1>
       <p className="mt-3 text-base leading-8 text-slate-600">
-        Submit your program details for review and prepare domain-based learner access.
+        Submit your institution details for review and prepare domain-based learner access. Access remains pending until approved by ISEYA.
       </p>
       {status ? <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">{status}</p> : null}
       <form onSubmit={saveProfile} className="mt-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -156,6 +173,7 @@ export default function InstitutionDashboard({
           <Field label="Administrator email" type="email" value={draft.adminEmail} onChange={(value) => setDraft((current) => ({ ...current, adminEmail: value }))} required />
           <Field label="Website" value={draft.website} onChange={(value) => setDraft((current) => ({ ...current, website: value }))} required />
           <Field label="Student email domain" value={draft.studentEmailDomain} onChange={(value) => setDraft((current) => ({ ...current, studentEmailDomain: value }))} placeholder="uci.edu" required />
+          <Field label="Estimated student coverage" type="number" value={draft.estimatedStudentCoverage} onChange={(value) => setDraft((current) => ({ ...current, estimatedStudentCoverage: value }))} placeholder="500" required />
           <Select label="Country" value={draft.country} options={countryOptions.filter(Boolean)} onChange={(value) => setDraft((current) => ({ ...current, country: value }))} required />
           <Field label="State/Region optional" value={draft.stateRegion} onChange={(value) => setDraft((current) => ({ ...current, stateRegion: value }))} />
           <Field label="City" value={draft.city} onChange={(value) => setDraft((current) => ({ ...current, city: value }))} required />
@@ -164,7 +182,7 @@ export default function InstitutionDashboard({
           </div>
         </div>
         <button disabled={saving} type="submit" className={`${primaryButton} mt-6`}>
-          {saving ? "Saving..." : "Save Institution Profile"}
+          {saving ? "Submitting..." : "Submit Partnership Request"}
         </button>
       </form>
     </section>
@@ -183,4 +201,3 @@ function Select({ label, value, options, onChange, required = false }: { label: 
 function TextArea({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return <label className="text-sm font-semibold text-[var(--iseya-navy)]">{label}<textarea className={`${inputClass} min-h-24 resize-y`} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }
-

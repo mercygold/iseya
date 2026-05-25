@@ -26,10 +26,10 @@ export default function InstitutionsPage() {
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href="/institutions/signup" className={primaryButton}>
-                Create Institution Account
+                Request Institution Partnership
               </Link>
-              <Link href="/login?redirectedFrom=/institutions/dashboard" className={secondaryButton}>
-                Institution Sign In
+              <Link href="/institutions/access" className={secondaryButton}>
+                Access through my institution
               </Link>
             </div>
           </div>
@@ -41,6 +41,31 @@ export default function InstitutionsPage() {
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/login">Sign In</Link>
           </nav>
         </div>
+      </section>
+      <section className="mx-auto grid max-w-[92rem] gap-5 px-5 pt-10 sm:px-8 lg:grid-cols-2">
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Institution Admin</p>
+          <h2 className="mt-3 text-2xl font-semibold text-[var(--iseya-navy)]">Partnership access for programs</h2>
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            Universities, colleges, bootcamps, workforce programs, and career centers can request managed learner access.
+          </p>
+          <Link href="/institutions/signup" className={`${primaryButton} mt-5`}>
+            Request Institution Partnership
+          </Link>
+          <Link href="/login?redirectedFrom=/institutions/dashboard" className="ml-4 mt-5 inline-flex min-h-11 items-center text-sm font-bold text-[var(--iseya-navy)] transition hover:text-[var(--iseya-gold)]">
+            Institution Admin Sign In
+          </Link>
+        </article>
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Student / Learner</p>
+          <h2 className="mt-3 text-2xl font-semibold text-[var(--iseya-navy)]">Access covered by your institution</h2>
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            Students, graduates, and program participants can connect an eligible institution email to their private ISEYA workspace.
+          </p>
+          <Link href="/institutions/access" className="mt-5 inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-4 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]">
+            Access through my institution
+          </Link>
+        </article>
       </section>
       <section className="mx-auto grid max-w-[92rem] gap-5 px-5 py-10 sm:px-8 lg:grid-cols-3">
         {[
@@ -58,4 +83,3 @@ export default function InstitutionsPage() {
     </main>
   );
 }
-

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
-import { enableInstitutionAccess } from "@/lib/featureFlags";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import {
   normalizeSubscriptionPlan,
@@ -228,14 +227,12 @@ export default function AccountPage() {
       setStatus((current) => (current === "Reconnecting to your account..." ? "" : current));
       setProfile(data);
 
-      if (enableInstitutionAccess) {
-        const response = await fetch("/api/institution/verify");
+      {
+        const response = await fetch("/api/institution/associate");
         const organizationData = (await response.json().catch(() => ({}))) as {
-          organization?: { name?: string } | null;
+          institution?: { institution_name?: string } | null;
         };
-        setOrganizationName(organizationData.organization?.name ?? "Institution Access");
-      } else {
-        setOrganizationName("");
+        setOrganizationName(organizationData.institution?.institution_name ?? "");
       }
 
       const { data: usageData, error: usageError } = await supabase
@@ -382,8 +379,8 @@ export default function AccountPage() {
                 <dl className="mt-6 grid gap-4 sm:grid-cols-2">
                   <InfoItem label="Current plan" value={planLabel} />
                   <InfoItem label="Subscription status" value={statusLabel} />
-                  {enableInstitutionAccess && organizationName ? (
-                    <InfoItem label="Institution access" value={organizationName} />
+                  {organizationName ? (
+                    <InfoItem label="Institution access" value={`Access provided through ${organizationName}.`} />
                   ) : null}
                   <InfoItem
                     label="Document exports remaining"

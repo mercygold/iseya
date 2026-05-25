@@ -144,6 +144,11 @@ export type Database = {
           access_start_date: string | null;
           access_end_date: string | null;
           access_notes: string | null;
+          estimated_student_coverage: number | null;
+          seat_limit: number | null;
+          active_seats: number;
+          plan_type: string | null;
+          auto_domain_access: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -163,6 +168,11 @@ export type Database = {
           access_start_date?: string | null;
           access_end_date?: string | null;
           access_notes?: string | null;
+          estimated_student_coverage?: number | null;
+          seat_limit?: number | null;
+          active_seats?: number;
+          plan_type?: string | null;
+          auto_domain_access?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -182,6 +192,11 @@ export type Database = {
           access_start_date?: string | null;
           access_end_date?: string | null;
           access_notes?: string | null;
+          estimated_student_coverage?: number | null;
+          seat_limit?: number | null;
+          active_seats?: number;
+          plan_type?: string | null;
+          auto_domain_access?: boolean;
           created_at?: string;
           updated_at?: string;
         };

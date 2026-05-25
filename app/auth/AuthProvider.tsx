@@ -235,12 +235,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       await supabase.from("profiles").upsert(profilePayload, { onConflict: "id" });
 
-      if (
-        profileUser.user_metadata?.account_type !== "recruiter" &&
-        profileUser.user_metadata?.account_type !== "institution"
-      ) {
-        await fetch("/api/institution/associate", { method: "POST" }).catch(() => undefined);
-      }
     },
     [supabase],
   );

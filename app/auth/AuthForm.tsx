@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "./AuthProvider";
-import { enableInstitutionAccess } from "@/lib/featureFlags";
 import {
   countryOptions,
   countryRegions,
@@ -14,7 +13,7 @@ import {
 import { getAuthRedirectUrl } from "@/lib/supabaseConfig";
 
 type AuthMode = "login" | "signup";
-type SignupPath = "individual" | "recruiter" | "institution" | "institution_admin";
+type SignupPath = "individual" | "recruiter" | "institution_admin";
 
 type AuthFormProps = {
   mode: AuthMode;
@@ -37,8 +36,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [signupPath, setSignupPath] = useState<SignupPath>("individual");
-  const [schoolEmail, setSchoolEmail] = useState("");
-  const [accessCode, setAccessCode] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
   const [linkedinCompanyUrl, setLinkedinCompanyUrl] = useState("");
@@ -59,10 +56,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const redirectedFrom = searchParams.get("redirectedFrom") || "/workspace";
   const requestedType = searchParams.get("type");
   const isLogin = mode === "login";
-  const useInstitutionSignup = enableInstitutionAccess && signupPath === "institution";
   const useRecruiterSignup = !isLogin && signupPath === "recruiter";
   const useInstitutionAdminSignup = !isLogin && signupPath === "institution_admin";
-  const signupEmail = useInstitutionSignup ? schoolEmail : email;
   const selectedCountryOption = countryOptions.includes(country)
     ? country
     : country
@@ -110,7 +105,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
       }
 
       const { needsEmailConfirmation } = await signUp({
-        email: signupEmail,
+        email,
         password,
         fullName,
         accountType: useRecruiterSignup
@@ -122,25 +117,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
       });
 
       if (needsEmailConfirmation) {
-        setStatus(
-          useInstitutionSignup
-            ? "Check your school email to confirm your account. Institution access can be applied after you sign in."
-            : "Check your email to confirm your account, then return to ISEYA.",
-        );
+        setStatus("Check your email to confirm your account, then return to ISEYA.");
         return;
-      }
-
-      if (useInstitutionSignup) {
-        const response = await fetch("/api/institution/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ schoolEmail, accessCode }),
-        });
-        const data = (await response.json().catch(() => ({}))) as { error?: string };
-
-        if (!response.ok) {
-          throw new Error(data.error || "Institution access could not be verified.");
-        }
       }
 
       if (useRecruiterSignup) {
@@ -264,9 +242,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
                     ["recruiter", "Recruiter"],
                     ...(requestedType === "institution_admin"
                       ? [["institution_admin", "Institution Administrator"]]
-                      : []),
-                    ...(enableInstitutionAccess
-                      ? [["institution", "Student / Institution Access"]]
                       : []),
                   ].map(([id, label]) => (
                     <button
@@ -474,37 +449,18 @@ export default function AuthForm({ mode }: AuthFormProps) {
           ) : null}
 
           <label className="mt-4 block text-sm font-semibold text-[var(--iseya-navy)]">
-            {useInstitutionSignup && !isLogin
-              ? "School email"
-              : useRecruiterSignup
+            {useRecruiterSignup
                 ? "Work email"
                 : "Email"}
             <input
               type="email"
               required
-              value={useInstitutionSignup && !isLogin ? schoolEmail : email}
-              onChange={(event) =>
-                useInstitutionSignup && !isLogin
-                  ? setSchoolEmail(event.target.value)
-                  : setEmail(event.target.value)
-              }
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
               className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
               autoComplete="email"
             />
           </label>
-
-          {!isLogin && useInstitutionSignup ? (
-            <label className="mt-4 block text-sm font-semibold text-[var(--iseya-navy)]">
-              Institution access code
-              <input
-                required
-                value={accessCode}
-                onChange={(event) => setAccessCode(event.target.value)}
-                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
-                autoComplete="off"
-              />
-            </label>
-          ) : null}
 
           <label className="mt-4 block text-sm font-semibold text-[var(--iseya-navy)]">
             Password

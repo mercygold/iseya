@@ -99,6 +99,11 @@ export async function GET() {
     access_start_date: string | null;
     access_end_date: string | null;
     access_notes: string | null;
+    estimated_student_coverage: number | null;
+    seat_limit: number | null;
+    active_seats: number;
+    plan_type: string | null;
+    auto_domain_access: boolean;
     created_at: string;
     updated_at: string;
   }> = [];
@@ -156,7 +161,7 @@ export async function GET() {
         .limit(100),
       serviceRole
         .from("institution_profiles")
-        .select("id, user_id, institution_name, institution_type, admin_name, admin_email, website, country, state_region, city, student_email_domain, access_status, access_start_date, access_end_date, access_notes, created_at, updated_at")
+        .select("id, user_id, institution_name, institution_type, admin_name, admin_email, website, country, state_region, city, student_email_domain, access_status, access_start_date, access_end_date, access_notes, estimated_student_coverage, seat_limit, active_seats, plan_type, auto_domain_access, created_at, updated_at")
         .order("updated_at", { ascending: false })
         .limit(100),
     ]);
@@ -230,6 +235,11 @@ export async function PATCH(request: Request) {
     optimizationCredits?: unknown;
     verificationStatus?: unknown;
     jobStatus?: unknown;
+    institutionSeatLimit?: unknown;
+    institutionPlanType?: unknown;
+    institutionAccessStartDate?: unknown;
+    institutionAccessEndDate?: unknown;
+    institutionAutoDomainAccess?: unknown;
   };
   const userId = typeof body.userId === "string" ? body.userId : "";
   const recruiterUserId = typeof body.recruiterUserId === "string" ? body.recruiterUserId : "";
@@ -307,9 +317,43 @@ export async function PATCH(request: Request) {
       return Response.json({ error: "Invalid institution moderation update." }, { status: 400 });
     }
 
+    const rawSeatLimit = body.institutionSeatLimit;
+    const seatLimit =
+      rawSeatLimit === null || rawSeatLimit === "" || typeof rawSeatLimit === "undefined"
+        ? null
+        : normalizeNumber(rawSeatLimit, -1);
+
+    if (seatLimit !== null && seatLimit < 0) {
+      return Response.json({ error: "Invalid institution seat limit." }, { status: 400 });
+    }
+
+    const planType =
+      typeof body.institutionPlanType === "string" && body.institutionPlanType.trim()
+        ? body.institutionPlanType.trim()
+        : null;
+    const accessStartDate =
+      typeof body.institutionAccessStartDate === "string" && body.institutionAccessStartDate
+        ? body.institutionAccessStartDate
+        : null;
+    const accessEndDate =
+      typeof body.institutionAccessEndDate === "string" && body.institutionAccessEndDate
+        ? body.institutionAccessEndDate
+        : null;
+    const autoDomainAccess =
+      typeof body.institutionAutoDomainAccess === "boolean"
+        ? body.institutionAutoDomainAccess
+        : true;
+
     const { error } = await serviceRole
       .from("institution_profiles")
-      .update({ access_status: accessStatus })
+      .update({
+        access_status: accessStatus,
+        seat_limit: seatLimit,
+        plan_type: planType,
+        access_start_date: accessStartDate,
+        access_end_date: accessEndDate,
+        auto_domain_access: autoDomainAccess,
+      })
       .eq("id", institutionProfileId);
 
     if (error) {

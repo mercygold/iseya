@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import type { Json } from "@/lib/database.types";
-import { enableInstitutionAccess } from "@/lib/featureFlags";
 import {
   canUseSubscriptionFeature,
   isProPlan,
@@ -4940,14 +4939,12 @@ export default function Home() {
         console.error("Unable to refresh workspace usage counters.", usageError.message);
       }
     }
-    if (enableInstitutionAccess) {
-      const response = await fetch("/api/institution/verify");
+    {
+      const response = await fetch("/api/institution/associate");
       const data = (await response.json().catch(() => ({}))) as {
-        organization?: { name?: string } | null;
+        institution?: { institution_name?: string } | null;
       };
-      setOrganizationName(data.organization?.name ?? "Institution Access");
-    } else {
-      setOrganizationName("");
+      setOrganizationName(data.institution?.institution_name ?? "");
     }
     return true;
   }, [authLoaded, authUserId, savedVersions.length, supabase]);
@@ -7312,9 +7309,9 @@ export default function Home() {
                     Status: {currentSubscriptionStatusLabel}
                   </span>
                 </div>
-                {enableInstitutionAccess && organizationName ? (
+                {organizationName ? (
                   <p className="mt-3 text-xs font-medium text-slate-600">
-                    Institution Access: {organizationName}
+                    Access provided through {organizationName}.
                   </p>
                 ) : null}
               </div>

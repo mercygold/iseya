@@ -42,6 +42,11 @@ type InstitutionModeration = {
   access_start_date: string | null;
   access_end_date: string | null;
   access_notes: string | null;
+  estimated_student_coverage: number | null;
+  seat_limit: number | null;
+  active_seats: number;
+  plan_type: string | null;
+  auto_domain_access: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -287,7 +292,17 @@ export default function ManageDashboard() {
     }
   }
 
-  async function updateInstitutionStatus(institution: InstitutionModeration, accessStatus: string) {
+  async function updateInstitutionStatus(
+    institution: InstitutionModeration,
+    accessStatus: string,
+    settings: {
+      seatLimit: string;
+      planType: string;
+      accessStartDate: string;
+      accessEndDate: string;
+      autoDomainAccess: boolean;
+    },
+  ) {
     const confirmed = window.confirm(
       `Set ${institution.institution_name} to ${statusLabel(accessStatus)}?`,
     );
@@ -301,13 +316,28 @@ export default function ManageDashboard() {
         body: JSON.stringify({
           institutionProfileId: institution.id,
           verificationStatus: accessStatus,
+          institutionSeatLimit: settings.seatLimit,
+          institutionPlanType: settings.planType,
+          institutionAccessStartDate: settings.accessStartDate,
+          institutionAccessEndDate: settings.accessEndDate,
+          institutionAutoDomainAccess: settings.autoDomainAccess,
         }),
       });
       const data = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) throw new Error(data.error || "Unable to update institution access status.");
       setStatus("Institution access status updated.");
       setSelectedInstitution((current) =>
-        current?.id === institution.id ? { ...current, access_status: accessStatus } : current,
+        current?.id === institution.id
+          ? {
+              ...current,
+              access_status: accessStatus,
+              seat_limit: settings.seatLimit ? Number(settings.seatLimit) : null,
+              plan_type: settings.planType || null,
+              access_start_date: settings.accessStartDate || null,
+              access_end_date: settings.accessEndDate || null,
+              auto_domain_access: settings.autoDomainAccess,
+            }
+          : current,
       );
       await loadManageData({ preserveStatus: true });
     } catch (error) {
@@ -735,7 +765,7 @@ export default function ManageDashboard() {
         <InstitutionModal
           institution={selectedInstitution}
           onClose={() => setSelectedInstitution(null)}
-          onUpdate={(nextStatus) => updateInstitutionStatus(selectedInstitution, nextStatus)}
+          onUpdate={(nextStatus, settings) => updateInstitutionStatus(selectedInstitution, nextStatus, settings)}
         />
       ) : null}
     </div>
@@ -843,8 +873,24 @@ function InstitutionModal({
 }: {
   institution: InstitutionModeration;
   onClose: () => void;
-  onUpdate: (status: string) => void;
+  onUpdate: (
+    status: string,
+    settings: {
+      seatLimit: string;
+      planType: string;
+      accessStartDate: string;
+      accessEndDate: string;
+      autoDomainAccess: boolean;
+    },
+  ) => void;
 }) {
+  const [seatLimit, setSeatLimit] = useState(institution.seat_limit === null ? "" : String(institution.seat_limit));
+  const [planType, setPlanType] = useState(institution.plan_type ?? "");
+  const [accessStartDate, setAccessStartDate] = useState(institution.access_start_date ?? "");
+  const [accessEndDate, setAccessEndDate] = useState(institution.access_end_date ?? "");
+  const [autoDomainAccess, setAutoDomainAccess] = useState(institution.auto_domain_access);
+  const settings = { seatLimit, planType, accessStartDate, accessEndDate, autoDomainAccess };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8">
       <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
@@ -871,17 +917,44 @@ function InstitutionModal({
           <Detail label="City" value={institution.city} />
           <Detail label="State/Region" value={institution.state_region} />
           <Detail label="Country" value={institution.country} />
+          <Detail label="Estimated coverage" value={institution.estimated_student_coverage === null ? null : String(institution.estimated_student_coverage)} />
+          <Detail label="Active seats" value={String(institution.active_seats)} />
           <Detail label="Access start date" value={institution.access_start_date} />
           <Detail label="Access end date" value={institution.access_end_date} />
           <div className="sm:col-span-2">
             <Detail label="Access notes" value={institution.access_notes} />
           </div>
         </div>
+        <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">Access Terms</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-semibold text-[var(--iseya-navy)]">
+              Seat limit optional
+              <input className={`${inputClass} mt-2 w-full`} min="0" type="number" value={seatLimit} onChange={(event) => setSeatLimit(event.target.value)} placeholder="Unlimited / pilot" />
+            </label>
+            <label className="text-sm font-semibold text-[var(--iseya-navy)]">
+              Plan type optional
+              <input className={`${inputClass} mt-2 w-full`} value={planType} onChange={(event) => setPlanType(event.target.value)} placeholder="Institution Pilot" />
+            </label>
+            <label className="text-sm font-semibold text-[var(--iseya-navy)]">
+              Access start date optional
+              <input className={`${inputClass} mt-2 w-full`} type="date" value={accessStartDate} onChange={(event) => setAccessStartDate(event.target.value)} />
+            </label>
+            <label className="text-sm font-semibold text-[var(--iseya-navy)]">
+              Access end date optional
+              <input className={`${inputClass} mt-2 w-full`} type="date" value={accessEndDate} onChange={(event) => setAccessEndDate(event.target.value)} />
+            </label>
+          </div>
+          <label className="mt-4 flex items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)]">
+            <input type="checkbox" checked={autoDomainAccess} onChange={(event) => setAutoDomainAccess(event.target.checked)} />
+            Allow approved-domain student access
+          </label>
+        </div>
         <div className="mt-6 flex flex-wrap gap-2">
-          <button type="button" onClick={() => onUpdate("active")} className={primaryButton}>Approve</button>
-          <button type="button" onClick={() => onUpdate("rejected")} className={secondaryButton}>Reject</button>
-          <button type="button" onClick={() => onUpdate("expired")} className={secondaryButton}>Mark Expired</button>
-          <button type="button" onClick={() => onUpdate("pending_review")} className={secondaryButton}>Pending Review</button>
+          <button type="button" onClick={() => onUpdate("active", settings)} className={primaryButton}>Approve</button>
+          <button type="button" onClick={() => onUpdate("rejected", settings)} className={secondaryButton}>Reject</button>
+          <button type="button" onClick={() => onUpdate("expired", settings)} className={secondaryButton}>Mark Expired</button>
+          <button type="button" onClick={() => onUpdate("pending_review", settings)} className={secondaryButton}>Pending Review</button>
           <button type="button" onClick={onClose} className={secondaryButton}>Close</button>
         </div>
       </section>

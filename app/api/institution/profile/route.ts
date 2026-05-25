@@ -66,6 +66,7 @@ export async function PUT(request: Request) {
   const country = text(body.country);
   const city = text(body.city);
   const studentEmailDomain = normalizeStudentEmailDomain(text(body.studentEmailDomain));
+  const estimatedStudentCoverage = Number(body.estimatedStudentCoverage);
 
   if (
     !institutionName ||
@@ -75,10 +76,12 @@ export async function PUT(request: Request) {
     !website ||
     !country ||
     !city ||
-    !studentEmailDomain
+    !studentEmailDomain ||
+    !Number.isInteger(estimatedStudentCoverage) ||
+    estimatedStudentCoverage < 1
   ) {
     return Response.json(
-      { error: "Complete all required institution profile fields before saving." },
+      { error: "Complete all required partnership request fields before submitting." },
       { status: 400 },
     );
   }
@@ -116,6 +119,7 @@ export async function PUT(request: Request) {
         state_region: text(body.stateRegion) || null,
         city,
         student_email_domain: studentEmailDomain,
+        estimated_student_coverage: estimatedStudentCoverage,
         access_notes: text(body.accessNotes) || null,
       },
       { onConflict: "user_id" },
@@ -136,4 +140,3 @@ export async function PUT(request: Request) {
 
   return Response.json({ institutionProfile: data });
 }
-
