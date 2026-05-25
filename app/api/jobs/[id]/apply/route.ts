@@ -86,13 +86,20 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { data: job, error: jobError } = await serviceRole
     .from("job_posts")
-    .select("id, recruiter_id, status, job_title, company_name")
+    .select("id, recruiter_id, status, job_title, company_name, application_url, opportunity_type")
     .eq("id", id)
     .eq("status", "published")
     .maybeSingle();
 
   if (jobError || !job) {
     return Response.json({ error: "This job is not available." }, { status: 404 });
+  }
+
+  if (job.opportunity_type === "curated_opportunity" || job.application_url) {
+    return Response.json(
+      { error: "Apply through the external hiring site for this opportunity." },
+      { status: 400 },
+    );
   }
 
   const { data: profile } = user

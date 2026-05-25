@@ -314,6 +314,9 @@ export type Database = {
           application_deadline: string | null;
           application_url: string | null;
           status: string;
+          opportunity_type: string;
+          source_name: string | null;
+          source_description: string | null;
           applicants_count: number;
           created_at: string;
           updated_at: string;
@@ -338,6 +341,9 @@ export type Database = {
           application_deadline?: string | null;
           application_url?: string | null;
           status?: string;
+          opportunity_type?: string;
+          source_name?: string | null;
+          source_description?: string | null;
           applicants_count?: number;
           created_at?: string;
           updated_at?: string;
@@ -362,6 +368,9 @@ export type Database = {
           application_deadline?: string | null;
           application_url?: string | null;
           status?: string;
+          opportunity_type?: string;
+          source_name?: string | null;
+          source_description?: string | null;
           applicants_count?: number;
           created_at?: string;
           updated_at?: string;

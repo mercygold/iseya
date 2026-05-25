@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { enableInstitutionAccess } from "@/lib/featureFlags";
 import { subscriptionLabel, normalizeSubscriptionPlan } from "@/lib/subscription";
@@ -87,8 +87,26 @@ type JobPostModeration = {
   job_title: string;
   company_name: string;
   status: string;
+  opportunity_type: string;
+  source_name: string | null;
+  source_description: string | null;
   applicants_count: number;
   created_at: string;
+};
+
+type CuratedOpportunityDraft = {
+  jobTitle: string;
+  companyName: string;
+  location: string;
+  workplaceType: string;
+  employmentType: string;
+  salaryRange: string;
+  externalApplyUrl: string;
+  sourceName: string;
+  jobDescription: string;
+  skillsKeywords: string;
+  applicationDeadline: string;
+  status: string;
 };
 
 type ManagePayload = {
@@ -120,6 +138,20 @@ const institutionPackages = [
   "Campus Access: 2,001-10,000 students",
   "Enterprise Access: 10,000+ students",
 ];
+const emptyCuratedOpportunityDraft: CuratedOpportunityDraft = {
+  jobTitle: "",
+  companyName: "",
+  location: "",
+  workplaceType: "remote",
+  employmentType: "full-time",
+  salaryRange: "",
+  externalApplyUrl: "",
+  sourceName: "",
+  jobDescription: "",
+  skillsKeywords: "",
+  applicationDeadline: "",
+  status: "draft",
+};
 
 function packageValue(option: string) {
   return option.split(":")[0];
@@ -169,6 +201,10 @@ export default function ManageDashboard() {
   const [editingUserId, setEditingUserId] = useState("");
   const [selectedRecruiter, setSelectedRecruiter] = useState<RecruiterModeration | null>(null);
   const [selectedInstitution, setSelectedInstitution] = useState<InstitutionModeration | null>(null);
+  const [curatedDraft, setCuratedDraft] = useState<CuratedOpportunityDraft>(
+    emptyCuratedOpportunityDraft,
+  );
+  const [curatedSaving, setCuratedSaving] = useState(false);
   const [draft, setDraft] = useState({
     subscriptionPlan: "free",
     subscriptionStatus: "free",
@@ -227,6 +263,12 @@ export default function ManageDashboard() {
         .some((value) => String(value).toLowerCase().includes(needle)),
     );
   }, [payload?.users, query]);
+  const curatedOpportunities = (payload?.jobPosts ?? []).filter(
+    (job) => job.opportunity_type === "curated_opportunity",
+  );
+  const nativeJobPosts = (payload?.jobPosts ?? []).filter(
+    (job) => job.opportunity_type !== "curated_opportunity",
+  );
 
   function startEdit(user: ManagedUser) {
     setEditingUserId(user.id);
@@ -447,6 +489,65 @@ export default function ManageDashboard() {
       await loadManageData();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to update job post status.");
+    }
+  }
+
+  async function createCuratedOpportunity(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setStatus("");
+    setCuratedSaving(true);
+
+    try {
+      const response = await fetch("/api/manage/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(curatedDraft),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to save curated opportunity right now.");
+      }
+
+      setStatus(
+        curatedDraft.status === "published"
+          ? "Curated opportunity published."
+          : "Curated opportunity saved.",
+      );
+      setCuratedDraft(emptyCuratedOpportunityDraft);
+      await loadManageData({ preserveStatus: true });
+    } catch (error) {
+      setStatus(
+        error instanceof Error ? error.message : "Unable to save curated opportunity right now.",
+      );
+    } finally {
+      setCuratedSaving(false);
+    }
+  }
+
+  async function deleteCuratedOpportunity(job: JobPostModeration) {
+    if (!window.confirm(`Delete curated opportunity "${job.job_title}"?`)) {
+      return;
+    }
+
+    setStatus("");
+
+    try {
+      const response = await fetch("/api/manage/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ curatedJobPostId: job.id }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to delete curated opportunity.");
+      }
+
+      setStatus("Curated opportunity deleted.");
+      await loadManageData({ preserveStatus: true });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to delete curated opportunity.");
     }
   }
 
@@ -677,9 +778,9 @@ export default function ManageDashboard() {
         </ModerationCard>
 
         <ModerationCard title="Job Post Moderation" subtitle="Publish, review, or close recruiter job listings.">
-          {(payload.jobPosts ?? []).length > 0 ? (
+          {nativeJobPosts.length > 0 ? (
             <div className="space-y-3">
-              {payload.jobPosts.map((job) => (
+              {nativeJobPosts.map((job) => (
                 <div key={job.id} className="rounded-xl border border-slate-200 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
@@ -713,6 +814,119 @@ export default function ManageDashboard() {
           )}
         </ModerationCard>
       </section>
+
+      <ModerationCard
+        title="Curated Opportunity Posting"
+        subtitle="Add external roles sourced by the ISEYA team. These opportunities always direct candidates to the original hiring channel."
+      >
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.12fr)_minmax(320px,0.88fr)]">
+          <form onSubmit={createCuratedOpportunity} className="grid gap-3 sm:grid-cols-2">
+            <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+              Job Title
+              <input required value={curatedDraft.jobTitle} onChange={(event) => setCuratedDraft((current) => ({ ...current, jobTitle: event.target.value }))} className={`${inputClass} mt-1.5 w-full normal-case tracking-normal`} />
+            </label>
+            <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+              Company
+              <input required value={curatedDraft.companyName} onChange={(event) => setCuratedDraft((current) => ({ ...current, companyName: event.target.value }))} className={`${inputClass} mt-1.5 w-full normal-case tracking-normal`} />
+            </label>
+            <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+              Location
+              <input required value={curatedDraft.location} onChange={(event) => setCuratedDraft((current) => ({ ...current, location: event.target.value }))} className={`${inputClass} mt-1.5 w-full normal-case tracking-normal`} />
+            </label>
+            <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+              Salary Range optional
+              <input value={curatedDraft.salaryRange} onChange={(event) => setCuratedDraft((current) => ({ ...current, salaryRange: event.target.value }))} placeholder="USD 80,000 - 120,000 yearly" className={`${inputClass} mt-1.5 w-full normal-case tracking-normal`} />
+            </label>
+            <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+              Workplace Type
+              <select required value={curatedDraft.workplaceType} onChange={(event) => setCuratedDraft((current) => ({ ...current, workplaceType: event.target.value }))} className={`${inputClass} mt-1.5 w-full normal-case tracking-normal`}>
+                <option value="remote">Remote</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="onsite">Onsite</option>
+              </select>
+            </label>
+            <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+              Employment Type
+              <select required value={curatedDraft.employmentType} onChange={(event) => setCuratedDraft((current) => ({ ...current, employmentType: event.target.value }))} className={`${inputClass} mt-1.5 w-full normal-case tracking-normal`}>
+                <option value="full-time">Full-time</option>
+                <option value="part-time">Part-time</option>
+                <option value="contract">Contract</option>
+                <option value="internship">Internship</option>
+                <option value="temporary">Temporary</option>
+              </select>
+            </label>
+            <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500 sm:col-span-2">
+              External Apply URL
+              <input required type="url" value={curatedDraft.externalApplyUrl} onChange={(event) => setCuratedDraft((current) => ({ ...current, externalApplyUrl: event.target.value }))} placeholder="https://company.example/careers/role" className={`${inputClass} mt-1.5 w-full normal-case tracking-normal`} />
+            </label>
+            <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+              Source Name optional
+              <select value={curatedDraft.sourceName} onChange={(event) => setCuratedDraft((current) => ({ ...current, sourceName: event.target.value }))} className={`${inputClass} mt-1.5 w-full normal-case tracking-normal`}>
+                <option value="">Select source</option>
+                <option value="Company Careers">Company Careers</option>
+                <option value="Greenhouse">Greenhouse</option>
+                <option value="Lever">Lever</option>
+                <option value="Ashby">Ashby</option>
+                <option value="YC Jobs">YC Jobs</option>
+                <option value="Recruiter Post">Recruiter Post</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+              Application Deadline optional
+              <input type="date" value={curatedDraft.applicationDeadline} onChange={(event) => setCuratedDraft((current) => ({ ...current, applicationDeadline: event.target.value }))} className={`${inputClass} mt-1.5 w-full normal-case tracking-normal`} />
+            </label>
+            <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500 sm:col-span-2">
+              Job Description
+              <textarea required value={curatedDraft.jobDescription} onChange={(event) => setCuratedDraft((current) => ({ ...current, jobDescription: event.target.value }))} className={`${inputClass} mt-1.5 min-h-32 w-full resize-y normal-case tracking-normal`} />
+            </label>
+            <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500 sm:col-span-2">
+              Skills / Keywords optional
+              <input value={curatedDraft.skillsKeywords} onChange={(event) => setCuratedDraft((current) => ({ ...current, skillsKeywords: event.target.value }))} placeholder="Product analytics, SQL, stakeholder management" className={`${inputClass} mt-1.5 w-full normal-case tracking-normal`} />
+            </label>
+            <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+              Status
+              <select value={curatedDraft.status} onChange={(event) => setCuratedDraft((current) => ({ ...current, status: event.target.value }))} className={`${inputClass} mt-1.5 w-full normal-case tracking-normal`}>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div className="flex items-end">
+              <button type="submit" disabled={curatedSaving} className={`${primaryButton} w-full`}>
+                {curatedSaving ? "Saving..." : "Save Curated Opportunity"}
+              </button>
+            </div>
+          </form>
+          <section>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+              Recently Added
+            </p>
+            <div className="mt-3 space-y-2.5">
+              {curatedOpportunities.length > 0 ? curatedOpportunities.map((job) => (
+                <article key={job.id} className="rounded-xl border border-slate-200 bg-slate-50/55 p-3">
+                  <p className="text-sm font-semibold text-[var(--iseya-navy)]">{job.job_title}</p>
+                  <p className="mt-1 text-xs text-slate-500">{job.company_name}{job.source_name ? ` | ${job.source_name}` : ""}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <select value={job.status} onChange={(event) => updateJobStatus(job, event.target.value)} className={inputClass}>
+                      <option value="draft">Draft</option>
+                      <option value="published">Published</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                    <button type="button" onClick={() => deleteCuratedOpportunity(job)} className={secondaryButton}>
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              )) : (
+                <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                  No curated opportunities added yet.
+                </p>
+              )}
+            </div>
+          </section>
+        </div>
+      </ModerationCard>
 
       <ModerationCard
         title="Institution Moderation"

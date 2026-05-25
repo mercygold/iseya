@@ -35,7 +35,13 @@ type JobPost = {
   application_url: string | null;
   status: string;
   created_at: string;
-  opportunity_type?: string | null;
+  opportunity_type?:
+    | "curated_opportunity"
+    | "recruiter_posted"
+    | "verified_recruiter"
+    | "direct_employer"
+    | null;
+  source_name?: string | null;
   source_type?: string | null;
   source_description?: string | null;
   recruiter_verified?: boolean | null;
@@ -97,8 +103,10 @@ function opportunityProfile(job: JobPost): OpportunityProfile {
   const source = `${job.opportunity_type ?? ""} ${job.source_type ?? ""}`.toLowerCase();
 
   if (
-    job.application_url &&
+    job.opportunity_type === "curated_opportunity" ||
+    (job.application_url &&
     /\b(curated|external|imported|greenhouse|lever|ashby|yc)\b/.test(source)
+    )
   ) {
     return {
       type: "curated",
@@ -111,7 +119,11 @@ function opportunityProfile(job: JobPost): OpportunityProfile {
     };
   }
 
-  if (job.employer_verified || /\b(direct employer|employer|company)\b/.test(source)) {
+  if (
+    job.opportunity_type === "direct_employer" ||
+    job.employer_verified ||
+    /\b(direct employer|employer|company)\b/.test(source)
+  ) {
     return {
       type: "direct_employer",
       label: "Direct Employer",
@@ -123,7 +135,11 @@ function opportunityProfile(job: JobPost): OpportunityProfile {
     };
   }
 
-  if (job.recruiter_verified || /\bverified\b/.test(source)) {
+  if (
+    job.opportunity_type === "verified_recruiter" ||
+    job.recruiter_verified ||
+    /\bverified\b/.test(source)
+  ) {
     return {
       type: "verified_recruiter",
       label: "Verified Recruiter",

@@ -65,13 +65,46 @@ export async function GET(request: Request) {
   }
 
   const publishedJobs = (data ?? []).filter(matchesFilters);
+  const nativeRecruiterIds = Array.from(
+    new Set(
+      publishedJobs
+        .filter((job) => job.opportunity_type !== "curated_opportunity")
+        .map((job) => job.recruiter_id)
+        .filter(Boolean),
+    ),
+  );
+  const { data: verifiedRecruiters, error: verifiedRecruiterError } = nativeRecruiterIds.length
+    ? await supabase
+        .from("recruiter_profiles")
+        .select("user_id")
+        .in("user_id", nativeRecruiterIds)
+        .eq("verification_status", "verified")
+    : { data: [], error: null };
+
+  if (verifiedRecruiterError) {
+    console.error("[jobs] verified recruiter lookup failed", {
+      code: verifiedRecruiterError.code,
+      message: verifiedRecruiterError.message,
+    });
+  }
+
+  const verifiedRecruiterIds = new Set(
+    (verifiedRecruiters ?? []).map((recruiter) => recruiter.user_id),
+  );
+  const visiblePublishedJobs = publishedJobs.map((job) => ({
+    ...job,
+    recruiter_verified:
+      job.opportunity_type === "verified_recruiter" ||
+      (job.opportunity_type !== "curated_opportunity" &&
+        verifiedRecruiterIds.has(job.recruiter_id)),
+  }));
   const authClient = await createSupabaseServerClient();
   const {
     data: { user },
   } = authClient ? await authClient.auth.getUser() : { data: { user: null } };
 
   if (!user) {
-    return Response.json({ jobs: publishedJobs, applications: [] });
+    return Response.json({ jobs: visiblePublishedJobs, applications: [] });
   }
 
   const { data: applications, error: applicationError } = await supabase
@@ -86,7 +119,7 @@ export async function GET(request: Request) {
       message: applicationError.message,
       userId: user.id,
     });
-    return Response.json({ jobs: publishedJobs, applications: [] });
+    return Response.json({ jobs: visiblePublishedJobs, applications: [] });
   }
 
   const applicationsByJob = new Map<string, { job_id: string; status: string }>();
@@ -112,7 +145,7 @@ export async function GET(request: Request) {
     });
   }
 
-  const visibleIds = new Set(publishedJobs.map((job) => job.id));
+  const visibleIds = new Set(visiblePublishedJobs.map((job) => job.id));
   const candidateClosedJobs = (closedJobs ?? []).filter(matchesFilters).filter((job) => {
     if (visibleIds.has(job.id)) return false;
     visibleIds.add(job.id);
@@ -120,7 +153,7 @@ export async function GET(request: Request) {
   });
 
   return Response.json({
-    jobs: [...publishedJobs, ...candidateClosedJobs],
+    jobs: [...visiblePublishedJobs, ...candidateClosedJobs],
     applications: [...applicationsByJob.values()],
   });
 }

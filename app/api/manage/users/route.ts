@@ -12,6 +12,36 @@ const validInstitutionPackages = new Set([
   "Campus Access",
   "Enterprise Access",
 ]);
+const validCuratedStatuses = new Set(["draft", "published", "closed"]);
+const validWorkplaceTypes = new Set(["remote", "hybrid", "onsite"]);
+const validEmploymentTypes = new Set([
+  "full-time",
+  "part-time",
+  "contract",
+  "internship",
+  "temporary",
+]);
+
+function text(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function textArray(value: unknown) {
+  return text(value)
+    .split(/[,|\n;]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 30);
+}
+
+function validExternalUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
 
 async function getAdminClients() {
   const supabase = await createSupabaseServerClient();
@@ -163,6 +193,9 @@ export async function GET() {
     job_title: string;
     company_name: string;
     status: string;
+    opportunity_type: string;
+    source_name: string | null;
+    source_description: string | null;
     applicants_count: number;
     created_at: string;
   }> = [];
@@ -180,7 +213,7 @@ export async function GET() {
         .limit(500),
       serviceRole
         .from("job_posts")
-        .select("id, recruiter_id, job_title, company_name, status, applicants_count, created_at")
+        .select("id, recruiter_id, job_title, company_name, status, opportunity_type, source_name, source_description, applicants_count, created_at")
         .order("created_at", { ascending: false })
         .limit(100),
       serviceRole
@@ -239,6 +272,87 @@ export async function GET() {
   }
 
   return Response.json({ users: safeUsers, stats, organizations, institutions, recruiters, jobPosts });
+}
+
+export async function POST(request: Request) {
+  const { serviceRole, userId, admin } = await getAdminClients();
+
+  if (!serviceRole || !userId || !admin) {
+    return Response.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const jobTitle = text(body.jobTitle);
+  const companyName = text(body.companyName);
+  const location = text(body.location);
+  const workplaceType = text(body.workplaceType).toLowerCase();
+  const employmentType = text(body.employmentType).toLowerCase();
+  const salaryRange = text(body.salaryRange);
+  const externalApplyUrl = text(body.externalApplyUrl);
+  const sourceName = text(body.sourceName);
+  const jobDescription = text(body.jobDescription);
+  const status = text(body.status).toLowerCase() || "draft";
+  const applicationDeadline = text(body.applicationDeadline);
+
+  if (
+    !jobTitle ||
+    !companyName ||
+    !location ||
+    !jobDescription ||
+    !externalApplyUrl ||
+    !validWorkplaceTypes.has(workplaceType) ||
+    !validEmploymentTypes.has(employmentType)
+  ) {
+    return Response.json(
+      { error: "Complete the required curated opportunity fields before saving." },
+      { status: 400 },
+    );
+  }
+
+  if (!validExternalUrl(externalApplyUrl)) {
+    return Response.json({ error: "Enter a valid external apply URL." }, { status: 400 });
+  }
+
+  if (!validCuratedStatuses.has(status)) {
+    return Response.json({ error: "Invalid curated opportunity status." }, { status: 400 });
+  }
+
+  const { data, error } = await serviceRole
+    .from("job_posts")
+    .insert({
+      recruiter_id: userId,
+      job_title: jobTitle,
+      company_name: companyName,
+      location,
+      workplace_type: workplaceType,
+      employment_type: employmentType,
+      salary_range: salaryRange || null,
+      role_summary: jobDescription,
+      responsibilities: "",
+      requirements: "",
+      skills: textArray(body.skillsKeywords),
+      application_deadline: applicationDeadline || null,
+      application_url: externalApplyUrl,
+      status,
+      opportunity_type: "curated_opportunity",
+      source_name: sourceName || null,
+      source_description: "Sourced from active external hiring channels",
+    })
+    .select("id, job_title, company_name, status, opportunity_type, created_at")
+    .single();
+
+  if (error) {
+    console.error("[manage] curated opportunity create failed", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      adminUserId: userId,
+    });
+    return Response.json({ error: "Unable to save curated opportunity right now." }, { status: 500 });
+  }
+
+  return Response.json({ job: data });
 }
 
 export async function PATCH(request: Request) {
@@ -529,12 +643,36 @@ export async function DELETE(request: Request) {
   }
 
   const body = (await request.json().catch(() => ({}))) as {
+    curatedJobPostId?: unknown;
     recruiterProfileId?: unknown;
     deletionMode?: unknown;
   };
+  const curatedJobPostId =
+    typeof body.curatedJobPostId === "string" ? body.curatedJobPostId : "";
   const recruiterProfileId =
     typeof body.recruiterProfileId === "string" ? body.recruiterProfileId : "";
   const deletionMode = typeof body.deletionMode === "string" ? body.deletionMode : "";
+
+  if (curatedJobPostId) {
+    const { error } = await serviceRole
+      .from("job_posts")
+      .delete()
+      .eq("id", curatedJobPostId)
+      .eq("opportunity_type", "curated_opportunity");
+
+    if (error) {
+      console.error("[manage] curated opportunity delete failed", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        curatedJobPostId,
+      });
+      return Response.json({ error: "Unable to delete curated opportunity." }, { status: 500 });
+    }
+
+    return Response.json({ ok: true });
+  }
 
   if (!recruiterProfileId) {
     return Response.json({ error: "Invalid recruiter deletion request." }, { status: 400 });
