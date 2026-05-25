@@ -17,9 +17,8 @@ alter table public.institution_profiles
       or package_type in (
         'Pilot Access',
         'Department Access',
-        'Full Campus Access',
-        'Workforce Program Access',
-        'Custom Enterprise Access'
+        'Campus Access',
+        'Enterprise Access'
       )
     ),
   drop constraint if exists institution_profiles_annual_contract_value_check,

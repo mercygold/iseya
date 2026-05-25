@@ -42,6 +42,13 @@ function dateRange(profile: InstitutionProfile) {
   return `${profile.access_start_date ?? "Open"} - ${profile.access_end_date ?? "Open"}`;
 }
 
+function accessStatusMessage(status: string) {
+  if (status === "active") return "Your institution access is active.";
+  if (status === "pending_review") return "Your partnership request is under review.";
+  if (status === "rejected") return "Your partnership request needs updates before access can be approved.";
+  return "Your institution access period has expired.";
+}
+
 export default function InstitutionDashboard({
   initialProfile,
   onboarding = false,
@@ -146,6 +153,9 @@ export default function InstitutionDashboard({
           </button>
         </div>
         {status ? <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">{status}</p> : null}
+        <p className="rounded-xl border border-[var(--iseya-gold)]/30 bg-[#FFF8E6] p-4 text-sm font-semibold text-[var(--iseya-navy)]">
+          {accessStatusMessage(profile.access_status)}
+        </p>
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[
             ["Students onboarded", String(profile.active_seats)],

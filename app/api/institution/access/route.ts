@@ -47,7 +47,10 @@ export async function POST(request: Request) {
   } = await authClient.auth.getUser();
 
   if (!user) {
-    return Response.json({ error: "Sign in with your institution email to continue." }, { status: 401 });
+    return Response.json(
+      { error: "Sign in using the institution email you want to verify for access." },
+      { status: 401 },
+    );
   }
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
@@ -57,6 +60,36 @@ export async function POST(request: Request) {
 
   if (!institutionId || !studentEmail || !domain) {
     return Response.json({ error: "Select an institution and enter your institution email." }, { status: 400 });
+  }
+
+  const { data: selectedInstitution, error: institutionLookupError } = await serviceRole
+    .from("institution_profiles")
+    .select("user_id, admin_email")
+    .eq("id", institutionId)
+    .maybeSingle();
+
+  if (institutionLookupError) {
+    console.error("[institution-access] selected institution lookup failed", {
+      code: institutionLookupError.code,
+      message: institutionLookupError.message,
+      userId: user.id,
+      institutionId,
+    });
+    return Response.json({ error: "Institution access could not be applied right now." }, { status: 500 });
+  }
+
+  if (
+    selectedInstitution &&
+    (selectedInstitution.user_id === user.id ||
+      selectedInstitution.admin_email.toLowerCase() === (user.email ?? "").toLowerCase())
+  ) {
+    return Response.json(
+      {
+        error:
+          "This email is registered as an institution administrator. Please sign in with a student or learner account under the approved institution domain.",
+      },
+      { status: 403 },
+    );
   }
 
   if ((user.email ?? "").toLowerCase() !== studentEmail) {
@@ -115,6 +148,16 @@ export async function POST(request: Request) {
   if (claim.reason === "candidate_account_required") {
     return Response.json(
       { error: "Institution learner access is available through a candidate account." },
+      { status: 403 },
+    );
+  }
+
+  if (claim.reason === "institution_admin_account") {
+    return Response.json(
+      {
+        error:
+          "This email is registered as an institution administrator. Please sign in with a student or learner account under the approved institution domain.",
+      },
       { status: 403 },
     );
   }

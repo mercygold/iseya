@@ -9,9 +9,8 @@ const validStatuses = new Set(["free", "active", "canceled", "past_due", "inacti
 const validInstitutionPackages = new Set([
   "Pilot Access",
   "Department Access",
-  "Full Campus Access",
-  "Workforce Program Access",
-  "Custom Enterprise Access",
+  "Campus Access",
+  "Enterprise Access",
 ]);
 
 async function getAdminClients() {
@@ -52,6 +51,15 @@ function optionalAmount(value: unknown) {
   if (value === null || value === "" || typeof value === "undefined") return null;
   const amount = Number(value);
   return Number.isFinite(amount) && amount >= 0 ? amount : Number.NaN;
+}
+
+function validInstitutionPackageSeatLimit(packageType: string | null, seatLimit: number | null) {
+  if (!packageType) return true;
+  if (seatLimit === null) return false;
+  if (packageType === "Pilot Access") return seatLimit <= 500;
+  if (packageType === "Department Access") return seatLimit >= 501 && seatLimit <= 2000;
+  if (packageType === "Campus Access") return seatLimit >= 2001 && seatLimit <= 10000;
+  return seatLimit >= 10000;
 }
 
 export async function GET() {
@@ -360,7 +368,8 @@ export async function PATCH(request: Request) {
     if (
       (packageType !== null && !validInstitutionPackages.has(packageType)) ||
       Number.isNaN(annualContractValue) ||
-      Number.isNaN(pricePerStudent)
+      Number.isNaN(pricePerStudent) ||
+      !validInstitutionPackageSeatLimit(packageType, seatLimit)
     ) {
       return Response.json({ error: "Invalid institution package details." }, { status: 400 });
     }

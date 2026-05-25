@@ -49,6 +49,9 @@ export default function InstitutionsPage() {
           <p className="mt-3 text-sm leading-7 text-slate-600">
             Universities, colleges, bootcamps, workforce programs, and career centers can request managed learner access.
           </p>
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            Packages are assigned after review. Contracting and payment are handled directly with ISEYA; public checkout is not used for institution access.
+          </p>
           <Link href="/institutions/signup" className={`${primaryButton} mt-5`}>
             Request Institution Partnership
           </Link>

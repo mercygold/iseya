@@ -13,6 +13,27 @@ type ActiveInstitution = {
   country: string;
 };
 
+type TestInstitution = {
+  id: string;
+  institution_name: string;
+  access_status: string;
+};
+
+type TestResult = {
+  eligible: boolean;
+  reason: string;
+  institutionName: string;
+  institutionDomain: string;
+  enteredDomain: string;
+  domainMatches: boolean;
+  institutionActive: boolean;
+  accessStatus: string;
+  seatLimit: number | null;
+  activeSeats: number;
+  seatAvailable: boolean;
+  administratorEmail: boolean;
+};
+
 const inputClass =
   "mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-3 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25";
 const primaryButton =
@@ -26,6 +47,13 @@ export default function InstitutionAccess() {
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState("");
   const [linked, setLinked] = useState(false);
+  const [showLocalTestMode, setShowLocalTestMode] = useState(false);
+  const [testInstitutions, setTestInstitutions] = useState<TestInstitution[]>([]);
+  const [testInstitutionId, setTestInstitutionId] = useState("");
+  const [testLearnerEmail, setTestLearnerEmail] = useState("");
+  const [testLoading, setTestLoading] = useState(false);
+  const [testStatus, setTestStatus] = useState("");
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -43,6 +71,27 @@ export default function InstitutionAccess() {
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const locallyVisible =
+      window.location.hostname === "localhost" || process.env.NODE_ENV === "development";
+
+    if (!locallyVisible) return;
+
+    void fetch("/api/institution/access/test", { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) throw new Error("Local test mode is unavailable.");
+        return response.json();
+      })
+      .then((data: { institutions?: TestInstitution[] }) => {
+        setShowLocalTestMode(true);
+        setTestInstitutions(data.institutions ?? []);
+      })
+      .catch(() => {
+        setShowLocalTestMode(false);
+        setTestInstitutions([]);
+      });
   }, []);
 
   async function submitAccess(event: React.FormEvent<HTMLFormElement>) {
@@ -72,6 +121,29 @@ export default function InstitutionAccess() {
     }
   }
 
+  async function runDryTest(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setTestLoading(true);
+    setTestStatus("");
+    setTestResult(null);
+    try {
+      const response = await fetch("/api/institution/access/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ institutionId: testInstitutionId, learnerEmail: testLearnerEmail }),
+      });
+      const data = (await response.json().catch(() => ({}))) as TestResult & { error?: string };
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to run the local institution access test.");
+      }
+      setTestResult(data);
+    } catch (error) {
+      setTestStatus(error instanceof Error ? error.message : "Unable to run the local institution access test.");
+    } finally {
+      setTestLoading(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <header className="iseya-header text-white">
@@ -89,6 +161,9 @@ export default function InstitutionAccess() {
         <h1 className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)]">Access through my institution</h1>
         <p className="mt-3 text-base leading-8 text-slate-600">
           Connect an approved institution email to your private ISEYA workspace. Your career materials remain private.
+        </p>
+        <p className="mt-3 rounded-xl border border-slate-200 bg-white p-4 text-sm leading-7 text-slate-600">
+          Use your student, learner, or program email. Institution administrator emails are used for management access and cannot claim learner seats.
         </p>
         <form onSubmit={submitAccess} className="mt-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <label className="text-sm font-semibold text-[var(--iseya-navy)]">
@@ -129,7 +204,60 @@ export default function InstitutionAccess() {
             {linked ? "Access Connected" : submitting ? "Connecting..." : "Connect Institution Access"}
           </button>
         </form>
+        {showLocalTestMode ? (
+          <form onSubmit={runDryTest} className="mt-7 rounded-2xl border border-dashed border-[var(--iseya-gold)] bg-[#FFF8E6] p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">Local Test Mode</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Development dry run only. This check never claims a learner seat or changes an account.
+            </p>
+            <label className="mt-4 block text-sm font-semibold text-[var(--iseya-navy)]">
+              Institution to test
+              <select className={inputClass} value={testInstitutionId} onChange={(event) => setTestInstitutionId(event.target.value)} required>
+                <option value="">Select an institution</option>
+                {testInstitutions.map((institution) => (
+                  <option key={institution.id} value={institution.id}>
+                    {institution.institution_name} - {institution.access_status.replace(/_/g, " ")}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="mt-4 block text-sm font-semibold text-[var(--iseya-navy)]">
+              Test learner email
+              <input className={inputClass} value={testLearnerEmail} onChange={(event) => setTestLearnerEmail(event.target.value)} type="email" required placeholder="learner@school.edu" />
+            </label>
+            <button type="submit" disabled={testLoading || testInstitutions.length === 0} className={`${primaryButton} mt-5`}>
+              {testLoading ? "Checking..." : "Run Dry Test"}
+            </button>
+            {testStatus ? (
+              <p className="mt-4 rounded-xl border border-red-200 bg-white p-3 text-sm font-semibold text-red-700">{testStatus}</p>
+            ) : null}
+            {testResult ? (
+              <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
+                <p className="text-sm font-semibold text-[var(--iseya-navy)]">{testResult.reason}</p>
+                <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                  <TestDetail label="Institution domain" value={testResult.institutionDomain} />
+                  <TestDetail label="Entered email domain" value={testResult.enteredDomain} />
+                  <TestDetail label="Domain match" value={testResult.domainMatches ? "Yes" : "No"} />
+                  <TestDetail label="Institution active" value={testResult.institutionActive ? "Yes" : "No"} />
+                  <TestDetail label="Seat limit" value={testResult.seatLimit === null ? "Unlimited / pilot" : String(testResult.seatLimit)} />
+                  <TestDetail label="Active seats" value={String(testResult.activeSeats)} />
+                  <TestDetail label="Seat available" value={testResult.seatAvailable ? "Yes" : "No"} />
+                  <TestDetail label="Dry-run access result" value={testResult.eligible ? "Eligible" : "Blocked"} />
+                </dl>
+              </div>
+            ) : null}
+          </form>
+        ) : null}
       </section>
     </main>
+  );
+}
+
+function TestDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{label}</dt>
+      <dd className="mt-1 font-semibold text-[var(--iseya-navy)]">{value}</dd>
+    </div>
   );
 }

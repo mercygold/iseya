@@ -115,12 +115,15 @@ const primaryButton =
 const secondaryButton =
   "inline-flex min-h-9 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] disabled:cursor-not-allowed disabled:opacity-60";
 const institutionPackages = [
-  "Pilot Access",
-  "Department Access",
-  "Full Campus Access",
-  "Workforce Program Access",
-  "Custom Enterprise Access",
+  "Pilot Access: up to 500 learners",
+  "Department Access: 501-2,000 learners",
+  "Campus Access: 2,001-10,000 learners",
+  "Enterprise Access: 10,000+ learners",
 ];
+
+function packageValue(option: string) {
+  return option.split(":")[0];
+}
 
 function formatDate(value: string | null) {
   if (!value) {
@@ -955,14 +958,14 @@ function InstitutionModal({
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">Access Terms</p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-semibold text-[var(--iseya-navy)]">
-              Seat limit optional
+              Seat limit {packageType ? "" : "optional"}
               <input className={`${inputClass} mt-2 w-full`} min="0" type="number" value={seatLimit} onChange={(event) => setSeatLimit(event.target.value)} placeholder="Unlimited / pilot" />
             </label>
             <label className="text-sm font-semibold text-[var(--iseya-navy)]">
               Institution Access Package
               <select className={`${inputClass} mt-2 w-full`} value={packageType} onChange={(event) => setPackageType(event.target.value)}>
                 <option value="">Select after review</option>
-                {institutionPackages.map((option) => <option key={option} value={option}>{option}</option>)}
+                {institutionPackages.map((option) => <option key={option} value={packageValue(option)}>{option}</option>)}
               </select>
             </label>
             <label className="text-sm font-semibold text-[var(--iseya-navy)]">
