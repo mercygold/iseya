@@ -6,6 +6,7 @@ import {
   getRegionalPricing,
   isSupportedCurrency,
   type PaidSubscriptionPlanId as CheckoutPlan,
+  type SupportedCurrency,
 } from "@/lib/pricing/regions";
 
 const checkoutModes: Record<CheckoutPlan, "payment" | "subscription"> = {
@@ -28,6 +29,20 @@ function checkoutError(status = 503) {
 
 function logCheckoutDiagnostic(message: string, details?: Record<string, string>) {
   console.error("[stripe-checkout]", message, details ?? {});
+}
+
+function configuredPriceId(plan: CheckoutPlan, currency: SupportedCurrency) {
+  const configuredPrice = getRegionalPricing(currency).plans[plan];
+  const envNames = [configuredPrice.stripePriceEnv, ...configuredPrice.legacyStripePriceEnvs];
+
+  for (const envName of envNames) {
+    const priceId = cleanSupabaseEnvValue(process.env[envName]);
+    if (priceId) {
+      return { priceId, envName, primaryEnvName: configuredPrice.stripePriceEnv };
+    }
+  }
+
+  return { priceId: null, envName: "", primaryEnvName: configuredPrice.stripePriceEnv };
 }
 
 function appBaseUrl(request: Request) {
@@ -111,32 +126,57 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json().catch(() => ({}))) as {
+    planId?: unknown;
     plan?: unknown;
     currency?: unknown;
   };
+  const requestedPlan = body.planId ?? body.plan;
 
-  if (!isCheckoutPlan(body.plan)) {
+  if (!isCheckoutPlan(requestedPlan)) {
     logCheckoutDiagnostic("Invalid checkout plan requested.");
     return checkoutError(400);
   }
 
   const stripeSecretKey = cleanSupabaseEnvValue(process.env.STRIPE_SECRET_KEY);
-  const currency = isSupportedCurrency(body.currency) ? body.currency : defaultCurrency;
-  const plan = getRegionalPricing(currency).plans[body.plan];
-  const mode = checkoutModes[body.plan];
-  const priceId = cleanSupabaseEnvValue(process.env[plan.stripePriceEnv]);
+  const requestedCurrency = isSupportedCurrency(body.currency) ? body.currency : defaultCurrency;
+  let checkoutCurrency = requestedCurrency;
+  let configuredPrice = configuredPriceId(requestedPlan, requestedCurrency);
+  let notice: string | undefined;
+  const mode = checkoutModes[requestedPlan];
 
   if (!stripeSecretKey) {
     logCheckoutDiagnostic("Missing Stripe secret key.");
     return checkoutError();
   }
 
-  if (!priceId) {
+  if (!configuredPrice.priceId) {
     logCheckoutDiagnostic("Missing Stripe price ID.", {
-      plan: body.plan,
-      currency,
-      priceEnv: plan.stripePriceEnv,
+      plan: requestedPlan,
+      currency: requestedCurrency,
+      priceEnv: configuredPrice.primaryEnvName,
     });
+
+    if (requestedCurrency !== defaultCurrency) {
+      const usdPrice = configuredPriceId(requestedPlan, defaultCurrency);
+      if (usdPrice.priceId) {
+        checkoutCurrency = defaultCurrency;
+        configuredPrice = usdPrice;
+        notice = "Local checkout is not active yet. Continuing in USD.";
+      } else {
+        logCheckoutDiagnostic("USD fallback price ID is also missing.", {
+          plan: requestedPlan,
+          currency: defaultCurrency,
+          priceEnv: usdPrice.primaryEnvName,
+        });
+        return checkoutError();
+      }
+    } else {
+      return checkoutError();
+    }
+  }
+
+  const priceId = configuredPrice.priceId;
+  if (!priceId) {
     return checkoutError();
   }
 
@@ -150,12 +190,13 @@ export async function POST(request: Request) {
   const metadata = {
     user_id: user.id,
     user_email: user.email ?? "",
-    plan: body.plan,
-    currency,
+    plan: requestedPlan,
+    currency: checkoutCurrency,
+    requested_currency: requestedCurrency,
   };
 
   try {
-    if (body.plan === "plus") {
+    if (requestedPlan === "plus") {
       await syncPlusCheckoutImage(stripe, priceId, appUrl);
     }
 
@@ -188,17 +229,22 @@ export async function POST(request: Request) {
 
     if (!session.url) {
       logCheckoutDiagnostic("Stripe checkout session did not return a URL.", {
-        plan: body.plan,
-        currency,
+        plan: requestedPlan,
+        currency: checkoutCurrency,
       });
       return checkoutError(502);
     }
 
-    return Response.json({ url: session.url });
+    return Response.json({
+      url: session.url,
+      currency: checkoutCurrency,
+      requestedCurrency,
+      notice,
+    });
   } catch (error) {
     logCheckoutDiagnostic("Stripe checkout creation failed.", {
-      plan: body.plan,
-      currency,
+      plan: requestedPlan,
+      currency: checkoutCurrency,
       error: error instanceof Error ? error.message : "Unknown error",
     });
     return checkoutError(502);

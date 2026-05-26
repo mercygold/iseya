@@ -5,6 +5,7 @@ export type RegionalPlanPrice = {
   amount: number;
   interval: "one-time" | "month" | "year";
   stripePriceEnv: string;
+  legacyStripePriceEnvs: readonly string[];
 };
 
 export type RegionalPricing = {
@@ -24,16 +25,23 @@ export const regionalPricing: Record<SupportedCurrency, RegionalPricing> = {
     locale: "en-US",
     symbol: "$",
     plans: {
-      plus: { amount: 1.99, interval: "one-time", stripePriceEnv: "STRIPE_PLUS_PRICE_ID" },
+      plus: {
+        amount: 1.99,
+        interval: "one-time",
+        stripePriceEnv: "STRIPE_PRICE_PLUS_USD",
+        legacyStripePriceEnvs: ["STRIPE_PLUS_PRICE_ID", "STRIPE_PRICE_PLUS_ID"],
+      },
       pro_monthly: {
         amount: 7.99,
         interval: "month",
-        stripePriceEnv: "STRIPE_PRO_MONTHLY_PRICE_ID",
+        stripePriceEnv: "STRIPE_PRICE_PRO_MONTHLY_USD",
+        legacyStripePriceEnvs: ["STRIPE_PRO_MONTHLY_PRICE_ID", "STRIPE_PRICE_PRO_MONTHLY_ID"],
       },
       pro_annual: {
         amount: 69,
         interval: "year",
-        stripePriceEnv: "STRIPE_PRO_ANNUAL_PRICE_ID",
+        stripePriceEnv: "STRIPE_PRICE_PRO_ANNUAL_USD",
+        legacyStripePriceEnvs: ["STRIPE_PRO_ANNUAL_PRICE_ID", "STRIPE_PRICE_PRO_ANNUAL_ID"],
       },
     },
   },
@@ -43,16 +51,23 @@ export const regionalPricing: Record<SupportedCurrency, RegionalPricing> = {
     locale: "en-NG",
     symbol: "₦",
     plans: {
-      plus: { amount: 1000, interval: "one-time", stripePriceEnv: "STRIPE_PLUS_PRICE_ID_NGN" },
+      plus: {
+        amount: 1000,
+        interval: "one-time",
+        stripePriceEnv: "STRIPE_PRICE_PLUS_NGN",
+        legacyStripePriceEnvs: ["STRIPE_PLUS_PRICE_ID_NGN", "STRIPE_PRICE_PLUS_ID_NGN"],
+      },
       pro_monthly: {
         amount: 3500,
         interval: "month",
-        stripePriceEnv: "STRIPE_PRO_MONTHLY_PRICE_ID_NGN",
+        stripePriceEnv: "STRIPE_PRICE_PRO_MONTHLY_NGN",
+        legacyStripePriceEnvs: ["STRIPE_PRO_MONTHLY_PRICE_ID_NGN", "STRIPE_PRICE_PRO_MONTHLY_ID_NGN"],
       },
       pro_annual: {
         amount: 35000,
         interval: "year",
-        stripePriceEnv: "STRIPE_PRO_ANNUAL_PRICE_ID_NGN",
+        stripePriceEnv: "STRIPE_PRICE_PRO_ANNUAL_NGN",
+        legacyStripePriceEnvs: ["STRIPE_PRO_ANNUAL_PRICE_ID_NGN", "STRIPE_PRICE_PRO_ANNUAL_ID_NGN"],
       },
     },
   },
@@ -62,16 +77,23 @@ export const regionalPricing: Record<SupportedCurrency, RegionalPricing> = {
     locale: "en-GB",
     symbol: "£",
     plans: {
-      plus: { amount: 1.99, interval: "one-time", stripePriceEnv: "STRIPE_PLUS_PRICE_ID_GBP" },
+      plus: {
+        amount: 1.99,
+        interval: "one-time",
+        stripePriceEnv: "STRIPE_PRICE_PLUS_GBP",
+        legacyStripePriceEnvs: ["STRIPE_PLUS_PRICE_ID_GBP", "STRIPE_PRICE_PLUS_ID_GBP"],
+      },
       pro_monthly: {
         amount: 6.99,
         interval: "month",
-        stripePriceEnv: "STRIPE_PRO_MONTHLY_PRICE_ID_GBP",
+        stripePriceEnv: "STRIPE_PRICE_PRO_MONTHLY_GBP",
+        legacyStripePriceEnvs: ["STRIPE_PRO_MONTHLY_PRICE_ID_GBP", "STRIPE_PRICE_PRO_MONTHLY_ID_GBP"],
       },
       pro_annual: {
         amount: 59,
         interval: "year",
-        stripePriceEnv: "STRIPE_PRO_ANNUAL_PRICE_ID_GBP",
+        stripePriceEnv: "STRIPE_PRICE_PRO_ANNUAL_GBP",
+        legacyStripePriceEnvs: ["STRIPE_PRO_ANNUAL_PRICE_ID_GBP", "STRIPE_PRICE_PRO_ANNUAL_ID_GBP"],
       },
     },
   },
@@ -81,16 +103,23 @@ export const regionalPricing: Record<SupportedCurrency, RegionalPricing> = {
     locale: "en-CA",
     symbol: "CA$",
     plans: {
-      plus: { amount: 2.99, interval: "one-time", stripePriceEnv: "STRIPE_PLUS_PRICE_ID_CAD" },
+      plus: {
+        amount: 2.99,
+        interval: "one-time",
+        stripePriceEnv: "STRIPE_PRICE_PLUS_CAD",
+        legacyStripePriceEnvs: ["STRIPE_PLUS_PRICE_ID_CAD", "STRIPE_PRICE_PLUS_ID_CAD"],
+      },
       pro_monthly: {
         amount: 9.99,
         interval: "month",
-        stripePriceEnv: "STRIPE_PRO_MONTHLY_PRICE_ID_CAD",
+        stripePriceEnv: "STRIPE_PRICE_PRO_MONTHLY_CAD",
+        legacyStripePriceEnvs: ["STRIPE_PRO_MONTHLY_PRICE_ID_CAD", "STRIPE_PRICE_PRO_MONTHLY_ID_CAD"],
       },
       pro_annual: {
         amount: 79,
         interval: "year",
-        stripePriceEnv: "STRIPE_PRO_ANNUAL_PRICE_ID_CAD",
+        stripePriceEnv: "STRIPE_PRICE_PRO_ANNUAL_CAD",
+        legacyStripePriceEnvs: ["STRIPE_PRO_ANNUAL_PRICE_ID_CAD", "STRIPE_PRICE_PRO_ANNUAL_ID_CAD"],
       },
     },
   },
@@ -130,4 +159,3 @@ export function formatCurrencyDisplay(
 
   return `${pricing.symbol}${formattedAmount}${suffix}`;
 }
-

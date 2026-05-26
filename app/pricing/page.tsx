@@ -59,7 +59,7 @@ function PricingContent() {
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: planId, currency }),
+        body: JSON.stringify({ planId, currency }),
       });
 
       if (response.status === 401) {
@@ -67,10 +67,15 @@ function PricingContent() {
         return;
       }
 
-      const data = (await response.json()) as { url?: string; error?: string };
+      const data = (await response.json()) as { url?: string; error?: string; notice?: string };
 
       if (!response.ok || !data.url) {
         throw new Error(safeCheckoutMessage(data.error));
+      }
+
+      if (data.notice) {
+        setCheckoutStatus(data.notice);
+        await new Promise((resolve) => window.setTimeout(resolve, 1000));
       }
 
       window.location.assign(data.url);

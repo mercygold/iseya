@@ -28,25 +28,27 @@ SUPABASE_SERVICE_ROLE_KEY=sb_secret_your_key
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
-STRIPE_PLUS_PRICE_ID=
-STRIPE_PRO_MONTHLY_PRICE_ID=
-STRIPE_PRO_ANNUAL_PRICE_ID=
-STRIPE_PLUS_PRICE_ID_NGN=
-STRIPE_PRO_MONTHLY_PRICE_ID_NGN=
-STRIPE_PRO_ANNUAL_PRICE_ID_NGN=
-STRIPE_PLUS_PRICE_ID_GBP=
-STRIPE_PRO_MONTHLY_PRICE_ID_GBP=
-STRIPE_PRO_ANNUAL_PRICE_ID_GBP=
-STRIPE_PLUS_PRICE_ID_CAD=
-STRIPE_PRO_MONTHLY_PRICE_ID_CAD=
-STRIPE_PRO_ANNUAL_PRICE_ID_CAD=
+STRIPE_PRICE_PLUS_USD=
+STRIPE_PRICE_PLUS_NGN=
+STRIPE_PRICE_PLUS_GBP=
+STRIPE_PRICE_PLUS_CAD=
+STRIPE_PRICE_PRO_MONTHLY_USD=
+STRIPE_PRICE_PRO_MONTHLY_NGN=
+STRIPE_PRICE_PRO_MONTHLY_GBP=
+STRIPE_PRICE_PRO_MONTHLY_CAD=
+STRIPE_PRICE_PRO_ANNUAL_USD=
+STRIPE_PRICE_PRO_ANNUAL_NGN=
+STRIPE_PRICE_PRO_ANNUAL_GBP=
+STRIPE_PRICE_PRO_ANNUAL_CAD=
 ```
 
 `OPENAI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, and `STRIPE_WEBHOOK_SECRET` are server-only. Do not create `NEXT_PUBLIC_OPENAI_API_KEY`, and do not commit real keys.
 
 For production, set `NEXT_PUBLIC_APP_URL` to `https://iseya.jormp.com`. For local Stripe checkout testing, keep it as `http://localhost:3000` or the local port you are using.
 
-Candidate plan cards remain displayed in USD publicly. The paid upgrade dialog can select controlled USD, NGN, GBP, or CAD pricing; each regional Stripe price ID must be configured before that currency can complete checkout. All regions receive the same entitlements for the selected plan.
+Candidate plan cards remain displayed in USD publicly. The paid upgrade dialog can select controlled USD, NGN, GBP, or CAD pricing; when a selected regional Stripe price ID is unavailable, checkout continues in USD with a visible notice. All regions receive the same entitlements for the selected plan.
+
+Legacy Stripe price environment names are read only as compatibility fallbacks. New deployments should configure the `STRIPE_PRICE_<PLAN>_<CURRENCY>` variables shown above.
 
 Run the app:
 
@@ -155,18 +157,18 @@ The `/pricing` page shows the plan structure. Subscription profile fields are st
    - `STRIPE_SECRET_KEY`
    - `STRIPE_WEBHOOK_SECRET`
    - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
-   - `STRIPE_PLUS_PRICE_ID`
-   - `STRIPE_PRO_MONTHLY_PRICE_ID`
-   - `STRIPE_PRO_ANNUAL_PRICE_ID`
-   - `STRIPE_PLUS_PRICE_ID_NGN`
-   - `STRIPE_PRO_MONTHLY_PRICE_ID_NGN`
-   - `STRIPE_PRO_ANNUAL_PRICE_ID_NGN`
-   - `STRIPE_PLUS_PRICE_ID_GBP`
-   - `STRIPE_PRO_MONTHLY_PRICE_ID_GBP`
-   - `STRIPE_PRO_ANNUAL_PRICE_ID_GBP`
-   - `STRIPE_PLUS_PRICE_ID_CAD`
-   - `STRIPE_PRO_MONTHLY_PRICE_ID_CAD`
-   - `STRIPE_PRO_ANNUAL_PRICE_ID_CAD`
+   - `STRIPE_PRICE_PLUS_USD`
+   - `STRIPE_PRICE_PLUS_NGN`
+   - `STRIPE_PRICE_PLUS_GBP`
+   - `STRIPE_PRICE_PLUS_CAD`
+   - `STRIPE_PRICE_PRO_MONTHLY_USD`
+   - `STRIPE_PRICE_PRO_MONTHLY_NGN`
+   - `STRIPE_PRICE_PRO_MONTHLY_GBP`
+   - `STRIPE_PRICE_PRO_MONTHLY_CAD`
+   - `STRIPE_PRICE_PRO_ANNUAL_USD`
+   - `STRIPE_PRICE_PRO_ANNUAL_NGN`
+   - `STRIPE_PRICE_PRO_ANNUAL_GBP`
+   - `STRIPE_PRICE_PRO_ANNUAL_CAD`
 4. Deploy.
 5. Confirm `/login`, `/signup`, `/workspace`, `/api/tailor`, and `/api/extract` work in production.
 

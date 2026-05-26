@@ -40,9 +40,12 @@ function logWebhookError(
 
 function priceIdForPlan(plan: PaidPlan) {
   return supportedCurrencies
-    .map((currency) =>
-      cleanSupabaseEnvValue(process.env[regionalPricing[currency].plans[plan].stripePriceEnv]),
-    )
+    .flatMap((currency) => {
+      const price = regionalPricing[currency].plans[plan];
+      return [price.stripePriceEnv, ...price.legacyStripePriceEnvs].map((envName) =>
+        cleanSupabaseEnvValue(process.env[envName]),
+      );
+    })
     .filter((priceId): priceId is string => Boolean(priceId));
 }
 
