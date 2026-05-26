@@ -22,10 +22,6 @@ export async function GET() {
   if (error) {
     console.error("[institution-analytics] aggregate query failed", {
       code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      userId: user.id,
     });
     return Response.json({ error: "Institution insights are temporarily unavailable." }, { status: 500 });
   }

@@ -27,7 +27,6 @@ export async function GET() {
   if (error) {
     console.error("[institution-access] active institution listing failed", {
       code: error.code,
-      message: error.message,
     });
     return Response.json({ institutions: [] });
   }
@@ -71,9 +70,6 @@ export async function POST(request: Request) {
   if (institutionLookupError) {
     console.error("[institution-access] selected institution lookup failed", {
       code: institutionLookupError.code,
-      message: institutionLookupError.message,
-      userId: user.id,
-      institutionId,
     });
     return Response.json({ error: "Institution access could not be applied right now." }, { status: 500 });
   }
@@ -108,9 +104,6 @@ export async function POST(request: Request) {
   if (error) {
     console.error("[institution-access] seat claim failed", {
       code: error.code,
-      message: error.message,
-      userId: user.id,
-      institutionId,
     });
     return Response.json({ error: "Institution access could not be applied right now." }, { status: 500 });
   }

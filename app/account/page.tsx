@@ -217,7 +217,7 @@ export default function AccountPage() {
         }
 
         if (!isTransientSessionError(error)) {
-          console.error("Unable to load account profile.", error?.message ?? "profile_not_found");
+          console.error("Unable to load account profile.");
         }
 
         setStatus("Unable to refresh account details right now. Your session may need a refresh.");
@@ -251,7 +251,7 @@ export default function AccountPage() {
       }
 
       if (usageError && !/column .* does not exist/i.test(usageError.message)) {
-        console.error("Unable to load account usage.", usageError.message);
+        console.error("Unable to load account usage.");
       }
 
       if (!cancelled) {

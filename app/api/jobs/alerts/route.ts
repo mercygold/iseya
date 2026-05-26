@@ -58,9 +58,6 @@ export async function POST(request: Request) {
   if (error) {
     console.error("[jobs] alert subscription failed", {
       code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
     });
     return Response.json(
       { error: "Unable to subscribe to job alerts right now. Please try again." },

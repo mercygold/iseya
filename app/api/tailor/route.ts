@@ -1175,7 +1175,7 @@ async function applyResumePipeline(
 
   if (renderResumeState.validationIssues.length > 0) {
     console.warn("ISEYA pipeline validation failures", {
-      issues: renderResumeState.validationIssues,
+      issueCount: renderResumeState.validationIssues.length,
     });
   }
 
@@ -1440,13 +1440,10 @@ export async function POST(request: Request) {
     } catch {
       return Response.json(await applyResumePipeline(body, localTailor(body)));
     }
-  } catch (error) {
+  } catch {
     return Response.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to tailor resume with AI.",
+        error: "Unable to process your resume right now. Please review your inputs and try again.",
       },
       { status: 500 },
     );

@@ -53,10 +53,6 @@ async function getOwnedNativeJobIds(
   if (error) {
     console.error("[recruiter-applications] owned job lookup failed", {
       code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      userId,
     });
     return { jobIds: [] as string[], error };
   }
@@ -94,10 +90,6 @@ export async function GET() {
   if (error) {
     console.error("[recruiter-applications] list failed", {
       code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      userId,
     });
     return Response.json({ error: "Unable to load applicants right now." }, { status: 500 });
   }
@@ -114,8 +106,6 @@ export async function GET() {
   if (noteError) {
     console.error("[recruiter-applications] internal notes lookup failed", {
       code: noteError.code,
-      message: noteError.message,
-      userId,
     });
   }
 
@@ -135,8 +125,6 @@ export async function GET() {
     if (signedError) {
       console.error("[recruiter-applications] attachment link failed", {
         code: signedError.name,
-        message: signedError.message,
-        userId,
       });
       return null;
     }
@@ -212,11 +200,6 @@ export async function PATCH(request: Request) {
     if (noteSaveError) {
       console.error("[recruiter-applications] internal note save failed", {
         code: noteSaveError.code,
-        message: noteSaveError.message,
-        details: noteSaveError.details,
-        hint: noteSaveError.hint,
-        userId,
-        applicationId,
       });
       return Response.json({ error: "Unable to save internal note right now." }, { status: 500 });
     }
@@ -244,11 +227,6 @@ export async function PATCH(request: Request) {
   if (error) {
     console.error("[recruiter-applications] status update failed", {
       code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      userId,
-      applicationId,
     });
     return Response.json({ error: "Unable to update applicant status right now." }, { status: 500 });
   }

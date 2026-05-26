@@ -169,7 +169,7 @@ export async function GET() {
     .limit(500);
 
   if (error) {
-    console.error("[manage] user query failed", { code: error.code, message: error.message });
+    console.error("[manage] user query failed", { code: error.code });
     return Response.json({ error: "Unable to load users." }, { status: 500 });
   }
 
@@ -296,7 +296,6 @@ export async function GET() {
   if (recruiterError) {
     console.error("[manage] recruiter moderation query failed", {
       code: recruiterError.code,
-      message: recruiterError.message,
     });
   } else {
     const rowsByUser = new Map<string, NonNullable<typeof recruiterRows>>();
@@ -314,7 +313,6 @@ export async function GET() {
   if (jobError) {
     console.error("[manage] job moderation query failed", {
       code: jobError.code,
-      message: jobError.message,
     });
   } else {
     jobPosts = jobRows ?? [];
@@ -323,7 +321,6 @@ export async function GET() {
   if (institutionError) {
     console.error("[manage] institution moderation query failed", {
       code: institutionError.code,
-      message: institutionError.message,
     });
   } else {
     institutions = institutionRows ?? [];
@@ -377,7 +374,6 @@ export async function POST(request: Request) {
     if (invalidSeedCount > 0) {
       console.error("[manage] starter curated opportunity source data is invalid", {
         invalidSeedCount,
-        adminUserId: userId,
       });
       return Response.json(
         { error: "Starter opportunity data requires validation before import." },
@@ -394,8 +390,6 @@ export async function POST(request: Request) {
     if (existingError) {
       console.error("[manage] curated opportunity duplicate lookup failed", {
         code: existingError.code,
-        message: existingError.message,
-        adminUserId: userId,
       });
       return Response.json({ error: "Unable to import starter opportunities right now." }, { status: 500 });
     }
@@ -418,10 +412,6 @@ export async function POST(request: Request) {
       if (insertError) {
         console.error("[manage] starter curated opportunity import failed", {
           code: insertError.code,
-          message: insertError.message,
-          details: insertError.details,
-          hint: insertError.hint,
-          adminUserId: userId,
         });
         return Response.json({ error: "Unable to import starter opportunities right now." }, { status: 500 });
       }
@@ -504,11 +494,6 @@ export async function POST(request: Request) {
   if (error) {
     console.error("[manage] curated opportunity save failed", {
       code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      adminUserId: userId,
-      curatedJobPostId: curatedJobPostId || null,
     });
     return Response.json({ error: "Unable to save curated opportunity right now." }, { status: 500 });
   }
@@ -569,8 +554,6 @@ export async function PATCH(request: Request) {
     if (lookupError || !activeProfile?.id) {
       console.error("[manage] recruiter moderation lookup failed", {
         code: lookupError?.code,
-        message: lookupError?.message,
-        recruiterUserId,
       });
       return Response.json({ error: "Unable to update recruiter review status." }, { status: 500 });
     }
@@ -583,7 +566,6 @@ export async function PATCH(request: Request) {
     if (error) {
       console.error("[manage] recruiter moderation update failed", {
         code: error.code,
-        message: error.message,
       });
       return Response.json({ error: "Unable to update recruiter review status." }, { status: 500 });
     }
@@ -679,8 +661,6 @@ export async function PATCH(request: Request) {
     if (error) {
       console.error("[manage] institution moderation update failed", {
         code: error.code,
-        message: error.message,
-        institutionProfileId,
       });
       return Response.json({ error: "Unable to update institution access status." }, { status: 500 });
     }
@@ -705,8 +685,6 @@ export async function PATCH(request: Request) {
     if (lookupError || !jobPost) {
       console.error("[manage] job moderation lookup failed", {
         code: lookupError?.code,
-        message: lookupError?.message,
-        jobPostId,
       });
       return Response.json({ error: "Unable to update job post status." }, { status: 500 });
     }
@@ -729,8 +707,6 @@ export async function PATCH(request: Request) {
       if (recruiterError) {
         console.error("[manage] recruiter entitlement lookup failed", {
           code: recruiterError.code,
-          message: recruiterError.message,
-          recruiterId: jobPost.recruiter_id,
         });
         return Response.json({ error: "Unable to publish job post right now." }, { status: 500 });
       }
@@ -750,8 +726,6 @@ export async function PATCH(request: Request) {
       if (activeCountError) {
         console.error("[manage] active recruiter job count failed", {
           code: activeCountError.code,
-          message: activeCountError.message,
-          recruiterId: jobPost.recruiter_id,
         });
         return Response.json({ error: "Unable to publish job post right now." }, { status: 500 });
       }
@@ -780,7 +754,6 @@ export async function PATCH(request: Request) {
     if (error) {
       console.error("[manage] job moderation update failed", {
         code: error.code,
-        message: error.message,
       });
       return Response.json({ error: "Unable to update job post status." }, { status: 500 });
     }
@@ -814,8 +787,6 @@ export async function PATCH(request: Request) {
       if (applicationError) {
         console.error("[manage] closed-job applicant notification lookup failed", {
           code: applicationError.code,
-          message: applicationError.message,
-          jobPostId,
         });
       } else {
         for (const application of applications ?? []) {
@@ -850,7 +821,7 @@ export async function PATCH(request: Request) {
     .eq("id", userId);
 
   if (error) {
-    console.error("[manage] user update failed", { code: error.code, message: error.message });
+    console.error("[manage] user update failed", { code: error.code });
     return Response.json({ error: "Unable to update user." }, { status: 500 });
   }
 
@@ -885,10 +856,6 @@ export async function DELETE(request: Request) {
     if (error) {
       console.error("[manage] curated opportunity delete failed", {
         code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        curatedJobPostId,
       });
       return Response.json({ error: "Unable to delete curated opportunity." }, { status: 500 });
     }
@@ -909,8 +876,6 @@ export async function DELETE(request: Request) {
   if (requestedProfileError || !requestedProfile) {
     console.error("[manage] recruiter deletion lookup failed", {
       code: requestedProfileError?.code,
-      message: requestedProfileError?.message,
-      recruiterProfileId,
     });
     return Response.json({ error: "Unable to delete recruiter profile." }, { status: 500 });
   }
@@ -924,8 +889,6 @@ export async function DELETE(request: Request) {
   if (recruiterRowsError || !activeProfile?.id) {
     console.error("[manage] recruiter deletion canonical lookup failed", {
       code: recruiterRowsError?.code,
-      message: recruiterRowsError?.message,
-      recruiterProfileId,
     });
     return Response.json({ error: "Unable to delete recruiter profile." }, { status: 500 });
   }
@@ -950,10 +913,6 @@ export async function DELETE(request: Request) {
   if (error) {
     console.error("[manage] recruiter deletion failed", {
       code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      recruiterProfileId,
       deletionMode,
     });
     return Response.json({ error: "Unable to delete recruiter profile." }, { status: 500 });

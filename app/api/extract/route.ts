@@ -61,16 +61,18 @@ function logExtraction(details: {
   extractedCharacters?: number;
   error?: string;
 }) {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
   console.info(
     `[extract] ${JSON.stringify({
-      fileName: details.fileName,
       fileType: details.fileType,
       fileSize: details.fileSize,
       method: details.method,
       hasBuffer: details.hasBuffer,
       bufferBytes: details.bufferBytes,
       extractedCharacters: details.extractedCharacters ?? 0,
-      error: details.error,
     })}`,
   );
 }
@@ -345,25 +347,14 @@ async function extractFile(file: File): Promise<ExtractionResponse> {
       extractionStatus: "unsupported_for_extraction",
       warnings: ["This file is saved as reference material. Text extraction is not supported for this format yet."],
     };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown extraction error";
-    console.error(
-      `[extract] extraction failed ${JSON.stringify({
-        fileName,
-        fileType,
-        fileSize: file.size,
-        method: "unknown",
-        extractedCharacters: 0,
-        error: errorMessage,
-      })}`,
-    );
+  } catch {
+    console.error("[extract] extraction failed", { fileType });
     logExtraction({
       fileName,
       fileType,
       fileSize: file.size,
       method: "failed",
       extractedCharacters: 0,
-      error: errorMessage,
     });
 
     return {

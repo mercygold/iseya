@@ -82,16 +82,11 @@ async function getUserContext() {
   if (contextError) {
     console.error("[recruiter-jobs] update context lookup failed", {
       code: contextError.code,
-      message: contextError.message,
-      details: contextError.details,
-      hint: contextError.hint,
-      userId,
     });
   }
 
   if ((recruiterProfiles ?? []).length > 1) {
     console.warn("[recruiter-jobs] duplicate recruiter rows found during update; using canonical row", {
-      userId,
       rowCount: recruiterProfiles?.length,
     });
   }
@@ -198,11 +193,6 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (error) {
     console.error("[recruiter-jobs] update failed", {
       code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      userId,
-      jobId: id,
     });
     return Response.json({ error: jobSaveErrorMessage }, { status: 500 });
   }
@@ -218,8 +208,6 @@ export async function PATCH(request: Request, context: RouteContext) {
       if (applicationError) {
         console.error("[recruiter-jobs] closed-job applicant notification lookup failed", {
           code: applicationError.code,
-          message: applicationError.message,
-          jobId: id,
         });
       } else {
         for (const application of applications ?? []) {
@@ -259,7 +247,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     .neq("opportunity_type", "curated_opportunity");
 
   if (error) {
-    console.error("[recruiter-jobs] delete failed", { code: error.code, message: error.message });
+    console.error("[recruiter-jobs] delete failed", { code: error.code });
     return Response.json({ error: "Unable to delete job post." }, { status: 500 });
   }
 

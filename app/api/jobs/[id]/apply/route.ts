@@ -145,8 +145,6 @@ export async function POST(request: Request, context: RouteContext) {
     if (error) {
       console.error("[jobs] application attachment upload failed", {
         code: error.name,
-        message: error.message,
-        jobId,
         attachment: label,
       });
       throw new Error("attachment_upload_failed");
@@ -204,10 +202,6 @@ export async function POST(request: Request, context: RouteContext) {
 
     console.error("[jobs] application failed", {
       code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      jobId: id,
       candidateUserIdExists: Boolean(user?.id),
     });
     return Response.json({ error: submitErrorMessage }, { status: 500 });

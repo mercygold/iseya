@@ -126,10 +126,8 @@ async function syncPlusCheckoutImage(stripe: Stripe, priceId: string, appUrl: st
     }
 
     await stripe.products.update(product.id, { images: [imageUrl] });
-  } catch (error) {
-    logCheckoutDiagnostic("Plus checkout image update failed.", {
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
+  } catch {
+    logCheckoutDiagnostic("Plus checkout image update failed.");
   }
 }
 
@@ -175,9 +173,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (recruiterError || !recruiterProfile) {
-      logCheckoutDiagnostic("Recruiter checkout requires a recruiter profile.", {
-        userId: user.id,
-      });
+      logCheckoutDiagnostic("Recruiter checkout requires a recruiter profile.");
       return Response.json({ error: "Create your company profile before upgrading." }, { status: 403 });
     }
   }
@@ -296,11 +292,10 @@ export async function POST(request: Request) {
       requestedCurrency,
       notice,
     });
-  } catch (error) {
+  } catch {
     logCheckoutDiagnostic("Stripe checkout creation failed.", {
       plan: checkoutPlan,
       currency: checkoutCurrency,
-      error: error instanceof Error ? error.message : "Unknown error",
     });
     return checkoutError(502);
   }

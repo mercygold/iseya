@@ -121,8 +121,6 @@ async function loadApplications() {
   if (error) {
     console.error("[candidate-applications] list failed", {
       code: error.code,
-      message: error.message,
-      userId: user.id,
     });
     return { userId: user.id, applications: [] as ApplicationCard[], error: true };
   }
@@ -139,8 +137,6 @@ async function loadApplications() {
   if (jobError) {
     console.error("[candidate-applications] job lookup failed", {
       code: jobError.code,
-      message: jobError.message,
-      userId: user.id,
     });
     return { userId: user.id, applications: [] as ApplicationCard[], error: true };
   }

@@ -53,7 +53,6 @@ export async function POST(request: Request) {
   if (profileError || !profile) {
     console.error("[usage] profile lookup failed", {
       code: profileError?.code,
-      message: profileError?.message,
     });
     return Response.json({ error: "Unable to verify usage." }, { status: 500 });
   }
@@ -75,7 +74,6 @@ export async function POST(request: Request) {
   if (usageError) {
     console.error("[usage] usage counter lookup failed", {
       code: usageError.code,
-      message: usageError.message,
     });
     return Response.json({ error: "Usage counters are not configured yet." }, { status: 503 });
   }
@@ -104,7 +102,6 @@ export async function POST(request: Request) {
     if (error || !updatedProfile) {
       console.error("[usage] optimization credit update failed", {
         code: error?.code,
-        message: error?.message ?? "stale_usage_counter",
       });
       return Response.json({ error: "Unable to update usage." }, { status: error ? 500 : 409 });
     }
@@ -139,7 +136,6 @@ export async function POST(request: Request) {
   if (error || !updatedProfile) {
     console.error("[usage] export usage update failed", {
       code: error?.code,
-      message: error?.message ?? "stale_usage_counter",
     });
     return Response.json({ error: "Unable to update usage." }, { status: error ? 500 : 409 });
   }

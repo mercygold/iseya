@@ -53,7 +53,17 @@ function logWebhookError(
   message: string,
   details?: Record<string, string | number | boolean | null>,
 ) {
-  console.error("[stripe-webhook]", message, details ?? {});
+  const safeDetails = details
+    ? {
+        code: details.code,
+        plan: details.plan,
+        mode: details.mode,
+        metadataPlan: details.metadataPlan,
+        metadataUserIdExists: details.metadataUserIdExists,
+        metadataEmailExists: details.metadataEmailExists,
+      }
+    : {};
+  console.error("[stripe-webhook]", message, safeDetails);
 }
 
 function priceIdForPlan(plan: PaidPlan) {

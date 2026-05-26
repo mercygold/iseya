@@ -37,8 +37,6 @@ export async function GET() {
   if (error) {
     console.error("[institution-association] status lookup failed", {
       code: error.code,
-      message: error.message,
-      userId: user.id,
     });
     return Response.json({ institution: null });
   }

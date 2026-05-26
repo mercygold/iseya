@@ -102,16 +102,11 @@ async function getRecruiterContext() {
   if (contextError) {
     console.error("[recruiter-jobs] recruiter context lookup failed", {
       code: contextError.code,
-      message: contextError.message,
-      details: contextError.details,
-      hint: contextError.hint,
-      userId,
     });
   }
 
   if ((recruiterProfiles ?? []).length > 1) {
     console.warn("[recruiter-jobs] duplicate recruiter rows found; using canonical row", {
-      userId,
       rowCount: recruiterProfiles?.length,
     });
   }
@@ -153,8 +148,6 @@ export async function GET() {
     if (expiryError) {
       console.error("[recruiter-jobs] expiration update failed", {
         code: expiryError.code,
-        message: expiryError.message,
-        userId,
       });
     }
   }
@@ -167,7 +160,7 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("[recruiter-jobs] list failed", { code: error.code, message: error.message });
+    console.error("[recruiter-jobs] list failed", { code: error.code });
     return Response.json({ error: "Unable to load job posts." }, { status: 500 });
   }
 
@@ -199,14 +192,6 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as JobBody;
   const status = text(body.status) || "draft";
-
-  console.info("[recruiter-jobs] create requested", {
-    userId,
-    status,
-    payloadKeys: Object.keys(body),
-    recruiterProfileExists: Boolean(recruiterProfile),
-    verificationStatus: recruiterProfile?.verification_status ?? null,
-  });
 
   if (
     !text(body.jobTitle) ||
@@ -269,15 +254,10 @@ export async function POST(request: Request) {
   if (error) {
     console.error("[recruiter-jobs] create failed", {
       code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      userId,
       status,
     });
     return Response.json({ error: jobSaveErrorMessage }, { status: 500 });
   }
 
-  console.info("[recruiter-jobs] create succeeded", { userId, jobId: data.id, status });
   return Response.json({ job: data });
 }

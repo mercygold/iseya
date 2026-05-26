@@ -182,18 +182,11 @@ export async function optimizeResume(input: OptimizeResumeInput): Promise<Canoni
   if (input.openAiApiKey) {
     try {
       optimized = await callOptimizationModel(input);
-    } catch (error) {
-      console.warn("ISEYA Stage 2 optimization model failed", {
-        message: error instanceof Error ? error.message : "Unknown optimization error",
-      });
+    } catch {
+      console.warn("ISEYA Stage 2 optimization model failed.");
     }
   }
 
   const validation = validateResume(optimized ?? localOptimize(input));
-  console.log("ISEYA Stage 2 optimization complete", {
-    experienceCount: validation.resume.professionalExperience.length,
-    issueCount: validation.issues.length,
-  });
-
   return validation.resume;
 }

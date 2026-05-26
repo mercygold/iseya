@@ -32,7 +32,6 @@ export async function GET(request: Request) {
   if (expiryError) {
     console.error("[jobs] job expiration update failed", {
       code: expiryError.code,
-      message: expiryError.message,
     });
   }
 
@@ -55,7 +54,7 @@ export async function GET(request: Request) {
   const { data, error } = await builder;
 
   if (error) {
-    console.error("[jobs] public job query failed", { code: error.code, message: error.message });
+    console.error("[jobs] public job query failed", { code: error.code });
     return Response.json({ error: "Unable to load jobs." }, { status: 500 });
   }
 
@@ -101,7 +100,6 @@ export async function GET(request: Request) {
   if (verifiedRecruiterError) {
     console.error("[jobs] verified recruiter lookup failed", {
       code: verifiedRecruiterError.code,
-      message: verifiedRecruiterError.message,
     });
   }
 
@@ -133,8 +131,6 @@ export async function GET(request: Request) {
   if (applicationError) {
     console.error("[jobs] candidate application status query failed", {
       code: applicationError.code,
-      message: applicationError.message,
-      userId: user.id,
     });
     return Response.json({ jobs: visiblePublishedJobs, applications: [] });
   }
@@ -157,8 +153,6 @@ export async function GET(request: Request) {
   if (closedJobError) {
     console.error("[jobs] candidate closed application query failed", {
       code: closedJobError.code,
-      message: closedJobError.message,
-      userId: user.id,
     });
   }
 

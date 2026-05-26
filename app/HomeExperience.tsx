@@ -5015,14 +5015,14 @@ export default function HomeExperience() {
           return false;
         }
 
-        console.error("Unable to refresh workspace session.", liveUserError.message);
+        console.error("Unable to refresh workspace session.");
         return false;
       }
 
       liveUserId = liveUser?.id ?? authUserId;
     } catch (sessionError) {
       if (!isTransientSessionError(sessionError)) {
-        console.error("Unable to refresh workspace session.", sessionError);
+        console.error("Unable to refresh workspace session.");
       }
 
       return false;
@@ -5042,7 +5042,7 @@ export default function HomeExperience() {
 
     if (error) {
       if (!isTransientSessionError(error)) {
-        console.error("Unable to refresh workspace subscription profile.", error.message);
+        console.error("Unable to refresh workspace subscription profile.");
       }
 
       return false;
@@ -5100,7 +5100,7 @@ export default function HomeExperience() {
       setOptimizationCreditsUsed(0);
       setSavedVersionsCount(savedVersions.length);
       if (usageError && !/column .* does not exist/i.test(usageError.message)) {
-        console.error("Unable to refresh workspace usage counters.", usageError.message);
+        console.error("Unable to refresh workspace usage counters.");
       }
     }
     {

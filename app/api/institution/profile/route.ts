@@ -42,8 +42,6 @@ export async function GET() {
   if (error) {
     console.error("[institution-profile] fetch failed", {
       code: error.code,
-      message: error.message,
-      userId,
     });
     return Response.json({ error: "Unable to load institution profile." }, { status: 500 });
   }
@@ -95,8 +93,6 @@ export async function PUT(request: Request) {
   if (existingProfileError) {
     console.error("[institution-profile] current profile lookup failed", {
       code: existingProfileError.code,
-      message: existingProfileError.message,
-      userId,
     });
     return Response.json({ error: saveError }, { status: 500 });
   }
@@ -122,8 +118,6 @@ export async function PUT(request: Request) {
   if (baseProfileError) {
     console.error("[institution-profile] account update failed", {
       code: baseProfileError.code,
-      message: baseProfileError.message,
-      userId,
     });
     return Response.json({ error: saveError }, { status: 500 });
   }
@@ -154,10 +148,6 @@ export async function PUT(request: Request) {
   if (error) {
     console.error("[institution-profile] save failed", {
       code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      userId,
     });
     return Response.json({ error: saveError }, { status: 500 });
   }

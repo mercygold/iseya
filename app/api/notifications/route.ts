@@ -56,8 +56,6 @@ async function recruiterScopeJobIds(supabase: SupabaseClient, userId: string) {
   if (profileError || jobError) {
     console.error("[notifications] recruiter scope lookup failed", {
       code: profileError?.code ?? jobError?.code,
-      message: profileError?.message ?? jobError?.message,
-      userId,
     });
     return { allowed: false, jobIds: new Set<string>(), lookupFailed: true };
   }
@@ -114,8 +112,6 @@ export async function GET(request: Request) {
   if (error) {
     console.error("[notifications] list failed", {
       code: error.code,
-      message: error.message,
-      userId,
     });
     return Response.json({ error: "Unable to load notifications right now." }, { status: 500 });
   }
@@ -188,8 +184,6 @@ export async function PATCH(request: Request) {
   if (error || !data) {
     console.error("[notifications] mark-read failed", {
       code: error?.code,
-      message: error?.message,
-      userId,
     });
     return Response.json({ error: "Unable to update notification right now." }, { status: 500 });
   }

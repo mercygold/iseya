@@ -23,6 +23,16 @@ export type AnalyticsParameters = Record<
   boolean | number | string | undefined
 >;
 
+const permittedEventParameterKeys = new Set([
+  "application_mode",
+  "audience",
+  "cta",
+  "destination",
+  "opportunity_type",
+  "plan_id",
+  "source",
+]);
+
 declare global {
   interface Window {
     dataLayer?: unknown[];
@@ -82,8 +92,17 @@ export function trackAnalyticsEvent(
 ) {
   if (!canTrack()) return;
 
+  const safeParameters = Object.fromEntries(
+    Object.entries(parameters)
+      .filter(([key]) => permittedEventParameterKeys.has(key))
+      .map(([key, value]) => [
+        key,
+        typeof value === "string" ? value.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 60) : value,
+      ]),
+  );
+
   window.gtag?.("event", eventName, {
-    ...parameters,
+    ...safeParameters,
     transport_type: "beacon",
   });
 }
@@ -92,7 +111,7 @@ export function trackPageView(pathname: string) {
   if (!canTrack()) return;
 
   window.gtag?.("event", "page_view", {
-    page_location: window.location.href,
+    page_location: `${window.location.origin}${pathname}`,
     page_path: pathname,
     page_title: document.title,
     transport_type: "beacon",

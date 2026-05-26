@@ -32,9 +32,6 @@ export async function createNotification(
   if (error) {
     console.error("[notifications] creation failed", {
       code: error.code,
-      message: error.message,
-      type: notification.type,
-      recipientUserIdExists: Boolean(notification.userId),
     });
   }
 }
@@ -66,8 +63,6 @@ export async function createMatchingJobAlertNotifications(
   if (error) {
     console.error("[notifications] alert preference lookup failed", {
       code: error.code,
-      message: error.message,
-      jobId: job.id,
     });
     return;
   }
@@ -100,4 +95,3 @@ export async function createMatchingJobAlertNotifications(
     await sendJobAlertEmail({ email: alert.email, jobTitle: job.job_title });
   }
 }
-

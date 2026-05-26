@@ -317,11 +317,6 @@ function classifyUnknownLines(lines: string[]) {
     if (classification.confidenceScore >= 34) {
       buckets[classification.sectionType].push(line);
     } else {
-      console.warn("ISEYA weak semantic block classification", {
-        line: line.slice(0, 120),
-        sectionType: classification.sectionType,
-        confidenceScore: classification.confidenceScore,
-      });
       buckets.unknown.push(line);
     }
   }
@@ -527,10 +522,8 @@ export async function extractResume({
   if (openAiApiKey) {
     try {
       extracted = await callExtractionModel(cleaned, openAiApiKey);
-    } catch (error) {
-      console.warn("ISEYA Stage 1 extraction model failed", {
-        message: error instanceof Error ? error.message : "Unknown extraction error",
-      });
+    } catch {
+      console.warn("ISEYA Stage 1 extraction model failed.");
     }
   }
 
@@ -545,21 +538,11 @@ export async function extractResume({
       );
       if (repaired) {
         validation = validateResume(repaired);
-        console.log("ISEYA Stage 1 semantic repair complete", {
-          issueCount: validation.issues.length,
-        });
       }
-    } catch (error) {
-      console.warn("ISEYA Stage 1 semantic repair failed", {
-        message: error instanceof Error ? error.message : "Unknown repair error",
-      });
+    } catch {
+      console.warn("ISEYA Stage 1 semantic repair failed.");
     }
   }
-  console.log("ISEYA Stage 1 extraction success", {
-    experienceCount: validation.resume.professionalExperience.length,
-    skillCount: validation.resume.coreSkills.length,
-    issueCount: validation.issues.length,
-  });
 
   return validation.resume;
 }

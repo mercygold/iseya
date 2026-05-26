@@ -423,10 +423,6 @@ function isolateContaminatedSections(resume: CanonicalResume): CanonicalResume {
     const classification = classifySemanticBlock(text);
 
     if (classification.sectionType === "professionalExperience") {
-      console.warn("ISEYA parser conflict: project reclassified as experience", {
-        title: project.title,
-        confidenceScore: classification.confidenceScore,
-      });
       next.professionalExperience.push({
         title: project.title,
         company: project.organization,
@@ -540,10 +536,6 @@ export function validateResume(input: Partial<CanonicalResume> = {}): ResumeVali
         });
       }
     }
-  }
-
-  if (issues.length > 0) {
-    console.warn("ISEYA resume validation issues", issues);
   }
 
   return { resume, issues };

@@ -45,7 +45,6 @@ export async function GET() {
   if (error) {
     console.error("[institution-access-test] listing failed", {
       code: error.code,
-      message: error.message,
     });
     return Response.json({ institutions: [] });
   }
@@ -81,8 +80,6 @@ export async function POST(request: Request) {
   if (error || !institution) {
     console.error("[institution-access-test] profile lookup failed", {
       code: error?.code,
-      message: error?.message,
-      institutionId,
     });
     return Response.json({ error: "Local test data is unavailable." }, { status: 500 });
   }

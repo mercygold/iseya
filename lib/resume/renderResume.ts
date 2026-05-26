@@ -1,4 +1,3 @@
-import { renderingModel } from "@/lib/ai/models";
 import type {
   CanonicalResume,
   RenderResumeSection,
@@ -173,12 +172,6 @@ export function renderResume(resume: CanonicalResume): RenderResumeState {
       sections.push(section(id, title, "list", items));
     }
   }
-
-  console.log("ISEYA Stage 3 render prepared", {
-    model: renderingModel,
-    sectionCount: sections.length,
-    issueCount: validation.issues.length,
-  });
 
   return {
     header: clean.header,

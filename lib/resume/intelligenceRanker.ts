@@ -395,10 +395,8 @@ async function synthesizeSummary(input: {
       professionalSummary?: string;
     };
     return parsed.professionalSummary?.replace(/\s+/g, " ").trim() || fallback;
-  } catch (error) {
-    console.warn("ISEYA executive summary synthesis failed", {
-      message: error instanceof Error ? error.message : "Unknown summary error",
-    });
+  } catch {
+    console.warn("ISEYA executive summary synthesis failed.");
     return fallback;
   }
 }
@@ -452,14 +450,6 @@ export async function rankResumeIntelligence(
     ],
   });
   const validation = validateResume(resume);
-
-  console.log("ISEYA intelligence ranker complete", {
-    seniority,
-    experienceCount: validation.resume.professionalExperience.length,
-    projectCount: validation.resume.projects.length,
-    suppressedContentCount: secondary.suppressedContentCount,
-    issueCount: validation.issues.length,
-  });
 
   return {
     resume: validation.resume,

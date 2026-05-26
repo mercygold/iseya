@@ -59,7 +59,16 @@ function logBillingSuccessError(
   message: string,
   details?: Record<string, string | boolean | null>,
 ) {
-  console.error("[billing-success]", message, details ?? {});
+  const safeDetails = details
+    ? {
+        plan: details.plan,
+        code: details.code,
+        userIdExists: details.userIdExists,
+        customerExists: details.customerExists,
+        emailExists: details.emailExists,
+      }
+    : {};
+  console.error("[billing-success]", message, safeDetails);
 }
 
 async function findProfileForSession({
@@ -227,15 +236,12 @@ async function reconcileCheckoutSession(sessionId: string) {
       logBillingSuccessError("Checkout session reconciliation update failed.", {
         plan,
         code: error.code,
-        message: error.message,
       });
     }
 
     return plan;
-  } catch (error) {
-    logBillingSuccessError("Checkout session reconciliation failed.", {
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
+  } catch {
+    logBillingSuccessError("Checkout session reconciliation failed.");
     return null;
   }
 }

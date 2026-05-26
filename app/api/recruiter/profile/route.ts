@@ -91,14 +91,12 @@ export async function GET() {
   if (error) {
     console.error("[recruiter-profile] fetch failed", {
       code: error.code,
-      message: error.message,
     });
     return Response.json({ error: "Unable to load recruiter profile." }, { status: 500 });
   }
 
   if ((recruiterProfiles ?? []).length > 1) {
     console.warn("[recruiter-profile] duplicate rows found for user; using canonical row", {
-      userId,
       rowCount: recruiterProfiles?.length,
     });
   }
@@ -130,11 +128,6 @@ export async function PUT(request: Request) {
   const companySize = text(body.companySize);
   const hiringFocus = text(body.hiringFocus);
 
-  console.info("[recruiter-profile] save requested", {
-    userId,
-    payloadKeys: Object.keys(body),
-  });
-
   if (
     !companyName ||
     !recruiterName ||
@@ -153,7 +146,7 @@ export async function PUT(request: Request) {
     );
   }
 
-  const { data: existingProfile, error: profileLookupError } = await supabase
+  const { error: profileLookupError } = await supabase
     .from("profiles")
     .select("id")
     .eq("id", userId)
@@ -162,18 +155,9 @@ export async function PUT(request: Request) {
   if (profileLookupError) {
     console.error("[recruiter-profile] base profile lookup failed", {
       code: profileLookupError.code,
-      message: profileLookupError.message,
-      details: profileLookupError.details,
-      hint: profileLookupError.hint,
-      userId,
     });
     return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
-
-  console.info("[recruiter-profile] base profile state", {
-    userId,
-    profileExists: Boolean(existingProfile),
-  });
 
   const profileUpsert = await supabase
     .from("profiles")
@@ -192,11 +176,6 @@ export async function PUT(request: Request) {
   if (profileUpsert.error) {
     console.error("[recruiter-profile] profile upsert failed", {
       code: profileUpsert.error.code,
-      message: profileUpsert.error.message,
-      details: profileUpsert.error.details,
-      hint: profileUpsert.error.hint,
-      userId,
-      attemptedColumns: ["id", "account_type", "full_name", "email"],
     });
     return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
@@ -212,27 +191,17 @@ export async function PUT(request: Request) {
   if (existingProfileError) {
     console.error("[recruiter-profile] existing profile lookup failed", {
       code: existingProfileError.code,
-      message: existingProfileError.message,
-      details: existingProfileError.details,
-      hint: existingProfileError.hint,
-      userId,
     });
     return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
 
   if ((existingRecruiterRows ?? []).length > 1) {
     console.warn("[recruiter-profile] duplicate rows found during save; updating canonical row", {
-      userId,
       rowCount: existingRecruiterRows?.length,
     });
   }
 
   const existingRecruiterRow = chooseCanonicalRecruiterProfile(existingRecruiterRows);
-
-  console.info("[recruiter-profile] recruiter row state", {
-    userId,
-    recruiterProfileExists: Boolean(existingRecruiterRow),
-  });
 
   const coreFieldsChanged = Boolean(
     existingRecruiterRow &&
@@ -304,22 +273,10 @@ export async function PUT(request: Request) {
   if (error) {
     console.error("[recruiter-profile] upsert failed", {
       code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      attemptedColumns: Object.keys(recruiterProfilePayload),
       operation: existingRecruiterRow ? "update" : "insert",
-      userId,
     });
     return Response.json({ error: saveErrorMessage }, { status: 500 });
   }
-
-  console.info("[recruiter-profile] save succeeded", {
-    userId,
-    operation: existingRecruiterRow ? "update" : "insert",
-    verificationStatus: nextVerificationStatus,
-    coreFieldsChanged,
-  });
 
   return Response.json({
     recruiterProfile: data,
