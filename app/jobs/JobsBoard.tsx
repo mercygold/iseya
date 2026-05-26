@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import PublicTrustFooter from "@/components/PublicTrustFooter";
+import RelatedAuthorityResources from "@/components/RelatedAuthorityResources";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeCheck,
@@ -536,7 +537,7 @@ export default function JobsBoard() {
               role discovery into tailored career materials with clarity.
             </p>
           </div>
-          <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
+          <nav aria-label="Public navigation" className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
             {user ? (
               <>
                 <Link className="transition hover:text-[var(--iseya-gold)]" href="/workspace">
@@ -978,9 +979,6 @@ export default function JobsBoard() {
               <Link href="/pricing" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
                 View Candidate Plans
               </Link>
-              <Link href="/guides/resume-optimization" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
-                Resume Optimization Guide
-              </Link>
             </div>
           </article>
           <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -1007,6 +1005,7 @@ export default function JobsBoard() {
           </article>
         </section>
       </section>
+      <RelatedAuthorityResources context="jobs" />
       <PublicTrustFooter />
       {interestJob ? (
         <InterestModal

@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 export const siteUrl = "https://iseya.jormp.com";
 export const siteName = "ISEYA";
 export const companyName = "Jormp LLC";
+const organizationId = `${siteUrl}/#organization`;
+const websiteId = `${siteUrl}/#website`;
 export const defaultTitle = "ISEYA — Career Infrastructure for Today’s Talent";
 export const defaultDescription =
   "ISEYA helps professionals, students, recruiters, and institutions build career visibility, discover verified opportunities, and manage career growth infrastructure.";
@@ -93,9 +95,6 @@ export function privatePageMetadata(
 }
 
 export function homepageStructuredData() {
-  const organizationId = `${siteUrl}/#organization`;
-  const websiteId = `${siteUrl}/#website`;
-
   return [
     {
       "@context": "https://schema.org",
@@ -161,11 +160,14 @@ export function articleStructuredData(article: {
     dateModified: article.publishedOn,
     mainEntityOfPage: `${siteUrl}${article.path}`,
     author: {
+      "@id": organizationId,
       "@type": "Organization",
-      name: companyName,
+      name: siteName,
+      legalName: companyName,
       url: siteUrl,
     },
     publisher: {
+      "@id": organizationId,
       "@type": "Organization",
       name: siteName,
       legalName: companyName,

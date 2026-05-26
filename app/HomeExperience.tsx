@@ -7208,6 +7208,25 @@ export default function HomeExperience() {
               </div>
             ))}
           </div>
+          <div className="mt-5 flex flex-col gap-3 border-t border-slate-200/80 pt-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-slate-600">
+              Explore practical readiness insight and trusted hiring guidance.
+            </p>
+            <div className="flex flex-wrap gap-4 font-semibold">
+              <Link
+                href="/insights"
+                className="rounded-sm text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4 transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2"
+              >
+                Read Insights
+              </Link>
+              <Link
+                href="/guides"
+                className="rounded-sm text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4 transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2"
+              >
+                View Career Guides
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
         </>
@@ -8921,6 +8940,9 @@ function IseyaFooter() {
             <p className="mt-4 max-w-xs text-sm leading-6 text-white/75">
               ISEYA is the private career infrastructure built for today&apos;s talent and tomorrow&apos;s opportunities.
             </p>
+            <p className="mt-3 max-w-xs text-xs leading-5 text-white/68">
+              Privacy-first employability infrastructure with structured, human-accountable career workflows.
+            </p>
             <p className="mt-3 text-xs font-medium text-white/60">California, USA</p>
           </div>
           {footerColumns.map((column) => (
@@ -8931,7 +8953,7 @@ function IseyaFooter() {
                   <Link
                     key={label}
                     href={href}
-                    className="text-sm text-white/72 transition hover:text-[var(--iseya-gold)]"
+                    className="rounded-sm text-sm text-white/72 transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]"
                   >
                     {label}
                   </Link>

@@ -16,7 +16,7 @@ export function InfoPageShell({
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <header className="iseya-header text-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-5 px-5 py-8 sm:px-8 md:flex-row md:items-center md:justify-between">
-          <Link href="/" className="inline-flex w-fit items-center gap-4">
+          <Link href="/" aria-label="ISEYA homepage" className="inline-flex w-fit items-center gap-4 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]">
             <Image
               src="/brand/iseya-logo2.png"
               alt="ISEYA"
@@ -26,7 +26,7 @@ export function InfoPageShell({
               priority
             />
           </Link>
-          <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
+          <nav aria-label="Public navigation" className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/">
               For Candidates
             </Link>

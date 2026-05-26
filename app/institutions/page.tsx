@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import PublicTrustFooter from "@/components/PublicTrustFooter";
+import RelatedAuthorityResources from "@/components/RelatedAuthorityResources";
 import StructuredData from "@/components/StructuredData";
 import TrackedLink from "@/components/TrackedLink";
 import { faqStructuredData, publicPageMetadata } from "@/lib/seo";
@@ -67,7 +68,7 @@ export default function InstitutionsPage() {
               Manual partnership review. Private student materials remain protected.
             </p>
           </div>
-          <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80 lg:justify-end">
+          <nav aria-label="Public navigation" className="flex flex-wrap gap-4 text-sm font-semibold text-white/80 lg:justify-end">
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/">For Candidates</Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters">For Recruiters</Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">Jobs</Link>
@@ -143,9 +144,6 @@ export default function InstitutionsPage() {
             <Link href="/contact" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
               Contact ISEYA
             </Link>
-            <Link href="/guides/university-employability-infrastructure" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
-              Read Institution Guide
-            </Link>
           </div>
         </article>
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -167,6 +165,7 @@ export default function InstitutionsPage() {
           </div>
         </article>
       </section>
+      <RelatedAuthorityResources context="institutions" />
       <PublicTrustFooter />
     </main>
   );

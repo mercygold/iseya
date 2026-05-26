@@ -18,7 +18,7 @@ export default function DemoShell({ children }: { children: ReactNode }) {
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <header className="iseya-header shadow-[0_1px_5px_rgb(0_14_47_/_0.18)] text-white">
         <div className="mx-auto flex max-w-[84rem] flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-4">
-          <Link href="/" className="inline-flex w-fit items-center">
+          <Link href="/" aria-label="ISEYA homepage" className="inline-flex w-fit items-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]">
             <Image
               src="/brand/iseya-logo2.png"
               alt="ISEYA"
@@ -28,7 +28,7 @@ export default function DemoShell({ children }: { children: ReactNode }) {
               priority
             />
           </Link>
-          <nav className="flex flex-wrap items-center gap-1 text-sm font-medium">
+          <nav aria-label="Demo navigation" className="flex flex-wrap items-center gap-1 text-sm font-medium">
             <Link className="rounded-md px-2.5 py-2 text-white/80 transition hover:text-[var(--iseya-gold)]" href="/demo/candidate">
               Candidate Demo
             </Link>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import PublicTrustFooter from "@/components/PublicTrustFooter";
+import RelatedAuthorityResources from "@/components/RelatedAuthorityResources";
 import StructuredData from "@/components/StructuredData";
 import TrackedLink from "@/components/TrackedLink";
 import { faqStructuredData, publicPageMetadata } from "@/lib/seo";
@@ -76,7 +77,7 @@ export default function RecruitersPage() {
               Protected recruiter workspace. Company verification supports trusted public listings.
             </p>
           </div>
-          <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80 lg:justify-end">
+          <nav aria-label="Public navigation" className="flex flex-wrap gap-4 text-sm font-semibold text-white/80 lg:justify-end">
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/">
               For Candidates
             </Link>
@@ -149,9 +150,6 @@ export default function RecruitersPage() {
             <TrackedLink href="/demo/recruiter" eventName="recruiter_demo_opened" eventParameters={{ source: "recruiters_workflow" }} className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
               Explore Recruiter Demo
             </TrackedLink>
-            <Link href="/guides/recruiter-hiring-tools" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
-              Read Recruiter Guide
-            </Link>
           </div>
         </article>
         <article className={cardClass}>
@@ -177,6 +175,7 @@ export default function RecruitersPage() {
           </div>
         </article>
       </section>
+      <RelatedAuthorityResources context="recruiters" />
       <PublicTrustFooter />
     </main>
   );

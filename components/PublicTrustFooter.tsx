@@ -2,10 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 
 const trustPrinciples = [
-  "Privacy-first",
-  "Protected workspaces",
-  "Verified recruiter workflows",
-  "Institution-safe insights",
+  "Privacy-first employability infrastructure",
+  "Structured, recruiter-readable workflows",
+  "Institution-ready career infrastructure",
+  "Built for modern candidate visibility",
+  "AI-assisted, human-accountable systems",
 ];
 
 export default function PublicTrustFooter({
@@ -18,7 +19,11 @@ export default function PublicTrustFooter({
       <div className={`mx-auto ${maxWidth} px-5 py-7 sm:px-8`}>
         <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
           <div>
-            <Link href="/" aria-label="ISEYA homepage" className="inline-flex items-center">
+            <Link
+              href="/"
+              aria-label="ISEYA homepage"
+              className="inline-flex items-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]"
+            >
               <Image
                 src="/brand/iseya-logo.png"
                 alt="ISEYA"
@@ -28,7 +33,7 @@ export default function PublicTrustFooter({
               />
             </Link>
             <p className="mt-3 max-w-md text-sm leading-6 text-white/76">
-              Secure career infrastructure for candidates, recruiters, and institutions.
+              Privacy-first employability infrastructure for candidates, recruiters, and institutions.
             </p>
             <p className="mt-2 text-xs font-medium text-white/60">California, USA</p>
           </div>
@@ -36,22 +41,22 @@ export default function PublicTrustFooter({
             aria-label="Company and legal links"
             className="flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-white/80"
           >
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/insights">
+            <Link className="rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]" href="/insights">
               Insights
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/guides">
+            <Link className="rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]" href="/guides">
               Guides
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/about">
+            <Link className="rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]" href="/about">
               About
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/privacy">
+            <Link className="rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]" href="/privacy">
               Privacy
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/terms">
+            <Link className="rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]" href="/terms">
               Terms
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/contact">
+            <Link className="rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]" href="/contact">
               Contact
             </Link>
           </nav>

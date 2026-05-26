@@ -8,7 +8,7 @@ export function AuthorityPageShell({ children }: { children: ReactNode }) {
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <header className="iseya-header text-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-5 px-5 py-6 sm:px-8 md:flex-row md:items-center md:justify-between">
-          <Link href="/" aria-label="ISEYA homepage" className="inline-flex w-fit items-center">
+          <Link href="/" aria-label="ISEYA homepage" className="inline-flex w-fit items-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]">
             <Image
               src="/brand/iseya-logo2.png"
               alt="ISEYA"
@@ -19,22 +19,22 @@ export function AuthorityPageShell({ children }: { children: ReactNode }) {
             />
           </Link>
           <nav aria-label="Public navigation" className="flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-white/82">
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/insights">
+            <Link className="rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]" href="/insights">
               Insights
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/guides">
+            <Link className="rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]" href="/guides">
               Guides
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">
+            <Link className="rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]" href="/jobs">
               Jobs
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters">
+            <Link className="rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]" href="/recruiters">
               Recruiters
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions">
+            <Link className="rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]" href="/institutions">
               Institutions
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/demo">
+            <Link className="rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]" href="/demo">
               Demo
             </Link>
           </nav>
@@ -54,7 +54,7 @@ export function Breadcrumbs({ items }: { items: Array<{ label: string; href?: st
           <li key={item.label} className="flex items-center gap-2">
             {index > 0 ? <span aria-hidden="true">/</span> : null}
             {item.href ? (
-              <Link className="transition hover:text-[var(--iseya-gold)]" href={item.href}>
+              <Link className="rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2" href={item.href}>
                 {item.label}
               </Link>
             ) : (
