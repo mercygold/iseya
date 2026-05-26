@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { defaultDescription, defaultKeywords, defaultTitle, siteName, siteUrl } from "@/lib/seo";
+import { getGoogleTagManagerId } from "@/lib/analytics";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import {
+  GoogleTagManagerNoScript,
+  googleTagManagerBootstrap,
+} from "@/components/GoogleTagManager";
+import GoogleTagManagerConsent from "@/components/GoogleTagManagerConsent";
 import PerformanceMetrics from "@/components/PerformanceMetrics";
 import PrivacyConsentBanner from "@/components/PrivacyConsentBanner";
 import { AuthProvider } from "./auth/AuthProvider";
@@ -30,11 +37,24 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const tagManagerId = getGoogleTagManagerId();
+
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-zinc-50">
+        <GoogleTagManagerNoScript />
         <AuthProvider>{children}</AuthProvider>
         <PrivacyConsentBanner />
+        {tagManagerId ? (
+          <Script
+            id="iseya-google-tag-manager"
+            strategy="beforeInteractive"
+            dangerouslySetInnerHTML={{
+              __html: googleTagManagerBootstrap(tagManagerId),
+            }}
+          />
+        ) : null}
+        <GoogleTagManagerConsent />
         <GoogleAnalytics />
         <PerformanceMetrics />
       </body>

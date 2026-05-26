@@ -34,6 +34,12 @@ export function getAnalyticsMeasurementId() {
   return process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() ?? "";
 }
 
+export function getGoogleTagManagerId() {
+  const tagManagerId = process.env.NEXT_PUBLIC_GTM_ID?.trim() ?? "";
+
+  return /^GTM-[A-Za-z0-9]+$/.test(tagManagerId) ? tagManagerId : "";
+}
+
 export function hasAnalyticsConsent() {
   if (typeof window === "undefined") return false;
 
