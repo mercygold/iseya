@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { publicPageMetadata } from "@/lib/seo";
 import { demoCard, demoLabel, demoPrimaryButton, demoSecondaryButton } from "./DemoShell";
+
+export const metadata: Metadata = publicPageMetadata(
+  "/demo",
+  "Interactive Demo | ISEYA",
+  "Explore sample candidate, recruiter, and institution workflows in the ISEYA career infrastructure platform.",
+);
 
 const pathways = [
   {

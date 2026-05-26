@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { publicPageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = publicPageMetadata(
+  "/recruiters",
+  "Recruiter Platform | ISEYA",
+  "Post opportunities, review structured applications, and connect with career-ready talent through ISEYA.",
+);
 
 const cardClass = "rounded-2xl border border-slate-200 bg-white p-6 shadow-sm";
 const primaryButton =

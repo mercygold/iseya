@@ -1,10 +1,21 @@
 import type { Metadata } from "next";
+import { defaultDescription, defaultTitle, siteUrl } from "@/lib/seo";
 import { AuthProvider } from "./auth/AuthProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Iseya by Jormp LLC",
-  description: "Career readiness infrastructure for candidates, recruiters, and institutions.",
+  metadataBase: new URL(siteUrl),
+  title: defaultTitle,
+  description: defaultDescription,
+  keywords: [
+    "career infrastructure",
+    "resume tailoring",
+    "job readiness",
+    "recruiter platform",
+    "student career tools",
+    "job opportunities",
+    "career assets",
+  ],
   icons: {
     icon: "/favicon/favicon.ico",
     shortcut: "/favicon/favicon.ico",

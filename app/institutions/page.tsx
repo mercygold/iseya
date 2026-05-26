@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { publicPageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = publicPageMetadata(
+  "/institutions",
+  "Institution Career Readiness Infrastructure | ISEYA",
+  "Support student career readiness with private career tools, verified opportunities, and aggregate institution insight.",
+);
 
 const primaryButton =
   "inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--iseya-gold)] bg-[var(--iseya-gold)] px-4 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-white hover:bg-white";
