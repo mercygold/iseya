@@ -7004,6 +7004,23 @@ export default function Home() {
                   Browse Jobs
                 </Link>
               </div>
+              <Link
+                href="/demo"
+                aria-label="Open ISEYA interactive demo"
+                className="mt-4 inline-flex max-w-full items-center gap-3 rounded-full border border-[var(--iseya-gold)]/35 bg-white px-4 py-2.5 text-sm text-[var(--iseya-navy)] shadow-[0_4px_14px_rgb(244_179_33_/_0.08)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)]"
+              >
+                <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
+                  <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-[var(--iseya-gold)]/45 [animation-duration:3s] motion-reduce:animate-none" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[var(--iseya-gold)]" />
+                </span>
+                <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 text-left">
+                  <span className="font-semibold">Interactive demo available</span>
+                  <span className="text-xs text-slate-500">
+                    Explore candidate, recruiter, and institution flows.
+                  </span>
+                </span>
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[var(--iseya-gold)]" />
+              </Link>
               <div className="mt-8 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
                 {[
                   { label: "Privacy-first by design", icon: ShieldCheck },
