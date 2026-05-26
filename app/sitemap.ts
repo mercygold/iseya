@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { insightArticles, seoGuides } from "@/lib/authorityContent";
 import { siteUrl } from "@/lib/seo";
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -17,5 +18,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${siteUrl}/contact`, changeFrequency: "yearly", priority: 0.5 },
     { url: `${siteUrl}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${siteUrl}/terms`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${siteUrl}/insights`, changeFrequency: "weekly", priority: 0.7 },
+    ...insightArticles.map((article) => ({
+      url: `${siteUrl}/insights/${article.slug}`,
+      lastModified: article.publishedOn,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    })),
+    { url: `${siteUrl}/guides`, changeFrequency: "monthly", priority: 0.7 },
+    ...seoGuides.map((guide) => ({
+      url: `${siteUrl}/guides/${guide.slug}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    })),
   ];
 }

@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import PublicTrustFooter from "@/components/PublicTrustFooter";
+import StructuredData from "@/components/StructuredData";
 import TrackedLink from "@/components/TrackedLink";
-import { publicPageMetadata } from "@/lib/seo";
+import { faqStructuredData, publicPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = publicPageMetadata(
   "/recruiters",
@@ -20,6 +21,22 @@ const secondaryButton =
 export default function RecruitersPage() {
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
+      <StructuredData
+        data={faqStructuredData([
+          {
+            question: "How are recruiter listings reviewed?",
+            answer: "Company profiles and job submissions can be moderated before public publishing.",
+          },
+          {
+            question: "What does active job capacity mean?",
+            answer: "Published active listings count toward plan capacity; drafts do not use active slots.",
+          },
+          {
+            question: "Are applicant records public?",
+            answer: "No. Application review takes place within authorized recruiter workflows.",
+          },
+        ])}
+      />
       <section className="iseya-header text-white">
         <div className="mx-auto flex max-w-[92rem] flex-col gap-8 px-5 py-8 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-3xl">
@@ -132,6 +149,9 @@ export default function RecruitersPage() {
             <TrackedLink href="/demo/recruiter" eventName="recruiter_demo_opened" eventParameters={{ source: "recruiters_workflow" }} className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
               Explore Recruiter Demo
             </TrackedLink>
+            <Link href="/guides/recruiter-hiring-tools" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+              Read Recruiter Guide
+            </Link>
           </div>
         </article>
         <article className={cardClass}>

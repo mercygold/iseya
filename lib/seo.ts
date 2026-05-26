@@ -30,7 +30,28 @@ export function publicPageMetadata(
   path: string,
   title: string,
   description: string,
+  options?: { type?: "website" | "article"; publishedTime?: string },
 ): Metadata {
+  const openGraph =
+    options?.type === "article"
+      ? {
+          title,
+          description,
+          url: path,
+          siteName,
+          type: "article" as const,
+          publishedTime: options.publishedTime,
+          images: [socialImage],
+        }
+      : {
+          title,
+          description,
+          url: path,
+          siteName,
+          type: "website" as const,
+          images: [socialImage],
+        };
+
   return {
     title: { absolute: title },
     description,
@@ -38,14 +59,7 @@ export function publicPageMetadata(
     alternates: {
       canonical: path,
     },
-    openGraph: {
-      title,
-      description,
-      url: path,
-      siteName,
-      type: "website",
-      images: [socialImage],
-    },
+    openGraph,
     twitter: {
       card: "summary_large_image",
       title,
@@ -117,4 +131,64 @@ export function homepageStructuredData() {
       publisher: { "@id": organizationId },
     },
   ];
+}
+
+export function breadcrumbStructuredData(items: Array<{ name: string; path: string }>) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: `${siteUrl}${item.path}`,
+    })),
+  };
+}
+
+export function articleStructuredData(article: {
+  path: string;
+  title: string;
+  description: string;
+  publishedOn: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: article.title,
+    description: article.description,
+    datePublished: article.publishedOn,
+    dateModified: article.publishedOn,
+    mainEntityOfPage: `${siteUrl}${article.path}`,
+    author: {
+      "@type": "Organization",
+      name: companyName,
+      url: siteUrl,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: siteName,
+      legalName: companyName,
+      url: siteUrl,
+      logo: {
+        "@type": "ImageObject",
+        url: `${siteUrl}${socialImage.url}`,
+      },
+    },
+  };
+}
+
+export function faqStructuredData(faq: Array<{ question: string; answer: string }>) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faq.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  };
 }

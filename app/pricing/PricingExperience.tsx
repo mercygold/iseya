@@ -276,6 +276,9 @@ function PricingContent({ requestedPlan }: { requestedPlan?: string }) {
                 <Link href="/demo/candidate" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
                   View Candidate Demo
                 </Link>
+                <Link href="/guides/resume-optimization" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+                  Resume Optimization Guide
+                </Link>
               </div>
             </article>
             <article className="rounded-2xl border border-[var(--iseya-border)] bg-white p-6 shadow-sm">

@@ -36,6 +36,12 @@ export default function PublicTrustFooter({
             aria-label="Company and legal links"
             className="flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-white/80"
           >
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/insights">
+              Insights
+            </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/guides">
+              Guides
+            </Link>
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/about">
               About
             </Link>

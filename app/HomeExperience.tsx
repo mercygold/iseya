@@ -8887,6 +8887,8 @@ function IseyaFooter() {
       title: "Resources",
       links: [
         ["Contact", "/contact"],
+        ["Insights", "/insights"],
+        ["Career Guides", "/guides"],
         ["Settings", "/account"],
         ["Help Center", "/contact"],
       ],

@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import PublicTrustFooter from "@/components/PublicTrustFooter";
+import StructuredData from "@/components/StructuredData";
 import TrackedLink from "@/components/TrackedLink";
-import { publicPageMetadata } from "@/lib/seo";
+import { faqStructuredData, publicPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = publicPageMetadata(
   "/institutions",
@@ -19,6 +20,22 @@ const secondaryButton =
 export default function InstitutionsPage() {
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
+      <StructuredData
+        data={faqStructuredData([
+          {
+            question: "Is institution access self-serve?",
+            answer: "No. Partnership requests are reviewed and access packages are assigned directly.",
+          },
+          {
+            question: "What insights are available?",
+            answer: "Institution reporting is designed for aggregate readiness and engagement insight.",
+          },
+          {
+            question: "Are student materials visible to institutions?",
+            answer: "No. Private career assets remain protected from institution-level reporting views.",
+          },
+        ])}
+      />
       <section className="iseya-header text-white">
         <div className="mx-auto flex max-w-[92rem] flex-col gap-8 px-5 py-8 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-3xl">
@@ -125,6 +142,9 @@ export default function InstitutionsPage() {
             </TrackedLink>
             <Link href="/contact" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
               Contact ISEYA
+            </Link>
+            <Link href="/guides/university-employability-infrastructure" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+              Read Institution Guide
             </Link>
           </div>
         </article>
