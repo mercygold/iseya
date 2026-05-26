@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import NotificationPanel from "@/components/NotificationPanel";
@@ -11,7 +11,6 @@ import {
 } from "@/lib/recruiterLocationOptions";
 import {
   getRecruiterEntitlements,
-  normalizeRecruiterPlan,
   recruiterPlanLabel,
 } from "@/lib/pricing/recruiter";
 
@@ -227,10 +226,10 @@ export default function RecruiterDashboard() {
 
   const stats = useMemo(
     () => ({
-      total: jobs.length,
       published: jobs.filter((job) => job.status === "published").length,
       draft: jobs.filter((job) => job.status === "draft").length,
       expired: jobs.filter((job) => job.status === "expired").length,
+      closed: jobs.filter((job) => job.status === "closed").length,
       applicants: applications.length,
     }),
     [applications.length, jobs],
@@ -275,13 +274,52 @@ export default function RecruiterDashboard() {
     selectedCountryOption === manualLocationOption || selectedStateOption === manualLocationOption;
   const needsOtherIndustry = profileDraft.industry === "Other";
   const verificationStatus = normalizeVerificationStatus(profile?.verification_status);
-  const currentPlan = normalizeRecruiterPlan(profile?.recruiter_plan, profile?.recruiter_plan_status);
+  const subscriptionPlan =
+    profile?.recruiter_plan === "recruiter_quarterly" ||
+    profile?.recruiter_plan === "recruiter_annual"
+      ? profile.recruiter_plan
+      : "starter";
   const planEntitlements = getRecruiterEntitlements(
     profile?.recruiter_plan,
     profile?.recruiter_plan_status,
   );
+  const activeJobUsagePercent = Math.min(
+    100,
+    Math.round((stats.published / planEntitlements.activeJobLimit) * 100),
+  );
+  const usageTone =
+    activeJobUsagePercent >= 90
+      ? {
+          meter: "bg-rose-500",
+          badge: "border-rose-200 bg-rose-50 text-rose-700",
+        }
+      : activeJobUsagePercent >= 70
+        ? {
+            meter: "bg-amber-500",
+            badge: "border-amber-200 bg-amber-50 text-amber-800",
+          }
+        : {
+            meter: "bg-[var(--iseya-gold)]",
+            badge: "border-emerald-200 bg-emerald-50 text-emerald-800",
+          };
+  const expiringSoonCount = jobs.filter((job) => {
+    const days = job.status === "published" ? remainingDays(job.expires_at) : null;
+    return days !== null && days <= 7;
+  }).length;
   const subscriptionDaysRemaining =
-    currentPlan === "starter" ? null : remainingDays(profile?.recruiter_subscription_expires_at ?? null);
+    subscriptionPlan === "starter"
+      ? null
+      : remainingDays(profile?.recruiter_subscription_expires_at ?? null);
+  const subscriptionStatusLabel =
+    subscriptionPlan === "starter" ? "Active" : statusLabel(profile?.recruiter_plan_status || "active");
+  const subscriptionStatusTone =
+    subscriptionStatusLabel === "Active"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : "border-amber-200 bg-amber-50 text-amber-800";
+  const renewalLabel =
+    subscriptionPlan === "starter" || !profile?.recruiter_subscription_expires_at
+      ? "No renewal required"
+      : `Renews ${formatDate(profile.recruiter_subscription_expires_at)}`;
   const canEditJobDraft = profileComplete;
   const canSubmitJobForReview = profileComplete && verificationStatus === "verified";
   const verificationMessage =
@@ -642,12 +680,108 @@ export default function RecruiterDashboard() {
         </div>
       ) : (
         <div className="mt-8 space-y-6">
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="grid gap-0 xl:grid-cols-[1.1fr_0.9fr]">
+              <div className="p-5 sm:p-6">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+                  Subscription Overview
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <h2 className="text-2xl font-semibold text-[var(--iseya-navy)]">
+                    {recruiterPlanLabel(subscriptionPlan)}
+                  </h2>
+                  <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${subscriptionStatusTone}`}>
+                    {subscriptionStatusLabel}
+                  </span>
+                </div>
+                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                  <SubscriptionDetail label="Renewal Date" value={renewalLabel} />
+                  <SubscriptionDetail
+                    label="Visibility Duration"
+                    value={`${planEntitlements.visibilityDays} days per published job`}
+                  />
+                </div>
+                <div className="mt-6">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-[var(--iseya-navy)]">Active Job Usage</p>
+                    <span className={`rounded-full border px-3 py-1 text-xs font-bold ${usageTone.badge}`}>
+                      {stats.published} / {planEntitlements.activeJobLimit} used
+                    </span>
+                  </div>
+                  <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100" aria-label={`${activeJobUsagePercent}% of active job capacity used`}>
+                    <div
+                      className={`h-full rounded-full transition-all ${usageTone.meter}`}
+                      style={{ width: `${activeJobUsagePercent}%` }}
+                    />
+                  </div>
+                  <p className="mt-3 text-sm text-slate-600">
+                    {Math.max(0, planEntitlements.activeJobLimit - stats.published)} active listing
+                    {planEntitlements.activeJobLimit - stats.published === 1 ? "" : "s"} remaining.
+                    Draft jobs are unlimited.
+                  </p>
+                </div>
+              </div>
+              <div className="border-t border-slate-100 bg-slate-50/70 p-5 sm:p-6 xl:border-l xl:border-t-0">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                  Plan Guidance
+                </p>
+                <div className="mt-4 space-y-3">
+                  {subscriptionDaysRemaining !== null && subscriptionDaysRemaining <= 7 ? (
+                    <SubscriptionNotice>
+                      Your subscription renews in {subscriptionDaysRemaining} day{subscriptionDaysRemaining === 1 ? "" : "s"}.
+                    </SubscriptionNotice>
+                  ) : null}
+                  {activeJobUsagePercent >= 70 ? (
+                    <SubscriptionNotice>You are nearing your active job limit.</SubscriptionNotice>
+                  ) : null}
+                  {expiringSoonCount > 0 ? (
+                    <SubscriptionNotice>
+                      {expiringSoonCount} job{expiringSoonCount === 1 ? "" : "s"} expire within 7 days.
+                    </SubscriptionNotice>
+                  ) : null}
+                  {activeJobUsagePercent < 70 &&
+                  expiringSoonCount === 0 &&
+                  (subscriptionDaysRemaining === null || subscriptionDaysRemaining > 7) ? (
+                    <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600">
+                      Your active listings are within plan capacity and no visibility deadlines require attention.
+                    </p>
+                  ) : null}
+                </div>
+                <div className="mt-5">
+                  {subscriptionPlan === "starter" ? (
+                    <>
+                      <p className="mb-3 text-sm leading-6 text-slate-600">
+                        Increase active listings and extend visibility with Recruiter Quarterly.
+                      </p>
+                      <Link href="/recruiters/pricing" className={primaryButton}>
+                        Upgrade to Recruiter Quarterly
+                      </Link>
+                    </>
+                  ) : subscriptionPlan === "recruiter_quarterly" ? (
+                    <>
+                      <p className="mb-3 text-sm leading-6 text-slate-600">
+                        Hiring year-round? Annual extends visibility and increases active capacity.
+                      </p>
+                      <Link href="/recruiters/pricing" className={secondaryButton}>
+                        View Recruiter Annual
+                      </Link>
+                    </>
+                  ) : (
+                    <Link href="/recruiters/pricing" className={secondaryButton}>
+                      View Plan Details
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             {[
-              ["Published jobs", stats.published],
-              ["Draft jobs", stats.draft],
-              ["Expired jobs", stats.expired],
-              ["Total job posts", stats.total],
+              ["Published", stats.published],
+              ["Draft", stats.draft],
+              ["Expired", stats.expired],
+              ["Closed", stats.closed],
               ["Applicants", stats.applicants],
             ].map(([label, value]) => (
               <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -657,36 +791,6 @@ export default function RecruiterDashboard() {
                 <p className="mt-3 text-3xl font-semibold text-[var(--iseya-navy)]">{value}</p>
               </div>
             ))}
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-                  Current Plan
-                </p>
-                <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">
-                  {recruiterPlanLabel(currentPlan)}
-                </h2>
-                <p className="mt-2 text-sm text-slate-600">
-                  {stats.published} / {planEntitlements.activeJobLimit} active jobs used |{" "}
-                  {planEntitlements.visibilityDays}-day listing visibility
-                </p>
-                <p className="mt-2 text-sm text-slate-600">
-                  Draft jobs remain unlimited. Expired or closed listings no longer use an active slot.
-                </p>
-                {subscriptionDaysRemaining !== null ? (
-                  <p className="mt-2 text-sm font-semibold text-[var(--iseya-navy)]">
-                    Subscription period: {subscriptionDaysRemaining} days remaining
-                  </p>
-                ) : null}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Link href="/recruiters/pricing" className={primaryButton}>
-                  Upgrade for more active listings
-                </Link>
-              </div>
-            </div>
           </section>
 
           <NotificationPanel
@@ -1079,6 +1183,23 @@ function ApplicantModal({
         </div>
       </section>
     </div>
+  );
+}
+
+function SubscriptionDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className="mt-2 text-sm font-semibold text-[var(--iseya-navy)]">{value}</p>
+    </div>
+  );
+}
+
+function SubscriptionNotice({ children }: { children: ReactNode }) {
+  return (
+    <p className="rounded-xl border border-amber-200 bg-[#FFF8E6] p-4 text-sm leading-6 text-[var(--iseya-navy)]">
+      {children}
+    </p>
   );
 }
 
