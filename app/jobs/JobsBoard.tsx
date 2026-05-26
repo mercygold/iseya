@@ -124,6 +124,8 @@ const primaryButton =
   "inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-3 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 const secondaryButton =
   "inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2";
+const headerNavigationLink =
+  "rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]";
 const anonymousApplicationStorageKey = "iseya_anonymous_job_application_statuses";
 const savedOpportunityStorageKey = "iseya_saved_opportunity_ids";
 
@@ -365,8 +367,12 @@ export default function JobsBoard() {
     setSelectedJobId(matchingJobs[0]?.id ?? "");
 
     window.requestAnimationFrame(() => {
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       firstVisibleJobRef.current?.focus();
-      firstVisibleJobRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      firstVisibleJobRef.current?.scrollIntoView({
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+        block: "nearest",
+      });
     });
   }
 
@@ -540,42 +546,42 @@ export default function JobsBoard() {
           <nav aria-label="Public navigation" className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
             {user ? (
               <>
-                <Link className="transition hover:text-[var(--iseya-gold)]" href="/workspace">
+                <Link className={headerNavigationLink} href="/workspace">
                   Dashboard
                 </Link>
-                <Link className="transition hover:text-[var(--iseya-gold)]" href="/workspace#resume-builder">
+                <Link className={headerNavigationLink} href="/workspace#resume-builder">
                   Career Assets
                 </Link>
-                <Link className="text-[var(--iseya-gold)]" href="/jobs">
+                <Link aria-current="page" className={`${headerNavigationLink} text-[var(--iseya-gold)]`} href="/jobs">
                   Jobs
                 </Link>
-                <Link className="transition hover:text-[var(--iseya-gold)]" href="/applications">
+                <Link className={headerNavigationLink} href="/applications">
                   My Applications
                 </Link>
-                <Link className="transition hover:text-[var(--iseya-gold)]" href="/account">
+                <Link className={headerNavigationLink} href="/account">
                   Settings
                 </Link>
               </>
             ) : (
-              <Link className="transition hover:text-[var(--iseya-gold)]" href="/">
+              <Link className={headerNavigationLink} href="/">
                 For Candidates
               </Link>
             )}
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters">
+            <Link className={headerNavigationLink} href="/recruiters">
               For Recruiters
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions">
+            <Link className={headerNavigationLink} href="/institutions">
               For Institutions
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/demo">
+            <Link className={headerNavigationLink} href="/demo">
               Demo
             </Link>
             {!user ? (
               <>
-                <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
+                <Link className={headerNavigationLink} href="/pricing">
                   Pricing
                 </Link>
-                <Link className="transition hover:text-[var(--iseya-gold)]" href="/login">
+                <Link className={headerNavigationLink} href="/login">
                   Sign In
                 </Link>
               </>
@@ -627,7 +633,7 @@ export default function JobsBoard() {
                 key={title}
                 onClick={() => filterBySource(type)}
                 aria-pressed={sourceFilter === type}
-                className={`rounded-xl border p-3.5 text-left transition hover:-translate-y-px hover:shadow-sm ${
+                className={`rounded-xl border p-3.5 text-left transition hover:-translate-y-px hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 ${
                   sourceFilter === type ? activeClassName : className
                 }`}
               >
@@ -759,7 +765,7 @@ export default function JobsBoard() {
                     ref={index === 0 ? firstVisibleJobRef : undefined}
                     type="button"
                     onClick={() => setSelectedJobId(job.id)}
-                    className="w-full text-left"
+                    className="w-full rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2"
                   >
                     <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${source.badgeClass}`}>
                       <SourceIcon className="h-3 w-3" aria-hidden="true" />
@@ -1042,6 +1048,15 @@ function InterestModal({
   onClose: () => void;
   onSubmit: () => void;
 }) {
+  useEffect(() => {
+    function dismissOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && !submitting) onClose();
+    }
+
+    window.addEventListener("keydown", dismissOnEscape);
+    return () => window.removeEventListener("keydown", dismissOnEscape);
+  }, [onClose, submitting]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8">
       <section
@@ -1062,7 +1077,7 @@ function InterestModal({
               {job.job_title} | {job.company_name}
             </p>
           </div>
-          <button type="button" onClick={onClose} className={secondaryButton}>
+          <button type="button" onClick={onClose} aria-label="Close application form" className={secondaryButton}>
             Close
           </button>
         </div>

@@ -14,9 +14,9 @@ import { trackAnalyticsEvent } from "@/lib/analytics";
 
 const storageKey = "iseya.recruiter.checkout.currency";
 const primaryButton =
-  "inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-4 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-4 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 const secondaryButton =
-  "inline-flex min-h-11 items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]";
+  "inline-flex min-h-11 items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2";
 
 const paidPlans: Array<{
   id: RecruiterPaidPlanId;
@@ -73,6 +73,17 @@ export default function RecruiterPricingExperience({ checkoutResult }: { checkou
 
     return () => window.clearTimeout(timer);
   }, [checkoutResult]);
+
+  useEffect(() => {
+    if (!upgradePlan) return;
+
+    function dismissOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && !processing) setUpgradePlan("");
+    }
+
+    window.addEventListener("keydown", dismissOnEscape);
+    return () => window.removeEventListener("keydown", dismissOnEscape);
+  }, [processing, upgradePlan]);
 
   function openCheckout(plan: RecruiterPaidPlanId) {
     trackAnalyticsEvent("pricing_cta_clicked", {
@@ -141,7 +152,7 @@ export default function RecruiterPricingExperience({ checkoutResult }: { checkou
         </div>
 
         {status ? (
-          <p className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">
+          <p role="status" aria-live="polite" className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">
             {status}
           </p>
         ) : null}
@@ -191,17 +202,17 @@ export default function RecruiterPricingExperience({ checkoutResult }: { checkou
 
       {upgradePlan ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-8">
-          <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+          <section role="dialog" aria-modal="true" aria-labelledby="recruiter-checkout-title" className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
                   Secure Checkout
                 </p>
-                <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">
+                <h2 id="recruiter-checkout-title" className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">
                   {paidPlans.find((plan) => plan.id === upgradePlan)?.name}
                 </h2>
               </div>
-              <button type="button" onClick={() => setUpgradePlan("")} className={secondaryButton}>
+              <button type="button" onClick={() => setUpgradePlan("")} aria-label="Close recruiter checkout options" className={secondaryButton}>
                 Close
               </button>
             </div>
@@ -210,7 +221,7 @@ export default function RecruiterPricingExperience({ checkoutResult }: { checkou
               <select
                 value={currency}
                 onChange={(event) => setCurrency(event.target.value as SupportedCurrency)}
-                className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-3 text-sm"
+                className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-3 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
               >
                 {supportedCurrencies.map((supportedCurrency) => (
                   <option key={supportedCurrency} value={supportedCurrency}>

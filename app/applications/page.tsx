@@ -294,12 +294,12 @@ export default async function ApplicationsPage() {
               Active Applications
             </p>
             <h2 id="active-applications" className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">
-              You have not expressed interest in any roles yet.
+              No active applications yet.
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-600">
-              Explore published opportunities and submit interest through your private ISEYA workspace.
+              Browse structured opportunities and track each application from your private ISEYA workspace.
             </p>
-            <Link href="/jobs" className={`${primaryButton} mt-5`}>
+            <Link href="/jobs" className={`${primaryButton} mt-5 w-full sm:w-auto`}>
               Browse Jobs
             </Link>
           </section>

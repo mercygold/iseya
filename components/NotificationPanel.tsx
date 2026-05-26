@@ -109,6 +109,10 @@ export default function NotificationPanel({
 
   const visibleItems =
     compact && !expanded ? items.slice(0, initialVisibleCount) : items;
+  const emptyMessage =
+    scope === "recruiter"
+      ? "No recruiter updates yet. Moderation and applicant activity for your listings will appear here."
+      : "No updates yet. Application progress and relevant opportunity alerts will appear here.";
 
   return (
     <section className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${compact ? "p-4 sm:p-5" : "p-5"}`}>
@@ -134,7 +138,12 @@ export default function NotificationPanel({
       ) : null}
 
       {loading ? (
-        <div className={`${compact ? "mt-4" : "mt-5"} space-y-3`} aria-label="Loading notifications">
+        <div
+          className={`${compact ? "mt-4" : "mt-5"} space-y-3`}
+          role="status"
+          aria-live="polite"
+          aria-label="Loading updates"
+        >
           {[1, 2].map((item) => (
             <div key={item} className={`rounded-xl border border-slate-100 ${compact ? "p-3" : "p-4"}`}>
               <div className="h-3 w-40 animate-pulse rounded bg-slate-100" />
@@ -144,7 +153,7 @@ export default function NotificationPanel({
         </div>
       ) : items.length === 0 ? (
         <p className={`${compact ? "mt-4 p-3" : "mt-5 p-4"} rounded-xl border border-dashed border-slate-200 bg-slate-50 text-sm leading-6 text-slate-500`}>
-          No notifications yet. Updates will appear here when application or moderation activity changes.
+          {emptyMessage}
         </p>
       ) : (
         <div className={`${compact ? "mt-4" : "mt-5"} space-y-2.5`}>
@@ -173,7 +182,7 @@ export default function NotificationPanel({
                     type="button"
                     onClick={() => markRead(item.id)}
                     disabled={updatingId === item.id}
-                    className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {updatingId === item.id ? "Updating..." : "Mark as read"}
                   </button>

@@ -18,6 +18,8 @@ const primaryButton =
   "inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--iseya-gold)] bg-[var(--iseya-gold)] px-4 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-white hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]";
 const secondaryButton =
   "inline-flex min-h-11 items-center justify-center rounded-md border border-white/40 bg-transparent px-4 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]";
+const navigationLink =
+  "rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]";
 
 export default function RecruitersPage() {
   return (
@@ -73,22 +75,22 @@ export default function RecruitersPage() {
             </p>
           </div>
           <nav aria-label="Public navigation" className="flex flex-wrap gap-4 text-sm font-semibold text-white/80 lg:justify-end">
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/">
+            <Link className={navigationLink} href="/">
               For Candidates
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">
+            <Link className={navigationLink} href="/jobs">
               Jobs
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions">
+            <Link className={navigationLink} href="/institutions">
               For Institutions
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/demo">
+            <Link className={navigationLink} href="/demo">
               Demo
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
+            <Link className={navigationLink} href="/pricing">
               Pricing
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/login?redirectedFrom=/recruiters/dashboard">
+            <Link className={navigationLink} href="/login?redirectedFrom=/recruiters/dashboard">
               Sign In
             </Link>
           </nav>

@@ -37,7 +37,7 @@ type TestResult = {
 const inputClass =
   "mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-3 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25";
 const primaryButton =
-  "inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-5 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-5 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 
 export default function InstitutionAccess() {
   const [institutions, setInstitutions] = useState<ActiveInstitution[]>([]);
@@ -148,10 +148,10 @@ export default function InstitutionAccess() {
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <header className="iseya-header text-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-7 sm:px-8">
-          <Link href="/institutions">
+          <Link href="/institutions" aria-label="ISEYA institutions page" className="rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]">
             <Image src="/brand/iseya-logo2.png" alt="ISEYA" width={240} height={120} className="h-auto w-[155px] object-contain sm:w-[220px]" priority />
           </Link>
-          <Link href="/login?redirectedFrom=/institutions/access" className="text-sm font-semibold text-white/85 transition hover:text-[var(--iseya-gold)]">
+          <Link href="/login?redirectedFrom=/institutions/access" className="rounded-sm text-sm font-semibold text-white/85 transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]">
             Sign In
           </Link>
         </div>
@@ -180,11 +180,11 @@ export default function InstitutionAccess() {
           {institutions.length === 0 && !loading ? (
             <p className="mt-3 text-sm leading-6 text-slate-600">
               Your institution is not listed yet. You can{" "}
-              <Link href="/contact" className="font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)]">
+              <Link href="/contact" className="rounded-sm font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2">
                 request access
               </Link>{" "}
               or{" "}
-              <Link href="/signup" className="font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)]">
+              <Link href="/signup" className="rounded-sm font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2">
                 continue with a standard account
               </Link>
               .

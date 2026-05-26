@@ -20,6 +20,8 @@ import { pricingPlans, type SubscriptionPlanId } from "@/lib/subscription";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 
 const pricingCurrencyStorageKey = "iseya.checkout.currency";
+const headerNavigationLink =
+  "rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]";
 
 export default function PricingExperience({ requestedPlan }: { requestedPlan?: string }) {
   return <PricingContent requestedPlan={requestedPlan} />;
@@ -139,25 +141,25 @@ function PricingContent({ requestedPlan }: { requestedPlan?: string }) {
             />
           </Link>
           <nav aria-label="Public navigation" className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/">
+            <Link className={headerNavigationLink} href="/">
               For Candidates
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/recruiters">
+            <Link className={headerNavigationLink} href="/recruiters">
               For Recruiters
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/pricing">
+            <Link aria-current="page" className={`${headerNavigationLink} text-[var(--iseya-gold)]`} href="/pricing">
               Pricing
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/institutions">
+            <Link className={headerNavigationLink} href="/institutions">
               For Institutions
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/demo">
+            <Link className={headerNavigationLink} href="/demo">
               Demo
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href={user ? "/account" : "/login"}>
+            <Link className={headerNavigationLink} href={user ? "/account" : "/login"}>
               Login / Sign up
             </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/contact">
+            <Link className={headerNavigationLink} href="/contact">
               Contact
             </Link>
           </nav>
@@ -347,10 +349,19 @@ function RegionalCheckoutDialog({
   const regionalPlan = getRegionalPricing(currency);
   const price = regionalPlan.plans[planId];
 
+  useEffect(() => {
+    function dismissOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && !processing) onClose();
+    }
+
+    window.addEventListener("keydown", dismissOnEscape);
+    return () => window.removeEventListener("keydown", dismissOnEscape);
+  }, [onClose, processing]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--iseya-navy)]/45 px-5 py-8">
       <section
-        aria-label="Choose checkout currency"
+        aria-labelledby="candidate-checkout-title"
         aria-modal="true"
         role="dialog"
         className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-7"
@@ -360,7 +371,7 @@ function RegionalCheckoutDialog({
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
               Secure Upgrade
             </p>
-            <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
+            <h2 id="candidate-checkout-title" className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
               {plan?.name ?? "ISEYA plan"}
             </h2>
           </div>
@@ -369,7 +380,7 @@ function RegionalCheckoutDialog({
             disabled={processing}
             onClick={onClose}
             aria-label="Close checkout options"
-            className="rounded-md px-2 py-1 text-lg text-slate-500 transition hover:bg-slate-100 hover:text-[var(--iseya-navy)] disabled:opacity-50"
+            className="rounded-md px-2 py-1 text-lg text-slate-500 transition hover:bg-slate-100 hover:text-[var(--iseya-navy)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 disabled:opacity-50"
           >
             x
           </button>
@@ -403,7 +414,7 @@ function RegionalCheckoutDialog({
         </div>
 
         {status ? (
-          <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-[var(--iseya-navy)]">
+          <p role="status" aria-live="polite" className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-[var(--iseya-navy)]">
             {status}
           </p>
         ) : null}
@@ -412,7 +423,7 @@ function RegionalCheckoutDialog({
           type="button"
           onClick={onCheckout}
           disabled={processing}
-          className="mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-4 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-4 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {processing ? "Redirecting to Checkout..." : "Continue to Secure Checkout"}
         </button>

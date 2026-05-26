@@ -260,6 +260,7 @@ export default function RecruiterDashboard() {
   const [editingJobId, setEditingJobId] = useState("");
   const [profileSaveState, setProfileSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [jobSaveAction, setJobSaveAction] = useState<"" | "draft" | "pending_review">("");
+  const [listingActionId, setListingActionId] = useState("");
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [expandedApplicantsJobId, setExpandedApplicantsJobId] = useState("");
   const [applicationFilter, setApplicationFilter] = useState("all");
@@ -646,12 +647,27 @@ export default function RecruiterDashboard() {
   }
 
   async function updateJobStatus(job: JobPost, nextStatus: string) {
-    await fetch(`/api/recruiter/jobs/${job.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: nextStatus }),
-    });
-    await loadDashboard();
+    setListingActionId(job.id);
+    setStatus("");
+
+    try {
+      const response = await fetch(`/api/recruiter/jobs/${job.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to update this listing right now.");
+      }
+
+      setStatus("Listing status updated.");
+      await loadDashboard({ preserveStatus: true });
+    } catch {
+      setStatus("Unable to update this listing right now. Please try again.");
+    } finally {
+      setListingActionId("");
+    }
   }
 
   async function deleteJob(job: JobPost) {
@@ -659,8 +675,23 @@ export default function RecruiterDashboard() {
       return;
     }
 
-    await fetch(`/api/recruiter/jobs/${job.id}`, { method: "DELETE" });
-    await loadDashboard();
+    setListingActionId(job.id);
+    setStatus("");
+
+    try {
+      const response = await fetch(`/api/recruiter/jobs/${job.id}`, { method: "DELETE" });
+
+      if (!response.ok) {
+        throw new Error("Unable to delete this listing right now.");
+      }
+
+      setStatus("Listing deleted.");
+      await loadDashboard({ preserveStatus: true });
+    } catch {
+      setStatus("Unable to delete this listing right now. Please try again.");
+    } finally {
+      setListingActionId("");
+    }
   }
 
   async function updateApplicationStatus(application: Application, nextStatus: string) {
@@ -795,7 +826,14 @@ export default function RecruiterDashboard() {
                       {stats.published} / {planEntitlements.activeJobLimit} used
                     </span>
                   </div>
-                  <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100" aria-label={`${activeJobUsagePercent}% of active job capacity used`}>
+                  <div
+                    className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100"
+                    role="progressbar"
+                    aria-label="Active job capacity used"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={activeJobUsagePercent}
+                  >
                     <div
                       className={`h-full rounded-full transition-all ${usageTone.meter}`}
                       style={{ width: `${activeJobUsagePercent}%` }}
@@ -964,7 +1002,7 @@ export default function RecruiterDashboard() {
                     key={filter}
                     type="button"
                     onClick={() => setApplicationFilter(filter)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                    className={`rounded-full border px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 ${
                       applicationFilter === filter
                         ? "border-[var(--iseya-gold)] bg-[#FFF8E6] text-[var(--iseya-navy)]"
                         : "border-slate-200 bg-white text-slate-600 hover:border-[var(--iseya-gold)]"
@@ -1058,11 +1096,11 @@ export default function RecruiterDashboard() {
                                 <button type="button" onClick={() => editJob(job)} className={secondaryButton}>
                                   Edit Job
                                 </button>
-                                <button type="button" onClick={() => updateJobStatus(job, "closed")} className={secondaryButton}>
-                                  Close Job
+                                <button type="button" onClick={() => updateJobStatus(job, "closed")} disabled={listingActionId === job.id} className={secondaryButton}>
+                                  {listingActionId === job.id ? "Updating..." : "Close Job"}
                                 </button>
-                                <button type="button" onClick={() => deleteJob(job)} className={dangerButton}>
-                                  Delete Job
+                                <button type="button" onClick={() => deleteJob(job)} disabled={listingActionId === job.id} className={dangerButton}>
+                                  {listingActionId === job.id ? "Updating..." : "Delete Job"}
                                 </button>
                               </div>
                             </div>
@@ -1420,6 +1458,15 @@ function ApplicantModal({
   const [internalNote, setInternalNote] = useState(application.recruiter_note ?? "");
   const [noteSaving, setNoteSaving] = useState(false);
 
+  useEffect(() => {
+    function dismissOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && !noteSaving) onClose();
+    }
+
+    window.addEventListener("keydown", dismissOnEscape);
+    return () => window.removeEventListener("keydown", dismissOnEscape);
+  }, [noteSaving, onClose]);
+
   async function saveNote() {
     setNoteSaving(true);
     await onSaveNote(internalNote);
@@ -1447,7 +1494,7 @@ function ApplicantModal({
               <ApplicationStatusBadge status={application.status} />
             </div>
           </div>
-          <button type="button" onClick={onClose} className={secondaryButton}>
+          <button type="button" onClick={onClose} aria-label="Close applicant review" className={secondaryButton}>
             Close
           </button>
         </div>
@@ -1539,7 +1586,8 @@ function ApplicantDetail({
           href={value}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-1 block text-sm font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] underline-offset-4"
+          className="mt-1 block rounded-sm text-sm font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2"
+          aria-label={`Open ${label} attachment in a new tab`}
         >
           View attachment
         </a>
