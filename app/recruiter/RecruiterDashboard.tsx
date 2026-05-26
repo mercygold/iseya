@@ -658,7 +658,7 @@ export default function RecruiterDashboard() {
       </div>
 
       {status ? (
-        <p className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">
+        <p role="status" aria-live="polite" className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">
           {status}
         </p>
       ) : null}
@@ -1114,13 +1114,18 @@ function ApplicantModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8">
-      <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="applicant-modal-title"
+        className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
+      >
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
               Applicant Interest
             </p>
-            <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
+            <h2 id="applicant-modal-title" className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
               {application.full_name || "Applicant"}
             </h2>
             <p className="mt-2 text-sm font-semibold text-slate-600">{application.job_title}</p>

@@ -4,6 +4,7 @@ import { getSupabasePublicConfigStatus } from "./lib/supabaseConfig";
 
 const protectedRoutes = [
   "/dashboard",
+  "/account",
   "/workspace",
   "/applications",
   "/manage",
@@ -84,6 +85,8 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/dashboard/:path*",
+    "/account/:path*",
+    "/account",
     "/workspace/:path*",
     "/applications/:path*",
     "/applications",

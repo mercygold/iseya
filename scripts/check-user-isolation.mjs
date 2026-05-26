@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-const page = readFileSync("app/page.tsx", "utf8");
+const page = readFileSync("app/HomeExperience.tsx", "utf8");
 const schema = readFileSync("supabase/migrations/001_iseya_schema.sql", "utf8");
 
 const forbiddenPatterns = [
@@ -16,7 +16,7 @@ const forbiddenPatterns = [
 const checks = [
   {
     label: "neutral starter resume is present",
-    ok: page.includes("Jordan Taylor") && page.includes("jordan@example.com"),
+    ok: page.includes("Avery Morgan") && page.includes("avery.morgan@example.com"),
   },
   {
     label: "authenticated resume fetch is scoped to current user",

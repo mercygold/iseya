@@ -226,7 +226,7 @@ export default function InstitutionDashboard({
             Edit Institution Profile
           </button>
         </div>
-        {status ? <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">{status}</p> : null}
+        {status ? <p role="status" aria-live="polite" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">{status}</p> : null}
         <p className="rounded-xl border border-[var(--iseya-gold)]/30 bg-[#FFF8E6] p-4 text-sm font-semibold text-[var(--iseya-navy)]">
           {accessStatusMessage(profile.access_status)}
         </p>
@@ -395,7 +395,7 @@ export default function InstitutionDashboard({
       <p className="mt-5 rounded-xl border border-slate-200 bg-white p-4 text-sm leading-7 text-slate-600">
         Partnership requests are reviewed by ISEYA before student access is activated. Access packages, seats, and access dates are assigned during review.
       </p>
-      {status ? <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">{status}</p> : null}
+      {status ? <p role="status" aria-live="polite" className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">{status}</p> : null}
       <form onSubmit={saveProfile} className="mt-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Institution name" value={draft.institutionName} onChange={(value) => setDraft((current) => ({ ...current, institutionName: value }))} required />

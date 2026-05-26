@@ -108,7 +108,7 @@ export default function NotificationPanel({
       </div>
 
       {status ? (
-        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-[var(--iseya-navy)]">
+        <p role="status" aria-live="polite" className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-[var(--iseya-navy)]">
           {status}
         </p>
       ) : null}

@@ -349,7 +349,7 @@ export default function AccountPage() {
           </div>
 
           {status ? (
-            <p className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">
+            <p role="status" aria-live="polite" className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">
               {status}
             </p>
           ) : null}

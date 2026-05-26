@@ -198,7 +198,7 @@ export default function InstitutionAccess() {
             Sign in with this institution email before requesting access. Invite codes are not used.
           </p>
           {status ? (
-            <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">{status}</p>
+            <p role="status" aria-live="polite" className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">{status}</p>
           ) : null}
           <button disabled={submitting || linked || loading || institutions.length === 0} type="submit" className={`${primaryButton} mt-6`}>
             {linked ? "Access Connected" : submitting ? "Connecting..." : "Connect Institution Access"}
