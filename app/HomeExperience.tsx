@@ -4970,6 +4970,17 @@ export default function HomeExperience() {
     isStarterPlan(subscriptionPlan) && hasExtractedSourceText && isStarterBranding
       ? brandingFromResumeText(extractedSourceTextForPreview)
       : personalBranding;
+  const hasPersonalizedSourceMaterial =
+    hasExtractedSourceText || masterResume.trim() !== sampleResume.trim();
+  const hasWorkspaceIdentity =
+    !isStarterBranding &&
+    [
+      workspaceBranding.fullName,
+      workspaceBranding.professionalTitle,
+      workspaceBranding.email,
+      workspaceBranding.location,
+    ].some((field) => field.trim().length > 0);
+  const workspaceDirection = targetRole.trim() || "your target direction";
 
   const buildSavedState = useCallback((): SavedState => {
     return {
@@ -7282,6 +7293,148 @@ export default function HomeExperience() {
               tone="blue"
             />
           </div>
+
+          <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(22rem,0.95fr)]">
+            <section
+              aria-labelledby="next-best-actions-title"
+              className="rounded-lg border border-slate-200 bg-slate-50/55 p-3.5 sm:p-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+                    Career Progress
+                  </p>
+                  <h2 id="next-best-actions-title" className="mt-1 text-base font-semibold text-[var(--iseya-navy)]">
+                    Next Best Actions
+                  </h2>
+                </div>
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600">
+                  {currentPlanLabel}
+                </span>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <Link
+                  href="#active-document-workspace"
+                  className={`group rounded-md border border-slate-200 bg-white p-3 transition hover:border-[var(--iseya-gold)]/55 hover:shadow-sm ${focusRingClass}`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <FileText className="mt-0.5 h-4 w-4 shrink-0 text-[var(--iseya-gold)]" aria-hidden="true" />
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--iseya-navy)]">
+                        Improve career materials
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        {hasPersonalizedSourceMaterial
+                          ? "Continue tailoring the resume source already in your workspace."
+                          : "Add your resume source to begin role-specific tailoring."}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+                <Link
+                  href="/jobs"
+                  className={`group rounded-md border border-slate-200 bg-white p-3 transition hover:border-[var(--iseya-gold)]/55 hover:shadow-sm ${focusRingClass}`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <Search className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" aria-hidden="true" />
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--iseya-navy)]">
+                        Browse matching jobs
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        Explore published opportunities for {workspaceDirection}.
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+                <Link
+                  href="/applications"
+                  className={`group rounded-md border border-slate-200 bg-white p-3 transition hover:border-[var(--iseya-gold)]/55 hover:shadow-sm ${focusRingClass}`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <ClipboardList className="mt-0.5 h-4 w-4 shrink-0 text-[var(--iseya-navy)]" aria-hidden="true" />
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--iseya-navy)]">
+                        Review active applications
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        Track your submissions, progress, and recruiter updates.
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+                <Link
+                  href="#active-document-workspace"
+                  className={`group rounded-md border border-slate-200 bg-white p-3 transition hover:border-[var(--iseya-gold)]/55 hover:shadow-sm ${focusRingClass}`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <Zap className="mt-0.5 h-4 w-4 shrink-0 text-green-600" aria-hidden="true" />
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--iseya-navy)]">
+                        Complete workspace details
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        {hasWorkspaceIdentity
+                          ? "Your personal details are ready for document output."
+                          : "Add contact and professional details for polished output."}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              </div>
+              {isStarterPlan(subscriptionPlan) ? (
+                <div className="mt-3 flex flex-col gap-2 rounded-md border border-[var(--iseya-gold)]/30 bg-[#FFF8E6]/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs leading-5 text-[var(--iseya-navy)]">
+                    Upgrade when you need additional optimization credits, exports, and saved versions.
+                  </p>
+                  <Link href="/pricing" className={`${secondaryButtonClass} ${buttonSizeSmClass} shrink-0`}>
+                    View plans
+                  </Link>
+                </div>
+              ) : null}
+            </section>
+
+            <section
+              aria-labelledby="opportunity-preview-title"
+              className="rounded-lg border border-slate-200 bg-white p-3.5 sm:p-4"
+            >
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+                Career Direction
+              </p>
+              <h2 id="opportunity-preview-title" className="mt-1 text-base font-semibold text-[var(--iseya-navy)]">
+                Recommended Opportunities Preview
+              </h2>
+              <p className="mt-2 text-xs leading-5 text-slate-600">
+                Based on the target role in this workspace, start with published roles aligned to{" "}
+                <span className="font-semibold text-[var(--iseya-navy)]">{workspaceDirection}</span>.
+              </p>
+              <div className="mt-3 rounded-md border border-slate-200 bg-slate-50/60 p-3">
+                <div className="flex items-start gap-2.5">
+                  <BriefcaseBusiness className="mt-0.5 h-4 w-4 shrink-0 text-[var(--iseya-gold)]" aria-hidden="true" />
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--iseya-navy)]">
+                      Explore verified and sourced roles
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-600">
+                      Open a job to bring its requirements back into your tailoring workflow.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                <Link href="/jobs" className={`${primaryButtonClass} ${buttonSizeSmClass}`}>
+                  Browse opportunities
+                  <ArrowRight className="ml-2 h-3.5 w-3.5" aria-hidden="true" />
+                </Link>
+                <Link href="/applications" className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
+                  My applications
+                </Link>
+              </div>
+              <p className="mt-3 text-[11px] leading-5 text-slate-500">
+                Opportunity suggestions use your selected direction only. Application status remains private in My Applications.
+              </p>
+            </section>
+          </div>
         </div>
       </section>
 
@@ -8228,7 +8381,7 @@ export default function HomeExperience() {
       ) : null}
 
       {workspaceResult ? (
-        <section className="mx-auto max-w-[112rem] overflow-x-hidden px-4 pb-8 sm:px-8">
+        <section id="active-document-workspace" className="mx-auto max-w-[112rem] scroll-mt-24 overflow-x-hidden px-4 pb-8 sm:px-8">
           <div className="mb-3 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-[0_8px_24px_rgb(15_23_42_/_0.04)]">
             <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
               <div>
