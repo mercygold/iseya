@@ -144,8 +144,35 @@ const emptyJob = {
   status: "draft",
 };
 
+const applicationReviewGroups = [
+  {
+    label: "Submitted",
+    statuses: ["submitted"],
+    description: "New candidate interest awaiting review.",
+  },
+  {
+    label: "Reviewing",
+    statuses: ["reviewing"],
+    description: "Candidates currently being assessed.",
+  },
+  {
+    label: "Proceed / Next Step",
+    statuses: ["proceed"],
+    description: "Candidates selected to move forward.",
+  },
+  {
+    label: "Rejected / Closed",
+    statuses: ["rejected"],
+    description: "Applications no longer progressing.",
+  },
+] as const;
+
 function statusLabel(value: string) {
   return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function applicationStatusLabel(status: string) {
+  return status === "proceed" ? "Next Step" : statusLabel(status);
 }
 
 function ApplicationStatusBadge({ status }: { status: string }) {
@@ -160,7 +187,7 @@ function ApplicationStatusBadge({ status }: { status: string }) {
 
   return (
     <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${color}`}>
-      {statusLabel(status)}
+      {applicationStatusLabel(status)}
     </span>
   );
 }
@@ -180,6 +207,19 @@ function formatDate(value: string) {
 function remainingDays(value: string | null) {
   if (!value) return null;
   return Math.max(0, Math.ceil((Date.parse(value) - Date.now()) / (24 * 60 * 60 * 1000)));
+}
+
+function noApplicantsMessage(job: JobPost) {
+  if (job.status === "draft") {
+    return "This draft has no applicants. Submit it for review before it can become visible to candidates.";
+  }
+  if (job.status === "expired") {
+    return "This listing has expired and has no applicant history. Edit and resubmit it to restore visibility.";
+  }
+  if (job.status === "closed" || job.status === "archived") {
+    return "This closed listing has no applicant history.";
+  }
+  return "No submitted interests for this job yet.";
 }
 
 function normalizeVerificationStatus(value: string | null | undefined) {
@@ -930,7 +970,7 @@ export default function RecruiterDashboard() {
                         : "border-slate-200 bg-white text-slate-600 hover:border-[var(--iseya-gold)]"
                     }`}
                   >
-                    {statusLabel(filter)}
+                    {filter === "all" ? "All Applicants" : applicationStatusLabel(filter)}
                   </button>
                 ))}
               </div>
@@ -964,6 +1004,16 @@ export default function RecruiterDashboard() {
                             : jobApplications.filter(
                                 (application) => application.status === applicationFilter,
                               );
+                        const visibleReviewGroups = applicationReviewGroups
+                          .map((applicationGroup) => ({
+                            ...applicationGroup,
+                            applications: visibleApplications.filter((application) =>
+                              applicationGroup.statuses.some(
+                                (status) => status === application.status,
+                              ),
+                            ),
+                          }))
+                          .filter((applicationGroup) => applicationGroup.applications.length > 0);
                         const applicantsExpanded = expandedApplicantsJobId === job.id;
                         return (
                           <article key={job.id} className="rounded-xl border border-slate-200 p-4">
@@ -1017,65 +1067,126 @@ export default function RecruiterDashboard() {
                               </div>
                             </div>
                             {applicantsExpanded ? (
-                              <section className="mt-4 border-t border-slate-200 pt-4" aria-label={`Applicant activity for ${job.job_title}`}>
-                                <h5 className="mb-3 text-sm font-semibold text-[var(--iseya-navy)]">
-                                  Applicant activity
-                                </h5>
+                              <section className="mt-4 border-t border-slate-200 pt-4" aria-labelledby={`job-review-${job.id}`}>
+                                <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div>
+                                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+                                        Job Context
+                                      </p>
+                                      <h5 id={`job-review-${job.id}`} className="mt-2 text-base font-semibold text-[var(--iseya-navy)]">
+                                        {job.job_title}
+                                      </h5>
+                                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                                        {jobApplications.length} applicant{jobApplications.length === 1 ? "" : "s"} attached to this recruiter-owned listing.
+                                      </p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                      <span className="rounded-full border border-[var(--iseya-gold)]/40 bg-[#FFF8E6] px-3 py-1 text-xs font-bold text-[var(--iseya-navy)]">
+                                        {statusLabel(job.status)}
+                                      </span>
+                                      {job.status === "published" && job.expires_at ? (
+                                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                                          Expires {formatDate(job.expires_at)}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                  <a
+                                    href="#owned-listings"
+                                    className="mt-3 inline-flex text-xs font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2"
+                                  >
+                                    Back to My Jobs
+                                  </a>
+                                </div>
                                 {jobApplications.length === 0 ? (
                                   <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-600">
-                                    No submitted interests for this job yet.
+                                    {noApplicantsMessage(job)}
                                   </p>
                                 ) : visibleApplications.length === 0 ? (
                                   <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-600">
-                                    No applicants match this status filter.
+                                    No applicants are in the selected status group for this role.
                                   </p>
                                 ) : (
-                                  <div className="space-y-3">
-                                    {visibleApplications.map((application) => (
-                                      <article key={application.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                          <div className="min-w-0">
-                                            <h6 className="text-base font-semibold text-[var(--iseya-navy)]">
-                                              {application.full_name || "Applicant"}
+                                  <div className="space-y-5">
+                                    {visibleReviewGroups.map((applicationGroup) => (
+                                      <section key={applicationGroup.label} aria-label={`${applicationGroup.label} applicants`}>
+                                        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                                          <div>
+                                            <h6 className="text-sm font-semibold text-[var(--iseya-navy)]">
+                                              {applicationGroup.label}
                                             </h6>
-                                            <p className="mt-1 text-sm font-medium text-slate-600">
-                                              {application.candidate_email || "No email"} | {application.phone_number}
-                                            </p>
-                                            <p className="mt-1 text-sm text-slate-600">{application.location}</p>
-                                            <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
-                                              {application.short_note}
-                                            </p>
-                                            <div className="mt-3 flex flex-wrap items-center gap-2">
-                                              <ApplicationStatusBadge status={application.status} />
-                                              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                                                Submitted {formatDate(application.created_at)}
-                                              </span>
-                                            </div>
-                                            <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
-                                              {application.resume_file_url ? (
-                                                <span className="rounded-full border border-slate-200 bg-white px-3 py-1">Resume uploaded</span>
-                                              ) : null}
-                                              {application.cover_letter_file_url ? (
-                                                <span className="rounded-full border border-slate-200 bg-white px-3 py-1">Cover letter uploaded</span>
-                                              ) : null}
-                                            </div>
+                                            <p className="mt-1 text-xs text-slate-500">{applicationGroup.description}</p>
                                           </div>
-                                          <div className="flex flex-wrap gap-2">
-                                            <button type="button" onClick={() => setSelectedApplication(application)} className={secondaryButton}>
-                                              View
-                                            </button>
-                                            <button type="button" onClick={() => updateApplicationStatus(application, "reviewing")} className={secondaryButton}>
-                                              Mark Reviewing
-                                            </button>
-                                            <button type="button" onClick={() => updateApplicationStatus(application, "proceed")} className={primaryButton}>
-                                              Proceed
-                                            </button>
-                                            <button type="button" onClick={() => updateApplicationStatus(application, "rejected")} className={dangerButton}>
-                                              Reject
-                                            </button>
-                                          </div>
+                                          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">
+                                            {applicationGroup.applications.length}
+                                          </span>
                                         </div>
-                                      </article>
+                                        <div className="space-y-3">
+                                          {applicationGroup.applications.map((application) => (
+                                            <article key={application.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                                <div className="min-w-0">
+                                                  <div className="flex flex-wrap items-center gap-2">
+                                                    <ApplicationStatusBadge status={application.status} />
+                                                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                                      Applied {formatDate(application.created_at)}
+                                                    </span>
+                                                  </div>
+                                                  <h6 className="mt-3 text-base font-semibold text-[var(--iseya-navy)]">
+                                                    {application.full_name || "Applicant"}
+                                                  </h6>
+                                                  <p className="mt-1 text-sm font-medium text-slate-600">
+                                                    Applied for {job.job_title}
+                                                  </p>
+                                                  <p className="mt-1 text-xs leading-5 text-slate-600">
+                                                    {application.location || "Location not provided"}
+                                                  </p>
+                                                  <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+                                                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1">
+                                                      {application.resume_file_url ? "Resume available" : "No resume attached"}
+                                                    </span>
+                                                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1">
+                                                      {application.cover_letter_file_url ? "Cover letter available" : "No cover letter attached"}
+                                                    </span>
+                                                    {application.recruiter_note ? (
+                                                      <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-blue-700">
+                                                        Internal note saved
+                                                      </span>
+                                                    ) : null}
+                                                  </div>
+                                                </div>
+                                                <div className="flex flex-col gap-3 lg:max-w-[21rem]">
+                                                  <div className="flex flex-wrap gap-2">
+                                                    <button type="button" onClick={() => setSelectedApplication(application)} className={primaryButton}>
+                                                      Review
+                                                    </button>
+                                                    <button type="button" onClick={() => setSelectedApplication(application)} className={secondaryButton}>
+                                                      Add Internal Note
+                                                    </button>
+                                                  </div>
+                                                  <div>
+                                                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                                                      Update Status
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                      <button type="button" onClick={() => updateApplicationStatus(application, "reviewing")} className={secondaryButton}>
+                                                        Reviewing
+                                                      </button>
+                                                      <button type="button" onClick={() => updateApplicationStatus(application, "proceed")} className={primaryButton}>
+                                                        Next Step
+                                                      </button>
+                                                      <button type="button" onClick={() => updateApplicationStatus(application, "rejected")} className={dangerButton}>
+                                                        Reject
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </article>
+                                          ))}
+                                        </div>
+                                      </section>
                                     ))}
                                   </div>
                                 )}
@@ -1113,26 +1224,42 @@ export default function RecruiterDashboard() {
                 No applicant activity yet. Publish a listing to start receiving candidate interest.
               </p>
             ) : (
-              <div className="mt-4 grid gap-3 lg:grid-cols-3">
-                {applications.slice(0, 3).map((application) => (
-                  <article key={application.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-                    <ApplicationStatusBadge status={application.status} />
-                    <h3 className="mt-3 text-sm font-semibold text-[var(--iseya-navy)]">
-                      {application.full_name || "Applicant"}
-                    </h3>
-                    <p className="mt-1 text-xs leading-5 text-slate-600">{application.job_title}</p>
-                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      Submitted {formatDate(application.created_at)}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedApplication(application)}
-                      className={`${secondaryButton} mt-3 w-full`}
-                    >
-                      Review Applicant
-                    </button>
-                  </article>
-                ))}
+              <div className="mt-4 space-y-4">
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4" aria-label="Applicant status summary">
+                  {applicationReviewGroups.map((applicationGroup) => (
+                    <div key={applicationGroup.label} className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+                      <p className="text-xs font-semibold text-slate-600">{applicationGroup.label}</p>
+                      <p className="mt-1 text-xl font-semibold text-[var(--iseya-navy)]">
+                        {applications.filter((application) =>
+                          applicationGroup.statuses.some(
+                            (status) => status === application.status,
+                          ),
+                        ).length}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid gap-3 lg:grid-cols-3">
+                  {applications.slice(0, 3).map((application) => (
+                    <article key={application.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                      <ApplicationStatusBadge status={application.status} />
+                      <h3 className="mt-3 text-sm font-semibold text-[var(--iseya-navy)]">
+                        {application.full_name || "Applicant"}
+                      </h3>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">{application.job_title}</p>
+                      <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        Submitted {formatDate(application.created_at)}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedApplication(application)}
+                        className={`${secondaryButton} mt-3 w-full`}
+                      >
+                        Review Applicant
+                      </button>
+                    </article>
+                  ))}
+                </div>
               </div>
             )}
           </section>
@@ -1310,7 +1437,7 @@ function ApplicantModal({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-              Applicant Interest
+              Applicant Review
             </p>
             <h2 id="applicant-modal-title" className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
               {application.full_name || "Applicant"}
@@ -1325,7 +1452,7 @@ function ApplicantModal({
           </button>
         </div>
         <p className="mt-6 text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-          Applicant Details
+          Candidate Materials &amp; Details
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <ApplicantDetail label="Email" value={application.candidate_email} />
@@ -1357,14 +1484,14 @@ function ApplicantModal({
           </button>
         </section>
         <p className="mt-6 text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-          Decision
+          Update Status
         </p>
         <div className="mt-6 flex flex-wrap gap-2">
           <button type="button" onClick={() => onUpdate("reviewing")} className={secondaryButton}>
             Mark Reviewing
           </button>
           <button type="button" onClick={() => onUpdate("proceed")} className={primaryButton}>
-            Proceed
+            Next Step
           </button>
           <button type="button" onClick={() => onUpdate("rejected")} className={dangerButton}>
             Reject
