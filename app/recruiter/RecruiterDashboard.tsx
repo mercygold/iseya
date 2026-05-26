@@ -601,7 +601,7 @@ export default function RecruiterDashboard() {
       status: job.status,
     });
     window.requestAnimationFrame(() => {
-      document.getElementById("post-job")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollToWorkspaceSection("create-job-post");
     });
   }
 
@@ -683,6 +683,13 @@ export default function RecruiterDashboard() {
     }
   }
 
+  function scrollToWorkspaceSection(sectionId: string) {
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document
+      .getElementById(sectionId)
+      ?.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
+  }
+
   return (
     <section className="mx-auto max-w-[92rem] px-5 py-8 sm:px-8">
       <div className="max-w-4xl">
@@ -761,7 +768,7 @@ export default function RecruiterDashboard() {
                   </p>
                 </div>
               </div>
-              <div className="border-t border-slate-100 bg-slate-50/70 p-5 sm:p-6 xl:border-l xl:border-t-0">
+              <div id="plan-guidance" className="scroll-mt-24 border-t border-slate-100 bg-slate-50/70 p-5 sm:p-6 xl:border-l xl:border-t-0">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
                   Plan Guidance
                 </p>
@@ -833,7 +840,64 @@ export default function RecruiterDashboard() {
             ))}
           </section>
 
-          <section id="my-jobs" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section aria-labelledby="workspace-shortcuts-title" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+              Workspace Shortcuts
+            </p>
+            <h2 id="workspace-shortcuts-title" className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">
+              Quick Workspace Actions
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Jump directly to the recruiter task that needs attention.
+            </p>
+            <nav aria-label="Recruiter workspace sections" className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              {[
+                {
+                  label: "Update Company Profile",
+                  copy: "Maintain verification details.",
+                  sectionId: "company-profile",
+                },
+                {
+                  label: "Create Job Post",
+                  copy: "Prepare a new listing draft.",
+                  sectionId: "create-job-post",
+                },
+                {
+                  label: "Review Applicants",
+                  copy: "Open the current review queue.",
+                  sectionId: "applicant-activity",
+                },
+                {
+                  label: "View My Listings",
+                  copy: "Manage owned job posts.",
+                  sectionId: "owned-listings",
+                },
+                {
+                  label: "Manage Plan",
+                  copy: "Review capacity and visibility.",
+                  sectionId: "plan-guidance",
+                },
+              ].map((shortcut) => (
+                <button
+                  key={shortcut.sectionId}
+                  type="button"
+                  onClick={() => scrollToWorkspaceSection(shortcut.sectionId)}
+                  aria-label={`${shortcut.label}: ${shortcut.copy}`}
+                  className="min-h-24 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-left transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2"
+                >
+                  <span className="block text-sm font-semibold text-[var(--iseya-navy)]">
+                    {shortcut.label}
+                  </span>
+                  <span className="mt-2 block text-xs leading-5 text-slate-600">
+                    {shortcut.copy}
+                  </span>
+                </button>
+              ))}
+            </nav>
+          </section>
+
+          <span id="my-jobs" className="block scroll-mt-24" aria-hidden="true" />
+          <section id="owned-listings" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
@@ -846,7 +910,7 @@ export default function RecruiterDashboard() {
                   Only jobs created within your recruiter workspace appear here.
                 </p>
               </div>
-              <a href="#post-job" className={primaryButton}>
+              <a href="#create-job-post" className={primaryButton}>
                 Post a Job
               </a>
             </div>
@@ -1027,7 +1091,7 @@ export default function RecruiterDashboard() {
             </div>
           </section>
 
-          <section aria-labelledby="applicant-activity-title" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section id="applicant-activity" aria-labelledby="applicant-activity-title" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
@@ -1040,7 +1104,7 @@ export default function RecruiterDashboard() {
                   Applicants shown here are attached only to your company&apos;s job listings.
                 </p>
               </div>
-              <a href="#my-jobs" className={secondaryButton}>
+              <a href="#owned-listings" className={secondaryButton}>
                 View listings
               </a>
             </div>
@@ -1071,33 +1135,6 @@ export default function RecruiterDashboard() {
                 ))}
               </div>
             )}
-          </section>
-
-          <section aria-labelledby="recruiter-actions-title" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-              Workflow
-            </p>
-            <h2 id="recruiter-actions-title" className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">
-              Next best recruiter actions
-            </h2>
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <a href="#post-job" className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 transition hover:border-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2">
-                <p className="text-sm font-semibold text-[var(--iseya-navy)]">Create a listing</p>
-                <p className="mt-2 text-xs leading-5 text-slate-600">Prepare a recruiter-owned draft for moderation.</p>
-              </a>
-              <a href="#my-jobs" className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 transition hover:border-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2">
-                <p className="text-sm font-semibold text-[var(--iseya-navy)]">Review applicants</p>
-                <p className="mt-2 text-xs leading-5 text-slate-600">Manage candidates within each owned listing.</p>
-              </a>
-              <a href="#company-profile" className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 transition hover:border-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2">
-                <p className="text-sm font-semibold text-[var(--iseya-navy)]">Maintain trust profile</p>
-                <p className="mt-2 text-xs leading-5 text-slate-600">Keep company verification details current.</p>
-              </a>
-              <Link href="/recruiters/pricing" className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 transition hover:border-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2">
-                <p className="text-sm font-semibold text-[var(--iseya-navy)]">Manage listing capacity</p>
-                <p className="mt-2 text-xs leading-5 text-slate-600">Review active job limits and visibility options.</p>
-              </Link>
-            </div>
           </section>
 
           <NotificationPanel
@@ -1166,7 +1203,8 @@ export default function RecruiterDashboard() {
             </div>
           </section>
 
-          <section id="post-job" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <span id="post-job" className="block scroll-mt-24" aria-hidden="true" />
+          <section id="create-job-post" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
