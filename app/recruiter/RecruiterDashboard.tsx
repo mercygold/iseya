@@ -89,11 +89,11 @@ type Application = {
 const inputClass =
   "mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25";
 const primaryButton =
-  "inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-3 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-3 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 const secondaryButton =
-  "inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 const dangerButton =
-  "inline-flex min-h-10 items-center justify-center rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex min-h-10 items-center justify-center rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-700 transition hover:border-red-300 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 const companySizeOptions = ["", "1–10", "11–50", "51–200", "201–500", "501–1000", "1000+"];
 const industryOptions = [
   "",
@@ -255,6 +255,9 @@ export default function RecruiterDashboard() {
     }
     return grouped;
   }, [applications]);
+  const reviewingApplicantCount = applications.filter(
+    (application) => application.status === "reviewing",
+  ).length;
   const selectedCountryOption = countryOptions.includes(profileDraft.country)
     ? profileDraft.country
     : profileDraft.country
@@ -306,6 +309,41 @@ export default function RecruiterDashboard() {
     const days = job.status === "published" ? remainingDays(job.expires_at) : null;
     return days !== null && days <= 7;
   }).length;
+  const listingGroups = [
+    {
+      label: "Expiring Soon",
+      description: "Published listings requiring visibility attention",
+      jobs: jobs.filter((job) => {
+        const days = job.status === "published" ? remainingDays(job.expires_at) : null;
+        return days !== null && days <= 7;
+      }),
+    },
+    {
+      label: "Active / Published",
+      description: "Listings visible to candidates",
+      jobs: jobs.filter((job) => {
+        const days = job.status === "published" ? remainingDays(job.expires_at) : null;
+        return job.status === "published" && (days === null || days > 7);
+      }),
+    },
+    {
+      label: "In Review",
+      description: "Listings submitted for moderation",
+      jobs: jobs.filter((job) => job.status === "pending_review"),
+    },
+    {
+      label: "Draft",
+      description: "Listings saved within your workspace",
+      jobs: jobs.filter((job) => job.status === "draft"),
+    },
+    {
+      label: "Closed / Archived",
+      description: "Historical listings retained for reference",
+      jobs: jobs.filter((job) =>
+        ["expired", "closed", "archived", "rejected"].includes(job.status),
+      ),
+    },
+  ].filter((group) => group.jobs.length > 0);
   const subscriptionDaysRemaining =
     subscriptionPlan === "starter"
       ? null
@@ -562,7 +600,9 @@ export default function RecruiterDashboard() {
       applicationUrl: job.application_url ?? "",
       status: job.status,
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.requestAnimationFrame(() => {
+      document.getElementById("post-job")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   async function updateJobStatus(job: JobPost, nextStatus: string) {
@@ -650,10 +690,10 @@ export default function RecruiterDashboard() {
           Recruiter Dashboard
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-4xl">
-          Career infrastructure for today&apos;s talent.
+          Your protected hiring workspace.
         </h1>
         <p className="mt-3 text-base leading-8 text-slate-600">
-          Post jobs, manage listings, and prepare to review candidates through career readiness, skill alignment, and role-fit signals.
+          Manage your company&apos;s listings, review applicants by role, and monitor visibility from one recruiter-owned console.
         </p>
       </div>
 
@@ -778,11 +818,11 @@ export default function RecruiterDashboard() {
 
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             {[
-              ["Published", stats.published],
-              ["Draft", stats.draft],
-              ["Expired", stats.expired],
-              ["Closed", stats.closed],
-              ["Applicants", stats.applicants],
+              ["Active Listings", stats.published],
+              ["Draft Jobs", stats.draft],
+              ["Reviewing Applicants", reviewingApplicantCount],
+              ["Expiring Listings", expiringSoonCount],
+              ["Total Applicants", stats.applicants],
             ].map(([label, value]) => (
               <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
@@ -793,13 +833,282 @@ export default function RecruiterDashboard() {
             ))}
           </section>
 
+          <section id="my-jobs" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+                  Owned Listings
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
+                  Active job listings
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Only jobs created within your recruiter workspace appear here.
+                </p>
+              </div>
+              <a href="#post-job" className={primaryButton}>
+                Post a Job
+              </a>
+            </div>
+            {applications.length > 0 ? (
+              <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Applicant status filters">
+                <p className="mr-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                  Applicant Status
+                </p>
+                {["all", "submitted", "reviewing", "proceed", "rejected"].map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => setApplicationFilter(filter)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                      applicationFilter === filter
+                        ? "border-[var(--iseya-gold)] bg-[#FFF8E6] text-[var(--iseya-navy)]"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-[var(--iseya-gold)]"
+                    }`}
+                  >
+                    {statusLabel(filter)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="mt-5 space-y-5">
+              {jobs.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm font-medium text-slate-600">
+                  Post your first job to start receiving applicants.
+                </div>
+              ) : (
+                listingGroups.map((group) => (
+                  <section key={group.label} aria-label={group.label}>
+                    <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-semibold text-[var(--iseya-navy)]">
+                          {group.label}
+                        </h3>
+                        <p className="mt-1 text-xs text-slate-500">{group.description}</p>
+                      </div>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">
+                        {group.jobs.length}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {group.jobs.map((job) => {
+                        const jobApplications = applicationsByJobId.get(job.id) ?? [];
+                        const visibleApplications =
+                          applicationFilter === "all"
+                            ? jobApplications
+                            : jobApplications.filter(
+                                (application) => application.status === applicationFilter,
+                              );
+                        const applicantsExpanded = expandedApplicantsJobId === job.id;
+                        return (
+                          <article key={job.id} className="rounded-xl border border-slate-200 p-4">
+                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                              <div>
+                                <h4 className="text-lg font-semibold text-[var(--iseya-navy)]">
+                                  {job.job_title}
+                                </h4>
+                                <p className="mt-1 text-sm font-medium text-slate-600">
+                                  {job.company_name} | {job.location || "Location flexible"} |{" "}
+                                  {statusLabel(job.workplace_type)}
+                                </p>
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                  <span className="rounded-full border border-[var(--iseya-gold)]/40 bg-[#FFF8E6] px-3 py-1 text-xs font-bold text-[var(--iseya-navy)]">
+                                    {statusLabel(job.status)}
+                                  </span>
+                                  <span className="text-xs font-semibold text-slate-500">
+                                    {jobApplications.length} applicant{jobApplications.length === 1 ? "" : "s"}
+                                  </span>
+                                  <span className="text-xs font-semibold text-slate-500">
+                                    Created {formatDate(job.created_at)}
+                                  </span>
+                                </div>
+                                {job.status === "published" && job.expires_at ? (
+                                  <p className="mt-2 text-xs font-semibold text-slate-600">
+                                    Visibility expires in {remainingDays(job.expires_at)} days ({formatDate(job.expires_at)})
+                                  </p>
+                                ) : job.status === "expired" ? (
+                                  <p className="mt-2 text-xs font-semibold text-amber-700">
+                                    Visibility expired. Edit and submit this job for review to republish it.
+                                  </p>
+                                ) : null}
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedApplicantsJobId(applicantsExpanded ? "" : job.id)}
+                                  className={primaryButton}
+                                >
+                                  {applicantsExpanded ? "Hide Applicants" : "View Applicants"}
+                                </button>
+                                <button type="button" onClick={() => editJob(job)} className={secondaryButton}>
+                                  Edit Job
+                                </button>
+                                <button type="button" onClick={() => updateJobStatus(job, "closed")} className={secondaryButton}>
+                                  Close Job
+                                </button>
+                                <button type="button" onClick={() => deleteJob(job)} className={dangerButton}>
+                                  Delete Job
+                                </button>
+                              </div>
+                            </div>
+                            {applicantsExpanded ? (
+                              <section className="mt-4 border-t border-slate-200 pt-4" aria-label={`Applicant activity for ${job.job_title}`}>
+                                <h5 className="mb-3 text-sm font-semibold text-[var(--iseya-navy)]">
+                                  Applicant activity
+                                </h5>
+                                {jobApplications.length === 0 ? (
+                                  <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-600">
+                                    No submitted interests for this job yet.
+                                  </p>
+                                ) : visibleApplications.length === 0 ? (
+                                  <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-600">
+                                    No applicants match this status filter.
+                                  </p>
+                                ) : (
+                                  <div className="space-y-3">
+                                    {visibleApplications.map((application) => (
+                                      <article key={application.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                          <div className="min-w-0">
+                                            <h6 className="text-base font-semibold text-[var(--iseya-navy)]">
+                                              {application.full_name || "Applicant"}
+                                            </h6>
+                                            <p className="mt-1 text-sm font-medium text-slate-600">
+                                              {application.candidate_email || "No email"} | {application.phone_number}
+                                            </p>
+                                            <p className="mt-1 text-sm text-slate-600">{application.location}</p>
+                                            <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
+                                              {application.short_note}
+                                            </p>
+                                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                              <ApplicationStatusBadge status={application.status} />
+                                              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                                Submitted {formatDate(application.created_at)}
+                                              </span>
+                                            </div>
+                                            <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+                                              {application.resume_file_url ? (
+                                                <span className="rounded-full border border-slate-200 bg-white px-3 py-1">Resume uploaded</span>
+                                              ) : null}
+                                              {application.cover_letter_file_url ? (
+                                                <span className="rounded-full border border-slate-200 bg-white px-3 py-1">Cover letter uploaded</span>
+                                              ) : null}
+                                            </div>
+                                          </div>
+                                          <div className="flex flex-wrap gap-2">
+                                            <button type="button" onClick={() => setSelectedApplication(application)} className={secondaryButton}>
+                                              View
+                                            </button>
+                                            <button type="button" onClick={() => updateApplicationStatus(application, "reviewing")} className={secondaryButton}>
+                                              Mark Reviewing
+                                            </button>
+                                            <button type="button" onClick={() => updateApplicationStatus(application, "proceed")} className={primaryButton}>
+                                              Proceed
+                                            </button>
+                                            <button type="button" onClick={() => updateApplicationStatus(application, "rejected")} className={dangerButton}>
+                                              Reject
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </article>
+                                    ))}
+                                  </div>
+                                )}
+                              </section>
+                            ) : null}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))
+              )}
+            </div>
+          </section>
+
+          <section aria-labelledby="applicant-activity-title" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+                  Applicant Activity
+                </p>
+                <h2 id="applicant-activity-title" className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">
+                  Current review queue
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Applicants shown here are attached only to your company&apos;s job listings.
+                </p>
+              </div>
+              <a href="#my-jobs" className={secondaryButton}>
+                View listings
+              </a>
+            </div>
+            {applications.length === 0 ? (
+              <p className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                No applicant activity yet. Publish a listing to start receiving candidate interest.
+              </p>
+            ) : (
+              <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                {applications.slice(0, 3).map((application) => (
+                  <article key={application.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                    <ApplicationStatusBadge status={application.status} />
+                    <h3 className="mt-3 text-sm font-semibold text-[var(--iseya-navy)]">
+                      {application.full_name || "Applicant"}
+                    </h3>
+                    <p className="mt-1 text-xs leading-5 text-slate-600">{application.job_title}</p>
+                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                      Submitted {formatDate(application.created_at)}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedApplication(application)}
+                      className={`${secondaryButton} mt-3 w-full`}
+                    >
+                      Review Applicant
+                    </button>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section aria-labelledby="recruiter-actions-title" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+              Workflow
+            </p>
+            <h2 id="recruiter-actions-title" className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">
+              Next best recruiter actions
+            </h2>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <a href="#post-job" className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 transition hover:border-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2">
+                <p className="text-sm font-semibold text-[var(--iseya-navy)]">Create a listing</p>
+                <p className="mt-2 text-xs leading-5 text-slate-600">Prepare a recruiter-owned draft for moderation.</p>
+              </a>
+              <a href="#my-jobs" className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 transition hover:border-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2">
+                <p className="text-sm font-semibold text-[var(--iseya-navy)]">Review applicants</p>
+                <p className="mt-2 text-xs leading-5 text-slate-600">Manage candidates within each owned listing.</p>
+              </a>
+              <a href="#company-profile" className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 transition hover:border-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2">
+                <p className="text-sm font-semibold text-[var(--iseya-navy)]">Maintain trust profile</p>
+                <p className="mt-2 text-xs leading-5 text-slate-600">Keep company verification details current.</p>
+              </a>
+              <Link href="/recruiters/pricing" className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 transition hover:border-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2">
+                <p className="text-sm font-semibold text-[var(--iseya-navy)]">Manage listing capacity</p>
+                <p className="mt-2 text-xs leading-5 text-slate-600">Review active job limits and visibility options.</p>
+              </Link>
+            </div>
+          </section>
+
           <NotificationPanel
-            title="Recruiter notifications"
-            subtitle="Application activity and moderation decisions appear here."
+            title="Recent recruiter-specific updates"
+            subtitle="Only moderation and applicant activity tied to your recruiter workspace appears here."
             scope="recruiter"
+            compact
+            initialVisibleCount={3}
           />
 
-          <section id="company-profile" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section id="company-profile" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
@@ -857,7 +1166,7 @@ export default function RecruiterDashboard() {
             </div>
           </section>
 
-          <section id="post-job" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section id="post-job" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
@@ -917,166 +1226,6 @@ export default function RecruiterDashboard() {
             </fieldset>
           </section>
 
-          <section id="my-jobs" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-                  My Jobs
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
-                  Job posts
-                </h2>
-              </div>
-              <a href="#post-job" className={secondaryButton}>
-                Post a Job
-              </a>
-            </div>
-            {applications.length > 0 ? (
-              <div className="mt-5 flex flex-wrap items-center gap-2">
-                <p className="mr-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Filter Applicants</p>
-                {["all", "submitted", "reviewing", "proceed", "rejected"].map((filter) => (
-                  <button
-                    key={filter}
-                    type="button"
-                    onClick={() => setApplicationFilter(filter)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                      applicationFilter === filter
-                        ? "border-[var(--iseya-gold)] bg-[#FFF8E6] text-[var(--iseya-navy)]"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-[var(--iseya-gold)]"
-                    }`}
-                  >
-                    {statusLabel(filter)}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            <div className="mt-5 space-y-3">
-              {jobs.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm font-medium text-slate-600">
-                  Post your first job to start receiving applicants.
-                </div>
-              ) : (
-                jobs.map((job) => {
-                  const jobApplications = applicationsByJobId.get(job.id) ?? [];
-                  const visibleApplications =
-                    applicationFilter === "all"
-                      ? jobApplications
-                      : jobApplications.filter((application) => application.status === applicationFilter);
-                  const applicantsExpanded = expandedApplicantsJobId === job.id;
-                  return (
-                  <article key={job.id} className="rounded-xl border border-slate-200 p-4">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-[var(--iseya-navy)]">
-                          {job.job_title}
-                        </h3>
-                        <p className="mt-1 text-sm font-medium text-slate-600">
-                          {job.company_name} | {job.location || "Location flexible"} | {statusLabel(job.workplace_type)}
-                        </p>
-                        <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
-                          {statusLabel(job.status)} | {jobApplications.length} applicants
-                        </p>
-                        <p className="mt-2 text-xs font-medium text-slate-500">
-                          Created {formatDate(job.created_at)}
-                        </p>
-                        {job.status === "published" && job.expires_at ? (
-                          <p className="mt-2 text-xs font-semibold text-slate-600">
-                            Expires in {remainingDays(job.expires_at)} days ({formatDate(job.expires_at)})
-                          </p>
-                        ) : job.status === "expired" ? (
-                          <p className="mt-2 text-xs font-semibold text-amber-700">
-                            Visibility expired. Edit and submit this job for review to republish it.
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setExpandedApplicantsJobId(applicantsExpanded ? "" : job.id)}
-                          className={secondaryButton}
-                        >
-                          {applicantsExpanded ? "Hide Applicants" : "View Applicants"}
-                        </button>
-                        <button type="button" onClick={() => editJob(job)} className={secondaryButton}>
-                          Edit Job
-                        </button>
-                        <button type="button" onClick={() => updateJobStatus(job, "closed")} className={secondaryButton}>
-                          Close Job
-                        </button>
-                        <button type="button" onClick={() => deleteJob(job)} className={dangerButton}>
-                          Delete Job
-                        </button>
-                      </div>
-                    </div>
-                    {applicantsExpanded ? (
-                      <div className="mt-4 border-t border-slate-200 pt-4">
-                        {jobApplications.length === 0 ? (
-                          <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-600">
-                            No submitted interests for this job yet.
-                          </p>
-                        ) : visibleApplications.length === 0 ? (
-                          <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-600">
-                            No applicants match this status filter.
-                          </p>
-                        ) : (
-                          <div className="space-y-3">
-                            {visibleApplications.map((application) => (
-                              <article key={application.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                  <div className="min-w-0">
-                                    <h4 className="text-base font-semibold text-[var(--iseya-navy)]">
-                                      {application.full_name || "Applicant"}
-                                    </h4>
-                                    <p className="mt-1 text-sm font-medium text-slate-600">
-                                      {application.candidate_email || "No email"} | {application.phone_number}
-                                    </p>
-                                    <p className="mt-1 text-sm text-slate-600">{application.location}</p>
-                                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
-                                      {application.short_note}
-                                    </p>
-                                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                                      <ApplicationStatusBadge status={application.status} />
-                                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                                        Submitted {formatDate(application.created_at)}
-                                      </span>
-                                    </div>
-                                    <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
-                                      {application.resume_file_url ? (
-                                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1">Resume uploaded</span>
-                                      ) : null}
-                                      {application.cover_letter_file_url ? (
-                                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1">Cover letter uploaded</span>
-                                      ) : null}
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-wrap gap-2">
-                                    <button type="button" onClick={() => setSelectedApplication(application)} className={secondaryButton}>
-                                      View
-                                    </button>
-                                    <button type="button" onClick={() => updateApplicationStatus(application, "reviewing")} className={secondaryButton}>
-                                      Mark Reviewing
-                                    </button>
-                                    <button type="button" onClick={() => updateApplicationStatus(application, "proceed")} className={primaryButton}>
-                                      Proceed
-                                    </button>
-                                    <button type="button" onClick={() => updateApplicationStatus(application, "rejected")} className={dangerButton}>
-                                      Reject
-                                    </button>
-                                  </div>
-                                </div>
-                              </article>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ) : null}
-                  </article>
-                  );
-                })
-              )}
-            </div>
-          </section>
         </div>
       )}
       {selectedApplication ? (
