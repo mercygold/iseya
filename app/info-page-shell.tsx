@@ -73,9 +73,14 @@ export function InfoPageShell({
               Career readiness infrastructure by Jormp LLC.
             </p>
           </div>
-          <p className="text-xs text-white/65">
-            © 2026 Jormp LLC. All rights reserved.
-          </p>
+          <div className="flex flex-col items-center gap-2 text-xs text-white/65 md:items-end">
+            <nav aria-label="Legal links" className="flex gap-4 text-sm font-semibold text-white/80">
+              <Link className="transition hover:text-[var(--iseya-gold)]" href="/privacy">Privacy</Link>
+              <Link className="transition hover:text-[var(--iseya-gold)]" href="/terms">Terms</Link>
+              <Link className="transition hover:text-[var(--iseya-gold)]" href="/contact">Contact</Link>
+            </nav>
+            <p>© 2026 Jormp LLC. All rights reserved.</p>
+          </div>
         </div>
       </footer>
     </main>

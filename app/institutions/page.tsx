@@ -32,6 +32,10 @@ export default function InstitutionsPage() {
             <p className="mt-5 max-w-2xl text-base leading-8 text-white/82">
               Equip students and program participants with structured career tools and access to verified opportunities through ISEYA.
             </p>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/72">
+              Institution-safe analytics focus on aggregate readiness insight while
+              private student career materials remain protected.
+            </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href="/institutions/signup" className={primaryButton}>
                 Request Institution Partnership

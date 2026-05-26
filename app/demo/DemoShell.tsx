@@ -64,6 +64,12 @@ export default function DemoShell({ children }: { children: ReactNode }) {
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/contact">
               Contact
             </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/privacy">
+              Privacy
+            </Link>
+            <Link className="transition hover:text-[var(--iseya-gold)]" href="/terms">
+              Terms
+            </Link>
           </div>
         </div>
       </footer>

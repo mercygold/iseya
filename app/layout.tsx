@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { defaultDescription, defaultKeywords, defaultTitle, siteName, siteUrl } from "@/lib/seo";
+import PrivacyConsentBanner from "@/components/PrivacyConsentBanner";
 import { AuthProvider } from "./auth/AuthProvider";
 import "./globals.css";
 
@@ -31,6 +32,7 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-zinc-50">
         <AuthProvider>{children}</AuthProvider>
+        <PrivacyConsentBanner />
       </body>
     </html>
   );

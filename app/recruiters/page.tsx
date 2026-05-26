@@ -41,6 +41,10 @@ export default function RecruitersPage() {
               ISEYA helps recruiters connect with candidates who have structured
               career profiles, optimized career assets, and clearer role-fit signals.
             </p>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/72">
+              Company verification and moderated publishing support a protected
+              opportunity ecosystem for candidates and hiring teams.
+            </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href="/recruiters/signup" className={primaryButton}>
                 Create Recruiter Account

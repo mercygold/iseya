@@ -91,6 +91,11 @@ export function homepageStructuredData() {
       legalName: companyName,
       url: siteUrl,
       logo: `${siteUrl}/brand/iseya-logo2.png`,
+      contactPoint: {
+        "@type": "ContactPoint",
+        contactType: "customer support",
+        email: "hello@jormp.com",
+      },
     },
     {
       "@context": "https://schema.org",

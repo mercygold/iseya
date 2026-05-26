@@ -7024,8 +7024,8 @@ export default function HomeExperience() {
               <div className="mt-8 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
                 {[
                   { label: "Privacy-first by design", icon: ShieldCheck },
-                  { label: "Secure & enterprise-ready", icon: LockKeyhole },
-                  { label: "Built for students, recruiters & institutions", icon: UsersRound },
+                  { label: "Protected candidate workspaces", icon: LockKeyhole },
+                  { label: "Verified recruiter ecosystem", icon: UsersRound },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-3 border-r border-slate-200 pr-3 font-medium leading-5 last:border-r-0">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-[var(--iseya-navy)] shadow-sm">
