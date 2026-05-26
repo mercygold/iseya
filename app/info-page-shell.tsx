@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import PublicTrustFooter from "@/components/PublicTrustFooter";
 
 export function InfoPageShell({
   title,
@@ -65,24 +66,7 @@ export function InfoPageShell({
         </article>
       </section>
 
-      <footer className="border-t border-[color-mix(in_srgb,var(--iseya-gold)_28%,var(--iseya-navy))] bg-[var(--iseya-navy)] text-white">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-6 text-center sm:px-8 md:flex-row md:items-center md:justify-between md:text-left">
-          <div>
-            <p className="text-sm font-semibold">ISEYA</p>
-            <p className="mt-1 text-sm text-white/75">
-              Career readiness infrastructure by Jormp LLC.
-            </p>
-          </div>
-          <div className="flex flex-col items-center gap-2 text-xs text-white/65 md:items-end">
-            <nav aria-label="Legal links" className="flex gap-4 text-sm font-semibold text-white/80">
-              <Link className="transition hover:text-[var(--iseya-gold)]" href="/privacy">Privacy</Link>
-              <Link className="transition hover:text-[var(--iseya-gold)]" href="/terms">Terms</Link>
-              <Link className="transition hover:text-[var(--iseya-gold)]" href="/contact">Contact</Link>
-            </nav>
-            <p>© 2026 Jormp LLC. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <PublicTrustFooter maxWidth="max-w-6xl" />
     </main>
   );
 }

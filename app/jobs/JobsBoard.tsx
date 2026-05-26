@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import PublicTrustFooter from "@/components/PublicTrustFooter";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeCheck,
@@ -119,9 +120,9 @@ const opportunitySourceCards: Array<{
 ];
 
 const primaryButton =
-  "inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-3 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-3 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 const secondaryButton =
-  "inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]";
+  "inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2";
 const anonymousApplicationStorageKey = "iseya_anonymous_job_application_statuses";
 const savedOpportunityStorageKey = "iseya_saved_opportunity_ids";
 
@@ -783,6 +784,7 @@ export default function JobsBoard() {
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     <Link
                       href={tailorResumeHref(job)}
+                      aria-label={`Tailor resume for ${job.job_title} at ${job.company_name}`}
                       onClick={() =>
                         trackAnalyticsEvent("resume_builder_cta_clicked", {
                           source: "job_card",
@@ -807,6 +809,7 @@ export default function JobsBoard() {
                       <button
                         type="button"
                         onClick={() => beginApplication(job)}
+                        aria-label={`${job.application_url ? "Apply externally for" : "Apply through ISEYA for"} ${job.job_title} at ${job.company_name}`}
                         className={`${primaryButton} min-h-8 px-2.5 py-1 text-xs`}
                       >
                         {job.application_url ? "Apply External" : "Easy Apply"}
@@ -853,6 +856,7 @@ export default function JobsBoard() {
                   <div className="flex flex-col gap-2 sm:min-w-64">
                     <Link
                       href={tailorResumeHref(selectedJob)}
+                      aria-label={`Tailor resume for ${selectedJob.job_title} at ${selectedJob.company_name}`}
                       onClick={() =>
                         trackAnalyticsEvent("resume_builder_cta_clicked", {
                           source: "job_detail",
@@ -879,6 +883,7 @@ export default function JobsBoard() {
                       <button
                         type="button"
                         onClick={() => beginApplication(selectedJob)}
+                        aria-label={`${selectedJob.application_url ? "Apply externally for" : "Apply through ISEYA for"} ${selectedJob.job_title} at ${selectedJob.company_name}`}
                         className={primaryButton}
                       >
                         {selectedJob.application_url ? (
@@ -926,6 +931,7 @@ export default function JobsBoard() {
                     </p>
                     <Link
                       href={tailorResumeHref(selectedJob)}
+                      aria-label={`Tailor resume for ${selectedJob.job_title} at ${selectedJob.company_name}`}
                       onClick={() =>
                         trackAnalyticsEvent("resume_builder_cta_clicked", {
                           source: "job_application_panel",
@@ -998,6 +1004,7 @@ export default function JobsBoard() {
           </article>
         </section>
       </section>
+      <PublicTrustFooter />
       {interestJob ? (
         <InterestModal
           job={interestJob}

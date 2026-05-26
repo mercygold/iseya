@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import PublicTrustFooter from "@/components/PublicTrustFooter";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
@@ -422,24 +423,7 @@ function RegionalCheckoutDialog({
 }
 
 function PricingFooter() {
-  return (
-    <footer className="border-t border-[color-mix(in_srgb,var(--iseya-gold)_28%,var(--iseya-navy))] bg-[var(--iseya-navy)] text-white">
-      <div className="mx-auto flex max-w-[82rem] flex-col gap-3 px-5 py-6 text-center sm:px-8 md:flex-row md:items-center md:justify-between md:text-left">
-        <p className="text-sm font-semibold text-white/85">ISEYA by Jormp LLC.</p>
-        <nav className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm font-semibold text-white/80 md:justify-end">
-          <Link className="transition hover:text-[var(--iseya-gold)]" href="/terms">
-            Terms
-          </Link>
-          <Link className="transition hover:text-[var(--iseya-gold)]" href="/privacy">
-            Privacy
-          </Link>
-          <Link className="transition hover:text-[var(--iseya-gold)]" href="/contact">
-            Contact
-          </Link>
-        </nav>
-      </div>
-    </footer>
-  );
+  return <PublicTrustFooter maxWidth="max-w-[82rem]" />;
 }
 
 function safeCheckoutMessage(message?: string) {

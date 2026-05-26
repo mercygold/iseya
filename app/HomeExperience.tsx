@@ -6995,7 +6995,7 @@ export default function HomeExperience() {
                       { source: "homepage_hero" },
                     );
                   }}
-                  className={`${primaryButtonClass} ${buttonSizeMdClass}`}
+                  className={`${primaryButtonClass} ${buttonSizeMdClass} w-full sm:w-auto`}
                 >
                   Start Free <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
@@ -7006,7 +7006,7 @@ export default function HomeExperience() {
                       source: "homepage_hero",
                     })
                   }
-                  className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
+                  className={`${secondaryButtonClass} ${buttonSizeMdClass} w-full sm:w-auto`}
                 >
                   View Pricing
                 </Link>
@@ -7017,7 +7017,7 @@ export default function HomeExperience() {
                     source: "homepage_hero",
                   })
                 }
-                className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
+                className={`${secondaryButtonClass} ${buttonSizeMdClass} w-full sm:w-auto`}
               >
                   Build Resume
               </Link>
@@ -7028,7 +7028,7 @@ export default function HomeExperience() {
                       cta: "browse_opportunities",
                     })
                   }
-                  className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
+                  className={`${secondaryButtonClass} ${buttonSizeMdClass} w-full sm:w-auto`}
                 >
                   Browse Jobs
                 </Link>

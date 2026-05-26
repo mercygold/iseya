@@ -1,11 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import PublicTrustFooter from "@/components/PublicTrustFooter";
 
 export const demoPrimaryButton =
-  "inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-4 py-2 text-sm font-semibold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]";
+  "inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-4 py-2 text-sm font-semibold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2";
 export const demoSecondaryButton =
-  "inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]";
+  "inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2";
 export const demoCard =
   "rounded-lg border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgb(15_23_42_/_0.04),0_8px_20px_rgb(15_23_42_/_0.025)] transition-shadow hover:shadow-[0_1px_3px_rgb(15_23_42_/_0.06),0_10px_22px_rgb(15_23_42_/_0.045)] sm:p-5";
 export const demoLabel = "text-[11px] font-semibold uppercase text-slate-500";
@@ -51,28 +52,9 @@ export default function DemoShell({ children }: { children: ReactNode }) {
         </div>
       </div>
       {children}
-      <footer className="mt-9 border-t border-[color-mix(in_srgb,var(--iseya-gold)_28%,var(--iseya-navy))] bg-[var(--iseya-navy)] text-white">
-        <div className="mx-auto flex max-w-[84rem] flex-col gap-3 px-5 py-5 sm:px-8 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm font-semibold text-white/85">ISEYA by Jormp LLC. Private career infrastructure.</p>
-          <div className="flex flex-wrap gap-4 text-sm font-semibold text-white/80">
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/">
-              Home
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/jobs">
-              Jobs
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/contact">
-              Contact
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/privacy">
-              Privacy
-            </Link>
-            <Link className="transition hover:text-[var(--iseya-gold)]" href="/terms">
-              Terms
-            </Link>
-          </div>
-        </div>
-      </footer>
+      <div className="mt-9">
+        <PublicTrustFooter maxWidth="max-w-[84rem]" />
+      </div>
     </main>
   );
 }

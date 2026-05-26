@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import PublicTrustFooter from "@/components/PublicTrustFooter";
 import TrackedLink from "@/components/TrackedLink";
 import { publicPageMetadata } from "@/lib/seo";
 
@@ -12,9 +13,9 @@ export const metadata: Metadata = publicPageMetadata(
 
 const cardClass = "rounded-2xl border border-slate-200 bg-white p-6 shadow-sm";
 const primaryButton =
-  "inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--iseya-gold)] bg-[var(--iseya-gold)] px-4 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-white hover:bg-white";
+  "inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--iseya-gold)] bg-[var(--iseya-gold)] px-4 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-white hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]";
 const secondaryButton =
-  "inline-flex min-h-11 items-center justify-center rounded-md border border-white/40 bg-transparent px-4 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]";
+  "inline-flex min-h-11 items-center justify-center rounded-md border border-white/40 bg-transparent px-4 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]";
 
 export default function RecruitersPage() {
   return (
@@ -47,13 +48,16 @@ export default function RecruitersPage() {
               opportunity ecosystem for candidates and hiring teams.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <TrackedLink href="/recruiters/signup" eventName="request_access_clicked" eventParameters={{ audience: "recruiter", source: "recruiters_hero" }} className={primaryButton}>
+              <TrackedLink href="/recruiters/signup" eventName="request_access_clicked" eventParameters={{ audience: "recruiter", source: "recruiters_hero" }} className={`${primaryButton} w-full sm:w-auto`}>
                 Create Recruiter Account
               </TrackedLink>
-              <TrackedLink href="/recruiters/dashboard" eventName="recruiter_cta_clicked" eventParameters={{ cta: "post_a_job", source: "recruiters_hero" }} className={secondaryButton}>
-                Post a Job
+              <TrackedLink href="/recruiters/dashboard" eventName="recruiter_cta_clicked" eventParameters={{ cta: "post_a_job", source: "recruiters_hero" }} className={`${secondaryButton} w-full sm:w-auto`}>
+                Access Recruiter Dashboard
               </TrackedLink>
             </div>
+            <p className="mt-4 text-xs leading-6 text-white/68">
+              Protected recruiter workspace. Company verification supports trusted public listings.
+            </p>
           </div>
           <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80 lg:justify-end">
             <Link className="transition hover:text-[var(--iseya-gold)]" href="/">
@@ -153,6 +157,7 @@ export default function RecruitersPage() {
           </div>
         </article>
       </section>
+      <PublicTrustFooter />
     </main>
   );
 }

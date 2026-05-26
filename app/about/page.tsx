@@ -40,6 +40,21 @@ export default function AboutPage() {
         </p>
       </InfoSection>
 
+      <InfoSection title="Trust boundaries built into the platform">
+        <p>
+          ISEYA is designed around protected candidate workspaces, recruiter
+          verification workflows, and aggregate institution insight. Private
+          resumes and application materials are not presented as public student
+          or candidate profiles.
+        </p>
+        <p>
+          Career assistance can support preparation and clearer positioning, but
+          candidates remain responsible for truthful final materials and
+          applications. ISEYA is built for accountable career progress, not
+          automated application spam.
+        </p>
+      </InfoSection>
+
       <InfoSection title="Jormp LLC">
         <p>
           ISEYA is operated by Jormp LLC and is based in California, United
