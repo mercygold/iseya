@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { defaultDescription, defaultKeywords, defaultTitle, siteName, siteUrl } from "@/lib/seo";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
+import PerformanceMetrics from "@/components/PerformanceMetrics";
 import PrivacyConsentBanner from "@/components/PrivacyConsentBanner";
 import { AuthProvider } from "./auth/AuthProvider";
 import "./globals.css";
@@ -33,6 +35,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-zinc-50">
         <AuthProvider>{children}</AuthProvider>
         <PrivacyConsentBanner />
+        <GoogleAnalytics />
+        <PerformanceMetrics />
       </body>
     </html>
   );

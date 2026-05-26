@@ -2,27 +2,25 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
-const consentKey = "iseya.privacy-consent.v1";
-
-type ConsentChoice = "essential" | "accepted";
+import {
+  analyticsConsentStorageKey,
+  recordAnalyticsConsent,
+  type AnalyticsConsentChoice,
+} from "@/lib/analytics";
 
 export default function PrivacyConsentBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setVisible(!window.localStorage.getItem(consentKey));
+      setVisible(!window.localStorage.getItem(analyticsConsentStorageKey));
     }, 0);
 
     return () => window.clearTimeout(timer);
   }, []);
 
-  function saveChoice(choice: ConsentChoice) {
-    window.localStorage.setItem(
-      consentKey,
-      JSON.stringify({ choice, recordedAt: new Date().toISOString() }),
-    );
+  function saveChoice(choice: AnalyticsConsentChoice) {
+    recordAnalyticsConsent(choice);
     setVisible(false);
   }
 

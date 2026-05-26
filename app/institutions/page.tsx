@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import TrackedLink from "@/components/TrackedLink";
 import { publicPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = publicPageMetadata(
@@ -37,12 +38,12 @@ export default function InstitutionsPage() {
               private student career materials remain protected.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link href="/institutions/signup" className={primaryButton}>
+              <TrackedLink href="/institutions/signup" eventName="request_access_clicked" eventParameters={{ audience: "institution", source: "institutions_hero" }} className={primaryButton}>
                 Request Institution Partnership
-              </Link>
-              <Link href="/institutions/access" className={secondaryButton}>
+              </TrackedLink>
+              <TrackedLink href="/institutions/access" eventName="institution_cta_clicked" eventParameters={{ cta: "student_access", source: "institutions_hero" }} className={secondaryButton}>
                 Access through my institution
-              </Link>
+              </TrackedLink>
             </div>
           </div>
           <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80 lg:justify-end">
@@ -65,9 +66,9 @@ export default function InstitutionsPage() {
           <p className="mt-3 text-sm leading-7 text-slate-600">
             Packages are assigned after review. Contracting and payment are handled directly with ISEYA; public checkout is not used for institution access.
           </p>
-          <Link href="/institutions/signup" className={`${primaryButton} mt-5`}>
+          <TrackedLink href="/institutions/signup" eventName="request_access_clicked" eventParameters={{ audience: "institution", source: "institution_admin_card" }} className={`${primaryButton} mt-5`}>
             Request Institution Partnership
-          </Link>
+          </TrackedLink>
           <Link href="/login?redirectedFrom=/institutions/dashboard" className="ml-4 mt-5 inline-flex min-h-11 items-center text-sm font-bold text-[var(--iseya-navy)] transition hover:text-[var(--iseya-gold)]">
             Institution Admin Sign In
           </Link>
@@ -113,9 +114,9 @@ export default function InstitutionsPage() {
             resumes, documents, or individual application details.
           </p>
           <div className="mt-5 flex flex-wrap gap-4 text-sm font-semibold">
-            <Link href="/demo/institution" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+            <TrackedLink href="/demo/institution" eventName="institution_demo_opened" eventParameters={{ source: "institution_partnership" }} className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
               View Institution Demo
-            </Link>
+            </TrackedLink>
             <Link href="/contact" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
               Contact ISEYA
             </Link>

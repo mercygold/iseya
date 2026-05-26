@@ -15,6 +15,7 @@ import {
   type SupportedCurrency,
 } from "@/lib/pricing/regions";
 import { pricingPlans, type SubscriptionPlanId } from "@/lib/subscription";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 const pricingCurrencyStorageKey = "iseya.checkout.currency";
 
@@ -103,6 +104,10 @@ function PricingContent({ requestedPlan }: { requestedPlan?: string }) {
   }, [authLoading, requestedPlan, user]);
 
   function choosePlan(planId: SubscriptionPlanId) {
+    trackAnalyticsEvent("pricing_cta_clicked", {
+      plan_id: planId,
+      source: "candidate_pricing",
+    });
     setCheckoutStatus("");
     if (planId === "free" || planId === "starter") {
       router.push(user ? "/workspace" : "/signup");

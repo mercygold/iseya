@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import TrackedLink from "@/components/TrackedLink";
 import { demoInstitution } from "@/lib/demoData";
 import { publicPageMetadata } from "@/lib/seo";
 import { demoCard, demoLabel, demoPrimaryButton } from "../DemoShell";
@@ -24,7 +25,7 @@ export default function InstitutionDemoPage() {
             {demoInstitution.package} | Access status: {demoInstitution.status}
           </p>
         </div>
-        <Link href="/institutions" className={demoPrimaryButton}>Request Institution Partnership</Link>
+        <TrackedLink href="/institutions" eventName="institution_cta_clicked" eventParameters={{ source: "institution_demo" }} className={demoPrimaryButton}>Request Institution Partnership</TrackedLink>
       </div>
 
       <p className="rounded-md border border-[var(--iseya-gold)]/35 bg-[#FFF8E6] px-4 py-3 text-sm font-medium leading-6 text-[var(--iseya-navy)]">

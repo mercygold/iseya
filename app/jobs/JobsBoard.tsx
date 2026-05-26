@@ -13,6 +13,7 @@ import {
   UserRoundSearch,
 } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthProvider";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 type JobPost = {
   id: string;
@@ -368,6 +369,10 @@ export default function JobsBoard() {
   }
 
   function beginApplication(job: JobPost) {
+    trackAnalyticsEvent("job_apply_clicked", {
+      application_mode: job.application_url ? "external" : "native",
+      opportunity_type: job.opportunity_type ?? "recruiter_posted",
+    });
     if (job.application_url) {
       window.open(job.application_url, "_blank", "noopener,noreferrer");
       return;
@@ -776,7 +781,16 @@ export default function JobsBoard() {
                     <ApplicationStatusBadge status={applicationStatus} />
                   ) : null}
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    <Link href={tailorResumeHref(job)} className={`${secondaryButton} min-h-8 px-2.5 py-1 text-xs`}>
+                    <Link
+                      href={tailorResumeHref(job)}
+                      onClick={() =>
+                        trackAnalyticsEvent("resume_builder_cta_clicked", {
+                          source: "job_card",
+                          opportunity_type: job.opportunity_type ?? "recruiter_posted",
+                        })
+                      }
+                      className={`${secondaryButton} min-h-8 px-2.5 py-1 text-xs`}
+                    >
                       <FilePenLine className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                       Tailor Resume
                     </Link>
@@ -837,7 +851,16 @@ export default function JobsBoard() {
                     ) : null}
                   </div>
                   <div className="flex flex-col gap-2 sm:min-w-64">
-                    <Link href={tailorResumeHref(selectedJob)} className={secondaryButton}>
+                    <Link
+                      href={tailorResumeHref(selectedJob)}
+                      onClick={() =>
+                        trackAnalyticsEvent("resume_builder_cta_clicked", {
+                          source: "job_detail",
+                          opportunity_type: selectedJob.opportunity_type ?? "recruiter_posted",
+                        })
+                      }
+                      className={secondaryButton}
+                    >
                       <FilePenLine className="mr-2 h-4 w-4" aria-hidden="true" />
                       Tailor Resume
                     </Link>
@@ -901,7 +924,16 @@ export default function JobsBoard() {
                         ? "This opportunity accepts applications through an external hiring page."
                         : "Apply without creating a public candidate profile. If you are signed in, ISEYA can connect this application to your private workspace."}
                     </p>
-                    <Link href={tailorResumeHref(selectedJob)} className={`${secondaryButton} mt-3`}>
+                    <Link
+                      href={tailorResumeHref(selectedJob)}
+                      onClick={() =>
+                        trackAnalyticsEvent("resume_builder_cta_clicked", {
+                          source: "job_application_panel",
+                          opportunity_type: selectedJob.opportunity_type ?? "recruiter_posted",
+                        })
+                      }
+                      className={`${secondaryButton} mt-3`}
+                    >
                       Tailor Resume for this Role
                     </Link>
                   </div>

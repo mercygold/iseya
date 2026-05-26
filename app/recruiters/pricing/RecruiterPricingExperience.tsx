@@ -10,6 +10,7 @@ import {
   recruiterPlanEntitlements,
   type RecruiterPaidPlanId,
 } from "@/lib/pricing/recruiter";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 const storageKey = "iseya.recruiter.checkout.currency";
 const primaryButton =
@@ -74,6 +75,10 @@ export default function RecruiterPricingExperience({ checkoutResult }: { checkou
   }, [checkoutResult]);
 
   function openCheckout(plan: RecruiterPaidPlanId) {
+    trackAnalyticsEvent("pricing_cta_clicked", {
+      plan_id: plan,
+      source: "recruiter_pricing",
+    });
     setStatus("");
     setUpgradePlan(plan);
   }

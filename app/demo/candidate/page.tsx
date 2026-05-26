@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import TrackedLink from "@/components/TrackedLink";
 import { demoCandidate } from "@/lib/demoData";
 import { publicPageMetadata } from "@/lib/seo";
 import { demoCard, demoLabel, demoPrimaryButton, demoSecondaryButton, demoStatusPill } from "../DemoShell";
@@ -29,7 +30,7 @@ export default function CandidateDemoPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Link href="/signup" className={demoPrimaryButton}>Start Building My Career Assets</Link>
+          <TrackedLink href="/signup" eventName="signup_initiated" eventParameters={{ source: "candidate_demo" }} className={demoPrimaryButton}>Start Building My Career Assets</TrackedLink>
           <Link href="/jobs" className={demoSecondaryButton}>Browse Opportunities</Link>
         </div>
       </div>

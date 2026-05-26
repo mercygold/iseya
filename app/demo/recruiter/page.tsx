@@ -3,6 +3,8 @@
 import { type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { demoRecruiter } from "@/lib/demoData";
+import TrackedLink from "@/components/TrackedLink";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 import { demoCard, demoLabel, demoPrimaryButton, demoSecondaryButton, demoStatusPill } from "../DemoShell";
 
 type DemoJob = (typeof demoRecruiter.jobs)[number];
@@ -43,7 +45,9 @@ export default function RecruiterDemoPage() {
           <h1 className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)] sm:text-4xl">{demoRecruiter.company}</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">{demoRecruiter.recruiter} | Talent Acquisition</p>
         </div>
-        <Link href="/recruiters/signup" className={demoPrimaryButton}>Request Recruiter Access</Link>
+        <TrackedLink href="/recruiters/signup" eventName="request_access_clicked" eventParameters={{ audience: "recruiter", source: "recruiter_demo" }} className={demoPrimaryButton}>
+          Request Recruiter Access
+        </TrackedLink>
       </div>
 
       <p className="flex flex-wrap items-center gap-2 rounded-md border border-[var(--iseya-gold)]/35 bg-[#FFF8E6] px-4 py-3 text-sm text-[var(--iseya-navy)]">
@@ -82,7 +86,13 @@ export default function RecruiterDemoPage() {
           <button
             type="button"
             className={interactiveSecondaryButton}
-            onClick={() => setPostingPreviewOpen(true)}
+            onClick={() => {
+              trackAnalyticsEvent("recruiter_cta_clicked", {
+                cta: "post_job_preview",
+                source: "recruiter_demo",
+              });
+              setPostingPreviewOpen(true);
+            }}
           >
             Post a Job Preview
           </button>
@@ -362,9 +372,9 @@ function DisabledDemoAction() {
   return (
     <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-slate-600">Available after recruiter access.</p>
-      <Link href="/recruiters/signup" className={demoPrimaryButton}>
+      <TrackedLink href="/recruiters/signup" eventName="request_access_clicked" eventParameters={{ audience: "recruiter", source: "recruiter_demo_modal" }} className={demoPrimaryButton}>
         Request Recruiter Access
-      </Link>
+      </TrackedLink>
     </div>
   );
 }

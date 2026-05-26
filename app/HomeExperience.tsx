@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import type { Json } from "@/lib/database.types";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 import {
   canUseSubscriptionFeature,
   isProPlan,
@@ -6868,6 +6869,9 @@ export default function HomeExperience() {
               ) : (
                 <Link
                   href="/login"
+                  onClick={() =>
+                    trackAnalyticsEvent("login_initiated", { source: "homepage_header" })
+                  }
                   className={`border border-white/40 bg-transparent text-white hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] ${buttonBaseClass} ${buttonSizeMdClass}`}
                 >
                   Login / Sign up
@@ -6981,24 +6985,49 @@ export default function HomeExperience() {
               <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
                   href={authUser ? "/workspace" : "/signup"}
+                  onClick={() => {
+                    trackAnalyticsEvent("homepage_cta_clicked", {
+                      cta: "start_free",
+                      destination: authUser ? "workspace" : "signup",
+                    });
+                    trackAnalyticsEvent(
+                      authUser ? "candidate_workspace_started" : "signup_initiated",
+                      { source: "homepage_hero" },
+                    );
+                  }}
                   className={`${primaryButtonClass} ${buttonSizeMdClass}`}
                 >
                   Start Free <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
                 <Link
                   href="/pricing"
+                  onClick={() =>
+                    trackAnalyticsEvent("pricing_cta_clicked", {
+                      source: "homepage_hero",
+                    })
+                  }
                   className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
                 >
                   View Pricing
                 </Link>
               <Link
                 href="/workspace"
+                onClick={() =>
+                  trackAnalyticsEvent("resume_builder_cta_clicked", {
+                    source: "homepage_hero",
+                  })
+                }
                 className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
               >
                   Build Resume
               </Link>
                 <Link
                   href="/jobs"
+                  onClick={() =>
+                    trackAnalyticsEvent("homepage_cta_clicked", {
+                      cta: "browse_opportunities",
+                    })
+                  }
                   className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
                 >
                   Browse Jobs
@@ -7007,6 +7036,9 @@ export default function HomeExperience() {
               <Link
                 href="/demo"
                 aria-label="Open ISEYA interactive demo"
+                onClick={() =>
+                  trackAnalyticsEvent("demo_opened", { source: "homepage_hero" })
+                }
                 className="mt-4 inline-flex max-w-full items-center gap-3 rounded-full border border-[var(--iseya-gold)]/35 bg-white px-4 py-2.5 text-sm text-[var(--iseya-navy)] shadow-[0_4px_14px_rgb(244_179_33_/_0.08)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)]"
               >
                 <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
@@ -7088,11 +7120,11 @@ export default function HomeExperience() {
             </p>
           </div>
           {[
-            { title: "Career Workspace", copy: "Build private career assets and tailor resumes for specific opportunities.", icon: FolderOpen, href: "/workspace", color: "bg-blue-50 text-blue-600" },
-            { title: "Opportunity Discovery", copy: "Explore source-transparent roles from recruiters, employers, and curated channels.", icon: Search, href: "/jobs", color: "bg-emerald-50 text-emerald-600" },
-            { title: "Recruiter Access", copy: "Verified recruiters post roles and review structured candidate interest.", icon: UsersRound, href: "/recruiters", color: "bg-violet-50 text-violet-600" },
-            { title: "Institution Insights", copy: "Institutions receive aggregate, privacy-safe career readiness insights.", icon: Building2, href: "/institutions", color: "bg-orange-50 text-orange-600" },
-            { title: "Career Co-pilots", copy: "Refine professional positioning and application materials with focused guidance.", icon: Zap, href: "/workspace", color: "bg-amber-50 text-amber-600" },
+            { title: "Career Workspace", copy: "Build private career assets and tailor resumes for specific opportunities.", icon: FolderOpen, href: "/workspace", linkLabel: "Explore career workspace", color: "bg-blue-50 text-blue-600" },
+            { title: "Opportunity Discovery", copy: "Explore source-transparent roles from recruiters, employers, and curated channels.", icon: Search, href: "/jobs", linkLabel: "Browse opportunities", color: "bg-emerald-50 text-emerald-600" },
+            { title: "Recruiter Access", copy: "Verified recruiters post roles and review structured candidate interest.", icon: UsersRound, href: "/recruiters", linkLabel: "Explore recruiter workflow", color: "bg-violet-50 text-violet-600" },
+            { title: "Institution Insights", copy: "Institutions receive aggregate, privacy-safe career readiness insights.", icon: Building2, href: "/institutions", linkLabel: "View institution experience", color: "bg-orange-50 text-orange-600" },
+            { title: "Career Co-pilots", copy: "Refine professional positioning and application materials with focused guidance.", icon: Zap, href: "/workspace", linkLabel: "Build career assets", color: "bg-amber-50 text-amber-600" },
           ].map((feature) => (
             <article key={feature.title} className="border-slate-200/80 lg:border-l lg:px-6">
               <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${feature.color}`}>
@@ -7101,7 +7133,7 @@ export default function HomeExperience() {
               <h3 className="mt-4 text-sm font-semibold text-[var(--iseya-navy)]">{feature.title}</h3>
               <p className="mt-3 text-xs leading-5 text-slate-600">{feature.copy}</p>
               <a href={feature.href} className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-blue-600 transition hover:text-[var(--iseya-navy)]">
-                Learn more <ArrowRight className="h-3.5 w-3.5" />
+                {feature.linkLabel} <ArrowRight className="h-3.5 w-3.5" />
               </a>
             </article>
           ))}
@@ -7125,10 +7157,30 @@ export default function HomeExperience() {
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link href={authUser ? "/workspace" : "/signup"} className={`${primaryButtonClass} ${buttonSizeMdClass}`}>
+            <Link
+              href={authUser ? "/workspace" : "/signup"}
+              onClick={() => {
+                trackAnalyticsEvent("homepage_cta_clicked", {
+                  cta: "start_free",
+                  destination: authUser ? "workspace" : "signup",
+                  source: "homepage_band",
+                });
+                trackAnalyticsEvent(
+                  authUser ? "candidate_workspace_started" : "signup_initiated",
+                  { source: "homepage_band" },
+                );
+              }}
+              className={`${primaryButtonClass} ${buttonSizeMdClass}`}
+            >
               Start Free
             </Link>
-            <Link href="/demo" className={`${secondaryButtonClass} ${buttonSizeMdClass}`}>
+            <Link
+              href="/demo"
+              onClick={() =>
+                trackAnalyticsEvent("demo_opened", { source: "homepage_band" })
+              }
+              className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
+            >
               Demo
             </Link>
           </div>

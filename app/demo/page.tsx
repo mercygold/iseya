@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import TrackedLink from "@/components/TrackedLink";
 import { publicPageMetadata } from "@/lib/seo";
 import { demoCard, demoLabel, demoPrimaryButton, demoSecondaryButton } from "./DemoShell";
 
@@ -16,6 +17,7 @@ const pathways = [
     copy: "See how a candidate prepares career assets, finds opportunities, and tracks outcomes.",
     href: "/demo/candidate",
     cta: "Explore Candidate Demo",
+    eventName: "demo_opened" as const,
   },
   {
     label: "Recruiter Demo",
@@ -23,6 +25,7 @@ const pathways = [
     copy: "See job management, grouped applicants, review status, and private recruiter notes.",
     href: "/demo/recruiter",
     cta: "Explore Recruiter Demo",
+    eventName: "recruiter_demo_opened" as const,
   },
   {
     label: "Institution Demo",
@@ -30,6 +33,7 @@ const pathways = [
     copy: "See privacy-safe program intelligence, seat use, and career engagement outcomes.",
     href: "/demo/institution",
     cta: "Explore Institution Demo",
+    eventName: "institution_demo_opened" as const,
   },
 ];
 
@@ -60,9 +64,14 @@ export default function DemoPage() {
               <p className={demoLabel}>{pathway.label}</p>
               <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">{pathway.title}</h2>
               <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{pathway.copy}</p>
-              <Link href={pathway.href} className={`${demoPrimaryButton} mt-5`}>
+              <TrackedLink
+                href={pathway.href}
+                eventName={pathway.eventName}
+                eventParameters={{ source: "demo_overview" }}
+                className={`${demoPrimaryButton} mt-5`}
+              >
                 {pathway.cta}
-              </Link>
+              </TrackedLink>
             </article>
           ))}
         </div>
@@ -79,7 +88,14 @@ export default function DemoPage() {
             ))}
           </div>
           <div className="mt-5 flex flex-wrap gap-3">
-            <Link href="/signup" className={demoPrimaryButton}>Start Free</Link>
+            <TrackedLink
+              href="/signup"
+              eventName="signup_initiated"
+              eventParameters={{ source: "demo_journey" }}
+              className={demoPrimaryButton}
+            >
+              Start Free
+            </TrackedLink>
             <Link href="/institutions" className={demoSecondaryButton}>Request Partnership</Link>
           </div>
         </article>

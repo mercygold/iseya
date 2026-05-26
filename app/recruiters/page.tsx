@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import TrackedLink from "@/components/TrackedLink";
 import { publicPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = publicPageMetadata(
@@ -46,12 +47,12 @@ export default function RecruitersPage() {
               opportunity ecosystem for candidates and hiring teams.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link href="/recruiters/signup" className={primaryButton}>
+              <TrackedLink href="/recruiters/signup" eventName="request_access_clicked" eventParameters={{ audience: "recruiter", source: "recruiters_hero" }} className={primaryButton}>
                 Create Recruiter Account
-              </Link>
-              <Link href="/recruiters/dashboard" className={secondaryButton}>
+              </TrackedLink>
+              <TrackedLink href="/recruiters/dashboard" eventName="recruiter_cta_clicked" eventParameters={{ cta: "post_a_job", source: "recruiters_hero" }} className={secondaryButton}>
                 Post a Job
-              </Link>
+              </TrackedLink>
             </div>
           </div>
           <nav className="flex flex-wrap gap-4 text-sm font-semibold text-white/80 lg:justify-end">
@@ -124,9 +125,9 @@ export default function RecruitersPage() {
             <Link href="/recruiters/pricing" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
               View Recruiter Plans
             </Link>
-            <Link href="/demo/recruiter" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+            <TrackedLink href="/demo/recruiter" eventName="recruiter_demo_opened" eventParameters={{ source: "recruiters_workflow" }} className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
               Explore Recruiter Demo
-            </Link>
+            </TrackedLink>
           </div>
         </article>
         <article className={cardClass}>
