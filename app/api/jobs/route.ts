@@ -19,11 +19,28 @@ export async function GET(request: Request) {
   const location = url.searchParams.get("location")?.trim().toLowerCase() ?? "";
   const employmentType = url.searchParams.get("employmentType")?.trim().toLowerCase() ?? "";
   const workplace = url.searchParams.get("workplace")?.trim().toLowerCase() ?? "";
+  const now = new Date().toISOString();
+
+  const { error: expiryError } = await supabase
+    .from("job_posts")
+    .update({ status: "expired" })
+    .eq("status", "published")
+    .neq("opportunity_type", "curated_opportunity")
+    .not("expires_at", "is", null)
+    .lte("expires_at", now);
+
+  if (expiryError) {
+    console.error("[jobs] job expiration update failed", {
+      code: expiryError.code,
+      message: expiryError.message,
+    });
+  }
 
   let builder = supabase
     .from("job_posts")
     .select("*")
     .eq("status", "published")
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
     .order("created_at", { ascending: false })
     .limit(100);
 

@@ -34,6 +34,9 @@ export default function RecruiterShell({ children }: { children: ReactNode }) {
             <DashboardNavLink href="/recruiters/dashboard#company-profile" highlightOnPath={false}>
               Company Profile
             </DashboardNavLink>
+            <DashboardNavLink href="/recruiters/pricing">
+              Plans
+            </DashboardNavLink>
             <DashboardNavLink href="/account">
               Settings
             </DashboardNavLink>

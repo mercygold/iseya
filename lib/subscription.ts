@@ -1,3 +1,9 @@
+import {
+  defaultCurrency,
+  formatCurrencyDisplay,
+  getRegionalPricing,
+} from "./pricing/regions";
+
 export type SubscriptionPlanId = "free" | "starter" | "plus" | "pro_monthly" | "pro_annual";
 
 export type SubscriptionFeature =
@@ -63,6 +69,8 @@ export const planEntitlements: Record<SubscriptionPlanId, PlanEntitlements> = {
   },
 };
 
+const publicUsdPricing = getRegionalPricing(defaultCurrency);
+
 export const pricingPlans: PricingPlan[] = [
   {
     id: "free",
@@ -90,7 +98,7 @@ export const pricingPlans: PricingPlan[] = [
     id: "plus",
     name: "Plus",
     cadence: "One-time",
-    priceLabel: "$1.99",
+    priceLabel: formatCurrencyDisplay(publicUsdPricing.plans.plus),
     description: "A lightweight paid pack for a focused application push.",
     included: [
       "3 premium document exports",
@@ -106,7 +114,7 @@ export const pricingPlans: PricingPlan[] = [
     id: "pro_monthly",
     name: "Pro Monthly",
     cadence: "Monthly",
-    priceLabel: "$7.99/month",
+    priceLabel: formatCurrencyDisplay(publicUsdPricing.plans.pro_monthly),
     description: "Full monthly access for active job search workflows.",
     badge: "Most Popular",
     included: [
@@ -124,7 +132,7 @@ export const pricingPlans: PricingPlan[] = [
     id: "pro_annual",
     name: "Pro Annual",
     cadence: "Annual",
-    priceLabel: "$69/year",
+    priceLabel: formatCurrencyDisplay(publicUsdPricing.plans.pro_annual),
     description: "Best value for users actively applying across the year.",
     badge: "Best Value",
     included: [

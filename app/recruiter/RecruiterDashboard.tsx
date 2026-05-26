@@ -2,12 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import NotificationPanel from "@/components/NotificationPanel";
 import {
   countryOptions,
   countryRegions,
   manualLocationOption,
 } from "@/lib/recruiterLocationOptions";
+import {
+  getRecruiterEntitlements,
+  normalizeRecruiterPlan,
+  recruiterPlanLabel,
+} from "@/lib/pricing/recruiter";
 
 type RecruiterProfile = {
   company_name: string;
@@ -30,6 +36,14 @@ type RecruiterProfile = {
   hiring_focus: string | null;
   verification_status: string;
   verification_notes: string | null;
+  recruiter_plan: string;
+  recruiter_plan_status: string;
+  recruiter_active_job_limit: number;
+  recruiter_visibility_days: number;
+  recruiter_verified_eligible: boolean;
+  recruiter_currency: string;
+  recruiter_subscription_started_at: string | null;
+  recruiter_subscription_expires_at: string | null;
 };
 
 type JobPost = {
@@ -52,6 +66,8 @@ type JobPost = {
   application_url: string | null;
   status: string;
   applicants_count: number;
+  published_at: string | null;
+  expires_at: string | null;
   created_at: string;
 };
 
@@ -162,6 +178,11 @@ function formatDate(value: string) {
   });
 }
 
+function remainingDays(value: string | null) {
+  if (!value) return null;
+  return Math.max(0, Math.ceil((Date.parse(value) - Date.now()) / (24 * 60 * 60 * 1000)));
+}
+
 function normalizeVerificationStatus(value: string | null | undefined) {
   const status = (value ?? "").trim().toLowerCase();
   return status === "verified" || status === "rejected" || status === "pending_review"
@@ -209,6 +230,7 @@ export default function RecruiterDashboard() {
       total: jobs.length,
       published: jobs.filter((job) => job.status === "published").length,
       draft: jobs.filter((job) => job.status === "draft").length,
+      expired: jobs.filter((job) => job.status === "expired").length,
       applicants: applications.length,
     }),
     [applications.length, jobs],
@@ -253,6 +275,13 @@ export default function RecruiterDashboard() {
     selectedCountryOption === manualLocationOption || selectedStateOption === manualLocationOption;
   const needsOtherIndustry = profileDraft.industry === "Other";
   const verificationStatus = normalizeVerificationStatus(profile?.verification_status);
+  const currentPlan = normalizeRecruiterPlan(profile?.recruiter_plan, profile?.recruiter_plan_status);
+  const planEntitlements = getRecruiterEntitlements(
+    profile?.recruiter_plan,
+    profile?.recruiter_plan_status,
+  );
+  const subscriptionDaysRemaining =
+    currentPlan === "starter" ? null : remainingDays(profile?.recruiter_subscription_expires_at ?? null);
   const canEditJobDraft = profileComplete;
   const canSubmitJobForReview = profileComplete && verificationStatus === "verified";
   const verificationMessage =
@@ -613,10 +642,11 @@ export default function RecruiterDashboard() {
         </div>
       ) : (
         <div className="mt-8 space-y-6">
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             {[
-              ["Open listings", stats.published],
+              ["Published jobs", stats.published],
               ["Draft jobs", stats.draft],
+              ["Expired jobs", stats.expired],
               ["Total job posts", stats.total],
               ["Applicants", stats.applicants],
             ].map(([label, value]) => (
@@ -627,6 +657,36 @@ export default function RecruiterDashboard() {
                 <p className="mt-3 text-3xl font-semibold text-[var(--iseya-navy)]">{value}</p>
               </div>
             ))}
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+                  Current Plan
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">
+                  {recruiterPlanLabel(currentPlan)}
+                </h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  {stats.published} / {planEntitlements.activeJobLimit} active jobs used |{" "}
+                  {planEntitlements.visibilityDays}-day listing visibility
+                </p>
+                <p className="mt-2 text-sm text-slate-600">
+                  Draft jobs remain unlimited. Expired or closed listings no longer use an active slot.
+                </p>
+                {subscriptionDaysRemaining !== null ? (
+                  <p className="mt-2 text-sm font-semibold text-[var(--iseya-navy)]">
+                    Subscription period: {subscriptionDaysRemaining} days remaining
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link href="/recruiters/pricing" className={primaryButton}>
+                  Upgrade for more active listings
+                </Link>
+              </div>
+            </div>
           </section>
 
           <NotificationPanel
@@ -816,6 +876,15 @@ export default function RecruiterDashboard() {
                         <p className="mt-2 text-xs font-medium text-slate-500">
                           Created {formatDate(job.created_at)}
                         </p>
+                        {job.status === "published" && job.expires_at ? (
+                          <p className="mt-2 text-xs font-semibold text-slate-600">
+                            Expires in {remainingDays(job.expires_at)} days ({formatDate(job.expires_at)})
+                          </p>
+                        ) : job.status === "expired" ? (
+                          <p className="mt-2 text-xs font-semibold text-amber-700">
+                            Visibility expired. Edit and submit this job for review to republish it.
+                          </p>
+                        ) : null}
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <button

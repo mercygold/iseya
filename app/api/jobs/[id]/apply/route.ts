@@ -86,9 +86,10 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { data: job, error: jobError } = await serviceRole
     .from("job_posts")
-    .select("id, recruiter_id, status, job_title, company_name, application_url, opportunity_type")
+    .select("id, recruiter_id, status, job_title, company_name, application_url, opportunity_type, expires_at")
     .eq("id", id)
     .eq("status", "published")
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .maybeSingle();
 
   if (jobError || !job) {

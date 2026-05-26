@@ -1,10 +1,22 @@
 import Stripe from "stripe";
-import { regionalPricing, supportedCurrencies, type PaidSubscriptionPlanId } from "@/lib/pricing/regions";
+import {
+  regionalPricing,
+  supportedCurrencies,
+  type PaidSubscriptionPlanId,
+  type SupportedCurrency,
+} from "@/lib/pricing/regions";
+import {
+  getRecruiterEntitlements,
+  recruiterExpiryFromPublication,
+  recruiterRegionalPricing,
+  type RecruiterPaidPlanId,
+} from "@/lib/pricing/recruiter";
 import { cleanSupabaseEnvValue } from "@/lib/supabaseConfig";
 import { createSupabaseServiceRoleClient } from "@/lib/supabaseServer";
 import { planDownloadLimit, planOptimizationLimit } from "@/lib/subscription";
 
 type PaidPlan = PaidSubscriptionPlanId;
+type RecruiterPaidPlan = RecruiterPaidPlanId;
 
 type ProfileEntitlements = {
   id: string;
@@ -13,6 +25,12 @@ type ProfileEntitlements = {
   document_exports_used?: number | null;
   optimization_credits_used?: number | null;
   processed_stripe_event_ids: string[] | null;
+};
+
+type RecruiterEntitlementRecord = {
+  id: string;
+  user_id: string;
+  recruiter_processed_stripe_event_ids: string[] | null;
 };
 
 const subscriptionStatusByInvoiceEvent = {
@@ -66,6 +84,28 @@ function planFromPriceId(priceId: string | null | undefined): PaidPlan | null {
     return "pro_annual";
   }
 
+  return null;
+}
+
+function recruiterPriceIdForPlan(plan: RecruiterPaidPlan) {
+  return supportedCurrencies
+    .flatMap((currency) => {
+      const price = recruiterRegionalPricing[currency].plans[plan];
+      return [price.stripePriceEnv, ...price.legacyStripePriceEnvs].map((envName) =>
+        cleanSupabaseEnvValue(process.env[envName]),
+      );
+    })
+    .filter((priceId): priceId is string => Boolean(priceId));
+}
+
+function recruiterPlanFromPriceId(priceId: string | null | undefined): RecruiterPaidPlan | null {
+  if (!priceId) return null;
+  if (recruiterPriceIdForPlan("recruiter_quarterly").includes(priceId)) {
+    return "recruiter_quarterly";
+  }
+  if (recruiterPriceIdForPlan("recruiter_annual").includes(priceId)) {
+    return "recruiter_annual";
+  }
   return null;
 }
 
@@ -207,6 +247,213 @@ function planFromMetadata(value: string | null | undefined): PaidPlan | null {
   }
 
   return null;
+}
+
+function recruiterPlanFromMetadata(value: string | null | undefined): RecruiterPaidPlan | null {
+  return value === "recruiter_quarterly" || value === "recruiter_annual" ? value : null;
+}
+
+function recruiterAlreadyProcessed(profile: RecruiterEntitlementRecord, eventId: string) {
+  return (profile.recruiter_processed_stripe_event_ids ?? []).includes(eventId);
+}
+
+async function findRecruiterProfile({
+  userId,
+  customerId,
+}: {
+  userId?: string | null;
+  customerId?: string | null;
+}) {
+  const supabase = createSupabaseServiceRoleClient();
+  if (!supabase) {
+    logWebhookError("Supabase service-role client is unavailable for recruiter billing.");
+    return { supabase: null, profile: null };
+  }
+
+  if (userId) {
+    const { data } = await supabase
+      .from("recruiter_profiles")
+      .select("id, user_id, recruiter_processed_stripe_event_ids")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (data) return { supabase, profile: data as RecruiterEntitlementRecord };
+  }
+
+  if (customerId) {
+    const { data } = await supabase
+      .from("recruiter_profiles")
+      .select("id, user_id, recruiter_processed_stripe_event_ids")
+      .eq("recruiter_stripe_customer_id", customerId)
+      .maybeSingle();
+    if (data) return { supabase, profile: data as RecruiterEntitlementRecord };
+  }
+
+  return { supabase, profile: null };
+}
+
+function recruiterSubscriptionUpdate(
+  plan: RecruiterPaidPlan,
+  status: string,
+  customerId: string | null,
+  subscriptionId: string | null,
+  eventIds: string[],
+  resetStartedAt: boolean,
+  currency?: string | null,
+) {
+  const entitlements = getRecruiterEntitlements(plan, "active");
+  const now = new Date();
+
+  return {
+    recruiter_plan: plan,
+    recruiter_plan_status: status,
+    recruiter_active_job_limit: entitlements.activeJobLimit,
+    recruiter_visibility_days: entitlements.visibilityDays,
+    recruiter_verified_eligible: entitlements.verifiedEligible,
+    ...(currency && supportedCurrencies.includes(currency as SupportedCurrency)
+      ? { recruiter_currency: currency }
+      : {}),
+    ...(resetStartedAt ? { recruiter_subscription_started_at: now.toISOString() } : {}),
+    recruiter_subscription_expires_at: recruiterExpiryFromPublication(
+      now,
+      entitlements.visibilityDays,
+    ),
+    recruiter_stripe_customer_id: customerId,
+    recruiter_stripe_subscription_id: subscriptionId,
+    recruiter_processed_stripe_event_ids: eventIds,
+  };
+}
+
+async function updateRecruiterFromCheckoutSession(
+  eventId: string,
+  session: Stripe.Checkout.Session,
+) {
+  const plan = recruiterPlanFromMetadata(session.metadata?.plan);
+  const userId = session.metadata?.user_id || session.client_reference_id;
+  const customerId = stringId(session.customer);
+  const subscriptionId = stringId(session.subscription);
+
+  if (!plan || session.mode !== "subscription") {
+    logWebhookError("Recruiter checkout session has unsupported metadata.", { eventId });
+    return;
+  }
+
+  const { supabase, profile } = await findRecruiterProfile({ userId, customerId });
+  if (!supabase || !profile || recruiterAlreadyProcessed(profile, eventId)) return;
+
+  const eventIds = appendEventId(
+    appendEventId(profile.recruiter_processed_stripe_event_ids, eventId),
+    checkoutSessionMarker(session.id),
+  );
+  const { error } = await supabase
+    .from("recruiter_profiles")
+    .update(
+      recruiterSubscriptionUpdate(
+        plan,
+        "active",
+        customerId,
+        subscriptionId,
+        eventIds,
+        true,
+        session.metadata?.currency,
+      ),
+    )
+    .eq("id", profile.id);
+
+  if (error) {
+    logWebhookError("Recruiter checkout entitlement update failed.", {
+      eventId,
+      code: error.code,
+      message: error.message,
+    });
+  }
+}
+
+async function updateRecruiterFromSubscription(eventId: string, subscription: Stripe.Subscription) {
+  const plan =
+    recruiterPlanFromMetadata(subscription.metadata?.plan) ??
+    recruiterPlanFromPriceId(subscription.items.data[0]?.price.id);
+  if (!plan) return;
+
+  const customerId = stringId(subscription.customer);
+  const { supabase, profile } = await findRecruiterProfile({
+    userId: subscription.metadata?.user_id,
+    customerId,
+  });
+  if (!supabase || !profile || recruiterAlreadyProcessed(profile, eventId)) return;
+
+  const canceled = subscription.status === "canceled";
+  const entitlements = getRecruiterEntitlements("starter", "free");
+  const update = canceled
+    ? {
+        recruiter_plan: "starter",
+        recruiter_plan_status: "canceled",
+        recruiter_active_job_limit: entitlements.activeJobLimit,
+        recruiter_visibility_days: entitlements.visibilityDays,
+        recruiter_verified_eligible: entitlements.verifiedEligible,
+        recruiter_stripe_customer_id: customerId,
+        recruiter_stripe_subscription_id: subscription.id,
+        recruiter_subscription_expires_at: new Date().toISOString(),
+        recruiter_processed_stripe_event_ids: appendEventId(
+          profile.recruiter_processed_stripe_event_ids,
+          eventId,
+        ),
+      }
+    : recruiterSubscriptionUpdate(
+        plan,
+        subscription.status,
+        customerId,
+        subscription.id,
+        appendEventId(profile.recruiter_processed_stripe_event_ids, eventId),
+        false,
+      );
+  const { error } = await supabase.from("recruiter_profiles").update(update).eq("id", profile.id);
+
+  if (error) {
+    logWebhookError("Recruiter subscription update failed.", {
+      eventId,
+      code: error.code,
+      message: error.message,
+    });
+  }
+}
+
+async function updateRecruiterFromInvoice(
+  eventId: string,
+  invoice: Stripe.Invoice,
+  subscription: Stripe.Subscription,
+  status: "active" | "past_due",
+) {
+  const plan =
+    recruiterPlanFromMetadata(subscription.metadata?.plan) ??
+    recruiterPlanFromPriceId(subscription.items.data[0]?.price.id);
+  if (!plan) return;
+
+  const customerId = stringId(invoice.customer);
+  const { supabase, profile } = await findRecruiterProfile({
+    userId: subscription.metadata?.user_id,
+    customerId,
+  });
+  if (!supabase || !profile || recruiterAlreadyProcessed(profile, eventId)) return;
+
+  const eventIds = appendEventId(profile.recruiter_processed_stripe_event_ids, eventId);
+  const update =
+    status === "active"
+      ? recruiterSubscriptionUpdate(plan, status, customerId, subscription.id, eventIds, true)
+      : {
+          recruiter_plan_status: status,
+          recruiter_stripe_customer_id: customerId,
+          recruiter_stripe_subscription_id: subscription.id,
+          recruiter_processed_stripe_event_ids: eventIds,
+        };
+  const { error } = await supabase.from("recruiter_profiles").update(update).eq("id", profile.id);
+
+  if (error) {
+    logWebhookError("Recruiter invoice entitlement update failed.", {
+      eventId,
+      code: error.code,
+      message: error.message,
+    });
+  }
 }
 
 function alreadyProcessed(profile: ProfileEntitlements, eventId: string) {
@@ -560,27 +807,70 @@ export async function POST(request: Request) {
 
   switch (event.type) {
     case "checkout.session.completed":
-      await updateProfileFromCheckoutSession(
-        event.id,
-        event.data.object as Stripe.Checkout.Session,
-      );
+      if ((event.data.object as Stripe.Checkout.Session).metadata?.plan_type === "recruiter") {
+        await updateRecruiterFromCheckoutSession(
+          event.id,
+          event.data.object as Stripe.Checkout.Session,
+        );
+      } else {
+        await updateProfileFromCheckoutSession(
+          event.id,
+          event.data.object as Stripe.Checkout.Session,
+        );
+      }
       break;
     case "customer.subscription.created":
     case "customer.subscription.updated":
-    case "customer.subscription.deleted":
-      await updateProfileFromSubscription(
-        event.id,
-        event.data.object as Stripe.Subscription,
-      );
+    case "customer.subscription.deleted": {
+      const subscription = event.data.object as Stripe.Subscription;
+      if (
+        subscription.metadata?.plan_type === "recruiter" ||
+        recruiterPlanFromPriceId(subscription.items.data[0]?.price.id)
+      ) {
+        await updateRecruiterFromSubscription(event.id, subscription);
+      } else {
+        await updateProfileFromSubscription(event.id, subscription);
+      }
       break;
+    }
     case "invoice.payment_succeeded":
-    case "invoice.payment_failed":
-      await updateProfileFromInvoice(
-        event.id,
-        event.data.object as Stripe.Invoice,
-        subscriptionStatusByInvoiceEvent[event.type],
-      );
+    case "invoice.payment_failed": {
+      const invoice = event.data.object as Stripe.Invoice;
+      const subscriptionId = invoiceSubscriptionId(invoice);
+      let handledRecruiter = false;
+
+      if (subscriptionId) {
+        try {
+          const subscription = await stripeClient.subscriptions.retrieve(subscriptionId);
+          if (
+            subscription.metadata?.plan_type === "recruiter" ||
+            recruiterPlanFromPriceId(subscription.items.data[0]?.price.id)
+          ) {
+            await updateRecruiterFromInvoice(
+              event.id,
+              invoice,
+              subscription,
+              subscriptionStatusByInvoiceEvent[event.type],
+            );
+            handledRecruiter = true;
+          }
+        } catch (error) {
+          logWebhookError("Invoice billing-scope lookup failed.", {
+            eventId: event.id,
+            message: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+
+      if (!handledRecruiter) {
+        await updateProfileFromInvoice(
+          event.id,
+          invoice,
+          subscriptionStatusByInvoiceEvent[event.type],
+        );
+      }
       break;
+    }
     default:
       break;
   }

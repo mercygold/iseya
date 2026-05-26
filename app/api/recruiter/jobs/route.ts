@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabaseServer";
 import { chooseCanonicalRecruiterProfile, isCompleteRecruiterProfile } from "@/lib/recruiterProfile";
 
 export const runtime = "nodejs";
@@ -137,6 +137,26 @@ export async function GET() {
 
   if (!recruiter) {
     return Response.json({ error: "Recruiter account required." }, { status: 403 });
+  }
+
+  const serviceRole = createSupabaseServiceRoleClient();
+  if (serviceRole) {
+    const { error: expiryError } = await serviceRole
+      .from("job_posts")
+      .update({ status: "expired" })
+      .eq("recruiter_id", userId)
+      .neq("opportunity_type", "curated_opportunity")
+      .eq("status", "published")
+      .not("expires_at", "is", null)
+      .lte("expires_at", new Date().toISOString());
+
+    if (expiryError) {
+      console.error("[recruiter-jobs] expiration update failed", {
+        code: expiryError.code,
+        message: expiryError.message,
+        userId,
+      });
+    }
   }
 
   const { data, error } = await supabase

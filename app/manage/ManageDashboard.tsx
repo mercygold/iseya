@@ -910,7 +910,9 @@ export default function ManageDashboard() {
                       <option value="pending_review">Pending Review</option>
                       <option value="published">Published</option>
                       <option value="rejected">Rejected</option>
+                      <option value="expired">Expired</option>
                       <option value="closed">Closed</option>
+                      <option value="archived">Archived</option>
                     </select>
                   </div>
                 </div>

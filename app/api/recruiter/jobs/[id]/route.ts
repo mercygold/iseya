@@ -38,7 +38,7 @@ function numberOrNull(value: unknown) {
   return Number.isFinite(numberValue) && numberValue >= 0 ? numberValue : null;
 }
 
-const recruiterAllowedUpdateStatuses = new Set(["draft", "pending_review", "closed"]);
+const recruiterAllowedUpdateStatuses = new Set(["draft", "pending_review", "closed", "archived"]);
 const jobSaveErrorMessage =
   "Unable to create job post right now. Please check the required fields and try again.";
 

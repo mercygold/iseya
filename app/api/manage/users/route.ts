@@ -5,6 +5,10 @@ import { chooseCanonicalRecruiterProfile } from "@/lib/recruiterProfile";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabaseServer";
 import type { CuratedOpportunitySeed } from "@/data/curated-opportunities-starter";
 import curatedOpportunitiesData from "@/data/created-opportunities.data.json";
+import {
+  getRecruiterEntitlements,
+  recruiterExpiryFromPublication,
+} from "@/lib/pricing/recruiter";
 
 const validPlans = new Set(["free", "plus", "pro_monthly", "pro_annual"]);
 const validStatuses = new Set(["free", "active", "canceled", "past_due", "inactive"]);
@@ -274,12 +278,12 @@ export async function GET() {
     await Promise.all([
       serviceRole
         .from("recruiter_profiles")
-        .select("id, user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, company_location, industry, industry_other, company_size, hiring_focus, verification_status, verification_notes, created_at, updated_at")
+        .select("id, user_id, company_name, recruiter_name, work_email, company_website, linkedin_company_url, phone_number, address_line_1, address_line_2, city, state_region, postal_code, country, company_location, industry, industry_other, company_size, hiring_focus, verification_status, verification_notes, recruiter_plan, recruiter_plan_status, recruiter_active_job_limit, recruiter_visibility_days, recruiter_verified_eligible, recruiter_currency, recruiter_subscription_started_at, recruiter_subscription_expires_at, created_at, updated_at")
         .order("updated_at", { ascending: false })
         .limit(500),
       serviceRole
         .from("job_posts")
-        .select("id, recruiter_id, job_title, company_name, location, country, workplace_type, employment_type, salary_range, application_url, role_summary, skills, application_deadline, status, opportunity_type, source_name, source_description, applicants_count, created_at")
+        .select("id, recruiter_id, job_title, company_name, location, country, workplace_type, employment_type, salary_range, application_url, role_summary, skills, application_deadline, status, opportunity_type, source_name, source_description, applicants_count, published_at, expires_at, created_at")
         .order("created_at", { ascending: false })
         .limit(100),
       serviceRole
@@ -686,7 +690,7 @@ export async function PATCH(request: Request) {
 
   if (jobPostId) {
     const jobStatus = typeof body.jobStatus === "string" ? body.jobStatus : "";
-    const validJobStatuses = new Set(["draft", "pending_review", "published", "rejected", "closed"]);
+    const validJobStatuses = new Set(["draft", "pending_review", "published", "rejected", "expired", "closed", "archived"]);
 
     if (!validJobStatuses.has(jobStatus)) {
       return Response.json({ error: "Invalid job moderation update." }, { status: 400 });
@@ -694,7 +698,7 @@ export async function PATCH(request: Request) {
 
     const { data: jobPost, error: lookupError } = await serviceRole
       .from("job_posts")
-      .select("id, recruiter_id, job_title, company_name, location, workplace_type, employment_type, skills, status")
+      .select("id, recruiter_id, job_title, company_name, location, workplace_type, employment_type, skills, status, opportunity_type, published_at, expires_at")
       .eq("id", jobPostId)
       .maybeSingle();
 
@@ -707,9 +711,70 @@ export async function PATCH(request: Request) {
       return Response.json({ error: "Unable to update job post status." }, { status: 500 });
     }
 
+    let visibilityUpdate: { published_at?: string; expires_at?: string | null } = {};
+
+    if (
+      jobStatus === "published" &&
+      jobPost.status !== "published" &&
+      jobPost.opportunity_type !== "curated_opportunity"
+    ) {
+      const { data: recruiterRows, error: recruiterError } = await serviceRole
+        .from("recruiter_profiles")
+        .select("recruiter_plan, recruiter_plan_status")
+        .eq("user_id", jobPost.recruiter_id)
+        .order("updated_at", { ascending: false })
+        .limit(1);
+      const recruiterProfile = recruiterRows?.[0];
+
+      if (recruiterError) {
+        console.error("[manage] recruiter entitlement lookup failed", {
+          code: recruiterError.code,
+          message: recruiterError.message,
+          recruiterId: jobPost.recruiter_id,
+        });
+        return Response.json({ error: "Unable to publish job post right now." }, { status: 500 });
+      }
+
+      const entitlement = getRecruiterEntitlements(
+        recruiterProfile?.recruiter_plan,
+        recruiterProfile?.recruiter_plan_status,
+      );
+      const { count: activeJobCount, error: activeCountError } = await serviceRole
+        .from("job_posts")
+        .select("id", { count: "exact", head: true })
+        .eq("recruiter_id", jobPost.recruiter_id)
+        .neq("opportunity_type", "curated_opportunity")
+        .eq("status", "published")
+        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
+
+      if (activeCountError) {
+        console.error("[manage] active recruiter job count failed", {
+          code: activeCountError.code,
+          message: activeCountError.message,
+          recruiterId: jobPost.recruiter_id,
+        });
+        return Response.json({ error: "Unable to publish job post right now." }, { status: 500 });
+      }
+
+      if ((activeJobCount ?? 0) >= entitlement.activeJobLimit) {
+        return Response.json(
+          { error: "Recruiter has reached the active published job limit for the current plan." },
+          { status: 409 },
+        );
+      }
+
+      const publishedAt = new Date();
+      visibilityUpdate = {
+        published_at: publishedAt.toISOString(),
+        expires_at: recruiterExpiryFromPublication(publishedAt, entitlement.visibilityDays),
+      };
+    } else if (jobStatus === "published" && jobPost.opportunity_type === "curated_opportunity") {
+      visibilityUpdate = { expires_at: null };
+    }
+
     const { error } = await serviceRole
       .from("job_posts")
-      .update({ status: jobStatus })
+      .update({ status: jobStatus, ...visibilityUpdate })
       .eq("id", jobPostId);
 
     if (error) {
