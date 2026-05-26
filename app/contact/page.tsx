@@ -1,4 +1,12 @@
+import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import { InfoPageShell, InfoSection } from "../info-page-shell";
+
+export const metadata: Metadata = publicPageMetadata(
+  "/contact",
+  "Contact ISEYA | Jormp LLC",
+  "Contact ISEYA by Jormp LLC for platform support, institution partnerships, recruiter access, and product inquiries.",
+);
 
 export default function ContactPage() {
   return (

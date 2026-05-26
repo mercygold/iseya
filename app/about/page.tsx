@@ -1,4 +1,12 @@
+import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import { InfoPageShell, InfoSection } from "../info-page-shell";
+
+export const metadata: Metadata = publicPageMetadata(
+  "/about",
+  "About ISEYA | Career Infrastructure by Jormp LLC",
+  "Learn how ISEYA supports private career development, professional positioning, opportunity discovery, and career readiness.",
+);
 
 export default function AboutPage() {
   return (

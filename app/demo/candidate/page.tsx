@@ -1,6 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { demoCandidate } from "@/lib/demoData";
+import { publicPageMetadata } from "@/lib/seo";
 import { demoCard, demoLabel, demoPrimaryButton, demoSecondaryButton, demoStatusPill } from "../DemoShell";
+
+export const metadata: Metadata = publicPageMetadata(
+  "/demo/candidate",
+  "Candidate Career Workspace Demo | ISEYA",
+  "Explore a sample private candidate workspace with career assets, application tracking, and opportunity readiness workflows.",
+);
 
 const statusStyles: Record<string, string> = {
   Submitted: "border-[#F4B321]/45 bg-[#FFF8E6] text-[var(--iseya-navy)]",

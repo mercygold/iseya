@@ -1,21 +1,19 @@
 import type { Metadata } from "next";
-import { defaultDescription, defaultTitle, siteUrl } from "@/lib/seo";
+import { defaultDescription, defaultKeywords, defaultTitle, siteName, siteUrl } from "@/lib/seo";
 import { AuthProvider } from "./auth/AuthProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: defaultTitle,
+  applicationName: siteName,
+  title: {
+    default: defaultTitle,
+    template: `%s | ${siteName}`,
+  },
   description: defaultDescription,
-  keywords: [
-    "career infrastructure",
-    "resume tailoring",
-    "job readiness",
-    "recruiter platform",
-    "student career tools",
-    "job opportunities",
-    "career assets",
-  ],
+  keywords: defaultKeywords,
+  category: "career development",
+  referrer: "origin-when-cross-origin",
   icons: {
     icon: "/favicon/favicon.ico",
     shortcut: "/favicon/favicon.ico",

@@ -1,6 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { demoInstitution } from "@/lib/demoData";
+import { publicPageMetadata } from "@/lib/seo";
 import { demoCard, demoLabel, demoPrimaryButton } from "../DemoShell";
+
+export const metadata: Metadata = publicPageMetadata(
+  "/demo/institution",
+  "Institution Career Readiness Demo | ISEYA",
+  "Explore privacy-safe aggregate career readiness insights and institution access reporting in ISEYA.",
+);
 
 export default function InstitutionDemoPage() {
   const remainingSeats = demoInstitution.seats - demoInstitution.activeStudents;

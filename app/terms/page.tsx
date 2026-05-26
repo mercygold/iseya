@@ -1,4 +1,12 @@
+import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import { InfoPageShell, InfoSection } from "../info-page-shell";
+
+export const metadata: Metadata = publicPageMetadata(
+  "/terms",
+  "Terms of Use | ISEYA",
+  "Read the terms governing ISEYA career document tools, platform use, accuracy responsibilities, and career workflow support.",
+);
 
 export default function TermsPage() {
   return (

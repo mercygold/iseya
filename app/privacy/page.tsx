@@ -1,4 +1,12 @@
+import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import { InfoPageShell, InfoSection } from "../info-page-shell";
+
+export const metadata: Metadata = publicPageMetadata(
+  "/privacy",
+  "Privacy Policy | ISEYA",
+  "Review how ISEYA processes career assets, account information, uploaded files, and generated career documents.",
+);
 
 export default function PrivacyPage() {
   return (
