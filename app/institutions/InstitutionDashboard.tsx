@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   countryOptions,
@@ -66,8 +67,8 @@ type InstitutionAnalytics = {
 
 const institutionTypes = ["University", "College", "Bootcamp", "Career Program", "Workforce Development", "Other"];
 const inputClass = "mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25";
-const primaryButton = "inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-4 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] disabled:cursor-not-allowed disabled:opacity-60";
-const secondaryButton = "inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]";
+const primaryButton = "inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-4 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
+const secondaryButton = "inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2";
 
 function dateRange(profile: InstitutionProfile) {
   if (!profile.access_start_date && !profile.access_end_date) return "To be assigned after review";
@@ -79,6 +80,13 @@ function accessStatusMessage(status: string) {
   if (status === "pending_review") return "Your partnership request is under review.";
   if (status === "rejected") return "Your partnership request needs updates before access can be approved.";
   return "Your institution access period has expired.";
+}
+
+function accessStatusStyle(status: string) {
+  if (status === "active") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (status === "pending_review") return "border-amber-200 bg-amber-50 text-amber-800";
+  if (status === "rejected") return "border-rose-200 bg-rose-50 text-rose-800";
+  return "border-slate-200 bg-slate-100 text-slate-700";
 }
 
 export default function InstitutionDashboard({
@@ -211,84 +219,152 @@ export default function InstitutionDashboard({
     const seatLimit = analytics?.seatLimit ?? profile.seat_limit;
     const activeSeats = analytics?.activeSeats ?? profile.active_seats;
     const usagePercentage = analytics?.seatUsagePercentage ?? null;
+    const participantSummary =
+      analyticsLoading
+        ? "Loading aggregate participation..."
+        : analytics
+          ? `${analytics.studentsOnboarded} participant${analytics.studentsOnboarded === 1 ? "" : "s"} connected to this institution workspace.`
+          : "Aggregate readiness insights will appear as participants use ISEYA.";
+    const recentUpdates = [
+      accessStatusMessage(profile.access_status),
+      profile.access_start_date || profile.access_end_date
+        ? `Access period: ${dateRange(profile)}.`
+        : "Access dates will be assigned after partnership review.",
+      analyticsError || participantSummary,
+    ];
 
     return (
       <section className="mx-auto max-w-[92rem] space-y-6 px-5 py-8 sm:px-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">Institution Dashboard</p>
-            <h1 className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)] sm:text-4xl">{profile.institution_name}</h1>
-            <p className="mt-3 text-base leading-8 text-slate-600">
-              Manage student access, track career readiness, and connect participants to verified opportunities.
-            </p>
+        <section aria-labelledby="institution-workspace-title" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-3xl">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">Institution Workspace</p>
+              <h1 id="institution-workspace-title" className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)] sm:text-4xl">{profile.institution_name}</h1>
+              <p className="mt-3 text-base leading-7 text-slate-600">
+                A protected employability oversight workspace for access management and aggregate career readiness insight.
+              </p>
+            </div>
+            <button type="button" onClick={() => setEditing(true)} className={secondaryButton}>
+              Edit Institution Profile
+            </button>
           </div>
-          <button type="button" onClick={() => setEditing(true)} className={secondaryButton}>
-            Edit Institution Profile
-          </button>
-        </div>
-        {status ? <p role="status" aria-live="polite" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">{status}</p> : null}
-        <p className="rounded-xl border border-[var(--iseya-gold)]/30 bg-[#FFF8E6] p-4 text-sm font-semibold text-[var(--iseya-navy)]">
-          {accessStatusMessage(profile.access_status)}
-        </p>
-        {analyticsError ? (
-          <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-            {analyticsError}
-          </p>
-        ) : null}
-        <section aria-label="Institution analytics overview" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {[
-            ["Students Onboarded", displayMetric(analytics?.studentsOnboarded ?? profile.active_seats)],
-            [
-              "Seats Used %",
-              seatLimit === null
-                ? analyticsLoading
-                  ? "-"
-                  : "Unlimited"
-                : displayMetric(usagePercentage === null ? null : `${usagePercentage}%`),
-            ],
-            ["Active Students", displayMetric(analytics?.activeLearners)],
-            ["Applications Submitted", displayMetric(analytics?.applicationsSubmitted)],
-            ["Resume/Career Materials Improved", displayMetric(analytics?.materialsImproved)],
-            ["Recruiter Engagements", displayMetric(analytics?.recruiterEngagements)],
-          ].map(([label, value]) => (
-            <article key={label} className="min-h-32 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">{label}</p>
-              {analyticsLoading ? (
-                <div className="mt-4 h-9 w-24 animate-pulse rounded-md bg-slate-100" />
-              ) : (
-                <p className="mt-3 text-3xl font-semibold text-[var(--iseya-navy)]">{value}</p>
-              )}
-            </article>
-          ))}
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Institution workspace summary">
+            <DashboardMetric label="Access status" value={statusLabel(profile.access_status)} />
+            <DashboardMetric label="Active participants" value={String(activeSeats)} />
+            <DashboardMetric label="Program seats" value={seatLimit === null ? "Managed access" : String(seatLimit)} />
+            <DashboardMetric label="Applications" value={displayMetric(analytics?.applicationsSubmitted)} loading={analyticsLoading} />
+          </div>
         </section>
-        <section className="grid gap-5 lg:grid-cols-[1.08fr_0.92fr]">
+
+        {status ? <p role="status" aria-live="polite" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">{status}</p> : null}
+
+        <section aria-labelledby="access-status-title" className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Access Overview</p>
-            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">{profile.institution_type}</h2>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Access / Partnership Status</p>
+                <h2 id="access-status-title" className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">{profile.institution_type} workspace</h2>
+              </div>
+              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${accessStatusStyle(profile.access_status)}`}>
+                {statusLabel(profile.access_status)}
+              </span>
+            </div>
+            <p className="mt-4 text-sm leading-7 text-slate-600">{accessStatusMessage(profile.access_status)}</p>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <Summary label="Institution access package" value={profile.package_type ?? "Assigned after review"} />
+              <Summary label="Access period" value={dateRange(profile)} />
               <Summary label="Administrator" value={profile.admin_name} />
-              <Summary label="Admin email" value={profile.admin_email} />
               <Summary label="Student domain" value={`@${profile.student_email_domain}`} />
               <Summary label="Location" value={[profile.city, profile.state_region, profile.country].filter(Boolean).join(", ")} />
-              <Summary label="Access status" value={statusLabel(profile.access_status)} />
-              <Summary label="Institution Access Package" value={profile.package_type ?? "To be assigned after review."} />
-              <Summary label="Seat limit" value={seatLimit === null ? "Pilot / unlimited access mode" : String(seatLimit)} />
-              <Summary label="Active seats" value={String(activeSeats)} />
-              <Summary label="Access period" value={dateRange(profile)} />
+              <Summary label="Access model" value={profile.auto_domain_access ? "Approved domain access" : "Managed institution access"} />
             </div>
           </article>
+          <article className="rounded-2xl border border-[var(--iseya-gold)]/30 bg-[#FFFDF8] p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Privacy Boundary</p>
+            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Aggregate insight only</h2>
+            <div className="mt-4 space-y-3 text-sm leading-7 text-slate-600">
+              <p>Private student materials remain protected.</p>
+              <p>Institutions see aggregate readiness signals, not individual documents.</p>
+              <p>Program insights are designed for support, not surveillance.</p>
+            </div>
+          </article>
+        </section>
+
+        <section id="insights" aria-labelledby="aggregate-readiness-title" className="space-y-5 scroll-mt-6">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Aggregate Readiness Overview</p>
+            <h2 id="aggregate-readiness-title" className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">Career readiness and opportunity activity</h2>
+            <p className="mt-2 text-sm leading-7 text-slate-600">
+              Counts reflect participants connected to this institution only and never expose individual career materials.
+            </p>
+          </div>
+          {analyticsError ? (
+            <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+              {analyticsError}
+            </p>
+          ) : null}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Aggregate institution analytics">
+            {[
+              ["Participants onboarded", displayMetric(analytics?.studentsOnboarded ?? profile.active_seats)],
+              ["Active participants", displayMetric(analytics?.activeLearners)],
+              ["Career materials completed", displayMetric(analytics?.materialsImproved)],
+              ["Applications submitted", displayMetric(analytics?.applicationsSubmitted)],
+              ["Opportunity interactions", displayMetric(analytics?.recruiterEngagements)],
+              ["Average readiness score", displayMetric(analytics?.careerReadiness.averageReadinessScore)],
+            ].map(([label, value]) => (
+              <DashboardMetric key={label} label={label} value={value} loading={analyticsLoading} />
+            ))}
+          </div>
+          <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-[var(--iseya-navy)]">Career asset participation</h3>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <ReadinessRow label="Resume created/imported" value={displayMetric(analytics?.careerReadiness.resumeCreatedOrImported)} />
+                <ReadinessRow label="Career materials completed" value={displayMetric(analytics?.careerReadiness.careerMaterialsCompleted)} />
+                <ReadinessRow label="Applications submitted" value={displayMetric(analytics?.careerReadiness.applicationsSubmitted)} />
+                <ReadinessRow label="Active job engagement" value={displayMetric(analytics?.careerReadiness.activeJobEngagement)} />
+                <ReadinessRow label="LinkedIn/career positioning completed" value={displayMetric(analytics?.careerReadiness.linkedinPositioningCompleted)} />
+              </div>
+            </article>
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-[var(--iseya-navy)]">Application activity</h3>
+              <div className="mt-4 space-y-3">
+                {[
+                  ["Submitted", analytics?.applicationActivity.submitted],
+                  ["Reviewing", analytics?.applicationActivity.reviewing],
+                  ["Proceed", analytics?.applicationActivity.proceed],
+                  ["Rejected", analytics?.applicationActivity.rejected],
+                  ["Closed", analytics?.applicationActivity.closed],
+                ].map(([label, value]) => (
+                  <div key={String(label)} className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-b-0">
+                    <p className="text-sm font-medium text-slate-600">{label}</p>
+                    <p className="text-lg font-semibold text-[var(--iseya-navy)]">{displayMetric(value as number | undefined)}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="students" aria-labelledby="participation-title" className="grid scroll-mt-6 gap-5 lg:grid-cols-[1fr_0.95fr]">
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Seat Utilization</p>
-            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">
-              {seatLimit === null ? "Pilot / unlimited access mode" : `${activeSeats} of ${seatLimit} seats used`}
-            </h2>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Program Participation</p>
+            <h2 id="participation-title" className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Access and seat utilization</h2>
             {seatLimit === null ? (
               <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-7 text-slate-600">
-                Student access is currently managed without a fixed seat ceiling.
+                Student access is currently managed without a fixed seat ceiling. {participantSummary}
               </p>
             ) : (
               <>
-                <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                <p className="mt-3 text-sm leading-7 text-slate-600">{activeSeats} of {seatLimit} available seats are active.</p>
+                <div
+                  className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100"
+                  role="progressbar"
+                  aria-label="Institution seat usage"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={usagePercentage ?? 0}
+                >
                   <div
                     className="h-full rounded-full bg-[var(--iseya-gold)] transition-all"
                     style={{ width: `${Math.min(100, usagePercentage ?? 0)}%` }}
@@ -301,80 +377,50 @@ export default function InstitutionDashboard({
               </>
             )}
             <p className="mt-5 text-sm leading-7 text-slate-600">
-              Student privacy is protected. Institution insights are shown in aggregate only.
-            </p>
-          </article>
-        </section>
-        <section id="insights" className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Career Readiness</p>
-            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Aggregate student actions</h2>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <ReadinessRow label="Resume created/imported" value={displayMetric(analytics?.careerReadiness.resumeCreatedOrImported)} />
-              <ReadinessRow label="Career materials completed" value={displayMetric(analytics?.careerReadiness.careerMaterialsCompleted)} />
-              <ReadinessRow label="Applications submitted" value={displayMetric(analytics?.careerReadiness.applicationsSubmitted)} />
-              <ReadinessRow label="Active job engagement" value={displayMetric(analytics?.careerReadiness.activeJobEngagement)} />
-              <ReadinessRow label="LinkedIn/career positioning completed" value={displayMetric(analytics?.careerReadiness.linkedinPositioningCompleted)} />
-              <ReadinessRow
-                label="Average readiness score"
-                value={displayMetric(analytics?.careerReadiness.averageReadinessScore)}
-              />
-            </div>
-            <p className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
-              Readiness scoring will improve as students complete more career actions.
+              Cohort-level reporting can be supported as aggregate program activity grows; individual participant documents are not shown here.
             </p>
           </article>
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Application Activity</p>
-            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Aggregate outcomes</h2>
-            <div className="mt-5 space-y-3">
-              {[
-                ["Submitted", analytics?.applicationActivity.submitted],
-                ["Reviewing", analytics?.applicationActivity.reviewing],
-                ["Proceed", analytics?.applicationActivity.proceed],
-                ["Rejected", analytics?.applicationActivity.rejected],
-                ["Closed", analytics?.applicationActivity.closed],
-              ].map(([label, value]) => (
-                <div key={String(label)} className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-b-0">
-                  <p className="text-sm font-medium text-slate-600">{label}</p>
-                  <p className="text-lg font-semibold text-[var(--iseya-navy)]">{displayMetric(value as number | undefined)}</p>
-                </div>
-              ))}
-            </div>
-          </article>
-        </section>
-        <section className="grid gap-5 lg:grid-cols-2">
-          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Recruiter Engagement</p>
-            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Opportunity interaction</h2>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Opportunity Engagement</p>
+            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Aggregate interaction outcomes</h2>
             {analytics && analytics.applicationsSubmitted > 0 ? (
               <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                <Summary label="Published jobs applied to" value={String(analytics.recruiterEngagement.publishedJobsAppliedTo)} />
+                <Summary label="Roles engaged" value={String(analytics.recruiterEngagement.publishedJobsAppliedTo)} />
                 <Summary label="Status updates" value={String(analytics.recruiterEngagement.recruiterResponses)} />
                 <Summary
                   label="Proceed rate"
-                  value={
-                    analytics.recruiterEngagement.proceedRate === null
-                      ? "Not available"
-                      : `${analytics.recruiterEngagement.proceedRate}%`
-                  }
+                  value={analytics.recruiterEngagement.proceedRate === null ? "Not available" : `${analytics.recruiterEngagement.proceedRate}%`}
                 />
               </div>
             ) : (
               <p className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
-                Recruiter engagement insights will appear as linked students engage with published opportunities.
+                Aggregate opportunity engagement will appear as connected participants engage with published roles.
               </p>
             )}
           </article>
+        </section>
+
+        <section aria-labelledby="institution-actions-title" className="grid gap-5 lg:grid-cols-[1fr_0.95fr]">
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Insights Coming Soon</p>
-            <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Readiness trends</h2>
-            <p className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
-              Trend comparisons and cohort-level progress reporting will be introduced as aggregate student activity grows.
-            </p>
-            <p id="students" className="mt-4 text-sm leading-7 text-slate-600">
-              Student privacy is protected. Institution insights are shown in aggregate only.
-            </p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Next Best Actions</p>
+            <h2 id="institution-actions-title" className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Manage your program workspace</h2>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <button type="button" onClick={() => setEditing(true)} className={primaryButton}>Configure Institution Access</button>
+              <Link href="/institutions/access" className={secondaryButton}>View Participant Access</Link>
+              <Link href="/demo/institution" className={secondaryButton}>Review Aggregate Experience</Link>
+              <Link href="/contact" className={secondaryButton}>Contact ISEYA</Link>
+            </div>
+          </article>
+          <article aria-labelledby="institution-updates-title" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Recent Updates</p>
+            <h2 id="institution-updates-title" className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">Institution-specific status</h2>
+            <ul className="mt-4 space-y-3">
+              {recentUpdates.slice(0, 3).map((update) => (
+                <li key={update} className="rounded-xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
+                  {update}
+                </li>
+              ))}
+            </ul>
           </article>
         </section>
       </section>
@@ -448,6 +494,18 @@ export default function InstitutionDashboard({
 
 function Summary({ label, value }: { label: string; value: string }) {
   return <div><p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{label}</p><p className="mt-1 text-sm font-semibold text-[var(--iseya-navy)]">{value || "Not provided"}</p></div>;
+}
+function DashboardMetric({ label, value, loading = false }: { label: string; value: string; loading?: boolean }) {
+  return (
+    <article className="rounded-xl border border-slate-200 bg-white px-4 py-3.5">
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{label}</p>
+      {loading ? (
+        <div className="mt-3 h-7 w-20 animate-pulse rounded-md bg-slate-100" />
+      ) : (
+        <p className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">{value}</p>
+      )}
+    </article>
+  );
 }
 function ReadinessRow({ label, value }: { label: string; value: string }) {
   return (
