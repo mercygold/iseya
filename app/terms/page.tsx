@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { publicPageMetadata } from "@/lib/seo";
 import { InfoPageShell, InfoSection } from "../info-page-shell";
 
@@ -43,6 +44,19 @@ export default function TermsPage() {
           ISEYA is a software product and does not replace professional career,
           legal, financial, or employment advice. Decisions about applications,
           interviews, and hiring remain with employers and other third parties.
+        </p>
+      </InfoSection>
+
+      <InfoSection title="Platform pathways">
+        <p>
+          ISEYA provides separate pathways for candidates, recruiters, and
+          institution partners. Recruiter and institution access may be subject
+          to review, moderation, or approved access conditions before certain
+          workflows become available.
+        </p>
+        <p>
+          Review the <Link href="/privacy" className="font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">Privacy Policy</Link> for information handling context, or{" "}
+          <Link href="/contact" className="font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">contact ISEYA</Link> with platform questions.
         </p>
       </InfoSection>
     </InfoPageShell>

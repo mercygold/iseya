@@ -112,6 +112,29 @@ export default function CandidateDemoPage() {
           </div>
         </article>
       </section>
+      <article className={demoCard}>
+        <p className={demoLabel}>Candidate Demo Guide</p>
+        <h2 className="mt-1.5 text-lg font-semibold text-[var(--iseya-navy)]">
+          Private career preparation and application tracking
+        </h2>
+        <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-600">
+          This sample candidate workspace demonstrates how career assets, opportunity
+          discovery, and application statuses can remain organized in a private
+          candidate experience. The records shown here are fictional and do not create
+          a public candidate profile.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-4 text-sm font-semibold">
+          <Link href="/jobs" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+            Explore Opportunities
+          </Link>
+          <Link href="/pricing" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+            View Candidate Plans
+          </Link>
+          <Link href="/demo" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+            Back to Demo Overview
+          </Link>
+        </div>
+      </article>
     </section>
   );
 }

@@ -97,6 +97,57 @@ export default function RecruitersPage() {
           </div>
         ))}
       </section>
+
+      <section className="mx-auto grid max-w-[92rem] gap-5 px-5 pb-10 sm:px-8 lg:grid-cols-[1.1fr_0.9fr]">
+        <article className={cardClass}>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+            Recruiter Workflow
+          </p>
+          <h2 className="mt-3 text-2xl font-semibold text-[var(--iseya-navy)]">
+            A private dashboard for verified hiring activity
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            Recruiters can manage job drafts, submit listings for review, monitor active
+            job visibility, and review applicants within an organization-scoped dashboard.
+            Verified recruiter workflows help candidates distinguish trusted native listings
+            from externally sourced opportunities.
+          </p>
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            Recruiter access is structured around active job capacity and listing duration,
+            while applicant management remains available within the recruiter workspace.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-4 text-sm font-semibold">
+            <Link href="/recruiters/pricing" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+              View Recruiter Plans
+            </Link>
+            <Link href="/demo/recruiter" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+              Explore Recruiter Demo
+            </Link>
+          </div>
+        </article>
+        <article className={cardClass}>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+            Recruiter FAQ
+          </p>
+          <h2 className="mt-3 text-xl font-semibold text-[var(--iseya-navy)]">
+            Common access questions
+          </h2>
+          <div className="mt-4 space-y-4 text-sm leading-7 text-slate-600">
+            <div>
+              <h3 className="font-semibold text-[var(--iseya-navy)]">How are recruiter listings reviewed?</h3>
+              <p>Company profiles and job submissions can be moderated before public publishing.</p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-[var(--iseya-navy)]">What does active job capacity mean?</h3>
+              <p>Published active listings count toward plan capacity; drafts do not use active slots.</p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-[var(--iseya-navy)]">Are applicant records public?</h3>
+              <p>No. Application review takes place within authorized recruiter workflows.</p>
+            </div>
+          </div>
+        </article>
+      </section>
     </main>
   );
 }

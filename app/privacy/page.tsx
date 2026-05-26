@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { publicPageMetadata } from "@/lib/seo";
 import { InfoPageShell, InfoSection } from "../info-page-shell";
 
@@ -44,6 +45,22 @@ export default function PrivacyPage() {
           You are responsible for reviewing generated content before using it.
           Remove anything you do not want included and verify that each claim is
           accurate before submitting career materials to an employer or recruiter.
+        </p>
+      </InfoSection>
+
+      <InfoSection title="Private workflow boundaries">
+        <p>
+          Candidate career materials are intended for private workspace use and
+          controlled application workflows. Institution-facing insight is designed
+          around aggregate readiness information rather than individual student
+          documents.
+        </p>
+        <p>
+          For questions about privacy or platform data handling,{" "}
+          <Link href="/contact" className="font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+            contact ISEYA
+          </Link>
+          . Review the <Link href="/terms" className="font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">Terms of Use</Link> for user responsibilities.
         </p>
       </InfoSection>
     </InfoPageShell>

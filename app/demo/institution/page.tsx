@@ -109,6 +109,29 @@ export default function InstitutionDemoPage() {
           </p>
         </article>
       </section>
+      <article className={demoCard}>
+        <p className={demoLabel}>Institution Demo Guide</p>
+        <h2 className="mt-1.5 text-lg font-semibold text-[var(--iseya-navy)]">
+          Aggregate employability insight with student privacy protected
+        </h2>
+        <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-600">
+          This sample dashboard demonstrates how an approved institution may view seat
+          utilization, career readiness activity, application outcomes, and recruiter
+          engagement at an aggregate level. It uses fictional data and does not disclose
+          individual student materials or applications.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-4 text-sm font-semibold">
+          <Link href="/institutions" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+            Institution Partnerships
+          </Link>
+          <Link href="/contact" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+            Contact ISEYA
+          </Link>
+          <Link href="/demo" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+            Demo Overview
+          </Link>
+        </div>
+      </article>
     </section>
   );
 }

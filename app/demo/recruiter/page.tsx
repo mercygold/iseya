@@ -161,6 +161,30 @@ export default function RecruiterDemoPage() {
         </article>
       </section>
 
+      <article className={demoCard}>
+        <p className={demoLabel}>Recruiter Demo Guide</p>
+        <h2 className="mt-1.5 text-lg font-semibold text-[var(--iseya-navy)]">
+          Review structured applicant activity in a private workflow
+        </h2>
+        <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-600">
+          This guided sample illustrates recruiter job visibility, applicant grouping,
+          review statuses, and private notes. It does not retrieve real applications or
+          create live job posts; access-controlled recruiter accounts manage real hiring
+          activity in the production workflow.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-4 text-sm font-semibold">
+          <Link href="/recruiters" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+            Recruiter Access
+          </Link>
+          <Link href="/recruiters/pricing" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+            Recruiter Plans
+          </Link>
+          <Link href="/demo" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+            Demo Overview
+          </Link>
+        </div>
+      </article>
+
       {applicantsJob ? (
         <DemoModal title={`${applicantsJob.title} applicants`} onClose={() => setApplicantsJob(null)}>
           <p className="text-sm leading-6 text-slate-600">

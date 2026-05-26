@@ -84,6 +84,31 @@ export default function DemoPage() {
           </div>
         </article>
       </section>
+      <section className="mx-auto max-w-[84rem] px-5 pb-10 sm:px-8">
+        <article className={demoCard}>
+          <p className={demoLabel}>How the demo works</p>
+          <h2 className="mt-2 text-xl font-semibold text-[var(--iseya-navy)]">
+            Explore workflows without creating platform records
+          </h2>
+          <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-600">
+            The candidate, recruiter, and institution demos present sample information
+            only. They illustrate private career asset preparation, structured applicant
+            review, and privacy-safe institution insight without using real applicants,
+            seats, job posts, or private documents.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-4 text-sm font-semibold">
+            <Link href="/demo/candidate" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+              Candidate Experience
+            </Link>
+            <Link href="/demo/recruiter" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+              Recruiter Experience
+            </Link>
+            <Link href="/demo/institution" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+              Institution Experience
+            </Link>
+          </div>
+        </article>
+      </section>
     </>
   );
 }

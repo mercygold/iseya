@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { publicPageMetadata } from "@/lib/seo";
 import { InfoPageShell, InfoSection } from "../info-page-shell";
@@ -11,24 +12,42 @@ export const metadata: Metadata = publicPageMetadata(
 export default function AboutPage() {
   return (
     <InfoPageShell title="About ISEYA" eyebrow="About">
-      <InfoSection title="Career positioning built for modern applicants">
+      <InfoSection title="Career infrastructure for today’s talent">
         <p>
-          ISEYA is a career positioning product by Jormp LLC. It helps users
-          create tailored resumes, cover letters, LinkedIn profiles, and career
-          application materials with a focus on clarity, accuracy, and
-          professional presentation.
+          ISEYA is a career infrastructure platform by Jormp LLC. It supports
+          candidates preparing private career assets, recruiters publishing and
+          reviewing structured opportunities, and institutions seeking aggregate
+          career readiness insight.
         </p>
         <p>
-          The product is designed for applicants who want to translate their
-          real experience into stronger, role-specific career documents without
-          adding false or unsupported claims.
+          Candidate workflows are designed around professional visibility,
+          truthful positioning, job discovery, and role-specific preparation
+          without creating public candidate profiles.
         </p>
       </InfoSection>
 
-      <InfoSection title="Company">
+      <InfoSection title="Readiness and opportunity systems">
+        <p>
+          ISEYA connects career development with opportunity discovery: candidates
+          can tailor career materials, recruiters can manage verified hiring
+          workflows, and institution partnerships can support student communities
+          through privacy-safe infrastructure.
+        </p>
+        <p>
+          Explore <Link href="/jobs" className="font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">job opportunities</Link>,{" "}
+          <Link href="/recruiters" className="font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">recruiter access</Link>, or{" "}
+          <Link href="/institutions" className="font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">institution partnerships</Link>.
+        </p>
+      </InfoSection>
+
+      <InfoSection title="Jormp LLC">
         <p>
           ISEYA is operated by Jormp LLC and is based in California, United
           States.
+        </p>
+        <p>
+          See the <Link href="/demo" className="font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">guided product demo</Link> or{" "}
+          <Link href="/contact" className="font-semibold text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">contact ISEYA</Link> for platform inquiries.
         </p>
       </InfoSection>
     </InfoPageShell>

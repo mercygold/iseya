@@ -7083,13 +7083,16 @@ export default function HomeExperience() {
               One platform.
               <br />Every career connection.
             </h2>
+            <p className="mt-4 text-xs leading-5 text-slate-600">
+              Private career preparation meets transparent opportunity discovery and trusted access.
+            </p>
           </div>
           {[
-            { title: "Career Workspace", copy: "Build, optimize, and manage career documents with guidance.", icon: FolderOpen, href: "/workspace", color: "bg-blue-50 text-blue-600" },
-            { title: "Opportunity Discovery", copy: "Find verified jobs, internships, and programs matched to your goals.", icon: Search, href: "/jobs", color: "bg-emerald-50 text-emerald-600" },
-            { title: "Recruiter Access", copy: "Verified recruiters can discover and connect with talent.", icon: UsersRound, href: "/recruiters", color: "bg-violet-50 text-violet-600" },
-            { title: "Institution Insights", copy: "Institutions receive privacy-safe readiness insights.", icon: Building2, href: "/institutions", color: "bg-orange-50 text-orange-600" },
-            { title: "Career Co-pilots", copy: "Smart recommendations to help career materials get noticed.", icon: Zap, href: "/workspace", color: "bg-amber-50 text-amber-600" },
+            { title: "Career Workspace", copy: "Build private career assets and tailor resumes for specific opportunities.", icon: FolderOpen, href: "/workspace", color: "bg-blue-50 text-blue-600" },
+            { title: "Opportunity Discovery", copy: "Explore source-transparent roles from recruiters, employers, and curated channels.", icon: Search, href: "/jobs", color: "bg-emerald-50 text-emerald-600" },
+            { title: "Recruiter Access", copy: "Verified recruiters post roles and review structured candidate interest.", icon: UsersRound, href: "/recruiters", color: "bg-violet-50 text-violet-600" },
+            { title: "Institution Insights", copy: "Institutions receive aggregate, privacy-safe career readiness insights.", icon: Building2, href: "/institutions", color: "bg-orange-50 text-orange-600" },
+            { title: "Career Co-pilots", copy: "Refine professional positioning and application materials with focused guidance.", icon: Zap, href: "/workspace", color: "bg-amber-50 text-amber-600" },
           ].map((feature) => (
             <article key={feature.title} className="border-slate-200/80 lg:border-l lg:px-6">
               <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${feature.color}`}>

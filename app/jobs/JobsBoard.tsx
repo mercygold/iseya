@@ -914,6 +914,57 @@ export default function JobsBoard() {
             )}
           </section>
         </div>
+
+        <section className="mt-10 grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+              Source transparency
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold text-[var(--iseya-navy)]">
+              Opportunity discovery with clear context
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-slate-600">
+              ISEYA distinguishes curated external opportunities, recruiter-posted roles,
+              verified recruiter listings, and direct employer jobs so candidates understand
+              where a position came from before applying.
+            </p>
+            <p className="mt-3 text-sm leading-7 text-slate-600">
+              From a published listing, candidates can tailor career assets for the role,
+              preserve a private application workflow, or continue to an external employer
+              application page when appropriate.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-4 text-sm font-semibold">
+              <Link href="/workspace" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+                Tailor Career Assets
+              </Link>
+              <Link href="/pricing" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+                View Candidate Plans
+              </Link>
+            </div>
+          </article>
+          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+              Job Discovery FAQ
+            </p>
+            <h2 className="mt-3 text-xl font-semibold text-[var(--iseya-navy)]">
+              Applying through ISEYA
+            </h2>
+            <div className="mt-4 space-y-4 text-sm leading-7 text-slate-600">
+              <div>
+                <h3 className="font-semibold text-[var(--iseya-navy)]">What is a curated opportunity?</h3>
+                <p>It is an external role sourced for discovery and reviewed before publication on ISEYA.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-[var(--iseya-navy)]">When is Easy Apply available?</h3>
+                <p>Native ISEYA opportunities may accept interest directly; external roles link to the hiring source.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-[var(--iseya-navy)]">Can I prepare before applying?</h3>
+                <p>Yes. Tailor Resume connects a listing to your private career workspace.</p>
+              </div>
+            </div>
+          </article>
+        </section>
       </section>
       {interestJob ? (
         <InterestModal

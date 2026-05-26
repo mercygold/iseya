@@ -92,6 +92,50 @@ export default function InstitutionsPage() {
           </article>
         ))}
       </section>
+      <section className="mx-auto grid max-w-[92rem] gap-5 px-5 pb-10 sm:px-8 lg:grid-cols-[1.1fr_0.9fr]">
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Institution Partnership</p>
+          <h2 className="mt-3 text-2xl font-semibold text-[var(--iseya-navy)]">
+            Career infrastructure for student communities
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            ISEYA supports universities, colleges, bootcamps, workforce development
+            programs, and career centers seeking a structured pathway for student and
+            participant career readiness.
+          </p>
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            Approved institutions can support access through eligible email domains and
+            view aggregate employability insight without accessing private candidate
+            resumes, documents, or individual application details.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-4 text-sm font-semibold">
+            <Link href="/demo/institution" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+              View Institution Demo
+            </Link>
+            <Link href="/contact" className="text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4">
+              Contact ISEYA
+            </Link>
+          </div>
+        </article>
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">Institution FAQ</p>
+          <h2 className="mt-3 text-xl font-semibold text-[var(--iseya-navy)]">Partnership questions</h2>
+          <div className="mt-4 space-y-4 text-sm leading-7 text-slate-600">
+            <div>
+              <h3 className="font-semibold text-[var(--iseya-navy)]">Is institution access self-serve?</h3>
+              <p>No. Partnership requests are reviewed and access packages are assigned directly.</p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-[var(--iseya-navy)]">What insights are available?</h3>
+              <p>Institution reporting is designed for aggregate readiness and engagement insight.</p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-[var(--iseya-navy)]">Are student materials visible to institutions?</h3>
+              <p>No. Private career assets remain protected from institution-level reporting views.</p>
+            </div>
+          </div>
+        </article>
+      </section>
     </main>
   );
 }
