@@ -5,7 +5,18 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
+import {
+  detectUserCurrency,
+  formatCurrencyDisplay,
+  getRegionalPricing,
+  isSupportedCurrency,
+  supportedCurrencies,
+  type PaidSubscriptionPlanId,
+  type SupportedCurrency,
+} from "@/lib/pricing/regions";
 import { pricingPlans, type SubscriptionPlanId } from "@/lib/subscription";
+
+const pricingCurrencyStorageKey = "iseya.checkout.currency";
 
 export default function PricingPage() {
   return (
@@ -33,14 +44,14 @@ function PricingContent() {
   const { user, loading: authLoading } = useAuth();
   const [checkoutPlan, setCheckoutPlan] = useState("");
   const [checkoutStatus, setCheckoutStatus] = useState("");
+  const [upgradePlan, setUpgradePlan] = useState<PaidSubscriptionPlanId | null>(null);
+  const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>("USD");
   const attemptedCheckoutRef = useRef("");
 
-  const startCheckout = useCallback(async (planId: SubscriptionPlanId) => {
-    if (planId === "free") {
-      router.push(user ? "/workspace" : "/signup");
-      return;
-    }
-
+  const startCheckout = useCallback(async (
+    planId: PaidSubscriptionPlanId,
+    currency: SupportedCurrency,
+  ) => {
     setCheckoutPlan(planId);
     setCheckoutStatus("");
 
@@ -48,7 +59,7 @@ function PricingContent() {
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: planId }),
+        body: JSON.stringify({ plan: planId, currency }),
       });
 
       if (response.status === 401) {
@@ -68,7 +79,21 @@ function PricingContent() {
     } finally {
       setCheckoutPlan("");
     }
-  }, [router, user]);
+  }, [router]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const storedCurrency = window.localStorage.getItem(pricingCurrencyStorageKey);
+      const currency = isSupportedCurrency(storedCurrency)
+        ? storedCurrency
+        : detectUserCurrency(window.navigator.language);
+
+      window.localStorage.setItem(pricingCurrencyStorageKey, currency);
+      setSelectedCurrency(currency);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const requestedPlan = searchParams.get("checkout");
@@ -83,9 +108,28 @@ function PricingContent() {
       return;
     }
 
-    attemptedCheckoutRef.current = requestedPlan;
-    void startCheckout(requestedPlan as SubscriptionPlanId);
-  }, [authLoading, searchParams, startCheckout, user]);
+    const timer = window.setTimeout(() => {
+      attemptedCheckoutRef.current = requestedPlan;
+      setUpgradePlan(requestedPlan as PaidSubscriptionPlanId);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [authLoading, searchParams, user]);
+
+  function choosePlan(planId: SubscriptionPlanId) {
+    setCheckoutStatus("");
+    if (planId === "free" || planId === "starter") {
+      router.push(user ? "/workspace" : "/signup");
+      return;
+    }
+
+    setUpgradePlan(planId);
+  }
+
+  function chooseCurrency(currency: SupportedCurrency) {
+    setSelectedCurrency(currency);
+    window.localStorage.setItem(pricingCurrencyStorageKey, currency);
+  }
 
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
@@ -184,7 +228,7 @@ function PricingContent() {
                 <button
                   type="button"
                   disabled={Boolean(checkoutPlan)}
-                  onClick={() => startCheckout(plan.id)}
+                  onClick={() => choosePlan(plan.id)}
                   className={`mt-8 min-h-11 w-full rounded-md border px-4 py-2 text-sm font-bold transition hover:shadow-md disabled:cursor-not-allowed disabled:hover:shadow-none ${
                     plan.id === "free"
                       ? "border-[var(--iseya-navy)] bg-white text-[var(--iseya-navy)] hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6]"
@@ -213,12 +257,126 @@ function PricingContent() {
           ) : null}
 
           <p className="mt-8 max-w-3xl text-sm leading-7 text-slate-600">
-            Secure checkout powered by Stripe.
+            Secure checkout powered by Stripe. Prices may vary by region during checkout.
           </p>
         </div>
       </section>
+      {upgradePlan ? (
+        <RegionalCheckoutDialog
+          planId={upgradePlan}
+          currency={selectedCurrency}
+          processing={checkoutPlan === upgradePlan}
+          status={checkoutStatus}
+          onCurrencyChange={chooseCurrency}
+          onClose={() => {
+            if (!checkoutPlan) {
+              setUpgradePlan(null);
+              setCheckoutStatus("");
+            }
+          }}
+          onCheckout={() => void startCheckout(upgradePlan, selectedCurrency)}
+        />
+      ) : null}
       <PricingFooter />
     </main>
+  );
+}
+
+function RegionalCheckoutDialog({
+  planId,
+  currency,
+  processing,
+  status,
+  onCurrencyChange,
+  onClose,
+  onCheckout,
+}: {
+  planId: PaidSubscriptionPlanId;
+  currency: SupportedCurrency;
+  processing: boolean;
+  status: string;
+  onCurrencyChange: (currency: SupportedCurrency) => void;
+  onClose: () => void;
+  onCheckout: () => void;
+}) {
+  const plan = pricingPlans.find((candidatePlan) => candidatePlan.id === planId);
+  const regionalPlan = getRegionalPricing(currency);
+  const price = regionalPlan.plans[planId];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--iseya-navy)]/45 px-5 py-8">
+      <section
+        aria-label="Choose checkout currency"
+        aria-modal="true"
+        role="dialog"
+        className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-7"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+              Secure Upgrade
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
+              {plan?.name ?? "ISEYA plan"}
+            </h2>
+          </div>
+          <button
+            type="button"
+            disabled={processing}
+            onClick={onClose}
+            aria-label="Close checkout options"
+            className="rounded-md px-2 py-1 text-lg text-slate-500 transition hover:bg-slate-100 hover:text-[var(--iseya-navy)] disabled:opacity-50"
+          >
+            x
+          </button>
+        </div>
+
+        <label className="mt-6 block text-sm font-semibold text-[var(--iseya-navy)]">
+          Checkout currency
+          <select
+            value={currency}
+            onChange={(event) => onCurrencyChange(event.target.value as SupportedCurrency)}
+            className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/20"
+          >
+            {supportedCurrencies.map((option) => (
+              <option key={option} value={option}>
+                {option} - {getRegionalPricing(option).regionLabel}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="mt-5 rounded-xl border border-[var(--iseya-gold)]/35 bg-[#FFF8E6] p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+            Selected checkout total
+          </p>
+          <p className="mt-2 text-3xl font-bold text-[var(--iseya-navy)]">
+            {formatCurrencyDisplay(price, currency)}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Access and plan features are identical in every supported region.
+          </p>
+        </div>
+
+        {status ? (
+          <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-[var(--iseya-navy)]">
+            {status}
+          </p>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={onCheckout}
+          disabled={processing}
+          className="mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-md border border-[var(--iseya-navy)] bg-[var(--iseya-navy)] px-4 py-2 text-sm font-bold text-white transition hover:border-[var(--iseya-gold)] hover:bg-[var(--iseya-gold)] hover:text-[var(--iseya-navy)] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {processing ? "Redirecting to Checkout..." : "Continue to Secure Checkout"}
+        </button>
+        <p className="mt-4 text-center text-xs leading-5 text-slate-500">
+          Regional pricing is applied at checkout using your selected currency.
+        </p>
+      </section>
+    </div>
   );
 }
 

@@ -31,11 +31,22 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 STRIPE_PLUS_PRICE_ID=
 STRIPE_PRO_MONTHLY_PRICE_ID=
 STRIPE_PRO_ANNUAL_PRICE_ID=
+STRIPE_PLUS_PRICE_ID_NGN=
+STRIPE_PRO_MONTHLY_PRICE_ID_NGN=
+STRIPE_PRO_ANNUAL_PRICE_ID_NGN=
+STRIPE_PLUS_PRICE_ID_GBP=
+STRIPE_PRO_MONTHLY_PRICE_ID_GBP=
+STRIPE_PRO_ANNUAL_PRICE_ID_GBP=
+STRIPE_PLUS_PRICE_ID_CAD=
+STRIPE_PRO_MONTHLY_PRICE_ID_CAD=
+STRIPE_PRO_ANNUAL_PRICE_ID_CAD=
 ```
 
 `OPENAI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, and `STRIPE_WEBHOOK_SECRET` are server-only. Do not create `NEXT_PUBLIC_OPENAI_API_KEY`, and do not commit real keys.
 
 For production, set `NEXT_PUBLIC_APP_URL` to `https://iseya.jormp.com`. For local Stripe checkout testing, keep it as `http://localhost:3000` or the local port you are using.
+
+Candidate plan cards remain displayed in USD publicly. The paid upgrade dialog can select controlled USD, NGN, GBP, or CAD pricing; each regional Stripe price ID must be configured before that currency can complete checkout. All regions receive the same entitlements for the selected plan.
 
 Run the app:
 
@@ -147,6 +158,15 @@ The `/pricing` page shows the plan structure. Subscription profile fields are st
    - `STRIPE_PLUS_PRICE_ID`
    - `STRIPE_PRO_MONTHLY_PRICE_ID`
    - `STRIPE_PRO_ANNUAL_PRICE_ID`
+   - `STRIPE_PLUS_PRICE_ID_NGN`
+   - `STRIPE_PRO_MONTHLY_PRICE_ID_NGN`
+   - `STRIPE_PRO_ANNUAL_PRICE_ID_NGN`
+   - `STRIPE_PLUS_PRICE_ID_GBP`
+   - `STRIPE_PRO_MONTHLY_PRICE_ID_GBP`
+   - `STRIPE_PRO_ANNUAL_PRICE_ID_GBP`
+   - `STRIPE_PLUS_PRICE_ID_CAD`
+   - `STRIPE_PRO_MONTHLY_PRICE_ID_CAD`
+   - `STRIPE_PRO_ANNUAL_PRICE_ID_CAD`
 4. Deploy.
 5. Confirm `/login`, `/signup`, `/workspace`, `/api/tailor`, and `/api/extract` work in production.
 

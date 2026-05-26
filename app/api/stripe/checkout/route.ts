@@ -1,28 +1,17 @@
 import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { cleanSupabaseEnvValue } from "@/lib/supabaseConfig";
+import {
+  defaultCurrency,
+  getRegionalPricing,
+  isSupportedCurrency,
+  type PaidSubscriptionPlanId as CheckoutPlan,
+} from "@/lib/pricing/regions";
 
-type CheckoutPlan = "plus" | "pro_monthly" | "pro_annual";
-
-const checkoutPlans: Record<
-  CheckoutPlan,
-  { mode: "payment" | "subscription"; priceEnv: string; label: string }
-> = {
-  plus: {
-    mode: "payment",
-    priceEnv: "STRIPE_PLUS_PRICE_ID",
-    label: "Plus",
-  },
-  pro_monthly: {
-    mode: "subscription",
-    priceEnv: "STRIPE_PRO_MONTHLY_PRICE_ID",
-    label: "Pro Monthly",
-  },
-  pro_annual: {
-    mode: "subscription",
-    priceEnv: "STRIPE_PRO_ANNUAL_PRICE_ID",
-    label: "Pro Annual",
-  },
+const checkoutModes: Record<CheckoutPlan, "payment" | "subscription"> = {
+  plus: "payment",
+  pro_monthly: "subscription",
+  pro_annual: "subscription",
 };
 
 function isCheckoutPlan(value: unknown): value is CheckoutPlan {
@@ -121,7 +110,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "Login is required before checkout." }, { status: 401 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as { plan?: unknown };
+  const body = (await request.json().catch(() => ({}))) as {
+    plan?: unknown;
+    currency?: unknown;
+  };
 
   if (!isCheckoutPlan(body.plan)) {
     logCheckoutDiagnostic("Invalid checkout plan requested.");
@@ -129,8 +121,10 @@ export async function POST(request: Request) {
   }
 
   const stripeSecretKey = cleanSupabaseEnvValue(process.env.STRIPE_SECRET_KEY);
-  const plan = checkoutPlans[body.plan];
-  const priceId = cleanSupabaseEnvValue(process.env[plan.priceEnv]);
+  const currency = isSupportedCurrency(body.currency) ? body.currency : defaultCurrency;
+  const plan = getRegionalPricing(currency).plans[body.plan];
+  const mode = checkoutModes[body.plan];
+  const priceId = cleanSupabaseEnvValue(process.env[plan.stripePriceEnv]);
 
   if (!stripeSecretKey) {
     logCheckoutDiagnostic("Missing Stripe secret key.");
@@ -140,7 +134,8 @@ export async function POST(request: Request) {
   if (!priceId) {
     logCheckoutDiagnostic("Missing Stripe price ID.", {
       plan: body.plan,
-      priceEnv: plan.priceEnv,
+      currency,
+      priceEnv: plan.stripePriceEnv,
     });
     return checkoutError();
   }
@@ -156,6 +151,7 @@ export async function POST(request: Request) {
     user_id: user.id,
     user_email: user.email ?? "",
     plan: body.plan,
+    currency,
   };
 
   try {
@@ -164,7 +160,7 @@ export async function POST(request: Request) {
     }
 
     const session = await stripe.checkout.sessions.create({
-      mode: plan.mode,
+      mode,
       line_items: [
         {
           price: priceId,
@@ -176,7 +172,7 @@ export async function POST(request: Request) {
       customer_email: user.email ?? undefined,
       client_reference_id: user.id,
       metadata,
-      ...(plan.mode === "subscription"
+      ...(mode === "subscription"
         ? {
             subscription_data: {
               metadata,
@@ -193,6 +189,7 @@ export async function POST(request: Request) {
     if (!session.url) {
       logCheckoutDiagnostic("Stripe checkout session did not return a URL.", {
         plan: body.plan,
+        currency,
       });
       return checkoutError(502);
     }
@@ -201,6 +198,7 @@ export async function POST(request: Request) {
   } catch (error) {
     logCheckoutDiagnostic("Stripe checkout creation failed.", {
       plan: body.plan,
+      currency,
       error: error instanceof Error ? error.message : "Unknown error",
     });
     return checkoutError(502);

@@ -1,9 +1,10 @@
 import Stripe from "stripe";
+import { regionalPricing, supportedCurrencies, type PaidSubscriptionPlanId } from "@/lib/pricing/regions";
 import { cleanSupabaseEnvValue } from "@/lib/supabaseConfig";
 import { createSupabaseServiceRoleClient } from "@/lib/supabaseServer";
 import { planDownloadLimit, planOptimizationLimit } from "@/lib/subscription";
 
-type PaidPlan = "plus" | "pro_monthly" | "pro_annual";
+type PaidPlan = PaidSubscriptionPlanId;
 
 type ProfileEntitlements = {
   id: string;
@@ -38,13 +39,11 @@ function logWebhookError(
 }
 
 function priceIdForPlan(plan: PaidPlan) {
-  const envByPlan: Record<PaidPlan, string> = {
-    plus: "STRIPE_PLUS_PRICE_ID",
-    pro_monthly: "STRIPE_PRO_MONTHLY_PRICE_ID",
-    pro_annual: "STRIPE_PRO_ANNUAL_PRICE_ID",
-  };
-
-  return cleanSupabaseEnvValue(process.env[envByPlan[plan]]);
+  return supportedCurrencies
+    .map((currency) =>
+      cleanSupabaseEnvValue(process.env[regionalPricing[currency].plans[plan].stripePriceEnv]),
+    )
+    .filter((priceId): priceId is string => Boolean(priceId));
 }
 
 function planFromPriceId(priceId: string | null | undefined): PaidPlan | null {
@@ -52,15 +51,15 @@ function planFromPriceId(priceId: string | null | undefined): PaidPlan | null {
     return null;
   }
 
-  if (priceId === priceIdForPlan("plus")) {
+  if (priceIdForPlan("plus").includes(priceId)) {
     return "plus";
   }
 
-  if (priceId === priceIdForPlan("pro_monthly")) {
+  if (priceIdForPlan("pro_monthly").includes(priceId)) {
     return "pro_monthly";
   }
 
-  if (priceId === priceIdForPlan("pro_annual")) {
+  if (priceIdForPlan("pro_annual").includes(priceId)) {
     return "pro_annual";
   }
 
