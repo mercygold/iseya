@@ -48,14 +48,17 @@ const flow = [
 export default function DemoPage() {
   return (
     <>
-      <section className="mx-auto max-w-[84rem] px-5 py-8 sm:px-8 sm:py-10">
+      <section className="mx-auto max-w-[84rem] px-5 py-7 sm:px-8 sm:py-9">
         <div className="max-w-4xl">
           <p className={demoLabel}>ISEYA Demo</p>
           <h1 className="mt-3 text-3xl font-semibold leading-tight text-[var(--iseya-navy)] sm:text-5xl">
-            Explore how ISEYA connects students, institutions, and recruiters through career readiness infrastructure.
+            Explore the ISEYA career infrastructure experience.
           </h1>
-          <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
-            This guided experience uses fictional, local-only sample information to demonstrate platform workflows without creating accounts, records, applications, or analytics activity.
+          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
+            See how candidates, recruiters, and institutions connect through structured, privacy-safe workflows.
+          </p>
+          <p className="mt-3 text-sm font-medium text-slate-500">
+            Guided demo &middot; Sample information only &middot; No account required
           </p>
         </div>
         <div className="mt-8 grid gap-4 lg:grid-cols-3">

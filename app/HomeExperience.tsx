@@ -6970,7 +6970,7 @@ export default function HomeExperience() {
 
       {isPublicLanding ? (
         <>
-      <section className="mx-auto max-w-[92rem] px-5 py-10 sm:px-8 sm:py-12 lg:py-14">
+      <section className="mx-auto max-w-[92rem] px-5 py-9 sm:px-8 sm:py-11 lg:py-13">
           <div className="grid w-full gap-10 lg:grid-cols-[minmax(480px,1fr)_minmax(330px,0.62fr)] lg:items-center lg:gap-20">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
@@ -6980,7 +6980,7 @@ export default function HomeExperience() {
                 Career infrastructure for today&apos;s talent.
               </h1>
               <p className="mt-5 max-w-xl text-sm leading-7 text-slate-600 sm:text-base">
-                ISEYA connects private career development, opportunity discovery, recruiter access, and institution-level readiness insight in one employability platform.
+                Build private career assets, discover trusted opportunities, and connect to recruiter and institution-ready workflows.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
@@ -7055,9 +7055,9 @@ export default function HomeExperience() {
               </Link>
               <div className="mt-8 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
                 {[
-                  { label: "Privacy-first by design", icon: ShieldCheck },
+                  { label: "Privacy-first workspace", icon: ShieldCheck },
                   { label: "Protected candidate workspaces", icon: LockKeyhole },
-                  { label: "Verified recruiter ecosystem", icon: UsersRound },
+                  { label: "Verified hiring pathways", icon: UsersRound },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-3 border-r border-slate-200 pr-3 font-medium leading-5 last:border-r-0">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-[var(--iseya-navy)] shadow-sm">
@@ -7077,16 +7077,16 @@ export default function HomeExperience() {
                   iconClass: "bg-blue-50 text-blue-600",
                 },
                 {
-                  title: "Private candidate workspaces and protected data",
-                  copy: "Built for trust. Designed for you.",
+                  title: "Protected candidate data",
+                  copy: "Private by default. Controlled by you.",
                   icon: UsersRound,
                   iconClass: "bg-emerald-50 text-emerald-600",
                 },
                 {
-                  title: "Verified opportunities and institution-safe insight",
-                  copy: "Real opportunities. Real outcomes.",
+                  title: "Trusted opportunities and safe insight",
+                  copy: "Clear sourcing. Aggregate-only reporting.",
                   icon: Building2,
-                  iconClass: "bg-violet-50 text-violet-600",
+                  iconClass: "bg-amber-50 text-amber-700",
                 },
               ].map((item) => (
                 <div
@@ -7122,7 +7122,7 @@ export default function HomeExperience() {
           {[
             { title: "Career Workspace", copy: "Build private career assets and tailor resumes for specific opportunities.", icon: FolderOpen, href: "/workspace", linkLabel: "Explore career workspace", color: "bg-blue-50 text-blue-600" },
             { title: "Opportunity Discovery", copy: "Explore source-transparent roles from recruiters, employers, and curated channels.", icon: Search, href: "/jobs", linkLabel: "Browse opportunities", color: "bg-emerald-50 text-emerald-600" },
-            { title: "Recruiter Access", copy: "Verified recruiters post roles and review structured candidate interest.", icon: UsersRound, href: "/recruiters", linkLabel: "Explore recruiter workflow", color: "bg-violet-50 text-violet-600" },
+            { title: "Recruiter Access", copy: "Verified recruiters post roles and review structured candidate interest.", icon: UsersRound, href: "/recruiters", linkLabel: "Explore recruiter workflow", color: "bg-blue-50 text-blue-700" },
             { title: "Institution Insights", copy: "Institutions receive aggregate, privacy-safe career readiness insights.", icon: Building2, href: "/institutions", linkLabel: "View institution experience", color: "bg-orange-50 text-orange-600" },
             { title: "Career Co-pilots", copy: "Refine professional positioning and application materials with focused guidance.", icon: Zap, href: "/workspace", linkLabel: "Build career assets", color: "bg-amber-50 text-amber-600" },
           ].map((feature) => (
@@ -8938,10 +8938,10 @@ function IseyaFooter() {
               Beyond Resume. Positioning.
             </p>
             <p className="mt-4 max-w-xs text-sm leading-6 text-white/75">
-              ISEYA is the private career infrastructure built for today&apos;s talent and tomorrow&apos;s opportunities.
+              Private career infrastructure for today&apos;s talent, trusted hiring, and institution readiness.
             </p>
             <p className="mt-3 max-w-xs text-xs leading-5 text-white/68">
-              Privacy-first employability infrastructure with structured, human-accountable career workflows.
+              Protected workspaces and structured, human-accountable workflows.
             </p>
             <p className="mt-3 text-xs font-medium text-white/60">California, USA</p>
           </div>

@@ -20,7 +20,7 @@ export default function InsightsPage() {
           { name: "Insights", path: "/insights" },
         ])}
       />
-      <section className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+      <section className="mx-auto max-w-6xl px-5 py-9 sm:px-8 sm:py-12">
         <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Insights" }]} />
         <p className="mt-8 text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
           ISEYA Insights
@@ -28,10 +28,8 @@ export default function InsightsPage() {
         <h1 className="mt-3 max-w-4xl text-4xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-5xl">
           Career readiness insight built for trusted opportunity systems.
         </h1>
-        <p className="mt-5 max-w-3xl text-base leading-8 text-slate-600">
-          Practical guidance for candidates, recruiters, and institutions navigating
-          career assets, hiring workflows, student employability, and privacy-first
-          professional preparation.
+        <p className="mt-5 max-w-3xl text-base leading-7 text-slate-600">
+          Practical guidance on career assets, hiring workflows, student employability, and privacy-first professional preparation.
         </p>
       </section>
 

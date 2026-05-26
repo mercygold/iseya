@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 type NotificationItem = {
   id: string;
+  type?: string;
   title: string;
   message: string;
   read: boolean;
@@ -24,20 +25,36 @@ function formatDate(value: string) {
   });
 }
 
+function notificationCategory(item: NotificationItem) {
+  if (item.type === "job_alert_match") return "Opportunity Alert";
+  if (item.type?.includes("application") || /application|interest/i.test(item.title)) {
+    return "Application Update";
+  }
+  if (item.type?.includes("recruiter") || /recruiter/i.test(item.title)) {
+    return "Recruiter Update";
+  }
+  return "Update";
+}
+
 export default function NotificationPanel({
   title = "Notifications",
   subtitle = "Important updates from your ISEYA activity.",
   scope,
+  compact = false,
+  initialVisibleCount = 3,
 }: {
   title?: string;
   subtitle?: string;
   scope?: "recruiter";
+  compact?: boolean;
+  initialVisibleCount?: number;
 }) {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [status, setStatus] = useState("");
   const [updatingId, setUpdatingId] = useState("");
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -90,8 +107,11 @@ export default function NotificationPanel({
     }
   }
 
+  const visibleItems =
+    compact && !expanded ? items.slice(0, initialVisibleCount) : items;
+
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${compact ? "p-4 sm:p-5" : "p-5"}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
@@ -114,31 +134,36 @@ export default function NotificationPanel({
       ) : null}
 
       {loading ? (
-        <div className="mt-5 space-y-3" aria-label="Loading notifications">
+        <div className={`${compact ? "mt-4" : "mt-5"} space-y-3`} aria-label="Loading notifications">
           {[1, 2].map((item) => (
-            <div key={item} className="rounded-xl border border-slate-100 p-4">
+            <div key={item} className={`rounded-xl border border-slate-100 ${compact ? "p-3" : "p-4"}`}>
               <div className="h-3 w-40 animate-pulse rounded bg-slate-100" />
               <div className="mt-3 h-3 w-4/5 animate-pulse rounded bg-slate-100" />
             </div>
           ))}
         </div>
       ) : items.length === 0 ? (
-        <p className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-500">
+        <p className={`${compact ? "mt-4 p-3" : "mt-5 p-4"} rounded-xl border border-dashed border-slate-200 bg-slate-50 text-sm leading-6 text-slate-500`}>
           No notifications yet. Updates will appear here when application or moderation activity changes.
         </p>
       ) : (
-        <div className="mt-5 space-y-3">
-          {items.map((item) => (
+        <div className={`${compact ? "mt-4" : "mt-5"} space-y-2.5`}>
+          {visibleItems.map((item) => (
             <article
               key={item.id}
-              className={`rounded-xl border p-4 ${
+              className={`rounded-xl border ${compact ? "p-3.5" : "p-4"} ${
                 item.read ? "border-slate-200 bg-white" : "border-[#F4B321]/40 bg-[#FFF8E6]"
               }`}
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
+                  {compact ? (
+                    <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                      {notificationCategory(item)}
+                    </p>
+                  ) : null}
                   <p className="text-sm font-semibold text-[var(--iseya-navy)]">{item.title}</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">{item.message}</p>
+                  <p className={`mt-1 text-sm text-slate-600 ${compact ? "leading-5" : "leading-6"}`}>{item.message}</p>
                   <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                     {formatDate(item.created_at)}
                   </p>
@@ -156,6 +181,16 @@ export default function NotificationPanel({
               </div>
             </article>
           ))}
+          {compact && items.length > initialVisibleCount ? (
+            <button
+              type="button"
+              onClick={() => setExpanded((current) => !current)}
+              aria-expanded={expanded}
+              className="mt-2 inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2"
+            >
+              {expanded ? "Show fewer updates" : "View all updates"}
+            </button>
+          ) : null}
         </div>
       )}
     </section>

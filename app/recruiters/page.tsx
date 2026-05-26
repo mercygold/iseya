@@ -39,9 +39,9 @@ export default function RecruitersPage() {
         ])}
       />
       <section className="iseya-header text-white">
-        <div className="mx-auto flex max-w-[92rem] flex-col gap-8 px-5 py-8 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mx-auto flex max-w-[92rem] flex-col gap-7 px-5 py-7 sm:px-8 sm:py-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-3xl">
-            <Link href="/" className="inline-flex items-center">
+            <Link href="/" aria-label="ISEYA homepage" className="inline-flex items-center">
               <Image
                 src="/brand/iseya-logo2.png"
                 alt="ISEYA"
@@ -57,24 +57,19 @@ export default function RecruitersPage() {
             <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
               Post jobs and discover career-ready talent.
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-8 text-white/82">
-              ISEYA helps recruiters connect with candidates who have structured
-              career profiles, optimized career assets, and clearer role-fit signals.
-            </p>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/72">
-              Company verification and moderated publishing support a protected
-              opportunity ecosystem for candidates and hiring teams.
+            <p className="mt-5 max-w-2xl text-base leading-7 text-white/82">
+              Publish trusted opportunities and review structured candidate interest in a protected recruiter workspace.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <TrackedLink href="/recruiters/signup" eventName="request_access_clicked" eventParameters={{ audience: "recruiter", source: "recruiters_hero" }} className={`${primaryButton} w-full sm:w-auto`}>
-                Create Recruiter Account
+                Request Recruiter Access
               </TrackedLink>
               <TrackedLink href="/recruiters/dashboard" eventName="recruiter_cta_clicked" eventParameters={{ cta: "post_a_job", source: "recruiters_hero" }} className={`${secondaryButton} w-full sm:w-auto`}>
-                Access Recruiter Dashboard
+                Open Recruiter Dashboard
               </TrackedLink>
             </div>
-            <p className="mt-4 text-xs leading-6 text-white/68">
-              Protected recruiter workspace. Company verification supports trusted public listings.
+            <p className="mt-4 text-xs font-medium leading-6 text-white/72">
+              Verified listing pathways &middot; Private applicant review &middot; Structured hiring workflows
             </p>
           </div>
           <nav aria-label="Public navigation" className="flex flex-wrap gap-4 text-sm font-semibold text-white/80 lg:justify-end">

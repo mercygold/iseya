@@ -127,8 +127,8 @@ function PricingContent({ requestedPlan }: { requestedPlan?: string }) {
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <header className="iseya-header text-white">
-        <div className="mx-auto flex max-w-[82rem] flex-col gap-5 px-5 py-8 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
-          <Link href="/" className="inline-flex w-fit items-center">
+        <div className="mx-auto flex max-w-[82rem] flex-col gap-5 px-5 py-7 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
+          <Link href="/" aria-label="ISEYA homepage" className="inline-flex w-fit items-center">
             <Image
               src="/brand/iseya-logo2.png"
               alt="ISEYA"
@@ -164,7 +164,7 @@ function PricingContent({ requestedPlan }: { requestedPlan?: string }) {
         </div>
       </header>
 
-      <section className="px-5 py-10 sm:px-8 sm:py-14">
+      <section className="px-5 py-9 sm:px-8 sm:py-12">
         <div className="mx-auto max-w-[82rem]">
           <div className="max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
@@ -173,18 +173,19 @@ function PricingContent({ requestedPlan }: { requestedPlan?: string }) {
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-5xl">
               Pricing
             </h1>
-            <p className="mt-4 text-base leading-8 text-slate-600">
-              Choose candidate workspace access for building career materials and
-              pursuing opportunities. Institution partnerships are reviewed and
-              assigned separately through the institution access process.
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
+              Choose private candidate workspace access for building career assets and pursuing opportunities.
+            </p>
+            <p className="mt-3 text-sm font-medium text-slate-500">
+              Free starter access &middot; Secure checkout &middot; Same features across supported regions
             </p>
           </div>
 
-          <div className="mt-10 grid items-stretch gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-8 grid items-stretch gap-5 md:grid-cols-2 xl:grid-cols-4">
             {pricingPlans.map((plan) => (
               <section
                 key={plan.id}
-                className={`relative flex min-h-[620px] flex-col rounded-2xl border p-7 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${
+                className={`relative flex flex-col rounded-2xl border p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:p-7 md:min-h-[620px] ${
                   plan.badge
                     ? "border-[var(--iseya-gold)] bg-[#FFF8E6]"
                     : "border-[var(--iseya-border)] bg-white"
@@ -244,7 +245,7 @@ function PricingContent({ requestedPlan }: { requestedPlan?: string }) {
           </div>
 
           {checkoutStatus ? (
-            <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">
+            <p role="status" aria-live="polite" className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-[var(--iseya-navy)]">
               {checkoutStatus}
             </p>
           ) : null}

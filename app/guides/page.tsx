@@ -20,7 +20,7 @@ export default function GuidesPage() {
           { name: "Guides", path: "/guides" },
         ])}
       />
-      <section className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+      <section className="mx-auto max-w-6xl px-5 py-9 sm:px-8 sm:py-12">
         <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Guides" }]} />
         <p className="mt-8 text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
           Career Infrastructure Guides
@@ -28,10 +28,8 @@ export default function GuidesPage() {
         <h1 className="mt-3 max-w-4xl text-4xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-5xl">
           Practical pathways for career readiness and trusted hiring.
         </h1>
-        <p className="mt-5 max-w-3xl text-base leading-8 text-slate-600">
-          Focused guidance for candidates, recruiters, and institutions seeking
-          readable career assets, accountable opportunity workflows, and
-          privacy-safe employability systems.
+        <p className="mt-5 max-w-3xl text-base leading-7 text-slate-600">
+          Focused guidance for readable career assets, accountable opportunity workflows, and privacy-safe employability systems.
         </p>
       </section>
       <section className="mx-auto grid max-w-6xl gap-4 px-5 pb-12 sm:px-8 md:grid-cols-2">

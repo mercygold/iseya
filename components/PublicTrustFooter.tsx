@@ -2,11 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 
 const trustPrinciples = [
-  "Privacy-first employability infrastructure",
-  "Structured, recruiter-readable workflows",
-  "Institution-ready career infrastructure",
-  "Built for modern candidate visibility",
-  "AI-assisted, human-accountable systems",
+  "Protected candidate workspaces",
+  "Verified recruiter pathways",
+  "Privacy-safe institution insight",
 ];
 
 export default function PublicTrustFooter({
@@ -33,7 +31,7 @@ export default function PublicTrustFooter({
               />
             </Link>
             <p className="mt-3 max-w-md text-sm leading-6 text-white/76">
-              Privacy-first employability infrastructure for candidates, recruiters, and institutions.
+              Secure career infrastructure for candidates, recruiters, and institutions.
             </p>
             <p className="mt-2 text-xs font-medium text-white/60">California, USA</p>
           </div>

@@ -38,9 +38,9 @@ export default function InstitutionsPage() {
         ])}
       />
       <section className="iseya-header text-white">
-        <div className="mx-auto flex max-w-[92rem] flex-col gap-8 px-5 py-8 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mx-auto flex max-w-[92rem] flex-col gap-7 px-5 py-7 sm:px-8 sm:py-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-3xl">
-            <Link href="/" className="inline-flex items-center">
+            <Link href="/" aria-label="ISEYA homepage" className="inline-flex items-center">
               <Image src="/brand/iseya-logo2.png" alt="ISEYA" width={260} height={130} priority className="h-auto w-[170px] object-contain sm:w-[240px]" />
             </Link>
             <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
@@ -49,12 +49,8 @@ export default function InstitutionsPage() {
             <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
               Career readiness infrastructure for institutions.
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-8 text-white/82">
-              Equip students and program participants with structured career tools and access to verified opportunities through ISEYA.
-            </p>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/72">
-              Institution-safe analytics focus on aggregate readiness insight while
-              private student career materials remain protected.
+            <p className="mt-5 max-w-2xl text-base leading-7 text-white/82">
+              Equip students and participants with private career tools, trusted opportunities, and aggregate readiness insight.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <TrackedLink href="/institutions/signup" eventName="request_access_clicked" eventParameters={{ audience: "institution", source: "institutions_hero" }} className={`${primaryButton} w-full sm:w-auto`}>
@@ -64,8 +60,8 @@ export default function InstitutionsPage() {
                 Access through my institution
               </TrackedLink>
             </div>
-            <p className="mt-4 text-xs leading-6 text-white/68">
-              Manual partnership review. Private student materials remain protected.
+            <p className="mt-4 text-xs font-medium leading-6 text-white/72">
+              Reviewed partnerships &middot; Domain-based access &middot; Aggregate-only institution insight
             </p>
           </div>
           <nav aria-label="Public navigation" className="flex flex-wrap gap-4 text-sm font-semibold text-white/80 lg:justify-end">
