@@ -26,7 +26,7 @@ const homepageStats = [
   { value: "100+", label: "Active Jobs" },
   { value: "1K+", label: "Candidates" },
   { value: "6+", label: "Countries" },
-  { value: "5/5", label: "Platform Direction" },
+  { value: "4.9/5", label: "Platform Direction" },
 ] as const;
 
 export function HowIseyaWorks({ workspaceHref = "/workspace" }: { workspaceHref?: string }) {
@@ -63,11 +63,11 @@ export function HowIseyaWorks({ workspaceHref = "/workspace" }: { workspaceHref?
 
 export function HomepageStatsStrip() {
   return (
-    <section className="border-y border-[#F0DFC0] bg-[#FFF8EA]">
-      <div className="mx-auto grid max-w-[92rem] grid-cols-2 gap-x-5 gap-y-7 px-5 py-8 sm:px-8 sm:py-10 lg:grid-cols-4">
+    <section className="border-y border-slate-200/70 bg-[#FCFCFA]">
+      <div className="mx-auto grid max-w-[92rem] grid-cols-2 gap-x-5 gap-y-8 px-5 py-9 sm:px-8 sm:py-11 lg:grid-cols-4">
         {homepageStats.map((stat) => (
           <div key={stat.label} className="text-center sm:text-left lg:text-center">
-            <p className="text-3xl font-semibold tracking-tight text-[var(--iseya-gold)] sm:text-4xl">
+            <p className="text-3xl font-semibold tracking-tight text-[var(--iseya-gold)] sm:text-[2.65rem]">
               {stat.value}
             </p>
             <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.17em] text-[var(--iseya-navy)]/70">

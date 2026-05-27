@@ -7023,49 +7023,34 @@ export default function HomeExperience() {
               <div className="mt-6 grid gap-3 text-sm text-slate-600 sm:mt-8 sm:grid-cols-3">
                 {[
                   {
-                    title: "Career workspace",
-                    copy: "Organize materials and next steps in one place.",
-                    icon: FolderOpen,
-                    href: authUser ? "/workspace" : "/signup?redirectedFrom=%2Fworkspace",
-                    iconClass: "bg-blue-50 text-blue-600",
+                    value: "100+",
+                    label: "active jobs",
                   },
                   {
-                    title: "Professional visibility",
-                    copy: "Present structured career assets with clarity.",
-                    icon: UsersRound,
-                    href: authUser ? "/workspace" : "/signup?redirectedFrom=%2Fworkspace",
-                    iconClass: "bg-emerald-50 text-emerald-600",
+                    value: "3x",
+                    label: "stronger interview readiness",
                   },
                   {
-                    title: "Trusted opportunities",
-                    copy: "Explore sourced roles and readiness insight.",
-                    icon: Building2,
-                    href: "/jobs",
-                    iconClass: "bg-amber-50 text-amber-700",
+                    value: "75%",
+                    label: "clearer role-fit positioning",
                   },
-                ].map((item) => (
-                  <Link
-                    key={item.title}
-                    href={item.href}
-                    className="group flex items-start gap-3 rounded-lg border border-transparent px-0 py-1.5 transition hover:border-[var(--iseya-gold)]/30 hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 sm:px-2 sm:py-2"
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="rounded-lg border border-slate-200/65 bg-white/55 px-3.5 py-3 shadow-[0_8px_18px_rgb(0_14_47_/_0.035)]"
                   >
-                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${item.iconClass}`}>
-                      <item.icon className="h-4.5 w-4.5 sm:h-5 sm:w-5" strokeWidth={1.8} />
+                    <span className="block text-xl font-semibold tracking-tight text-[var(--iseya-gold)]">
+                      {stat.value}
                     </span>
-                    <span className="min-w-0">
-                      <span className="block font-semibold leading-5 text-[var(--iseya-navy)] transition group-hover:text-[var(--iseya-gold)]">
-                        {item.title}
-                      </span>
-                      <span className="mt-1 block text-xs leading-5 text-slate-600">
-                        {item.copy}
-                      </span>
+                    <span className="mt-1 block text-xs font-semibold uppercase tracking-[0.12em] text-[var(--iseya-navy)]/70">
+                      {stat.label}
                     </span>
-                  </Link>
+                  </div>
                 ))}
               </div>
             </div>
-            <div className="relative lg:translate-x-3 xl:translate-x-5">
-              <div className="pointer-events-none absolute -left-20 top-4 hidden w-44 rotate-[-4deg] rounded-xl border border-slate-200/85 bg-white p-4 opacity-95 shadow-[0_18px_42px_rgb(0_14_47_/_0.09)] lg:block xl:-left-24 xl:w-48">
+            <div className="relative lg:min-h-[500px] lg:translate-x-2 xl:translate-x-4">
+              <div className="pointer-events-none absolute -left-4 top-0 z-0 hidden w-44 rotate-[-4deg] rounded-xl border border-slate-200/85 bg-white p-4 opacity-100 shadow-[0_20px_46px_rgb(0_14_47_/_0.1)] lg:block xl:-left-7 xl:w-48">
                 <div className="mb-3 h-1 w-10 rounded-full bg-[var(--iseya-gold)]" />
                 <p className="text-[13px] font-semibold leading-4 text-[var(--iseya-navy)]">Jordan Taylor</p>
                 <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.1em] text-slate-500">
@@ -7097,7 +7082,7 @@ export default function HomeExperience() {
                   View Resume
                 </p>
               </div>
-              <div className="pointer-events-none absolute -left-10 bottom-1 hidden w-40 rotate-[5deg] overflow-hidden rounded-xl border border-slate-200/85 bg-white opacity-90 shadow-[0_18px_42px_rgb(0_14_47_/_0.08)] lg:block xl:-left-12 xl:w-44">
+              <div className="pointer-events-none absolute left-5 top-[7.5rem] z-10 hidden w-40 rotate-[5deg] overflow-hidden rounded-xl border border-slate-200/85 bg-white opacity-100 shadow-[0_20px_46px_rgb(0_14_47_/_0.1)] lg:block xl:left-6 xl:w-44">
                 <div className="flex min-h-56">
                   <div className="w-11 bg-[var(--iseya-navy)] px-2 py-4">
                     <div className="h-7 w-7 rounded-full border border-[var(--iseya-gold)] bg-white/10" />
@@ -7108,8 +7093,8 @@ export default function HomeExperience() {
                     </div>
                   </div>
                   <div className="flex-1 p-3">
-                    <p className="text-[12px] font-semibold leading-4 text-[var(--iseya-navy)]">Jordan Taylor</p>
-                    <p className="mt-1 text-[9px] text-slate-500">Career Profile</p>
+                    <p className="text-[12px] font-semibold leading-4 text-[var(--iseya-navy)]">Amara Collins</p>
+                    <p className="mt-1 text-[9px] text-slate-500">Data Analyst</p>
                     <div className="mt-4 space-y-3">
                       {["Summary", "Skills", "Experience", "Education"].map((section, index) => (
                         <div key={section}>
@@ -7132,7 +7117,30 @@ export default function HomeExperience() {
                   </div>
                 </div>
               </div>
-            <aside className="iseya-hero-card relative z-10 rounded-2xl border border-slate-200/85 bg-white p-4 shadow-[0_18px_46px_rgb(0_14_47_/_0.09)] sm:p-5">
+              <div className="pointer-events-none absolute bottom-3 -left-2 z-0 hidden w-44 rotate-[-1deg] rounded-xl border border-slate-200/85 bg-[#FBFCFE] p-4 shadow-[0_18px_42px_rgb(0_14_47_/_0.075)] lg:block xl:-left-3 xl:w-48">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[13px] font-semibold leading-4 text-[var(--iseya-navy)]">Daniel Reed</p>
+                    <p className="mt-1 text-[10px] text-slate-500">Project Manager</p>
+                  </div>
+                  <span className="h-7 w-7 rounded-full border border-[var(--iseya-gold)]/50 bg-white" />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-1.5">
+                  {["Summary", "Skills", "Experience", "Education"].map((section) => (
+                    <div key={section} className="rounded-md bg-white p-2">
+                      <p className="text-[7px] font-bold uppercase tracking-[0.12em] text-[var(--iseya-navy)]">
+                        {section}
+                      </p>
+                      <span className="mt-1.5 block h-1.5 rounded-full bg-slate-100" />
+                      <span className="mt-1 block h-1.5 w-2/3 rounded-full bg-slate-100" />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white">
+                  <div className="h-1.5 w-[82%] rounded-full bg-[var(--iseya-gold)]" />
+                </div>
+              </div>
+            <aside className="iseya-hero-card relative z-20 ml-auto rounded-2xl border border-slate-200/85 bg-white p-4 shadow-[0_20px_50px_rgb(0_14_47_/_0.1)] sm:p-5 lg:max-w-[360px] lg:translate-x-3 lg:translate-y-12 xl:max-w-[390px]">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xl font-semibold leading-7 text-[var(--iseya-navy)]">
