@@ -5,10 +5,7 @@ import {
   CheckCircle2,
   FileText,
   FolderOpen,
-  Gauge,
-  Target,
   UsersRound,
-  Zap,
 } from "lucide-react";
 
 const workflowSteps = [
@@ -28,8 +25,6 @@ const workflowSteps = [
     copy: "Share structured career assets with recruiters, schools, and institutions when it matters.",
   },
 ] as const;
-
-const workspaceAssets = ["Resume", "Career Profile", "Portfolio", "Application Kit"] as const;
 
 const trustAudiences = [
   {
@@ -86,7 +81,40 @@ export function HowIseyaWorks() {
   );
 }
 
-export function CareerWorkspacePreview() {
+function protectedPreviewHref(destination: string, isSignedIn: boolean) {
+  return isSignedIn
+    ? destination
+    : `/signup?redirectedFrom=${encodeURIComponent(destination)}`;
+}
+
+export function CareerWorkspacePreview({ isSignedIn }: { isSignedIn: boolean }) {
+  const previewCards = [
+    {
+      title: "Career Workspace",
+      copy: "Build structured career assets and keep application materials organized.",
+      highlight: "Career assets structured",
+      icon: FolderOpen,
+      iconClass: "bg-blue-50 text-blue-600",
+      href: protectedPreviewHref("/workspace", isSignedIn),
+    },
+    {
+      title: "Professional Visibility",
+      copy: "Present recruiter-ready materials with stronger career positioning.",
+      highlight: "Recruiter-ready presentation",
+      icon: UsersRound,
+      iconClass: "bg-emerald-50 text-emerald-600",
+      href: protectedPreviewHref("/workspace", isSignedIn),
+    },
+    {
+      title: "Trusted Opportunities",
+      copy: "Explore transparent opportunity sources and tailor assets for each role.",
+      highlight: "ATS readiness improved",
+      icon: Building2,
+      iconClass: "bg-amber-50 text-amber-700",
+      href: "/jobs",
+    },
+  ] as const;
+
   return (
     <section className="border-y border-slate-200/70 bg-white">
       <div className="mx-auto max-w-[92rem] px-5 py-9 sm:px-8 sm:py-12">
@@ -102,104 +130,88 @@ export function CareerWorkspacePreview() {
           </p>
         </div>
 
-        <div className="mt-7 overflow-hidden rounded-xl border border-slate-200/90 bg-[#F8FAFD] shadow-[0_16px_38px_rgb(0_14_47_/_0.07)]">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 bg-white px-4 py-3 sm:px-5">
-            <div className="flex items-center gap-2.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-[var(--iseya-gold)]" aria-hidden="true" />
-              <p className="text-sm font-semibold text-[var(--iseya-navy)]">Career Workspace</p>
-            </div>
-            <p className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium text-slate-500">
-              Ready for review
-            </p>
+        <div className="mt-7 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.57fr)] lg:gap-5">
+          <div className="grid gap-3">
+            {previewCards.map((card) => (
+              <Link
+                key={card.title}
+                href={card.href}
+                className="group flex items-start gap-4 rounded-xl border border-slate-200/85 bg-white p-4 shadow-[0_8px_22px_rgb(0_14_47_/_0.045)] transition duration-200 hover:-translate-y-0.5 hover:border-[var(--iseya-gold)]/40 hover:shadow-[0_14px_30px_rgb(0_14_47_/_0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 motion-reduce:transform-none sm:p-5"
+              >
+                <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${card.iconClass}`}>
+                  <card.icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-base font-semibold text-[var(--iseya-navy)] sm:text-lg">
+                    {card.title}
+                  </span>
+                  <span className="mt-1.5 block text-sm leading-6 text-slate-600">
+                    {card.copy}
+                  </span>
+                  <span className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)] transition group-hover:text-[var(--iseya-gold)]">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                    {card.highlight}
+                  </span>
+                </span>
+              </Link>
+            ))}
           </div>
 
-          <div className="grid gap-3 p-3 sm:p-4 lg:grid-cols-[190px_minmax(0,1fr)_260px]">
-            <div className="rounded-lg border border-slate-200/80 bg-white p-3.5">
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Career Assets</p>
-              <div className="mt-3 grid gap-2">
-                {workspaceAssets.map((asset, index) => (
-                  <div
-                    key={asset}
-                    className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-xs font-semibold ${
-                      index === 0 ? "bg-[#FFF8E6] text-[var(--iseya-navy)]" : "text-slate-600"
-                    }`}
-                  >
-                    <FileText className={`h-3.5 w-3.5 ${index === 0 ? "text-[var(--iseya-gold)]" : "text-slate-400"}`} aria-hidden="true" />
-                    {asset}
-                  </div>
+          <article className="rounded-xl border border-slate-200/85 bg-[#F8FAFD] p-4 shadow-[0_14px_34px_rgb(0_14_47_/_0.065)] sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+                Resume Snapshot
+              </p>
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                82% Ready
+              </span>
+            </div>
+            <div className="mt-4 rounded-lg border border-slate-200/80 bg-white p-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#FFF8E6] text-[var(--iseya-gold)]">
+                  <FileText className="h-4.5 w-4.5" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="font-semibold text-[var(--iseya-navy)]">Candidate Name</p>
+                  <p className="mt-0.5 text-xs text-slate-500">Product Operations Manager</p>
+                </div>
+              </div>
+              <p className="mt-4 text-xs leading-5 text-slate-600">
+                Product leader aligning operations, analytics, and delivery for scalable growth.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {["Strategy", "SQL", "Agile", "Analytics"].map((skill) => (
+                  <span key={skill} className="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                    {skill}
+                  </span>
                 ))}
               </div>
-            </div>
-
-            <div className="grid gap-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border border-slate-200/80 bg-white p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-medium text-slate-500">Profile Strength</p>
-                      <p className="mt-1 text-xl font-semibold text-[var(--iseya-navy)]">82%</p>
-                    </div>
-                    <Gauge className="h-5 w-5 text-[var(--iseya-gold)]" aria-hidden="true" />
-                  </div>
-                  <div className="mt-3 h-1.5 rounded-full bg-slate-100">
-                    <div className="h-1.5 w-[82%] rounded-full bg-[var(--iseya-gold)]" />
-                  </div>
-                </div>
-                <div className="rounded-lg border border-slate-200/80 bg-white p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-medium text-slate-500">Opportunity Matches</p>
-                      <p className="mt-1 text-xl font-semibold text-[var(--iseya-navy)]">12</p>
-                    </div>
-                    <Target className="h-5 w-5 text-blue-600" aria-hidden="true" />
-                  </div>
-                  <p className="mt-3 text-xs text-slate-500">4 roles aligned this week</p>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-[var(--iseya-gold)]/25 bg-[#FFF9EC] p-4">
-                <div className="flex items-start justify-between gap-3">
+              <div className="mt-4 border-t border-slate-100 pt-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                  Experience
+                </p>
+                <div className="mt-2 flex items-start justify-between gap-3 text-xs">
                   <div>
-                    <p className="text-sm font-semibold text-[var(--iseya-navy)]">Career Co-pilot</p>
-                    <p className="mt-1 text-xs text-slate-600">Resume feedback ready</p>
+                    <p className="font-semibold text-[var(--iseya-navy)]">Senior Product Manager</p>
+                    <p className="mt-1 text-slate-500">Northline Technologies</p>
                   </div>
-                  <Zap className="h-5 w-5 text-[var(--iseya-gold)]" aria-hidden="true" />
+                  <span className="shrink-0 text-slate-400">2022 - Present</span>
                 </div>
-                <div className="mt-4 space-y-2 text-xs text-[var(--iseya-navy)]">
-                  <p className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
-                    3 positioning suggestions
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
-                    Profile visibility improved
-                  </p>
+              </div>
+              <div className="mt-4">
+                <div className="flex justify-between text-[11px] font-semibold text-slate-500">
+                  <span>ATS readiness</span>
+                  <span className="text-[var(--iseya-navy)]">82%</span>
+                </div>
+                <div className="mt-2 h-1.5 rounded-full bg-slate-100">
+                  <div className="h-1.5 w-[82%] rounded-full bg-[var(--iseya-gold)]" />
                 </div>
               </div>
             </div>
-
-            <div className="rounded-lg border border-slate-200/80 bg-white p-4">
-              <div>
-                <p className="text-sm font-semibold text-[var(--iseya-navy)]">Recruiter View</p>
-                <p className="mt-1 text-xs text-slate-500">Structured profile visibility</p>
-                <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-emerald-700">
-                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                  Active and ready
-                </div>
-              </div>
-              <div className="mt-5 border-t border-slate-100 pt-4">
-                <p className="text-[11px] font-medium text-slate-500">Ready signals</p>
-                <div className="mt-3 grid gap-2 text-xs text-slate-600">
-                  {["Career assets organized", "Role direction aligned", "Visibility ready"].map((signal) => (
-                    <p key={signal} className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--iseya-gold)]" aria-hidden="true" />
-                      {signal}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+            <p className="mt-3 text-xs leading-5 text-slate-500">
+              Build a clear, recruiter-readable resume in your career workspace.
+            </p>
+          </article>
         </div>
       </div>
     </section>
