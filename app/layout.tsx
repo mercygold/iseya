@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { defaultDescription, defaultKeywords, defaultTitle, siteName, siteUrl } from "@/lib/seo";
+import { defaultDescription, defaultKeywords, siteName, siteUrl } from "@/lib/seo";
 import { getGoogleTagManagerId } from "@/lib/analytics";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import {
@@ -15,9 +15,9 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  applicationName: siteName,
+  applicationName: "Iseya",
   title: {
-    default: defaultTitle,
+    default: "Iseya",
     template: `%s | ${siteName}`,
   },
   description: defaultDescription,
@@ -29,7 +29,16 @@ export const metadata: Metadata = {
     shortcut: "/favicon/favicon.ico",
     apple: "/favicon/apple-touch-icon.png",
   },
+  appleWebApp: {
+    capable: true,
+    title: "Iseya",
+    statusBarStyle: "default",
+  },
   manifest: "/favicon/site.webmanifest",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#5B2C83",
 };
 
 export default function RootLayout({
