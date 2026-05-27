@@ -1,8 +1,6 @@
 import type { MouseEventHandler } from "react";
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
 import {
-  BriefcaseBusiness,
   Building2,
   CheckCircle2,
   FileText,
@@ -10,21 +8,8 @@ import {
   Gauge,
   Target,
   UsersRound,
+  Zap,
 } from "lucide-react";
-
-type SnapshotCard = {
-  title: string;
-  value: string;
-  icon: LucideIcon;
-};
-
-const snapshotCards: SnapshotCard[] = [
-  { title: "Resume Score", value: "82% Ready", icon: Gauge },
-  { title: "Recruiter Visibility", value: "Active", icon: UsersRound },
-  { title: "Trusted Opportunities", value: "12 Matches", icon: BriefcaseBusiness },
-  { title: "Career Assets", value: "Organized", icon: FolderOpen },
-  { title: "Institution Ready", value: "Verified", icon: Building2 },
-];
 
 const workflowSteps = [
   {
@@ -51,45 +36,21 @@ const trustAudiences = [
     title: "For candidates",
     copy: "Organize your resume, profile, career assets, and opportunity search in one workspace.",
     icon: FolderOpen,
+    href: "/workspace",
   },
   {
     title: "For recruiters",
     copy: "Review clearer candidate signals and structured career assets before starting the conversation.",
     icon: UsersRound,
+    href: "/recruiters",
   },
   {
     title: "For institutions",
     copy: "Support students and alumni with a more organized path from preparation to visibility.",
     icon: Building2,
+    href: "/institutions",
   },
 ] as const;
-
-export function FloatingProductCards() {
-  return (
-    <section
-      aria-label="ISEYA product readiness snapshot"
-      className="relative z-10 mx-auto -mt-2 max-w-[92rem] px-5 sm:-mt-4 sm:px-8"
-    >
-      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-5 md:gap-3">
-        {snapshotCards.map((card) => (
-          <article
-            key={card.title}
-            className="group rounded-lg border border-slate-200/85 bg-white p-3 shadow-[0_8px_20px_rgb(0_14_47_/_0.055)] transition duration-200 hover:-translate-y-0.5 hover:border-[var(--iseya-gold)]/45 hover:shadow-[0_12px_26px_rgb(0_14_47_/_0.09)] motion-reduce:transform-none last:col-span-2 md:last:col-span-1"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-50 text-[var(--iseya-navy)]">
-                <card.icon className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
-              </span>
-              <span className="h-2 w-2 rounded-full bg-[var(--iseya-gold)]" aria-hidden="true" />
-            </div>
-            <p className="mt-3 text-[11px] font-medium leading-4 text-slate-500">{card.title}</p>
-            <p className="mt-1 text-sm font-semibold text-[var(--iseya-navy)]">{card.value}</p>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
 
 export function HowIseyaWorks() {
   return (
@@ -116,8 +77,8 @@ export function HowIseyaWorks() {
             }`}
           >
             <p className="text-xs font-bold tracking-[0.16em] text-[var(--iseya-gold)]">{step.number}</p>
-            <h3 className="mt-4 text-lg font-semibold leading-6 text-[var(--iseya-navy)]">{step.title}</h3>
-            <p className="mt-3 text-sm leading-6 text-slate-600">{step.copy}</p>
+            <h3 className="mt-4 text-lg font-semibold leading-6 text-[var(--iseya-navy)] sm:text-xl">{step.title}</h3>
+            <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">{step.copy}</p>
           </article>
         ))}
       </div>
@@ -196,26 +157,29 @@ export function CareerWorkspacePreview() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-slate-200/80 bg-white p-4">
-                <div className="flex items-center justify-between gap-3">
+              <div className="rounded-lg border border-[var(--iseya-gold)]/25 bg-[#FFF9EC] p-4">
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-[var(--iseya-navy)]">Resume Builder</p>
-                    <p className="mt-1 text-xs text-slate-500">Product Manager | Modern profile</p>
+                    <p className="text-sm font-semibold text-[var(--iseya-navy)]">Career Co-pilot</p>
+                    <p className="mt-1 text-xs text-slate-600">Resume feedback ready</p>
                   </div>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                    Updated
-                  </span>
+                  <Zap className="h-5 w-5 text-[var(--iseya-gold)]" aria-hidden="true" />
                 </div>
-                <div className="mt-4 space-y-2">
-                  <div className="h-2 w-[70%] rounded-full bg-slate-200" />
-                  <div className="h-2 w-full rounded-full bg-slate-100" />
-                  <div className="h-2 w-[88%] rounded-full bg-slate-100" />
+                <div className="mt-4 space-y-2 text-xs text-[var(--iseya-navy)]">
+                  <p className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
+                    3 positioning suggestions
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
+                    Profile visibility improved
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="grid gap-3">
-              <div className="rounded-lg border border-slate-200/80 bg-white p-4">
+            <div className="rounded-lg border border-slate-200/80 bg-white p-4">
+              <div>
                 <p className="text-sm font-semibold text-[var(--iseya-navy)]">Recruiter View</p>
                 <p className="mt-1 text-xs text-slate-500">Structured profile visibility</p>
                 <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-emerald-700">
@@ -223,14 +187,14 @@ export function CareerWorkspacePreview() {
                   Active and ready
                 </div>
               </div>
-              <div className="rounded-lg border border-slate-200/80 bg-white p-4">
-                <p className="text-sm font-semibold text-[var(--iseya-navy)]">Career Timeline</p>
-                <div className="mt-3 grid gap-3 text-xs text-slate-600">
-                  {["Resume updated", "Role matches reviewed", "Profile ready"].map((event) => (
-                    <div key={event} className="flex items-center gap-2">
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <p className="text-[11px] font-medium text-slate-500">Ready signals</p>
+                <div className="mt-3 grid gap-2 text-xs text-slate-600">
+                  {["Career assets organized", "Role direction aligned", "Visibility ready"].map((signal) => (
+                    <p key={signal} className="flex items-center gap-2">
                       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--iseya-gold)]" aria-hidden="true" />
-                      {event}
-                    </div>
+                      {signal}
+                    </p>
                   ))}
                 </div>
               </div>
@@ -258,16 +222,20 @@ export function TrustAudienceSection() {
       </div>
       <div className="mt-6 grid gap-3 md:grid-cols-3">
         {trustAudiences.map((audience) => (
-          <article
+          <Link
             key={audience.title}
-            className="rounded-xl border border-slate-200/85 bg-white p-4 shadow-[0_6px_20px_rgb(0_14_47_/_0.035)] transition duration-200 hover:-translate-y-0.5 hover:border-[var(--iseya-gold)]/38 hover:shadow-[0_10px_25px_rgb(0_14_47_/_0.065)] motion-reduce:transform-none sm:p-5"
+            href={audience.href}
+            className="group rounded-xl border border-slate-200/85 bg-white p-4 shadow-[0_6px_20px_rgb(0_14_47_/_0.035)] transition duration-200 hover:-translate-y-0.5 hover:border-[var(--iseya-gold)]/38 hover:shadow-[0_10px_25px_rgb(0_14_47_/_0.065)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 motion-reduce:transform-none sm:p-5"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--iseya-gold)]/24 bg-[#FFF9EC] text-[var(--iseya-navy)]">
               <audience.icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
             </span>
-            <h3 className="mt-4 text-base font-semibold text-[var(--iseya-navy)]">{audience.title}</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{audience.copy}</p>
-          </article>
+            <h3 className="mt-4 text-lg font-semibold text-[var(--iseya-navy)]">{audience.title}</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600 sm:text-base">{audience.copy}</p>
+            <p className="mt-4 text-sm font-semibold text-[var(--iseya-navy)] transition group-hover:text-[var(--iseya-gold)]">
+              Explore <span aria-hidden="true">&rarr;</span>
+            </p>
+          </Link>
         ))}
       </div>
     </section>

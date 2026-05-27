@@ -7,14 +7,11 @@ import { usePathname, useRouter } from "next/navigation";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import {
   ArrowRight,
-  BarChart3,
   BriefcaseBusiness,
   Building2,
   ClipboardList,
   FileText,
   FolderOpen,
-  Globe2,
-  GraduationCap,
   Search,
   Settings,
   ShieldCheck,
@@ -27,7 +24,6 @@ import { trackAnalyticsEvent } from "@/lib/analytics";
 import {
   CareerWorkspacePreview,
   FinalConversionCta,
-  FloatingProductCards,
   HowIseyaWorks,
   TrustAudienceSection,
 } from "@/components/HomeProductStory";
@@ -7066,7 +7062,7 @@ export default function HomeExperience() {
               ].map((item) => (
                 <div
                   key={item.title}
-                  className="flex items-start gap-3.5 rounded-lg border border-slate-200/80 bg-white p-4 shadow-[0_10px_26px_rgb(0_14_47_/_0.05)] sm:gap-4 sm:p-5"
+                  className="iseya-hero-card flex items-start gap-3.5 rounded-lg border border-slate-200/80 bg-white p-4 shadow-[0_10px_26px_rgb(0_14_47_/_0.05)] sm:gap-4 sm:p-5"
                 >
                   <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:h-12 sm:w-12 sm:rounded-xl ${item.iconClass}`}>
                     <item.icon className="h-5 w-5 sm:h-7 sm:w-7" strokeWidth={1.8} />
@@ -7080,10 +7076,28 @@ export default function HomeExperience() {
             </div>
           </div>
       </section>
-      <FloatingProductCards />
       <HowIseyaWorks />
+      <FinalConversionCta
+        startHref={authUser ? "/workspace" : "/signup"}
+        onStartFree={() => {
+          trackAnalyticsEvent("homepage_cta_clicked", {
+            cta: "start_free",
+            destination: authUser ? "workspace" : "signup",
+            source: "homepage_story_cta",
+          });
+          trackAnalyticsEvent(
+            authUser ? "candidate_workspace_started" : "signup_initiated",
+            { source: "homepage_story_cta" },
+          );
+        }}
+        onExploreJobs={() =>
+          trackAnalyticsEvent("homepage_cta_clicked", {
+            cta: "explore_jobs",
+            source: "homepage_story_cta",
+          })
+        }
+      />
       <CareerWorkspacePreview />
-      <TrustAudienceSection />
       <section className="border-y border-slate-200/70 bg-white">
         <div className="mx-auto grid max-w-[92rem] gap-6 px-5 py-8 sm:grid-cols-2 sm:px-8 lg:grid-cols-[240px_repeat(5,minmax(0,1fr))] lg:gap-0">
           <div className="pr-6 sm:col-span-2 lg:col-span-1">
@@ -7105,129 +7119,24 @@ export default function HomeExperience() {
             { title: "Institution Insights", copy: "Institutions receive aggregate, privacy-safe career readiness insights.", icon: Building2, href: "/institutions", linkLabel: "View institution experience", color: "bg-orange-50 text-orange-600" },
             { title: "Career Co-pilots", copy: "Refine professional positioning and application materials with focused guidance.", icon: Zap, href: "/workspace", linkLabel: "Build career assets", color: "bg-amber-50 text-amber-600" },
           ].map((feature) => (
-            <article key={feature.title} className="border-slate-200/80 sm:border-l sm:pl-6 lg:px-6">
+            <Link
+              key={feature.title}
+              href={feature.href}
+              className="group rounded-lg border border-slate-200/80 p-4 transition hover:border-[var(--iseya-gold)]/45 hover:bg-[#FFFDF8] hover:shadow-[0_8px_20px_rgb(0_14_47_/_0.045)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] sm:p-5 lg:rounded-none lg:border-y-0 lg:border-r-0 lg:border-l lg:px-6 lg:py-1"
+            >
               <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${feature.color}`}>
                 <feature.icon className="h-5 w-5" strokeWidth={1.8} />
               </span>
-              <h3 className="mt-4 text-sm font-semibold text-[var(--iseya-navy)]">{feature.title}</h3>
-              <p className="mt-3 text-xs leading-5 text-slate-600">{feature.copy}</p>
-              <a href={feature.href} className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-blue-600 transition hover:text-[var(--iseya-navy)]">
+              <h3 className="mt-4 text-base font-semibold text-[var(--iseya-navy)]">{feature.title}</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-600">{feature.copy}</p>
+              <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition group-hover:text-[var(--iseya-navy)]">
                 {feature.linkLabel} <ArrowRight className="h-3.5 w-3.5" />
-              </a>
-            </article>
+              </span>
+            </Link>
           ))}
         </div>
       </section>
-      <section className="mx-auto max-w-[92rem] px-5 py-8 sm:px-8">
-        <div className="flex flex-col gap-6 rounded-xl border border-slate-200/80 bg-white p-6 shadow-[0_8px_24px_rgb(0_14_47_/_0.03)] lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
-              Start with confidence
-            </p>
-            <h2 className="mt-3 text-2xl font-semibold text-[var(--iseya-navy)]">
-              See where your next move starts.
-            </h2>
-            <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-slate-600">
-              {["Free to get started", "Organized workspace", "No credit card required"].map((item) => (
-                <span key={item} className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-[var(--iseya-gold)]" /> {item}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href={authUser ? "/workspace" : "/signup"}
-              onClick={() => {
-                trackAnalyticsEvent("homepage_cta_clicked", {
-                  cta: "start_free",
-                  destination: authUser ? "workspace" : "signup",
-                  source: "homepage_band",
-                });
-                trackAnalyticsEvent(
-                  authUser ? "candidate_workspace_started" : "signup_initiated",
-                  { source: "homepage_band" },
-                );
-              }}
-              className={`${primaryButtonClass} ${buttonSizeMdClass}`}
-            >
-              Start Free
-            </Link>
-            <Link
-              href="/demo"
-              onClick={() =>
-                trackAnalyticsEvent("demo_opened", { source: "homepage_band" })
-              }
-              className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
-            >
-              Demo
-            </Link>
-          </div>
-        </div>
-      </section>
-      <section className="mx-auto max-w-[92rem] px-5 pb-10 sm:px-8 sm:pb-12">
-        <div className="rounded-xl border border-slate-200/80 bg-white px-5 py-5 sm:px-7">
-          <p className="text-center text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
-            Built For
-          </p>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {[
-              { title: "Students & Graduates", copy: "Launch and grow your career.", icon: GraduationCap },
-              { title: "Career Switchers", copy: "Transition with clarity and confidence.", icon: BarChart3 },
-              { title: "International Professionals", copy: "Navigate opportunities globally.", icon: Globe2 },
-              { title: "Recruiters", copy: "Discover and connect with talent.", icon: UsersRound },
-              { title: "Institutions", copy: "Improve outcomes for your community.", icon: Building2 },
-            ].map((audience) => (
-              <div key={audience.title} className="flex items-start gap-3 border-slate-200/80 lg:border-l lg:px-5 first:lg:border-l-0">
-                <audience.icon className="mt-1 h-5 w-5 shrink-0 text-[var(--iseya-navy)]" strokeWidth={1.8} />
-                <div>
-                  <p className="text-xs font-semibold text-[var(--iseya-navy)]">{audience.title}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-600">{audience.copy}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-5 flex flex-col gap-3 border-t border-slate-200/80 pt-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-slate-600">
-              Explore practical readiness insight and trusted hiring guidance.
-            </p>
-            <div className="flex flex-wrap gap-4 font-semibold">
-              <Link
-                href="/insights"
-                className="rounded-sm text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4 transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2"
-              >
-                Read Insights
-              </Link>
-              <Link
-                href="/guides"
-                className="rounded-sm text-[var(--iseya-navy)] underline decoration-[var(--iseya-gold)] decoration-2 underline-offset-4 transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2"
-              >
-                View Career Guides
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-      <FinalConversionCta
-        startHref={authUser ? "/workspace" : "/signup"}
-        onStartFree={() => {
-          trackAnalyticsEvent("homepage_cta_clicked", {
-            cta: "start_free",
-            destination: authUser ? "workspace" : "signup",
-            source: "homepage_final_cta",
-          });
-          trackAnalyticsEvent(
-            authUser ? "candidate_workspace_started" : "signup_initiated",
-            { source: "homepage_final_cta" },
-          );
-        }}
-        onExploreJobs={() =>
-          trackAnalyticsEvent("homepage_cta_clicked", {
-            cta: "explore_jobs",
-            source: "homepage_final_cta",
-          })
-        }
-      />
+      <TrustAudienceSection />
         </>
       ) : null}
 

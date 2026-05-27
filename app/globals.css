@@ -37,6 +37,53 @@ body {
   gap: 0.25rem;
 }
 
+.iseya-hero-card {
+  transition:
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    transform 200ms ease;
+}
+
+.iseya-hero-card:hover {
+  border-color: color-mix(in srgb, var(--iseya-gold) 45%, var(--iseya-border));
+  box-shadow: 0 16px 32px rgb(0 14 47 / 9%);
+  transform: translateY(-3px);
+}
+
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  @keyframes iseya-hero-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+
+  .iseya-hero-card {
+    animation: iseya-hero-float 9s ease-in-out infinite;
+  }
+
+  .iseya-hero-card:nth-child(2) {
+    animation-delay: -3s;
+  }
+
+  .iseya-hero-card:nth-child(3) {
+    animation-delay: -6s;
+  }
+
+  .iseya-hero-card:hover {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iseya-hero-card:hover {
+    transform: none;
+  }
+}
+
 button,
 input,
 select,
