@@ -1,10 +1,5 @@
 import type { MouseEventHandler } from "react";
 import Link from "next/link";
-import {
-  Building2,
-  FolderOpen,
-  UsersRound,
-} from "lucide-react";
 
 const workflowSteps = [
   {
@@ -27,35 +22,18 @@ const workflowSteps = [
   },
 ] as const;
 
-const trustAudiences = [
-  {
-    title: "For candidates",
-    copy: "Organize your resume, profile, career assets, and opportunity search in one workspace.",
-    icon: FolderOpen,
-    href: "/workspace",
-  },
-  {
-    title: "For recruiters",
-    copy: "Review clearer candidate signals and structured career assets before starting the conversation.",
-    icon: UsersRound,
-    href: "/recruiters",
-  },
-  {
-    title: "For institutions",
-    copy: "Support students and alumni with a more organized path from preparation to visibility.",
-    icon: Building2,
-    href: "/institutions",
-  },
+const homepageStats = [
+  { value: "100+", label: "Active Jobs" },
+  { value: "1K+", label: "Candidates" },
+  { value: "6+", label: "Countries" },
+  { value: "5/5", label: "Platform Direction" },
 ] as const;
 
 export function HowIseyaWorks({ workspaceHref = "/workspace" }: { workspaceHref?: string }) {
   return (
-    <section className="mx-auto max-w-[92rem] px-5 py-7 sm:px-8 sm:py-10">
+    <section className="mx-auto max-w-[92rem] px-5 py-6 sm:px-8 sm:py-9">
       <div className="max-w-2xl">
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
-          Workflow
-        </p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-4xl">
+        <h2 className="text-[2rem] font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-[2.65rem] sm:leading-tight">
           How ISEYA works
         </h2>
         <p className="mt-3 text-base leading-7 text-slate-600">
@@ -67,14 +45,14 @@ export function HowIseyaWorks({ workspaceHref = "/workspace" }: { workspaceHref?
           <Link
             key={step.number}
             href={step.route === "workspace" ? workspaceHref : step.route}
-            className={`group rounded-xl border p-5 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgb(0_14_47_/_0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 motion-reduce:transform-none ${
+            className={`group rounded-xl border p-5 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgb(0_14_47_/_0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 motion-reduce:transform-none sm:p-6 ${
               index === 1
                 ? "border-[var(--iseya-gold)]/28 bg-[#FFF9EC]"
                 : "border-slate-200/80 bg-white"
             }`}
           >
             <p className="text-xs font-bold tracking-[0.16em] text-[var(--iseya-gold)]">{step.number}</p>
-            <h3 className="mt-4 text-xl font-semibold leading-7 text-[var(--iseya-navy)] transition group-hover:text-[var(--iseya-gold)]">{step.title}</h3>
+            <h3 className="mt-4 text-[1.35rem] font-semibold leading-7 text-[var(--iseya-navy)] transition group-hover:text-[var(--iseya-gold)]">{step.title}</h3>
             <p className="mt-3 text-base leading-7 text-slate-600">{step.copy}</p>
           </Link>
         ))}
@@ -83,36 +61,19 @@ export function HowIseyaWorks({ workspaceHref = "/workspace" }: { workspaceHref?
   );
 }
 
-export function TrustAudienceSection() {
+export function HomepageStatsStrip() {
   return (
-    <section className="mx-auto max-w-[92rem] px-5 py-9 sm:px-8 sm:py-12">
-      <div className="max-w-3xl">
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
-          Trusted Direction
-        </p>
-        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-3xl">
-          Built for serious career movement.
-        </h2>
-        <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">
-          ISEYA helps candidates, recruiters, and institutions work from clearer career signals - not scattered documents.
-        </p>
-      </div>
-      <div className="mt-6 grid gap-3 md:grid-cols-3">
-        {trustAudiences.map((audience) => (
-          <Link
-            key={audience.title}
-            href={audience.href}
-            className="group rounded-xl border border-slate-200/85 bg-white p-4 shadow-[0_6px_20px_rgb(0_14_47_/_0.035)] transition duration-200 hover:-translate-y-0.5 hover:border-[var(--iseya-gold)]/38 hover:shadow-[0_10px_25px_rgb(0_14_47_/_0.065)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 motion-reduce:transform-none sm:p-5"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--iseya-gold)]/24 bg-[#FFF9EC] text-[var(--iseya-navy)]">
-              <audience.icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
-            </span>
-            <h3 className="mt-4 text-lg font-semibold text-[var(--iseya-navy)]">{audience.title}</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-600 sm:text-base">{audience.copy}</p>
-            <p className="mt-4 text-sm font-semibold text-[var(--iseya-navy)] transition group-hover:text-[var(--iseya-gold)]">
-              Explore <span aria-hidden="true">&rarr;</span>
+    <section className="border-y border-[#F0DFC0] bg-[#FFF8EA]">
+      <div className="mx-auto grid max-w-[92rem] grid-cols-2 gap-x-5 gap-y-7 px-5 py-8 sm:px-8 sm:py-10 lg:grid-cols-4">
+        {homepageStats.map((stat) => (
+          <div key={stat.label} className="text-center sm:text-left lg:text-center">
+            <p className="text-3xl font-semibold tracking-tight text-[var(--iseya-gold)] sm:text-4xl">
+              {stat.value}
             </p>
-          </Link>
+            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.17em] text-[var(--iseya-navy)]/70">
+              {stat.label}
+            </p>
+          </div>
         ))}
       </div>
     </section>

@@ -23,8 +23,8 @@ import type { Json } from "@/lib/database.types";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import {
   FinalConversionCta,
+  HomepageStatsStrip,
   HowIseyaWorks,
-  TrustAudienceSection,
 } from "@/components/HomeProductStory";
 import {
   canUseSubscriptionFeature,
@@ -7064,30 +7064,72 @@ export default function HomeExperience() {
                 ))}
               </div>
             </div>
-            <div className="relative lg:translate-x-4">
-              <div className="pointer-events-none absolute -left-12 top-10 hidden w-36 rotate-[-5deg] rounded-xl border border-slate-200/80 bg-white p-3 opacity-85 shadow-[0_14px_32px_rgb(0_14_47_/_0.08)] lg:block">
-                <p className="text-xs font-semibold text-[var(--iseya-navy)]">Jordan Taylor</p>
-                <p className="mt-1 text-[10px] text-slate-500">Product Operations Manager</p>
-                <div className="mt-3 space-y-1.5">
-                  {["Summary", "Skills", "Experience"].map((line, index) => (
-                    <div key={line} className="flex items-center gap-2">
-                      <span className={`h-1.5 w-1.5 rounded-full ${index === 0 ? "bg-[var(--iseya-gold)]" : "bg-slate-300"}`} />
-                      <span className="h-1.5 flex-1 rounded-full bg-slate-100" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="pointer-events-none absolute -left-7 bottom-8 hidden w-32 rotate-[4deg] rounded-xl border border-slate-200/80 bg-white p-3 opacity-80 shadow-[0_14px_32px_rgb(0_14_47_/_0.07)] lg:block">
-                <p className="text-xs font-semibold text-[var(--iseya-navy)]">Career Profile</p>
-                <div className="mt-3 space-y-2">
-                  {["Role Fit", "Key Strengths", "Readiness"].map((line, index) => (
-                    <div key={line}>
-                      <p className="text-[9px] font-medium text-slate-500">{line}</p>
-                      <div className="mt-1 h-1.5 rounded-full bg-slate-100">
-                        <div className={`h-1.5 rounded-full ${index === 2 ? "w-[82%] bg-[var(--iseya-gold)]" : "w-[70%] bg-[var(--iseya-navy)]/70"}`} />
+            <div className="relative lg:translate-x-3 xl:translate-x-5">
+              <div className="pointer-events-none absolute -left-20 top-4 hidden w-44 rotate-[-4deg] rounded-xl border border-slate-200/85 bg-white p-4 opacity-95 shadow-[0_18px_42px_rgb(0_14_47_/_0.09)] lg:block xl:-left-24 xl:w-48">
+                <div className="mb-3 h-1 w-10 rounded-full bg-[var(--iseya-gold)]" />
+                <p className="text-[13px] font-semibold leading-4 text-[var(--iseya-navy)]">Jordan Taylor</p>
+                <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.1em] text-slate-500">
+                  Product Operations Manager
+                </p>
+                <div className="mt-4 space-y-3">
+                  {[
+                    { label: "Summary", lines: 2 },
+                    { label: "Skills", lines: 1 },
+                    { label: "Experience", lines: 2 },
+                    { label: "Education", lines: 1 },
+                  ].map((section) => (
+                    <div key={section.label}>
+                      <p className="text-[8px] font-bold uppercase tracking-[0.14em] text-[var(--iseya-navy)]">
+                        {section.label}
+                      </p>
+                      <div className="mt-1.5 space-y-1">
+                        {Array.from({ length: section.lines }).map((_, index) => (
+                          <span
+                            key={`${section.label}-${index}`}
+                            className={`block h-1.5 rounded-full bg-slate-100 ${index === 0 ? "w-full" : "w-4/5"}`}
+                          />
+                        ))}
                       </div>
                     </div>
                   ))}
+                </div>
+                <p className="mt-4 text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+                  View Resume
+                </p>
+              </div>
+              <div className="pointer-events-none absolute -left-10 bottom-1 hidden w-40 rotate-[5deg] overflow-hidden rounded-xl border border-slate-200/85 bg-white opacity-90 shadow-[0_18px_42px_rgb(0_14_47_/_0.08)] lg:block xl:-left-12 xl:w-44">
+                <div className="flex min-h-56">
+                  <div className="w-11 bg-[var(--iseya-navy)] px-2 py-4">
+                    <div className="h-7 w-7 rounded-full border border-[var(--iseya-gold)] bg-white/10" />
+                    <div className="mt-5 space-y-1.5">
+                      <span className="block h-1.5 rounded-full bg-white/35" />
+                      <span className="block h-1.5 rounded-full bg-white/25" />
+                      <span className="block h-1.5 rounded-full bg-white/25" />
+                    </div>
+                  </div>
+                  <div className="flex-1 p-3">
+                    <p className="text-[12px] font-semibold leading-4 text-[var(--iseya-navy)]">Jordan Taylor</p>
+                    <p className="mt-1 text-[9px] text-slate-500">Career Profile</p>
+                    <div className="mt-4 space-y-3">
+                      {["Summary", "Skills", "Experience", "Education"].map((section, index) => (
+                        <div key={section}>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`h-1.5 w-1.5 rounded-full ${index === 0 ? "bg-[var(--iseya-gold)]" : "bg-slate-300"}`} />
+                            <p className="text-[8px] font-bold uppercase tracking-[0.1em] text-[var(--iseya-navy)]">
+                              {section}
+                            </p>
+                          </div>
+                          <div className="mt-1.5 space-y-1">
+                            <span className="block h-1.5 rounded-full bg-slate-100" />
+                            <span className="block h-1.5 w-3/4 rounded-full bg-slate-100" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-4 text-[8px] font-semibold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+                      Resume Output
+                    </p>
+                  </div>
                 </div>
               </div>
             <aside className="iseya-hero-card relative z-10 rounded-2xl border border-slate-200/85 bg-white p-4 shadow-[0_18px_46px_rgb(0_14_47_/_0.09)] sm:p-5">
@@ -7195,16 +7237,16 @@ export default function HomeExperience() {
         }
       />
       <section className="border-y border-slate-200/70 bg-white">
-        <div className="mx-auto grid max-w-[92rem] gap-6 px-5 py-8 sm:grid-cols-2 sm:px-8 lg:grid-cols-[240px_repeat(5,minmax(0,1fr))] lg:gap-0">
+        <div className="mx-auto grid max-w-[92rem] gap-5 px-5 py-10 sm:grid-cols-2 sm:px-8 sm:py-12 lg:grid-cols-[280px_repeat(5,minmax(0,1fr))] lg:gap-0">
           <div className="pr-6 sm:col-span-2 lg:col-span-1">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
               Built for the career ecosystem
             </p>
-            <h2 className="mt-4 text-2xl font-semibold leading-tight text-[var(--iseya-navy)]">
+            <h2 className="mt-4 text-3xl font-semibold leading-tight text-[var(--iseya-navy)] sm:text-[2.35rem]">
               One platform.
               <br />Every career connection.
             </h2>
-            <p className="mt-4 text-xs leading-5 text-slate-600">
+            <p className="mt-4 text-sm leading-6 text-slate-600">
               Career preparation meets transparent opportunity discovery and professional visibility.
             </p>
           </div>
@@ -7218,13 +7260,13 @@ export default function HomeExperience() {
             <Link
               key={feature.title}
               href={feature.href}
-              className="group rounded-lg border border-slate-200/80 p-4 transition hover:border-[var(--iseya-gold)]/45 hover:bg-[#FFFDF8] hover:shadow-[0_8px_20px_rgb(0_14_47_/_0.045)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] sm:p-5 lg:rounded-none lg:border-y-0 lg:border-r-0 lg:border-l lg:px-6 lg:py-1"
+              className="group rounded-lg border border-slate-200/80 p-5 transition hover:-translate-y-0.5 hover:border-[var(--iseya-gold)]/45 hover:bg-[#FFFDF8] hover:shadow-[0_10px_24px_rgb(0_14_47_/_0.055)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] motion-reduce:transform-none sm:p-6 lg:rounded-none lg:border-y-0 lg:border-r-0 lg:border-l lg:px-6 lg:py-2"
             >
               <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${feature.color}`}>
                 <feature.icon className="h-5 w-5" strokeWidth={1.8} />
               </span>
-              <h3 className="mt-4 text-base font-semibold text-[var(--iseya-navy)]">{feature.title}</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-600">{feature.copy}</p>
+              <h3 className="mt-4 text-lg font-semibold leading-6 text-[var(--iseya-navy)]">{feature.title}</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-[15px]">{feature.copy}</p>
               <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition group-hover:text-[var(--iseya-navy)]">
                 {feature.linkLabel} <ArrowRight className="h-3.5 w-3.5" />
               </span>
@@ -7232,7 +7274,7 @@ export default function HomeExperience() {
           ))}
         </div>
       </section>
-      <TrustAudienceSection />
+      <HomepageStatsStrip />
         </>
       ) : null}
 
