@@ -7068,58 +7068,86 @@ export default function HomeExperience() {
               </div>
             </div>
             <aside className="iseya-hero-card rounded-2xl border border-slate-200/85 bg-white p-4 shadow-[0_18px_46px_rgb(0_14_47_/_0.09)] sm:p-5 lg:translate-x-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-                  Career Asset Preview
-                </p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+                    Career Workspace
+                  </p>
+                  <p className="mt-3 text-lg font-semibold leading-6 text-[var(--iseya-navy)]">
+                    Jordan Taylor
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Product Operations Manager
+                  </p>
+                </div>
                 <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                  82% Ready
+                  Active profile
                 </span>
               </div>
-              <div className="mt-5 rounded-xl border border-slate-200/80 bg-[#F8FAFD] p-4">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#FFF8E6] text-[var(--iseya-gold)]">
-                    <FileText className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  <div>
-                    <p className="text-lg font-semibold leading-6 text-[var(--iseya-navy)]">
-                      Jordan Cyril
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Product Operations Manager
-                    </p>
-                  </div>
-                </div>
-                <p className="mt-4 text-sm leading-6 text-slate-600">
-                  Product leader aligning operations, analytics, and delivery for scalable growth.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {["Product Strategy", "Operations", "Analytics", "Agile"].map((tag) => (
+
+              <div className="mt-5 grid grid-cols-2 gap-2.5">
+                {[
+                  { label: "Resume", icon: FileText, active: true },
+                  { label: "Cover Letter", icon: ClipboardList },
+                  { label: "LinkedIn Profile", icon: UsersRound },
+                  { label: "Application Kit", icon: BriefcaseBusiness },
+                  { label: "Interview Prep", icon: UsersRound },
+                  { label: "Job Tracker", icon: BriefcaseBusiness },
+                ].map((module) => (
+                  <div
+                    key={module.label}
+                    className={`flex min-h-12 items-center gap-2.5 rounded-lg border px-3 py-2.5 text-xs font-semibold transition ${
+                      module.active
+                        ? "border-[var(--iseya-navy)] bg-[var(--iseya-navy)] text-white shadow-[0_10px_22px_rgb(0_14_47_/_0.12)]"
+                        : "border-slate-200 bg-[#F8FAFD] text-[var(--iseya-navy)]"
+                    }`}
+                  >
                     <span
-                      key={tag}
-                      className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600"
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
+                        module.active ? "bg-[var(--iseya-gold)] text-[var(--iseya-navy)]" : "bg-white text-slate-500"
+                      }`}
                     >
-                      {tag}
+                      <module.icon className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden="true" />
                     </span>
-                  ))}
-                </div>
-                <div className="mt-5 space-y-2.5 border-t border-slate-200/80 pt-4">
-                  {["ATS readiness", "Role fit optimization", "Career assets structured"].map((item) => (
-                    <p key={item} className="flex items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)]">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-                      {item}
-                    </p>
-                  ))}
-                </div>
-                <div className="mt-5">
-                  <div className="flex justify-between text-xs font-semibold text-slate-500">
-                    <span>Readiness</span>
-                    <span className="text-[var(--iseya-navy)]">82%</span>
+                    <span className="min-w-0">{module.label}</span>
                   </div>
-                  <div className="mt-2 h-2 rounded-full bg-white">
-                    <div className="h-2 w-[82%] rounded-full bg-[var(--iseya-gold)]" />
+                ))}
+              </div>
+
+              <div className="mt-5 space-y-3 rounded-xl bg-[#F8FAFD] p-4">
+                {[
+                  { label: "ATS Readiness", value: "90/100", percent: "90%", color: "bg-[var(--iseya-gold)]" },
+                  { label: "Role Fit", value: "88/100", percent: "88%", color: "bg-emerald-500" },
+                ].map((score) => (
+                  <div key={score.label}>
+                    <div className="flex items-center justify-between gap-3 text-xs font-semibold">
+                      <span className="text-slate-600">{score.label}</span>
+                      <span className="text-[var(--iseya-navy)]">{score.value}</span>
+                    </div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
+                      <div className={`h-1.5 rounded-full ${score.color}`} style={{ width: score.percent }} />
+                    </div>
                   </div>
-                </div>
+                ))}
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {["Run ATS Check", "Keyword Match", "Optimize Resume"].map((action, index) => (
+                  <span
+                    key={action}
+                    className={`inline-flex min-h-9 items-center rounded-md border px-3 text-xs font-semibold ${
+                      index === 0
+                        ? "border-[var(--iseya-gold)] bg-[var(--iseya-gold)] text-[var(--iseya-navy)]"
+                        : "border-slate-200 bg-white text-[var(--iseya-navy)]"
+                    }`}
+                  >
+                    {action}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3 text-xs font-medium text-slate-500">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                Career assets structured for recruiter review.
               </div>
             </aside>
           </div>
