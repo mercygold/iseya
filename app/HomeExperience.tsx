@@ -15,7 +15,6 @@ import {
   FolderOpen,
   Globe2,
   GraduationCap,
-  LockKeyhole,
   Search,
   Settings,
   ShieldCheck,
@@ -6810,9 +6809,9 @@ export default function HomeExperience() {
   return (
     <main className="min-h-screen bg-[var(--iseya-soft-bg)] text-[var(--iseya-text)]">
       <section className="iseya-header">
-        <div className="mx-auto max-w-[112rem] px-5 py-4 sm:px-8">
+        <div className="mx-auto max-w-[112rem] px-5 py-3 sm:px-8 sm:py-4">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex min-w-0 items-center gap-4">
               <Link href="/" aria-label="ISEYA home">
                 <Image
                   src="/brand/iseya-logo2.png"
@@ -6820,10 +6819,10 @@ export default function HomeExperience() {
                   width={280}
                   height={140}
                   priority
-                  className="h-auto w-[150px] object-contain sm:w-[185px] xl:w-[170px] 2xl:w-[185px]"
+                  className="h-auto w-[128px] object-contain sm:w-[185px] xl:w-[170px] 2xl:w-[185px]"
                 />
               </Link>
-              <p className="border-l-0 border-[var(--iseya-gold)] text-sm font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)] sm:border-l sm:pl-4 xl:text-[11px] xl:tracking-[0.14em] 2xl:text-xs">
+              <p className="hidden border-l border-[var(--iseya-gold)] pl-4 text-sm font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)] sm:block xl:text-[11px] xl:tracking-[0.14em] 2xl:text-xs">
                 Beyond Resume. Positioning.
               </p>
             </div>
@@ -6981,19 +6980,19 @@ export default function HomeExperience() {
 
       {isPublicLanding ? (
         <>
-      <section className="mx-auto max-w-[92rem] px-5 py-9 sm:px-8 sm:py-11 lg:py-13">
-          <div className="grid w-full gap-10 lg:grid-cols-[minmax(480px,1fr)_minmax(330px,0.62fr)] lg:items-center lg:gap-20">
+      <section className="mx-auto max-w-[92rem] px-5 py-7 sm:px-8 sm:py-11 lg:py-13">
+          <div className="grid w-full gap-7 sm:gap-10 lg:grid-cols-[minmax(480px,1fr)_minmax(330px,0.62fr)] lg:items-center lg:gap-20">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)] sm:text-xs">
                 Beyond resume. Positioning.
               </p>
-              <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-[1.08] text-[var(--iseya-navy)] sm:text-5xl lg:text-[3.7rem]">
+              <h1 className="mt-3 max-w-3xl text-[2.15rem] font-semibold leading-[1.1] text-[var(--iseya-navy)] sm:mt-4 sm:text-5xl lg:text-[3.7rem]">
                 Career infrastructure for today&apos;s talent.
               </h1>
-              <p className="mt-5 max-w-xl text-sm leading-7 text-slate-600 sm:text-base">
-                Build private career assets, discover trusted opportunities, and connect to recruiter and institution-ready workflows.
+              <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600 sm:mt-5 sm:text-base sm:leading-7">
+                Build career assets, discover trusted opportunities, and stay visible to recruiters and institutions.
               </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <div className="mt-6 flex flex-col gap-3 sm:mt-7 sm:flex-row sm:flex-wrap">
                 <Link
                   href={authUser ? "/workspace" : "/signup"}
                   onClick={() => {
@@ -7011,101 +7010,59 @@ export default function HomeExperience() {
                   Start Free <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
                 <Link
-                  href="/pricing"
+                  href="/demo"
                   onClick={() =>
-                    trackAnalyticsEvent("pricing_cta_clicked", {
+                    trackAnalyticsEvent("demo_opened", {
                       source: "homepage_hero",
                     })
                   }
                   className={`${secondaryButtonClass} ${buttonSizeMdClass} w-full sm:w-auto`}
                 >
-                  View Pricing
-                </Link>
-              <Link
-                href="/workspace"
-                onClick={() =>
-                  trackAnalyticsEvent("resume_builder_cta_clicked", {
-                    source: "homepage_hero",
-                  })
-                }
-                className={`${secondaryButtonClass} ${buttonSizeMdClass} w-full sm:w-auto`}
-              >
-                  Build Resume
-              </Link>
-                <Link
-                  href="/jobs"
-                  onClick={() =>
-                    trackAnalyticsEvent("homepage_cta_clicked", {
-                      cta: "browse_opportunities",
-                    })
-                  }
-                  className={`${secondaryButtonClass} ${buttonSizeMdClass} w-full sm:w-auto`}
-                >
-                  Browse Jobs
+                  See Demo
                 </Link>
               </div>
-              <Link
-                href="/demo"
-                aria-label="Open ISEYA interactive demo"
-                onClick={() =>
-                  trackAnalyticsEvent("demo_opened", { source: "homepage_hero" })
-                }
-                className="mt-4 inline-flex max-w-full items-center gap-3 rounded-full border border-[var(--iseya-gold)]/35 bg-white px-4 py-2.5 text-sm text-[var(--iseya-navy)] shadow-[0_4px_14px_rgb(244_179_33_/_0.08)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)]"
-              >
-                <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
-                  <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-[var(--iseya-gold)]/45 [animation-duration:3s] motion-reduce:animate-none" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[var(--iseya-gold)]" />
-                </span>
-                <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 text-left">
-                  <span className="font-semibold">Interactive demo available</span>
-                  <span className="text-xs text-slate-500">
-                    Explore candidate, recruiter, and institution flows.
-                  </span>
-                </span>
-                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[var(--iseya-gold)]" />
-              </Link>
-              <div className="mt-8 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
+              <div className="mt-6 grid gap-2.5 text-sm text-slate-600 sm:mt-8 sm:grid-cols-3 sm:gap-3">
                 {[
-                  { label: "Privacy-first workspace", icon: ShieldCheck },
-                  { label: "Protected candidate workspaces", icon: LockKeyhole },
-                  { label: "Verified hiring pathways", icon: UsersRound },
+                  { label: "Organized career workspace", icon: FolderOpen },
+                  { label: "Trusted opportunity sources", icon: ShieldCheck },
+                  { label: "Recruiter visibility", icon: UsersRound },
                 ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-3 border-r border-slate-200 pr-3 font-medium leading-5 last:border-r-0">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-[var(--iseya-navy)] shadow-sm">
-                      <item.icon className="h-5 w-5" strokeWidth={1.8} />
+                  <div key={item.label} className="flex items-center gap-2.5 border-slate-200 font-medium leading-5 sm:border-r sm:pr-3 last:sm:border-r-0">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-[var(--iseya-navy)] shadow-sm sm:h-9 sm:w-9">
+                      <item.icon className="h-4.5 w-4.5 sm:h-5 sm:w-5" strokeWidth={1.8} />
                     </span>
                     <span>{item.label}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="grid gap-3 lg:translate-x-4">
+            <div className="grid gap-3 sm:grid-cols-3 lg:translate-x-4 lg:grid-cols-1">
               {[
                 {
-                  title: "Private career workspace",
-                  copy: "Your space. Your data. Your growth.",
-                  icon: ShieldCheck,
+                  title: "Career workspace",
+                  copy: "Organize materials and next steps in one place.",
+                  icon: FolderOpen,
                   iconClass: "bg-blue-50 text-blue-600",
                 },
                 {
-                  title: "Protected candidate data",
-                  copy: "Private by default. Controlled by you.",
+                  title: "Professional visibility",
+                  copy: "Present structured career assets with clarity.",
                   icon: UsersRound,
                   iconClass: "bg-emerald-50 text-emerald-600",
                 },
                 {
-                  title: "Trusted opportunities and safe insight",
-                  copy: "Clear sourcing. Aggregate-only reporting.",
+                  title: "Trusted opportunities",
+                  copy: "Explore sourced roles and readiness insight.",
                   icon: Building2,
                   iconClass: "bg-amber-50 text-amber-700",
                 },
               ].map((item) => (
                 <div
                   key={item.title}
-                  className="flex items-start gap-4 rounded-lg border border-slate-200/80 bg-white p-4 shadow-[0_10px_26px_rgb(0_14_47_/_0.05)] sm:p-5"
+                  className="flex items-start gap-3.5 rounded-lg border border-slate-200/80 bg-white p-4 shadow-[0_10px_26px_rgb(0_14_47_/_0.05)] sm:gap-4 sm:p-5"
                 >
-                  <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${item.iconClass}`}>
-                    <item.icon className="h-7 w-7" strokeWidth={1.8} />
+                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:h-12 sm:w-12 sm:rounded-xl ${item.iconClass}`}>
+                    <item.icon className="h-5 w-5 sm:h-7 sm:w-7" strokeWidth={1.8} />
                   </span>
                   <div>
                     <p className="text-base font-semibold leading-6 text-[var(--iseya-navy)]">{item.title}</p>
@@ -7117,8 +7074,8 @@ export default function HomeExperience() {
           </div>
       </section>
       <section className="border-y border-slate-200/70 bg-white">
-        <div className="mx-auto grid max-w-[92rem] gap-6 px-5 py-8 sm:px-8 lg:grid-cols-[240px_repeat(5,minmax(0,1fr))] lg:gap-0">
-          <div className="pr-6">
+        <div className="mx-auto grid max-w-[92rem] gap-6 px-5 py-8 sm:grid-cols-2 sm:px-8 lg:grid-cols-[240px_repeat(5,minmax(0,1fr))] lg:gap-0">
+          <div className="pr-6 sm:col-span-2 lg:col-span-1">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
               Built for the career ecosystem
             </p>
@@ -7127,17 +7084,17 @@ export default function HomeExperience() {
               <br />Every career connection.
             </h2>
             <p className="mt-4 text-xs leading-5 text-slate-600">
-              Private career preparation meets transparent opportunity discovery and trusted access.
+              Career preparation meets transparent opportunity discovery and trusted access.
             </p>
           </div>
           {[
-            { title: "Career Workspace", copy: "Build private career assets and tailor resumes for specific opportunities.", icon: FolderOpen, href: "/workspace", linkLabel: "Explore career workspace", color: "bg-blue-50 text-blue-600" },
+            { title: "Career Workspace", copy: "Build career assets and tailor resumes for specific opportunities.", icon: FolderOpen, href: "/workspace", linkLabel: "Explore career workspace", color: "bg-blue-50 text-blue-600" },
             { title: "Opportunity Discovery", copy: "Explore source-transparent roles from recruiters, employers, and curated channels.", icon: Search, href: "/jobs", linkLabel: "Browse opportunities", color: "bg-emerald-50 text-emerald-600" },
             { title: "Recruiter Access", copy: "Verified recruiters post roles and review structured candidate interest.", icon: UsersRound, href: "/recruiters", linkLabel: "Explore recruiter workflow", color: "bg-blue-50 text-blue-700" },
             { title: "Institution Insights", copy: "Institutions receive aggregate, privacy-safe career readiness insights.", icon: Building2, href: "/institutions", linkLabel: "View institution experience", color: "bg-orange-50 text-orange-600" },
             { title: "Career Co-pilots", copy: "Refine professional positioning and application materials with focused guidance.", icon: Zap, href: "/workspace", linkLabel: "Build career assets", color: "bg-amber-50 text-amber-600" },
           ].map((feature) => (
-            <article key={feature.title} className="border-slate-200/80 lg:border-l lg:px-6">
+            <article key={feature.title} className="border-slate-200/80 sm:border-l sm:pl-6 lg:px-6">
               <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${feature.color}`}>
                 <feature.icon className="h-5 w-5" strokeWidth={1.8} />
               </span>
@@ -7160,7 +7117,7 @@ export default function HomeExperience() {
               Build your career workspace.
             </h2>
             <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-slate-600">
-              {["Free to get started", "Private workspace", "No credit card required"].map((item) => (
+              {["Free to get started", "Organized workspace", "No credit card required"].map((item) => (
                 <span key={item} className="flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-[var(--iseya-gold)]" /> {item}
                 </span>
@@ -9043,7 +9000,6 @@ function IseyaFooter() {
         ["Career Workspace", "/workspace"],
         ["Jobs", "/jobs"],
         ["Career Co-pilots", "/workspace"],
-        ["Pricing", "/pricing"],
       ],
     },
     {
@@ -9058,27 +9014,24 @@ function IseyaFooter() {
     {
       title: "Resources",
       links: [
-        ["Contact", "/contact"],
         ["Insights", "/insights"],
         ["Career Guides", "/guides"],
-        ["Settings", "/account"],
-        ["Help Center", "/contact"],
+        ["Contact", "/contact"],
       ],
     },
     {
-      title: "Company",
+      title: "Legal",
       links: [
-        ["About ISEYA", "/about"],
-        ["Privacy Policy", "/privacy"],
-        ["Terms of Service", "/terms"],
+        ["Privacy", "/privacy"],
+        ["Terms", "/terms"],
       ],
     },
   ];
 
   return (
     <footer className="border-t border-white/10 bg-[var(--iseya-navy)] text-white">
-      <div className="mx-auto max-w-[92rem] px-5 py-9 sm:px-8">
-        <div className="grid gap-8 lg:grid-cols-[1.35fr_repeat(4,0.82fr)]">
+      <div className="mx-auto max-w-[92rem] px-5 py-7 sm:px-8 sm:py-9">
+        <div className="grid gap-7 lg:grid-cols-[1.05fr_2fr] lg:gap-14">
           <div>
             <Image
               src="/brand/iseya-logo.png"
@@ -9090,37 +9043,29 @@ function IseyaFooter() {
             <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
               Beyond Resume. Positioning.
             </p>
-            <p className="mt-4 max-w-xs text-sm leading-6 text-white/75">
-              Private career infrastructure for today&apos;s talent, trusted hiring, and institution readiness.
-            </p>
-            <p className="mt-3 max-w-xs text-xs leading-5 text-white/68">
-              Protected workspaces and structured, human-accountable workflows.
-            </p>
-            <p className="mt-3 text-xs font-medium text-white/60">California, USA</p>
           </div>
-          {footerColumns.map((column) => (
-            <nav key={column.title} aria-label={column.title}>
-              <p className="text-sm font-semibold text-white">{column.title}</p>
-              <div className="mt-4 grid gap-3">
-                {column.links.map(([label, href]) => (
-                  <Link
-                    key={label}
-                    href={href}
-                    className="rounded-sm text-sm text-white/72 transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]"
-                  >
-                    {label}
-                  </Link>
-                ))}
-              </div>
-            </nav>
-          ))}
+          <div className="grid grid-cols-2 gap-x-6 gap-y-7 lg:grid-cols-4">
+            {footerColumns.map((column) => (
+              <nav key={column.title} aria-label={column.title}>
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-white/90">{column.title}</p>
+                <div className="mt-3 grid gap-2.5">
+                  {column.links.map(([label, href]) => (
+                    <Link
+                      key={label}
+                      href={href}
+                      className="rounded-sm text-sm text-white/72 transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]"
+                    >
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              </nav>
+            ))}
+          </div>
         </div>
-        <div className="mt-8 flex flex-col gap-4 border-t border-white/10 pt-5 text-xs text-white/65 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-x-5 gap-y-2">
-            <p>© 2026 Jormp LLC. All rights reserved.</p>
-            <p>ISEYA by Jormp LLC</p>
-          </div>
-          <div className="rounded-md border border-[var(--iseya-gold)]/70 px-4 py-2 font-semibold text-[var(--iseya-gold)]">
+        <div className="mt-7 flex items-center justify-between gap-4 border-t border-white/10 pt-5 text-xs text-white/65">
+          <p>© 2026 ISEYA. All rights reserved.</p>
+          <div className="shrink-0 rounded-md border border-[var(--iseya-gold)]/70 px-3 py-1.5 font-semibold text-[var(--iseya-gold)]">
             English
           </div>
         </div>
