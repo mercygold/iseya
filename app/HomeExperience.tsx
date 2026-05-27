@@ -9,12 +9,12 @@ import {
   ArrowRight,
   BriefcaseBusiness,
   Building2,
+  CheckCircle2,
   ClipboardList,
   FileText,
   FolderOpen,
   Search,
   Settings,
-  ShieldCheck,
   UsersRound,
   Zap,
 } from "lucide-react";
@@ -7023,56 +7023,105 @@ export default function HomeExperience() {
                   See Demo
                 </Link>
               </div>
-              <div className="mt-6 grid gap-2.5 text-sm text-slate-600 sm:mt-8 sm:grid-cols-3 sm:gap-3">
+              <div className="mt-6 grid gap-3 text-sm text-slate-600 sm:mt-8 sm:grid-cols-3">
                 {[
-                  { label: "Organized career workspace", icon: FolderOpen },
-                  { label: "Trusted opportunity sources", icon: ShieldCheck },
-                  { label: "Recruiter visibility", icon: UsersRound },
+                  {
+                    title: "Career workspace",
+                    copy: "Organize materials and next steps in one place.",
+                    icon: FolderOpen,
+                    href: authUser ? "/workspace" : "/signup?redirectedFrom=%2Fworkspace",
+                    iconClass: "bg-blue-50 text-blue-600",
+                  },
+                  {
+                    title: "Professional visibility",
+                    copy: "Present structured career assets with clarity.",
+                    icon: UsersRound,
+                    href: authUser ? "/workspace" : "/signup?redirectedFrom=%2Fworkspace",
+                    iconClass: "bg-emerald-50 text-emerald-600",
+                  },
+                  {
+                    title: "Trusted opportunities",
+                    copy: "Explore sourced roles and readiness insight.",
+                    icon: Building2,
+                    href: "/jobs",
+                    iconClass: "bg-amber-50 text-amber-700",
+                  },
                 ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-2.5 border-slate-200 font-medium leading-5 sm:border-r sm:pr-3 last:sm:border-r-0">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-[var(--iseya-navy)] shadow-sm sm:h-9 sm:w-9">
+                  <Link
+                    key={item.title}
+                    href={item.href}
+                    className="group flex items-start gap-3 rounded-lg border border-transparent px-0 py-1.5 transition hover:border-[var(--iseya-gold)]/30 hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 sm:px-2 sm:py-2"
+                  >
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${item.iconClass}`}>
                       <item.icon className="h-4.5 w-4.5 sm:h-5 sm:w-5" strokeWidth={1.8} />
                     </span>
-                    <span>{item.label}</span>
-                  </div>
+                    <span className="min-w-0">
+                      <span className="block font-semibold leading-5 text-[var(--iseya-navy)] transition group-hover:text-[var(--iseya-gold)]">
+                        {item.title}
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-600">
+                        {item.copy}
+                      </span>
+                    </span>
+                  </Link>
                 ))}
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3 lg:translate-x-4 lg:grid-cols-1">
-              {[
-                {
-                  title: "Career workspace",
-                  copy: "Organize materials and next steps in one place.",
-                  icon: FolderOpen,
-                  iconClass: "bg-blue-50 text-blue-600",
-                },
-                {
-                  title: "Professional visibility",
-                  copy: "Present structured career assets with clarity.",
-                  icon: UsersRound,
-                  iconClass: "bg-emerald-50 text-emerald-600",
-                },
-                {
-                  title: "Trusted opportunities",
-                  copy: "Explore sourced roles and readiness insight.",
-                  icon: Building2,
-                  iconClass: "bg-amber-50 text-amber-700",
-                },
-              ].map((item) => (
-                <div
-                  key={item.title}
-                  className="iseya-hero-card flex items-start gap-3.5 rounded-lg border border-slate-200/80 bg-white p-4 shadow-[0_10px_26px_rgb(0_14_47_/_0.05)] sm:gap-4 sm:p-5"
-                >
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:h-12 sm:w-12 sm:rounded-xl ${item.iconClass}`}>
-                    <item.icon className="h-5 w-5 sm:h-7 sm:w-7" strokeWidth={1.8} />
+            <aside className="iseya-hero-card rounded-2xl border border-slate-200/85 bg-white p-4 shadow-[0_18px_46px_rgb(0_14_47_/_0.09)] sm:p-5 lg:translate-x-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
+                  Career Asset Preview
+                </p>
+                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                  82% Ready
+                </span>
+              </div>
+              <div className="mt-5 rounded-xl border border-slate-200/80 bg-[#F8FAFD] p-4">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#FFF8E6] text-[var(--iseya-gold)]">
+                    <FileText className="h-5 w-5" aria-hidden="true" />
                   </span>
                   <div>
-                    <p className="text-base font-semibold leading-6 text-[var(--iseya-navy)]">{item.title}</p>
-                    <p className="mt-1.5 text-sm leading-6 text-slate-600">{item.copy}</p>
+                    <p className="text-lg font-semibold leading-6 text-[var(--iseya-navy)]">
+                      Jordan Cyril
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Product Operations Manager
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
+                <p className="mt-4 text-sm leading-6 text-slate-600">
+                  Product leader aligning operations, analytics, and delivery for scalable growth.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {["Product Strategy", "Operations", "Analytics", "Agile"].map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-5 space-y-2.5 border-t border-slate-200/80 pt-4">
+                  {["ATS readiness", "Role fit optimization", "Career assets structured"].map((item) => (
+                    <p key={item} className="flex items-center gap-2 text-sm font-semibold text-[var(--iseya-navy)]">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                      {item}
+                    </p>
+                  ))}
+                </div>
+                <div className="mt-5">
+                  <div className="flex justify-between text-xs font-semibold text-slate-500">
+                    <span>Readiness</span>
+                    <span className="text-[var(--iseya-navy)]">82%</span>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-white">
+                    <div className="h-2 w-[82%] rounded-full bg-[var(--iseya-gold)]" />
+                  </div>
+                </div>
+              </div>
+            </aside>
           </div>
       </section>
       <HowIseyaWorks />
