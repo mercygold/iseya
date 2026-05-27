@@ -6985,7 +6985,7 @@ export default function HomeExperience() {
       <section className="mx-auto max-w-[92rem] px-5 pt-6 pb-5 sm:px-8 sm:pt-9 sm:pb-8 lg:pt-12 lg:pb-8">
           <div className="grid w-full gap-7 sm:gap-10 lg:grid-cols-[minmax(480px,1fr)_minmax(330px,0.62fr)] lg:items-center lg:gap-20">
             <div>
-              <h1 className="max-w-3xl text-[2.2rem] font-semibold leading-[1.08] text-[var(--iseya-navy)] sm:text-5xl lg:text-[4rem]">
+              <h1 className="max-w-3xl text-[2.2rem] font-semibold leading-[1.08] text-[#03133F] sm:text-5xl lg:text-[4rem]">
                 Career infrastructure for today&apos;s talent.
               </h1>
               <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600 sm:mt-5 sm:text-base sm:leading-7">
@@ -7024,202 +7024,112 @@ export default function HomeExperience() {
                 {[
                   {
                     value: "100+",
-                    label: "active jobs",
+                    label: "Active Jobs",
                   },
                   {
                     value: "3x",
-                    label: "stronger interview readiness",
+                    label: "Interview Invites",
                   },
                   {
                     value: "75%",
-                    label: "clearer role-fit positioning",
+                    label: "Stronger Positioning",
                   },
                 ].map((stat) => (
                   <div
                     key={stat.label}
-                    className="rounded-lg border border-slate-200/65 bg-white/55 px-3.5 py-3 shadow-[0_8px_18px_rgb(0_14_47_/_0.035)]"
+                    className="rounded-lg border border-slate-200/55 bg-transparent px-3.5 py-3"
                   >
                     <span className="block text-xl font-semibold tracking-tight text-[var(--iseya-gold)]">
                       {stat.value}
                     </span>
-                    <span className="mt-1 block text-xs font-semibold uppercase tracking-[0.12em] text-[var(--iseya-navy)]/70">
+                    <span className="mt-1 block text-sm font-semibold leading-5 text-[#03133F]">
                       {stat.label}
                     </span>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="relative lg:min-h-[500px] lg:translate-x-2 xl:translate-x-4">
-              <div className="pointer-events-none absolute -left-4 top-0 z-0 hidden w-44 rotate-[-4deg] rounded-xl border border-slate-200/85 bg-white p-4 opacity-100 shadow-[0_20px_46px_rgb(0_14_47_/_0.1)] lg:block xl:-left-7 xl:w-48">
-                <div className="mb-3 h-1 w-10 rounded-full bg-[var(--iseya-gold)]" />
-                <p className="text-[13px] font-semibold leading-4 text-[var(--iseya-navy)]">Jordan Taylor</p>
-                <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.1em] text-slate-500">
-                  Product Operations Manager
-                </p>
-                <div className="mt-4 space-y-3">
+            <div className="relative">
+              <aside className="iseya-hero-card relative rounded-2xl border border-slate-200/85 bg-white p-4 shadow-[0_20px_50px_rgb(0_14_47_/_0.1)] sm:p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xl font-semibold leading-7 text-[var(--iseya-navy)]">
+                      Jordan Taylor
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Product Operations Manager
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                    Ready
+                  </span>
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-2.5">
                   {[
-                    { label: "Summary", lines: 2 },
-                    { label: "Skills", lines: 1 },
-                    { label: "Experience", lines: 2 },
-                    { label: "Education", lines: 1 },
-                  ].map((section) => (
-                    <div key={section.label}>
-                      <p className="text-[8px] font-bold uppercase tracking-[0.14em] text-[var(--iseya-navy)]">
-                        {section.label}
-                      </p>
-                      <div className="mt-1.5 space-y-1">
-                        {Array.from({ length: section.lines }).map((_, index) => (
-                          <span
-                            key={`${section.label}-${index}`}
-                            className={`block h-1.5 rounded-full bg-slate-100 ${index === 0 ? "w-full" : "w-4/5"}`}
-                          />
-                        ))}
+                    { label: "Resume", icon: FileText, active: true },
+                    { label: "Cover Letter", icon: ClipboardList },
+                    { label: "LinkedIn Profile", icon: UsersRound },
+                    { label: "Application Kit", icon: BriefcaseBusiness },
+                    { label: "Interview Prep", icon: UsersRound },
+                    { label: "Job Tracker", icon: BriefcaseBusiness },
+                  ].map((module) => (
+                    <div
+                      key={module.label}
+                      className={`flex min-h-12 items-center gap-2.5 rounded-lg border px-3 py-2.5 text-xs font-semibold transition ${
+                        module.active
+                          ? "border-[var(--iseya-navy)] bg-[var(--iseya-navy)] text-white shadow-[0_10px_22px_rgb(0_14_47_/_0.12)]"
+                          : "border-slate-200 bg-[#F8FAFD] text-[var(--iseya-navy)]"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
+                          module.active ? "bg-[var(--iseya-gold)] text-[var(--iseya-navy)]" : "bg-white text-slate-500"
+                        }`}
+                      >
+                        <module.icon className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0">{module.label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-5 space-y-3 rounded-xl bg-[#F8FAFD] p-4">
+                  {[
+                    { label: "ATS Readiness", value: "90/100", percent: "90%", color: "bg-[var(--iseya-gold)]" },
+                    { label: "Role Fit", value: "88/100", percent: "88%", color: "bg-emerald-500" },
+                  ].map((score) => (
+                    <div key={score.label}>
+                      <div className="flex items-center justify-between gap-3 text-xs font-semibold">
+                        <span className="text-slate-600">{score.label}</span>
+                        <span className="text-[var(--iseya-navy)]">{score.value}</span>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
+                        <div className={`h-1.5 rounded-full ${score.color}`} style={{ width: score.percent }} />
                       </div>
                     </div>
                   ))}
                 </div>
-                <p className="mt-4 text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-                  View Resume
-                </p>
-              </div>
-              <div className="pointer-events-none absolute left-5 top-[7.5rem] z-10 hidden w-40 rotate-[5deg] overflow-hidden rounded-xl border border-slate-200/85 bg-white opacity-100 shadow-[0_20px_46px_rgb(0_14_47_/_0.1)] lg:block xl:left-6 xl:w-44">
-                <div className="flex min-h-56">
-                  <div className="w-11 bg-[var(--iseya-navy)] px-2 py-4">
-                    <div className="h-7 w-7 rounded-full border border-[var(--iseya-gold)] bg-white/10" />
-                    <div className="mt-5 space-y-1.5">
-                      <span className="block h-1.5 rounded-full bg-white/35" />
-                      <span className="block h-1.5 rounded-full bg-white/25" />
-                      <span className="block h-1.5 rounded-full bg-white/25" />
-                    </div>
-                  </div>
-                  <div className="flex-1 p-3">
-                    <p className="text-[12px] font-semibold leading-4 text-[var(--iseya-navy)]">Amara Collins</p>
-                    <p className="mt-1 text-[9px] text-slate-500">Data Analyst</p>
-                    <div className="mt-4 space-y-3">
-                      {["Summary", "Skills", "Experience", "Education"].map((section, index) => (
-                        <div key={section}>
-                          <div className="flex items-center gap-1.5">
-                            <span className={`h-1.5 w-1.5 rounded-full ${index === 0 ? "bg-[var(--iseya-gold)]" : "bg-slate-300"}`} />
-                            <p className="text-[8px] font-bold uppercase tracking-[0.1em] text-[var(--iseya-navy)]">
-                              {section}
-                            </p>
-                          </div>
-                          <div className="mt-1.5 space-y-1">
-                            <span className="block h-1.5 rounded-full bg-slate-100" />
-                            <span className="block h-1.5 w-3/4 rounded-full bg-slate-100" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="mt-4 text-[8px] font-semibold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
-                      Resume Output
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="pointer-events-none absolute bottom-3 -left-2 z-0 hidden w-44 rotate-[-1deg] rounded-xl border border-slate-200/85 bg-[#FBFCFE] p-4 shadow-[0_18px_42px_rgb(0_14_47_/_0.075)] lg:block xl:-left-3 xl:w-48">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[13px] font-semibold leading-4 text-[var(--iseya-navy)]">Daniel Reed</p>
-                    <p className="mt-1 text-[10px] text-slate-500">Project Manager</p>
-                  </div>
-                  <span className="h-7 w-7 rounded-full border border-[var(--iseya-gold)]/50 bg-white" />
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-1.5">
-                  {["Summary", "Skills", "Experience", "Education"].map((section) => (
-                    <div key={section} className="rounded-md bg-white p-2">
-                      <p className="text-[7px] font-bold uppercase tracking-[0.12em] text-[var(--iseya-navy)]">
-                        {section}
-                      </p>
-                      <span className="mt-1.5 block h-1.5 rounded-full bg-slate-100" />
-                      <span className="mt-1 block h-1.5 w-2/3 rounded-full bg-slate-100" />
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white">
-                  <div className="h-1.5 w-[82%] rounded-full bg-[var(--iseya-gold)]" />
-                </div>
-              </div>
-            <aside className="iseya-hero-card relative z-20 ml-auto rounded-2xl border border-slate-200/85 bg-white p-4 shadow-[0_20px_50px_rgb(0_14_47_/_0.1)] sm:p-5 lg:max-w-[360px] lg:translate-x-3 lg:translate-y-12 xl:max-w-[390px]">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xl font-semibold leading-7 text-[var(--iseya-navy)]">
-                    Jordan Taylor
-                  </p>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Product Operations Manager
-                  </p>
-                </div>
-                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                  Ready
-                </span>
-              </div>
 
-              <div className="mt-5 grid grid-cols-2 gap-2.5">
-                {[
-                  { label: "Resume", icon: FileText, active: true },
-                  { label: "Cover Letter", icon: ClipboardList },
-                  { label: "LinkedIn Profile", icon: UsersRound },
-                  { label: "Application Kit", icon: BriefcaseBusiness },
-                  { label: "Interview Prep", icon: UsersRound },
-                  { label: "Job Tracker", icon: BriefcaseBusiness },
-                ].map((module) => (
-                  <div
-                    key={module.label}
-                    className={`flex min-h-12 items-center gap-2.5 rounded-lg border px-3 py-2.5 text-xs font-semibold transition ${
-                      module.active
-                        ? "border-[var(--iseya-navy)] bg-[var(--iseya-navy)] text-white shadow-[0_10px_22px_rgb(0_14_47_/_0.12)]"
-                        : "border-slate-200 bg-[#F8FAFD] text-[var(--iseya-navy)]"
-                    }`}
-                  >
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {["Run ATS Check", "Keyword Match", "Optimize Resume"].map((action, index) => (
                     <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
-                        module.active ? "bg-[var(--iseya-gold)] text-[var(--iseya-navy)]" : "bg-white text-slate-500"
+                      key={action}
+                      className={`inline-flex min-h-9 items-center rounded-md border px-3 text-xs font-semibold ${
+                        index === 0
+                          ? "border-[var(--iseya-gold)] bg-[var(--iseya-gold)] text-[var(--iseya-navy)]"
+                          : "border-slate-200 bg-white text-[var(--iseya-navy)]"
                       }`}
                     >
-                      <module.icon className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden="true" />
+                      {action}
                     </span>
-                    <span className="min-w-0">{module.label}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-5 space-y-3 rounded-xl bg-[#F8FAFD] p-4">
-                {[
-                  { label: "ATS Readiness", value: "90/100", percent: "90%", color: "bg-[var(--iseya-gold)]" },
-                  { label: "Role Fit", value: "88/100", percent: "88%", color: "bg-emerald-500" },
-                ].map((score) => (
-                  <div key={score.label}>
-                    <div className="flex items-center justify-between gap-3 text-xs font-semibold">
-                      <span className="text-slate-600">{score.label}</span>
-                      <span className="text-[var(--iseya-navy)]">{score.value}</span>
-                    </div>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
-                      <div className={`h-1.5 rounded-full ${score.color}`} style={{ width: score.percent }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {["Run ATS Check", "Keyword Match", "Optimize Resume"].map((action, index) => (
-                  <span
-                    key={action}
-                    className={`inline-flex min-h-9 items-center rounded-md border px-3 text-xs font-semibold ${
-                      index === 0
-                        ? "border-[var(--iseya-gold)] bg-[var(--iseya-gold)] text-[var(--iseya-navy)]"
-                        : "border-slate-200 bg-white text-[var(--iseya-navy)]"
-                    }`}
-                  >
-                    {action}
-                  </span>
-                ))}
-              </div>
-              <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3 text-xs font-medium text-slate-500">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-                Career assets structured for recruiter review.
-              </div>
-            </aside>
+                  ))}
+                </div>
+                <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3 text-xs font-medium text-slate-500">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                  Career assets structured for recruiter review.
+                </div>
+              </aside>
             </div>
           </div>
       </section>
