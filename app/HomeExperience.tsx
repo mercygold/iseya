@@ -6982,13 +6982,10 @@ export default function HomeExperience() {
 
       {isPublicLanding ? (
         <>
-      <section className="mx-auto max-w-[92rem] px-5 py-7 sm:px-8 sm:py-11 lg:py-13">
+      <section className="mx-auto max-w-[92rem] px-5 pt-6 pb-5 sm:px-8 sm:pt-9 sm:pb-8 lg:pt-12 lg:pb-8">
           <div className="grid w-full gap-7 sm:gap-10 lg:grid-cols-[minmax(480px,1fr)_minmax(330px,0.62fr)] lg:items-center lg:gap-20">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)] sm:text-xs">
-                Beyond resume. Positioning.
-              </p>
-              <h1 className="mt-3 max-w-3xl text-[2.15rem] font-semibold leading-[1.1] text-[var(--iseya-navy)] sm:mt-4 sm:text-5xl lg:text-[3.7rem]">
+              <h1 className="max-w-3xl text-[2.2rem] font-semibold leading-[1.08] text-[var(--iseya-navy)] sm:text-5xl lg:text-[4rem]">
                 Career infrastructure for today&apos;s talent.
               </h1>
               <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600 sm:mt-5 sm:text-base sm:leading-7">
@@ -7067,13 +7064,36 @@ export default function HomeExperience() {
                 ))}
               </div>
             </div>
-            <aside className="iseya-hero-card rounded-2xl border border-slate-200/85 bg-white p-4 shadow-[0_18px_46px_rgb(0_14_47_/_0.09)] sm:p-5 lg:translate-x-4">
+            <div className="relative lg:translate-x-4">
+              <div className="pointer-events-none absolute -left-12 top-10 hidden w-36 rotate-[-5deg] rounded-xl border border-slate-200/80 bg-white p-3 opacity-85 shadow-[0_14px_32px_rgb(0_14_47_/_0.08)] lg:block">
+                <p className="text-xs font-semibold text-[var(--iseya-navy)]">Jordan Taylor</p>
+                <p className="mt-1 text-[10px] text-slate-500">Product Operations Manager</p>
+                <div className="mt-3 space-y-1.5">
+                  {["Summary", "Skills", "Experience"].map((line, index) => (
+                    <div key={line} className="flex items-center gap-2">
+                      <span className={`h-1.5 w-1.5 rounded-full ${index === 0 ? "bg-[var(--iseya-gold)]" : "bg-slate-300"}`} />
+                      <span className="h-1.5 flex-1 rounded-full bg-slate-100" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="pointer-events-none absolute -left-7 bottom-8 hidden w-32 rotate-[4deg] rounded-xl border border-slate-200/80 bg-white p-3 opacity-80 shadow-[0_14px_32px_rgb(0_14_47_/_0.07)] lg:block">
+                <p className="text-xs font-semibold text-[var(--iseya-navy)]">Career Profile</p>
+                <div className="mt-3 space-y-2">
+                  {["Role Fit", "Key Strengths", "Readiness"].map((line, index) => (
+                    <div key={line}>
+                      <p className="text-[9px] font-medium text-slate-500">{line}</p>
+                      <div className="mt-1 h-1.5 rounded-full bg-slate-100">
+                        <div className={`h-1.5 rounded-full ${index === 2 ? "w-[82%] bg-[var(--iseya-gold)]" : "w-[70%] bg-[var(--iseya-navy)]/70"}`} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            <aside className="iseya-hero-card relative z-10 rounded-2xl border border-slate-200/85 bg-white p-4 shadow-[0_18px_46px_rgb(0_14_47_/_0.09)] sm:p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-                    Career Workspace
-                  </p>
-                  <p className="mt-3 text-lg font-semibold leading-6 text-[var(--iseya-navy)]">
+                  <p className="text-xl font-semibold leading-7 text-[var(--iseya-navy)]">
                     Jordan Taylor
                   </p>
                   <p className="mt-1 text-sm text-slate-500">
@@ -7081,7 +7101,7 @@ export default function HomeExperience() {
                   </p>
                 </div>
                 <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                  Active profile
+                  Ready
                 </span>
               </div>
 
@@ -7150,9 +7170,10 @@ export default function HomeExperience() {
                 Career assets structured for recruiter review.
               </div>
             </aside>
+            </div>
           </div>
       </section>
-      <HowIseyaWorks />
+      <HowIseyaWorks workspaceHref={authUser ? "/workspace" : "/signup?redirectedFrom=%2Fworkspace"} />
       <FinalConversionCta
         startHref={authUser ? "/workspace" : "/signup"}
         onStartFree={() => {
