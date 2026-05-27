@@ -25,6 +25,11 @@ import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import type { Json } from "@/lib/database.types";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import {
+  CareerWorkspacePreview,
+  FloatingProductCards,
+  HowIseyaWorks,
+} from "@/components/HomeProductStory";
+import {
   canUseSubscriptionFeature,
   isProPlan,
   isStarterPlan,
@@ -7073,6 +7078,9 @@ export default function HomeExperience() {
             </div>
           </div>
       </section>
+      <FloatingProductCards />
+      <HowIseyaWorks />
+      <CareerWorkspacePreview />
       <section className="border-y border-slate-200/70 bg-white">
         <div className="mx-auto grid max-w-[92rem] gap-6 px-5 py-8 sm:grid-cols-2 sm:px-8 lg:grid-cols-[240px_repeat(5,minmax(0,1fr))] lg:gap-0">
           <div className="pr-6 sm:col-span-2 lg:col-span-1">
