@@ -26,8 +26,10 @@ import type { Json } from "@/lib/database.types";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 import {
   CareerWorkspacePreview,
+  FinalConversionCta,
   FloatingProductCards,
   HowIseyaWorks,
+  TrustAudienceSection,
 } from "@/components/HomeProductStory";
 import {
   canUseSubscriptionFeature,
@@ -7081,6 +7083,7 @@ export default function HomeExperience() {
       <FloatingProductCards />
       <HowIseyaWorks />
       <CareerWorkspacePreview />
+      <TrustAudienceSection />
       <section className="border-y border-slate-200/70 bg-white">
         <div className="mx-auto grid max-w-[92rem] gap-6 px-5 py-8 sm:grid-cols-2 sm:px-8 lg:grid-cols-[240px_repeat(5,minmax(0,1fr))] lg:gap-0">
           <div className="pr-6 sm:col-span-2 lg:col-span-1">
@@ -7092,13 +7095,13 @@ export default function HomeExperience() {
               <br />Every career connection.
             </h2>
             <p className="mt-4 text-xs leading-5 text-slate-600">
-              Career preparation meets transparent opportunity discovery and trusted access.
+              Career preparation meets transparent opportunity discovery and professional visibility.
             </p>
           </div>
           {[
             { title: "Career Workspace", copy: "Build career assets and tailor resumes for specific opportunities.", icon: FolderOpen, href: "/workspace", linkLabel: "Explore career workspace", color: "bg-blue-50 text-blue-600" },
             { title: "Opportunity Discovery", copy: "Explore source-transparent roles from recruiters, employers, and curated channels.", icon: Search, href: "/jobs", linkLabel: "Browse opportunities", color: "bg-emerald-50 text-emerald-600" },
-            { title: "Recruiter Access", copy: "Verified recruiters post roles and review structured candidate interest.", icon: UsersRound, href: "/recruiters", linkLabel: "Explore recruiter workflow", color: "bg-blue-50 text-blue-700" },
+            { title: "Recruiter Access", copy: "Verified recruiters post roles and review structured candidate interest.", icon: UsersRound, href: "/recruiters", linkLabel: "Explore recruiter tools", color: "bg-blue-50 text-blue-700" },
             { title: "Institution Insights", copy: "Institutions receive aggregate, privacy-safe career readiness insights.", icon: Building2, href: "/institutions", linkLabel: "View institution experience", color: "bg-orange-50 text-orange-600" },
             { title: "Career Co-pilots", copy: "Refine professional positioning and application materials with focused guidance.", icon: Zap, href: "/workspace", linkLabel: "Build career assets", color: "bg-amber-50 text-amber-600" },
           ].map((feature) => (
@@ -7122,7 +7125,7 @@ export default function HomeExperience() {
               Start with confidence
             </p>
             <h2 className="mt-3 text-2xl font-semibold text-[var(--iseya-navy)]">
-              Build your career workspace.
+              See where your next move starts.
             </h2>
             <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-slate-600">
               {["Free to get started", "Organized workspace", "No credit card required"].map((item) => (
@@ -7205,6 +7208,26 @@ export default function HomeExperience() {
           </div>
         </div>
       </section>
+      <FinalConversionCta
+        startHref={authUser ? "/workspace" : "/signup"}
+        onStartFree={() => {
+          trackAnalyticsEvent("homepage_cta_clicked", {
+            cta: "start_free",
+            destination: authUser ? "workspace" : "signup",
+            source: "homepage_final_cta",
+          });
+          trackAnalyticsEvent(
+            authUser ? "candidate_workspace_started" : "signup_initiated",
+            { source: "homepage_final_cta" },
+          );
+        }}
+        onExploreJobs={() =>
+          trackAnalyticsEvent("homepage_cta_clicked", {
+            cta: "explore_jobs",
+            source: "homepage_final_cta",
+          })
+        }
+      />
         </>
       ) : null}
 
