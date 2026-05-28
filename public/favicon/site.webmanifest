@@ -1,7 +1,7 @@
 {
-  "name": "Iseya",
-  "short_name": "Iseya",
-  "description": "Career infrastructure for resume tailoring, opportunity discovery, and application tracking.",
+  "name": "ISEYA",
+  "short_name": "ISEYA",
+  "description": "Career infrastructure for today's talent.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
@@ -10,13 +10,13 @@
       "src": "/favicon/web-app-manifest-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     },
     {
       "src": "/favicon/web-app-manifest-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ],
   "theme_color": "#ffffff",

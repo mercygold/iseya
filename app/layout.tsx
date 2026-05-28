@@ -10,14 +10,15 @@ import {
 import GoogleTagManagerConsent from "@/components/GoogleTagManagerConsent";
 import PerformanceMetrics from "@/components/PerformanceMetrics";
 import PrivacyConsentBanner from "@/components/PrivacyConsentBanner";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import { AuthProvider } from "./auth/AuthProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  applicationName: "Iseya",
+  applicationName: "ISEYA",
   title: {
-    default: "Iseya",
+    default: "ISEYA",
     template: `%s | ${siteName}`,
   },
   description: defaultDescription,
@@ -31,12 +32,13 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "Iseya",
+    title: "ISEYA",
     statusBarStyle: "default",
   },
-  manifest: "/favicon/site.webmanifest",
+  manifest: "/manifest.json",
   other: {
     "msapplication-TileColor": "#ffffff",
+    "apple-mobile-web-app-status-bar-style": "default",
   },
 };
 
@@ -56,6 +58,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-zinc-50">
         <GoogleTagManagerNoScript />
         <AuthProvider>{children}</AuthProvider>
+        <PwaInstallPrompt />
         <PrivacyConsentBanner />
         {tagManagerId ? (
           <Script
