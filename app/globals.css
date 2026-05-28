@@ -50,19 +50,19 @@ body {
   transform: translateY(-3px);
 }
 
-@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+@media (prefers-reduced-motion: no-preference) {
   @keyframes iseya-hero-float {
     0%,
     100% {
       transform: translateY(0);
     }
     50% {
-      transform: translateY(-5px);
+      transform: translateY(-4px);
     }
   }
 
   .iseya-hero-card {
-    animation: iseya-hero-float 9s ease-in-out infinite;
+    animation: iseya-hero-float 10s cubic-bezier(0.45, 0, 0.25, 1) infinite;
   }
 
   .iseya-hero-card:nth-child(2) {

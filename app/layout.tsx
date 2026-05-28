@@ -35,10 +35,13 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   manifest: "/favicon/site.webmanifest",
+  other: {
+    "msapplication-TileColor": "#ffffff",
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#5B2C83",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({

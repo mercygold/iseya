@@ -1,6 +1,8 @@
 {
   "name": "Iseya",
   "short_name": "Iseya",
+  "description": "Career infrastructure for resume tailoring, opportunity discovery, and application tracking.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "icons": [
@@ -17,7 +19,7 @@
       "purpose": "maskable"
     }
   ],
-  "theme_color": "#5B2C83",
+  "theme_color": "#ffffff",
   "background_color": "#ffffff",
   "display": "standalone"
 }

@@ -6985,11 +6985,11 @@ export default function HomeExperience() {
       <section className="mx-auto max-w-[92rem] px-5 pt-6 pb-5 sm:px-8 sm:pt-9 sm:pb-8 lg:pt-12 lg:pb-8">
           <div className="grid w-full gap-7 sm:gap-10 lg:grid-cols-[minmax(480px,1fr)_minmax(330px,0.62fr)] lg:items-center lg:gap-20">
             <div>
-              <h1 className="max-w-3xl text-[2.2rem] font-semibold leading-[1.08] text-[#03133F] sm:text-5xl lg:text-[4rem]">
+              <h1 className="max-w-3xl text-[2.2rem] font-semibold leading-[1.08] text-[#002B6F] sm:text-5xl lg:text-[4rem]">
                 Career infrastructure for today&apos;s talent.
               </h1>
-              <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600 sm:mt-5 sm:text-base sm:leading-7">
-                Build career assets, discover trusted opportunities, and stay visible to recruiters and institutions.
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-700 sm:mt-5 sm:text-base sm:leading-7">
+                Create recruiter-ready resumes tailored to real opportunities, track applications, and improve interview outcomes with structured career tools built for today&apos;s hiring.
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:mt-7 sm:flex-row sm:flex-wrap">
                 <Link

@@ -37,7 +37,7 @@ export function HowIseyaWorks({ workspaceHref = "/workspace" }: { workspaceHref?
           How ISEYA works
         </h2>
         <p className="mt-3 text-base leading-7 text-slate-600">
-          Build your career foundation, discover better opportunities, and stay ready for what comes next.
+          Optimize ATS-ready resumes, tailor materials for each role, track applications, and use career intelligence to stay aligned with the opportunities you want.
         </p>
       </div>
       <div className="mt-6 grid gap-3 md:grid-cols-3">
