@@ -83,7 +83,7 @@ export default function PublicTrustFooter({
           </div>
         </div>
         <div className="mt-7 border-t border-white/10 pt-5 text-xs text-white/64">
-          <p>© 2026 ISEYA. All rights reserved.</p>
+          <p>© 2026 Jormp LLC. All rights reserved.</p>
         </div>
       </div>
     </footer>

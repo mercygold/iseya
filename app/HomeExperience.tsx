@@ -9060,7 +9060,7 @@ function IseyaFooter() {
           </div>
         </div>
         <div className="mt-7 flex items-center justify-between gap-4 border-t border-white/10 pt-5 text-xs text-white/65">
-          <p>© 2026 ISEYA. All rights reserved.</p>
+          <p>© 2026 Jormp LLC. All rights reserved.</p>
           <div className="shrink-0 rounded-md border border-[var(--iseya-gold)]/70 px-3 py-1.5 font-semibold text-[var(--iseya-gold)]">
             English
           </div>
