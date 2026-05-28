@@ -6985,7 +6985,7 @@ export default function HomeExperience() {
       <section className="mx-auto max-w-[92rem] px-5 pt-6 pb-5 sm:px-8 sm:pt-9 sm:pb-8 lg:pt-12 lg:pb-8">
           <div className="grid w-full gap-7 sm:gap-10 lg:grid-cols-[minmax(480px,1fr)_minmax(330px,0.62fr)] lg:items-center lg:gap-20">
             <div>
-              <h1 className="max-w-3xl text-[2.2rem] font-semibold leading-[1.08] text-[#002B6F] sm:text-5xl lg:text-[4rem]">
+              <h1 className="max-w-3xl text-[2.2rem] font-semibold leading-[1.08] text-[var(--iseya-heading)] sm:text-5xl lg:text-[4rem]">
                 Career infrastructure for today&apos;s talent.
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-700 sm:mt-5 sm:text-base sm:leading-7">
@@ -7042,7 +7042,7 @@ export default function HomeExperience() {
                     <span className="block text-xl font-semibold tracking-tight text-[var(--iseya-gold)]">
                       {stat.value}
                     </span>
-                    <span className="mt-1 block text-sm font-semibold leading-5 text-[#03133F]">
+                    <span className="mt-1 block text-sm font-semibold leading-5 text-[var(--iseya-heading)]">
                       {stat.label}
                     </span>
                   </div>
@@ -7053,7 +7053,7 @@ export default function HomeExperience() {
               <aside className="iseya-hero-card relative rounded-2xl border border-slate-200/85 bg-white p-4 shadow-[0_20px_50px_rgb(0_14_47_/_0.1)] sm:p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xl font-semibold leading-7 text-[var(--iseya-navy)]">
+                    <p className="text-xl font-semibold leading-7 text-[var(--iseya-heading)]">
                       Jordan Taylor
                     </p>
                     <p className="mt-1 text-sm text-slate-500">
@@ -7160,7 +7160,7 @@ export default function HomeExperience() {
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
               Built for the career ecosystem
             </p>
-            <h2 className="mt-4 text-3xl font-semibold leading-tight text-[var(--iseya-navy)] sm:text-[2.35rem]">
+            <h2 className="mt-4 text-3xl font-semibold leading-tight text-[var(--iseya-heading)] sm:text-[2.35rem]">
               One platform.
               <br />Every career connection.
             </h2>
@@ -7183,7 +7183,7 @@ export default function HomeExperience() {
               <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${feature.color}`}>
                 <feature.icon className="h-5 w-5" strokeWidth={1.8} />
               </span>
-              <h3 className="mt-4 text-lg font-semibold leading-6 text-[var(--iseya-navy)]">{feature.title}</h3>
+              <h3 className="mt-4 text-lg font-semibold leading-6 text-[var(--iseya-heading)]">{feature.title}</h3>
               <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-[15px]">{feature.copy}</p>
               <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition group-hover:text-[var(--iseya-navy)]">
                 {feature.linkLabel} <ArrowRight className="h-3.5 w-3.5" />

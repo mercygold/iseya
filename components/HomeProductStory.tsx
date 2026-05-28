@@ -33,7 +33,7 @@ export function HowIseyaWorks({ workspaceHref = "/workspace" }: { workspaceHref?
   return (
     <section className="mx-auto max-w-[92rem] px-5 py-6 sm:px-8 sm:py-9">
       <div className="max-w-2xl">
-        <h2 className="text-[2rem] font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-[2.65rem] sm:leading-tight">
+        <h2 className="text-[2rem] font-semibold tracking-tight text-[var(--iseya-heading)] sm:text-[2.65rem] sm:leading-tight">
           How ISEYA works
         </h2>
         <p className="mt-3 text-base leading-7 text-slate-600">
@@ -52,7 +52,7 @@ export function HowIseyaWorks({ workspaceHref = "/workspace" }: { workspaceHref?
             }`}
           >
             <p className="text-xs font-bold tracking-[0.16em] text-[var(--iseya-gold)]">{step.number}</p>
-            <h3 className="mt-4 text-[1.35rem] font-semibold leading-7 text-[var(--iseya-navy)] transition group-hover:text-[var(--iseya-gold)]">{step.title}</h3>
+            <h3 className="mt-4 text-[1.35rem] font-semibold leading-7 text-[var(--iseya-heading)] transition group-hover:text-[var(--iseya-gold)]">{step.title}</h3>
             <p className="mt-3 text-base leading-7 text-slate-600">{step.copy}</p>
           </Link>
         ))}
@@ -70,7 +70,7 @@ export function HomepageStatsStrip() {
             <p className="text-3xl font-semibold tracking-tight text-[var(--iseya-gold)] sm:text-[2.65rem]">
               {stat.value}
             </p>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.17em] text-[var(--iseya-navy)]/70">
+            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.17em] text-[var(--iseya-heading)]/80">
               {stat.label}
             </p>
           </div>
