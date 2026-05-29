@@ -98,6 +98,10 @@ function seedOpportunityType(seed: CuratedOpportunitySeed) {
   return seed.opportunity_type ?? seed.source_type ?? "";
 }
 
+function seedCreatedAt(seed: CuratedOpportunitySeed) {
+  return seed.created_at ?? seed.imported_at ?? seed.date_added ?? undefined;
+}
+
 function curatedSeedRow(seed: CuratedOpportunitySeed, adminUserId: string) {
   const requirements = Array.isArray(seed.requirements)
     ? seed.requirements.join("\n")
@@ -122,6 +126,7 @@ function curatedSeedRow(seed: CuratedOpportunitySeed, adminUserId: string) {
     opportunity_type: "curated_opportunity",
     source_name: seed.source_name ?? seed.source_type ?? "curated_opportunity",
     source_description: "Sourced from active external hiring channels",
+    ...(seedCreatedAt(seed) ? { created_at: seedCreatedAt(seed) } : {}),
   };
 }
 

@@ -17,6 +17,9 @@ export type CuratedOpportunitySeed = {
   source_description: string;
   opportunity_type?: string;
   status: string;
+  created_at?: string;
+  imported_at?: string;
+  date_added?: string;
   description: string;
   requirements?: string[] | string;
   sponsorship_status?: string;

@@ -38,6 +38,10 @@ type JobPost = {
   application_url: string | null;
   status: string;
   created_at: string;
+  posted_at?: string | null;
+  updated_at?: string | null;
+  imported_at?: string | null;
+  date_added?: string | null;
   opportunity_type?:
     | "curated_opportunity"
     | "recruiter_posted"
@@ -156,6 +160,39 @@ function jobMetadata(job: JobPost) {
     metadataLabel(job.employment_type),
     ...(hasSponsorship(job) ? ["SPONSORSHIP"] : []),
   ].join(" | ");
+}
+
+function dateValue(value: string | null | undefined) {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function jobSortDate(job: JobPost) {
+  return (
+    dateValue(job.created_at) ??
+    dateValue(job.posted_at) ??
+    dateValue(job.updated_at) ??
+    dateValue(job.imported_at) ??
+    dateValue(job.date_added) ??
+    dateValue(job.application_deadline)
+  );
+}
+
+function newestJobsFirst(jobsToSort: readonly JobPost[]) {
+  return jobsToSort
+    .map((job, index) => ({ job, index, sortDate: jobSortDate(job) }))
+    .sort((first, second) => {
+      if (first.sortDate !== null && second.sortDate !== null) {
+        return second.sortDate - first.sortDate;
+      }
+
+      if (first.sortDate !== null) return -1;
+      if (second.sortDate !== null) return 1;
+
+      return second.index - first.index;
+    })
+    .map(({ job }) => job);
 }
 
 function formatSalary(job: JobPost) {
@@ -344,12 +381,15 @@ export default function JobsBoard() {
         throw new Error(data.error || "Unable to load jobs.");
       }
 
-      setJobs(data.jobs ?? []);
+      const sortedJobs = newestJobsFirst(data.jobs ?? []);
+      setJobs(sortedJobs);
       const requestedJobId = new URLSearchParams(window.location.search).get("job") ?? "";
       setSelectedJobId((current) =>
-        (data.jobs ?? []).some((job) => job.id === requestedJobId)
+        sortedJobs.some((job) => job.id === requestedJobId)
           ? requestedJobId
-          : current || data.jobs?.[0]?.id || "",
+          : current && sortedJobs.some((job) => job.id === current)
+            ? current
+            : sortedJobs[0]?.id || "",
       );
       const nextStatuses = Object.fromEntries(
         (data.applications ?? []).map((application) => [
