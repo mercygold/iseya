@@ -25,6 +25,7 @@ import {
   FinalConversionCta,
   HomepageStatsStrip,
   HowIseyaWorks,
+  type HomepageMetrics,
 } from "@/components/HomeProductStory";
 import {
   canUseSubscriptionFeature,
@@ -4800,7 +4801,7 @@ function isTransientSessionError(error: unknown) {
   return /jwt issued at future|failed to fetch|fetch failed|network|session|auth/i.test(message);
 }
 
-export default function HomeExperience() {
+export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: HomepageMetrics }) {
   const router = useRouter();
   const pathname = usePathname();
   const isPublicLanding = pathname === "/";
@@ -7023,7 +7024,7 @@ export default function HomeExperience() {
               <div className="mt-6 grid gap-3 text-sm text-slate-600 sm:mt-8 sm:grid-cols-3">
                 {[
                   {
-                    value: "100+",
+                    value: homepageMetrics?.activeJobs ?? "100+",
                     label: "Active Jobs",
                   },
                   {
@@ -7192,7 +7193,7 @@ export default function HomeExperience() {
           ))}
         </div>
       </section>
-      <HomepageStatsStrip />
+      <HomepageStatsStrip metrics={homepageMetrics} />
         </>
       ) : null}
 

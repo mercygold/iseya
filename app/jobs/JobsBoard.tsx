@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthProvider";
 import { trackAnalyticsEvent } from "@/lib/analytics";
+import { getUniqueCountries, normalizeCountry } from "@/lib/jobsMetrics";
 
 type JobPost = {
   id: string;
@@ -134,16 +135,6 @@ const headerNavigationLink =
   "rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]";
 const anonymousApplicationStorageKey = "iseya_anonymous_job_application_statuses";
 const savedOpportunityStorageKey = "iseya_saved_opportunity_ids";
-const countryFilterOptions = [
-  "Global",
-  "Canada",
-  "Germany",
-  "Nigeria",
-  "South Africa",
-  "United Kingdom",
-  "United States",
-];
-
 function label(value: string) {
   return value.replace(/_/g, " ").replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -376,17 +367,18 @@ export default function JobsBoard() {
     () =>
       uniqueSorted(
         jobs
-          .filter((job) => !countryFilter || normalizedMatch(job.country ?? "") === normalizedMatch(countryFilter))
+          .filter((job) => !countryFilter || normalizeCountry(job.country) === normalizeCountry(countryFilter))
           .map((job) => locationParts(job).region)
           .filter(Boolean),
       ),
     [countryFilter, jobs],
   );
+  const countryFilterOptions = useMemo(() => getUniqueCountries(jobs), [jobs]);
   const cityOptions = useMemo(
     () =>
       uniqueSorted(
         jobs
-          .filter((job) => !countryFilter || normalizedMatch(job.country ?? "") === normalizedMatch(countryFilter))
+          .filter((job) => !countryFilter || normalizeCountry(job.country) === normalizeCountry(countryFilter))
           .filter((job) => !regionFilter || normalizedMatch(locationParts(job).region) === normalizedMatch(regionFilter))
           .map((job) => locationParts(job).city)
           .filter(Boolean),
@@ -401,7 +393,7 @@ export default function JobsBoard() {
     return sourceFilteredJobs.filter((job) => {
       const parts = locationParts(job);
 
-      if (countryFilter && normalizedMatch(job.country ?? "") !== normalizedMatch(countryFilter)) return false;
+      if (countryFilter && normalizeCountry(job.country) !== normalizeCountry(countryFilter)) return false;
       if (regionFilter && normalizedMatch(parts.region) !== normalizedMatch(regionFilter)) return false;
       if (cityFilter && normalizedMatch(parts.city) !== normalizedMatch(cityFilter)) return false;
 
@@ -509,7 +501,7 @@ export default function JobsBoard() {
     const locationFilteredJobs = jobs.filter((job) => {
       const parts = locationParts(job);
 
-      if (countryFilter && normalizedMatch(job.country ?? "") !== normalizedMatch(countryFilter)) return false;
+      if (countryFilter && normalizeCountry(job.country) !== normalizeCountry(countryFilter)) return false;
       if (regionFilter && normalizedMatch(parts.region) !== normalizedMatch(regionFilter)) return false;
       if (cityFilter && normalizedMatch(parts.city) !== normalizedMatch(cityFilter)) return false;
 
