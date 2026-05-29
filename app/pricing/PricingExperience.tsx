@@ -166,31 +166,31 @@ function PricingContent({ requestedPlan }: { requestedPlan?: string }) {
         </div>
       </header>
 
-      <section className="px-5 py-9 sm:px-8 sm:py-12">
+      <section className="iseya-soft-grid px-5 py-10 sm:px-8 sm:py-14">
         <div className="mx-auto max-w-[82rem]">
           <div className="max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
               ISEYA Plans
             </p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-5xl">
-              Pricing
+            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-[var(--iseya-heading)] sm:text-5xl">
+              Plans for serious career movement.
             </h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-              Choose private candidate workspace access for building career assets and pursuing opportunities.
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
+              Start free, then upgrade when you need deeper resume tailoring, stronger application materials, and a more organized job search workflow.
             </p>
             <p className="mt-3 text-sm font-medium text-slate-500">
               Free starter access &middot; Secure checkout &middot; Same features across supported regions
             </p>
           </div>
 
-          <div className="mt-8 grid items-stretch gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-9 grid items-stretch gap-5 md:grid-cols-2 xl:grid-cols-4">
             {pricingPlans.map((plan) => (
               <section
                 key={plan.id}
-                className={`relative flex flex-col rounded-2xl border p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:p-7 md:min-h-[620px] ${
+                className={`relative flex flex-col rounded-3xl border p-6 shadow-[0_14px_34px_rgb(0_14_47_/_0.055)] transition hover:-translate-y-1 hover:shadow-[0_24px_55px_rgb(0_14_47_/_0.09)] sm:p-7 md:min-h-[620px] ${
                   plan.badge
                     ? "border-[var(--iseya-gold)] bg-[#FFF8E6]"
-                    : "border-[var(--iseya-border)] bg-white"
+                    : "border-[var(--iseya-border)] bg-white/95"
                 }`}
               >
                 {plan.badge ? (
@@ -257,7 +257,7 @@ function PricingContent({ requestedPlan }: { requestedPlan?: string }) {
           </p>
 
           <section className="mt-10 grid gap-5 lg:grid-cols-[1fr_1fr]">
-            <article className="rounded-2xl border border-[var(--iseya-border)] bg-white p-6 shadow-sm">
+            <article className="iseya-premium-panel rounded-3xl p-6">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
                 Candidate Access
               </p>
@@ -282,7 +282,7 @@ function PricingContent({ requestedPlan }: { requestedPlan?: string }) {
                 </Link>
               </div>
             </article>
-            <article className="rounded-2xl border border-[var(--iseya-border)] bg-white p-6 shadow-sm">
+            <article className="iseya-premium-panel rounded-3xl p-6">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
                 Pricing Questions
               </p>

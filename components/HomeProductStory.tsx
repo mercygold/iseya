@@ -40,24 +40,24 @@ export type HomepageMetrics = {
 
 export function HowIseyaWorks({ workspaceHref = "/workspace" }: { workspaceHref?: string }) {
   return (
-    <section className="mx-auto max-w-[92rem] px-5 py-6 sm:px-8 sm:py-9">
+    <section className="mx-auto max-w-[92rem] px-5 py-8 sm:px-8 sm:py-11">
       <div className="max-w-2xl">
-        <h2 className="text-[2rem] font-semibold tracking-tight text-[var(--iseya-heading)] sm:text-[2.65rem] sm:leading-tight">
+        <h2 className="text-[2rem] font-semibold tracking-tight text-[var(--iseya-heading)] sm:text-[2.75rem] sm:leading-tight">
           How ISEYA works
         </h2>
-        <p className="mt-3 text-base leading-7 text-slate-600">
-          Optimize ATS-ready resumes, tailor materials for each role, track applications, and use career intelligence to stay aligned with the opportunities you want.
+        <p className="mt-3 text-base leading-7 text-slate-600 sm:text-lg">
+          Build recruiter-ready materials, discover source-checked roles, and keep every application step organized inside one career workspace.
         </p>
       </div>
-      <div className="mt-6 grid gap-3 md:grid-cols-3">
+      <div className="mt-7 grid gap-4 md:grid-cols-3">
         {workflowSteps.map((step, index) => (
           <Link
             key={step.number}
             href={step.route === "workspace" ? workspaceHref : step.route}
-            className={`group rounded-xl border p-5 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgb(0_14_47_/_0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 motion-reduce:transform-none sm:p-6 ${
+            className={`group rounded-2xl border p-5 transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_42px_rgb(0_14_47_/_0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 motion-reduce:transform-none sm:p-6 ${
               index === 1
-                ? "border-[var(--iseya-gold)]/28 bg-[#FFF9EC]"
-                : "border-slate-200/80 bg-white"
+                ? "border-[var(--iseya-gold)]/35 bg-[#FFF9EC]"
+                : "iseya-premium-panel"
             }`}
           >
             <p className="text-xs font-bold tracking-[0.16em] text-[var(--iseya-gold)]">{step.number}</p>
@@ -72,7 +72,7 @@ export function HowIseyaWorks({ workspaceHref = "/workspace" }: { workspaceHref?
 
 export function HomepageStatsStrip({ metrics }: { metrics?: HomepageMetrics }) {
   return (
-    <section className="border-y border-slate-200/70 bg-[#FCFCFA]">
+    <section className="border-y border-slate-200/70 bg-white">
       <div className="mx-auto grid max-w-[92rem] grid-cols-2 gap-x-5 gap-y-8 px-5 py-9 sm:px-8 sm:py-11 lg:grid-cols-4">
         {homepageStats.map((stat) => (
           <div key={stat.label} className="text-center sm:text-left lg:text-center">

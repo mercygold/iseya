@@ -6983,14 +6983,14 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 
       {isPublicLanding ? (
         <>
-      <section className="mx-auto max-w-[92rem] px-5 pt-6 pb-5 sm:px-8 sm:pt-9 sm:pb-8 lg:pt-12 lg:pb-8">
+      <section className="iseya-soft-grid mx-auto max-w-[92rem] px-5 pt-7 pb-6 sm:px-8 sm:pt-11 sm:pb-10 lg:pt-14 lg:pb-10">
           <div className="grid w-full gap-7 sm:gap-10 lg:grid-cols-[minmax(480px,1fr)_minmax(330px,0.62fr)] lg:items-center lg:gap-20">
             <div>
-              <h1 className="max-w-3xl text-[2.2rem] font-semibold leading-[1.08] text-[var(--iseya-heading)] sm:text-5xl lg:text-[4rem]">
+              <h1 className="max-w-3xl text-[2.35rem] font-semibold leading-[1.04] tracking-[-0.015em] text-[var(--iseya-heading)] sm:text-5xl lg:text-[4.25rem]">
                 Career infrastructure for today&apos;s talent.
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-700 sm:mt-5 sm:text-base sm:leading-7">
-                Create recruiter-ready resumes tailored to real opportunities, track applications, and improve interview outcomes with structured career tools built for today&apos;s hiring.
+              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-700 sm:mt-5 sm:text-lg sm:leading-8">
+                Discover source-checked opportunities, build stronger career documents, and stay ready for recruiter review across global hiring pathways.
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:mt-7 sm:flex-row sm:flex-wrap">
                 <Link
@@ -7021,7 +7021,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                   See Demo
                 </Link>
               </div>
-              <div className="mt-6 grid gap-3 text-sm text-slate-600 sm:mt-8 sm:grid-cols-3">
+              <div className="mt-7 grid gap-3 text-sm text-slate-600 sm:mt-9 sm:grid-cols-3">
                 {[
                   {
                     value: homepageMetrics?.activeJobs ?? "0",
@@ -7038,7 +7038,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                 ].map((stat) => (
                   <div
                     key={stat.label}
-                    className="rounded-lg border border-slate-200/55 bg-transparent px-3.5 py-3"
+                    className="rounded-xl border border-slate-200/70 bg-white/75 px-4 py-3 shadow-[0_10px_24px_rgb(0_14_47_/_0.04)] backdrop-blur"
                   >
                     <span className="block text-xl font-semibold tracking-tight text-[var(--iseya-gold)]">
                       {stat.value}
@@ -7051,7 +7051,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
               </div>
             </div>
             <div className="relative">
-              <aside className="iseya-hero-card relative rounded-2xl border border-slate-200/85 bg-white p-4 shadow-[0_20px_50px_rgb(0_14_47_/_0.1)] sm:p-5">
+              <aside className="iseya-hero-card iseya-premium-card relative rounded-3xl p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xl font-semibold leading-7 text-[var(--iseya-heading)]">
@@ -7095,7 +7095,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                   ))}
                 </div>
 
-                <div className="mt-5 space-y-3 rounded-xl bg-[#F8FAFD] p-4">
+                <div className="mt-5 space-y-3 rounded-2xl bg-[#F8FAFD] p-4">
                   {[
                     { label: "ATS Readiness", value: "90/100", percent: "90%", color: "bg-[var(--iseya-gold)]" },
                     { label: "Role Fit", value: "88/100", percent: "88%", color: "bg-emerald-500" },
@@ -7156,7 +7156,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         }
       />
       <section className="border-y border-slate-200/70 bg-white">
-        <div className="mx-auto grid max-w-[92rem] gap-5 px-5 py-10 sm:grid-cols-2 sm:px-8 sm:py-12 lg:grid-cols-[280px_repeat(5,minmax(0,1fr))] lg:gap-0">
+        <div className="mx-auto grid max-w-[92rem] gap-5 px-5 py-12 sm:grid-cols-2 sm:px-8 sm:py-14 lg:grid-cols-[300px_repeat(5,minmax(0,1fr))] lg:gap-0">
           <div className="pr-6 sm:col-span-2 lg:col-span-1">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
               Built for the career ecosystem
@@ -7166,7 +7166,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
               <br />Every career connection.
             </h2>
             <p className="mt-4 text-sm leading-6 text-slate-600">
-              Career preparation meets transparent opportunity discovery and professional visibility.
+              Career preparation, opportunity discovery, and recruiter-ready presentation in one operating layer.
             </p>
           </div>
           {[
@@ -7174,12 +7174,12 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
             { title: "Opportunity Discovery", copy: "Explore source-transparent roles from recruiters, employers, and curated channels.", icon: Search, href: "/jobs", linkLabel: "Browse opportunities", color: "bg-emerald-50 text-emerald-600" },
             { title: "Recruiter Access", copy: "Verified recruiters post roles and review structured candidate interest.", icon: UsersRound, href: "/recruiters", linkLabel: "Explore recruiter tools", color: "bg-blue-50 text-blue-700" },
             { title: "Institution Insights", copy: "Institutions receive aggregate, privacy-safe career readiness insights.", icon: Building2, href: "/institutions", linkLabel: "View institution experience", color: "bg-orange-50 text-orange-600" },
-            { title: "Career Co-pilots", copy: "Refine professional positioning and application materials with focused guidance.", icon: Zap, href: "/workspace", linkLabel: "Build career assets", color: "bg-amber-50 text-amber-600" },
+            { title: "Career Guidance", copy: "Refine professional positioning and application materials with focused guidance.", icon: Zap, href: "/workspace", linkLabel: "Build career assets", color: "bg-amber-50 text-amber-600" },
           ].map((feature) => (
             <Link
               key={feature.title}
               href={feature.href}
-              className="group rounded-lg border border-slate-200/80 p-5 transition hover:-translate-y-0.5 hover:border-[var(--iseya-gold)]/45 hover:bg-[#FFFDF8] hover:shadow-[0_10px_24px_rgb(0_14_47_/_0.055)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] motion-reduce:transform-none sm:p-6 lg:rounded-none lg:border-y-0 lg:border-r-0 lg:border-l lg:px-6 lg:py-2"
+              className="group rounded-2xl border border-slate-200/80 p-5 transition hover:-translate-y-1 hover:border-[var(--iseya-gold)]/45 hover:bg-[#FFFDF8] hover:shadow-[0_16px_34px_rgb(0_14_47_/_0.07)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] motion-reduce:transform-none sm:p-6 lg:rounded-none lg:border-y-0 lg:border-r-0 lg:border-l lg:px-6 lg:py-5"
             >
               <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${feature.color}`}>
                 <feature.icon className="h-5 w-5" strokeWidth={1.8} />
@@ -7199,15 +7199,15 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 
       {!isPublicLanding ? (
         <>
-      <section id="resume-builder" className="mx-auto max-w-[112rem] overflow-x-hidden px-4 pt-4 sm:px-8 sm:pt-5">
-        <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_30px_rgb(15_23_42_/_0.04)] transition sm:p-5">
+      <section id="resume-builder" className="mx-auto max-w-[112rem] overflow-x-hidden px-4 pt-5 sm:px-8 sm:pt-7">
+        <div className="iseya-premium-card rounded-3xl p-4 transition sm:p-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-[var(--iseya-navy)] sm:text-3xl">
                 Career Assets
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                Build, tailor, and optimize your career documents in one intelligent workspace.
+                Build, tailor, and organize your career documents in one structured workspace.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -8996,7 +8996,7 @@ function IseyaFooter() {
       links: [
         ["Career Workspace", "/workspace"],
         ["Jobs", "/jobs"],
-        ["Career Co-pilots", "/workspace"],
+        ["Career Guidance", "/workspace"],
       ],
     },
     {
@@ -9027,8 +9027,8 @@ function IseyaFooter() {
 
   return (
     <footer className="border-t border-white/10 bg-[var(--iseya-navy)] text-white">
-      <div className="mx-auto max-w-[92rem] px-5 py-7 sm:px-8 sm:py-9">
-        <div className="grid gap-7 lg:grid-cols-[1.05fr_2fr] lg:gap-14">
+      <div className="mx-auto max-w-[92rem] px-5 py-6 sm:px-8 sm:py-8">
+        <div className="grid gap-7 lg:grid-cols-[1fr_2.05fr] lg:gap-14">
           <div>
             <Image
               src="/brand/iseya-logo.png"
@@ -9039,6 +9039,9 @@ function IseyaFooter() {
             />
             <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
               Beyond Resume. Positioning.
+            </p>
+            <p className="mt-3 max-w-xs text-sm leading-6 text-white/66">
+              Career infrastructure for modern talent.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-7 lg:grid-cols-4">

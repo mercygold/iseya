@@ -748,13 +748,13 @@ export default function JobsBoard() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[92rem] px-5 py-8 sm:px-8">
-        <div className="mb-6">
+      <section className="mx-auto max-w-[92rem] px-5 py-9 sm:px-8 sm:py-11">
+        <div className="mb-7">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
-            Career Infrastructure + Opportunity Intelligence
+            Source-Checked Opportunities
           </p>
-          <h2 className="mt-2 text-2xl font-semibold text-[var(--iseya-navy)]">
-            Know where every opportunity comes from.
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-[var(--iseya-heading)] sm:text-4xl">
+            Explore roles with clearer source context.
           </h2>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-slate-600">
@@ -794,7 +794,7 @@ export default function JobsBoard() {
           </div>
         </div>
 
-        <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_180px_180px_180px_180px_180px]">
+        <div className="iseya-premium-panel grid gap-4 rounded-3xl p-4 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_180px_180px_180px_180px_180px]">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -873,7 +873,7 @@ export default function JobsBoard() {
           </select>
         </div>
 
-        <div className="mt-4 grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto] lg:items-end">
+        <div className="mt-4 grid gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgb(0_14_47_/_0.045)] lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
               Job alerts
@@ -910,12 +910,12 @@ export default function JobsBoard() {
           </p>
         ) : null}
 
-        <div className="mt-6 grid gap-5 lg:grid-cols-[380px_minmax(0,1fr)]">
+        <div className="mt-7 grid gap-5 lg:grid-cols-[390px_minmax(0,1fr)]">
           <aside className="space-y-3">
             {loading ? (
               <div className="space-y-3" aria-label="Loading job opportunities">
                 {[1, 2, 3].map((item) => (
-                  <div key={item} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div key={item} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="h-4 w-3/4 animate-pulse rounded bg-slate-100" />
                     <div className="mt-3 h-3 w-1/2 animate-pulse rounded bg-slate-100" />
                     <div className="mt-4 h-3 w-2/3 animate-pulse rounded bg-slate-100" />
@@ -923,7 +923,7 @@ export default function JobsBoard() {
                 ))}
               </div>
             ) : visibleJobs.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm font-medium text-slate-600">
+              <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-6 text-sm font-medium text-slate-600">
                 {sourceFilter
                   ? "No published opportunities match this source and your current filters. Choose another source or reset to all opportunities."
                   : "New opportunities are being added. Adjust your filters or subscribe for alerts."}
@@ -939,10 +939,10 @@ export default function JobsBoard() {
                 return (
                 <article
                   key={job.id}
-                  className={`w-full rounded-2xl border border-l-4 p-4 text-left shadow-sm transition ${source.cardAccentClass} ${
+                  className={`w-full rounded-3xl border border-l-4 p-4 text-left shadow-[0_10px_26px_rgb(0_14_47_/_0.045)] transition hover:-translate-y-0.5 ${source.cardAccentClass} ${
                     selectedJob?.id === job.id
                       ? "border-[var(--iseya-gold)] bg-[#FFF8E6]"
-                      : "border-slate-200 bg-white hover:border-[var(--iseya-gold)]"
+                      : "border-slate-200 bg-white hover:border-[var(--iseya-gold)] hover:shadow-[0_18px_40px_rgb(0_14_47_/_0.07)]"
                   }`}
                 >
                   <button
@@ -955,10 +955,10 @@ export default function JobsBoard() {
                       <SourceIcon className="h-3 w-3" aria-hidden="true" />
                       {source.label}
                     </span>
-                    <h2 className="mt-3 text-base font-semibold text-[var(--iseya-navy)]">
+                    <h2 className="mt-3 text-[1.05rem] font-semibold leading-6 text-[var(--iseya-navy)]">
                       {job.job_title}
                     </h2>
-                    <p className="mt-1 text-sm font-medium text-slate-600">
+                    <p className="mt-1 text-sm font-medium leading-6 text-slate-600">
                       {job.company_name} | {job.location || "Location flexible"}
                     </p>
                   </button>
@@ -1013,7 +1013,7 @@ export default function JobsBoard() {
             )}
           </aside>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="iseya-premium-card rounded-3xl p-5 sm:p-6">
             {selectedJob ? (
               <article>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -1024,7 +1024,7 @@ export default function JobsBoard() {
                         {selectedOpportunity.label}
                       </p>
                     ) : null}
-                    <h2 className="mt-2 text-3xl font-semibold text-[var(--iseya-navy)]">
+                    <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[var(--iseya-heading)]">
                       {selectedJob.job_title}
                     </h2>
                     <p className="mt-2 text-base font-semibold text-slate-700">
@@ -1116,7 +1116,7 @@ export default function JobsBoard() {
                       </div>
                     </section>
                   ) : null}
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-sm font-semibold text-[var(--iseya-navy)]">
                       ISEYA application beta
                     </p>
@@ -1150,7 +1150,7 @@ export default function JobsBoard() {
         </div>
 
         <section className="mt-10 grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
-          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <article className="iseya-premium-panel rounded-3xl p-6">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
               Source transparency
             </p>

@@ -13,7 +13,7 @@ export const metadata: Metadata = publicPageMetadata(
   "Post opportunities, review structured applications, and connect with career-ready talent through ISEYA.",
 );
 
-const cardClass = "rounded-2xl border border-slate-200 bg-white p-6 shadow-sm";
+const cardClass = "iseya-premium-panel rounded-3xl p-6";
 const primaryButton =
   "inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--iseya-gold)] bg-[var(--iseya-gold)] px-4 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-white hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]";
 const secondaryButton =
@@ -41,7 +41,7 @@ export default function RecruitersPage() {
         ])}
       />
       <section className="iseya-header text-white">
-        <div className="mx-auto flex max-w-[92rem] flex-col gap-7 px-5 py-7 sm:px-8 sm:py-8 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mx-auto flex max-w-[92rem] flex-col gap-7 px-5 py-8 sm:px-8 sm:py-10 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-3xl">
             <Link href="/" aria-label="ISEYA homepage" className="inline-flex items-center">
               <Image
@@ -56,11 +56,11 @@ export default function RecruitersPage() {
             <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)]">
               Recruiter access
             </p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
-              Post jobs and discover career-ready talent.
+            <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
+              Structured hiring for global career-ready talent.
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-white/82">
-              Publish trusted opportunities and review structured candidate interest in a protected recruiter workspace.
+            <p className="mt-5 max-w-2xl text-base leading-7 text-white/82 sm:text-lg sm:leading-8">
+              Publish source-checked opportunities, manage applicants, and review clearer candidate signals from a focused recruiter workspace.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <TrackedLink href="/recruiters/signup" eventName="request_access_clicked" eventParameters={{ audience: "recruiter", source: "recruiters_hero" }} className={`${primaryButton} w-full sm:w-auto`}>
@@ -71,7 +71,7 @@ export default function RecruitersPage() {
               </TrackedLink>
             </div>
             <p className="mt-4 text-xs font-medium leading-6 text-white/72">
-              Verified listing pathways &middot; Private applicant review &middot; Structured hiring workflows
+              Verified listing pathways &middot; Scoped applicant review &middot; Recruiter-ready candidate materials
             </p>
           </div>
           <nav aria-label="Public navigation" className="flex flex-wrap gap-4 text-sm font-semibold text-white/80 lg:justify-end">
@@ -97,7 +97,7 @@ export default function RecruitersPage() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-[92rem] gap-5 px-5 py-10 sm:px-8 lg:grid-cols-3">
+      <section className="mx-auto grid max-w-[92rem] gap-5 px-5 py-12 sm:px-8 sm:py-14 lg:grid-cols-3">
         {[
           [
             "Structured candidate signals",
@@ -108,8 +108,8 @@ export default function RecruitersPage() {
             "Create drafts, submit jobs for review, and manage closed listings from one focused recruiter workspace.",
           ],
           [
-            "Career infrastructure",
-            "Connect job demand with candidate readiness across resumes, LinkedIn, cover letters, and application materials.",
+            "Employability infrastructure",
+            "Connect hiring demand with candidate readiness across resumes, profiles, cover letters, and application materials.",
           ],
         ].map(([title, copy]) => (
           <div key={title} className={cardClass}>
@@ -122,7 +122,7 @@ export default function RecruitersPage() {
         ))}
       </section>
 
-      <section className="mx-auto grid max-w-[92rem] gap-5 px-5 pb-10 sm:px-8 lg:grid-cols-[1.1fr_0.9fr]">
+      <section className="mx-auto grid max-w-[92rem] gap-5 px-5 pb-12 sm:px-8 lg:grid-cols-[1.1fr_0.9fr]">
         <article className={cardClass}>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
             Recruiter Workflow

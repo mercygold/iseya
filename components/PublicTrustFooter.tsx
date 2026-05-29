@@ -7,7 +7,7 @@ const footerColumns = [
     links: [
       ["Career Workspace", "/workspace"],
       ["Jobs", "/jobs"],
-      ["Career Co-pilots", "/workspace"],
+      ["Career Guidance", "/workspace"],
     ],
   },
   {
@@ -43,8 +43,8 @@ export default function PublicTrustFooter({
 }) {
   return (
     <footer className="border-t border-[color-mix(in_srgb,var(--iseya-gold)_28%,var(--iseya-navy))] bg-[var(--iseya-navy)] text-white">
-      <div className={`mx-auto ${maxWidth} px-5 py-7 sm:px-8 sm:py-9`}>
-        <div className="grid gap-7 lg:grid-cols-[1.05fr_2fr] lg:gap-14">
+      <div className={`mx-auto ${maxWidth} px-5 py-6 sm:px-8 sm:py-8`}>
+        <div className="grid gap-7 lg:grid-cols-[1fr_2.05fr] lg:gap-14">
           <div>
             <Link
               href="/"
@@ -61,6 +61,9 @@ export default function PublicTrustFooter({
             </Link>
             <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--iseya-gold)]">
               Beyond Resume. Positioning.
+            </p>
+            <p className="mt-3 max-w-xs text-sm leading-6 text-white/66">
+              Career infrastructure for modern talent.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-7 lg:grid-cols-4">
