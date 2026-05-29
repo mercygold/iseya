@@ -27,9 +27,9 @@ const homepageStats: Array<{
   label: string;
   key?: keyof HomepageMetrics;
 }> = [
-  { value: "100+", label: "Active Jobs", key: "activeJobs" },
+  { value: "0", label: "Active Jobs", key: "activeJobs" },
   { value: "1K+", label: "Candidates" },
-  { value: "6+", label: "Countries", key: "countries" },
+  { value: "0", label: "Countries", key: "countries" },
   { value: "4.9/5", label: "Platform Direction" },
 ] as const;
 

@@ -4,8 +4,6 @@ type CountryInput = {
 
 type ActiveJobInput = {
   status?: string | null;
-  opportunity_type?: string | null;
-  source_type?: string | null;
 };
 
 const excludedCountryNames = new Set([
@@ -37,7 +35,7 @@ export function normalizeCountry(value: string | null | undefined) {
     return "United Kingdom";
   }
   if (normalized === "uae" || normalized === "u.a.e." || normalized === "united arab emirates") {
-    return "UAE";
+    return "United Arab Emirates";
   }
 
   return cleaned
@@ -64,23 +62,20 @@ export function getUniqueCountries<T extends CountryInput>(jobs: readonly T[]) {
   ).sort((first, second) => first.localeCompare(second));
 }
 
-export function getActiveJobCount<T extends ActiveJobInput>(jobs: readonly T[]) {
+export function getActiveJobsCount<T extends ActiveJobInput>(jobs: readonly T[]) {
   return jobs.filter((job) => {
     const status = cleanText(job.status).toLowerCase();
-    const opportunityType = cleanText(job.opportunity_type).toLowerCase();
-    const sourceType = cleanText(job.source_type).toLowerCase();
 
-    return (
-      status === "published" &&
-      (opportunityType === "curated_opportunity" || sourceType === "curated_opportunity")
-    );
+    return status === "published" || status === "active" || status === "open";
   }).length;
 }
 
-export function formatCountMetric(count: number) {
-  if (count >= 1000) {
-    return `${Math.floor(count / 1000)}K+`;
-  }
+export function getUniqueJobCountries<T extends CountryInput & ActiveJobInput>(jobs: readonly T[]) {
+  return getUniqueCountries(
+    jobs.filter((job) => {
+      const status = cleanText(job.status).toLowerCase();
 
-  return `${count}+`;
+      return status === "published" || status === "active" || status === "open";
+    }),
+  );
 }

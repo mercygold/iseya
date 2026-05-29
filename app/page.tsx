@@ -7,13 +7,13 @@ import {
   publicPageMetadata,
 } from "@/lib/seo";
 import curatedOpportunitiesData from "@/data/created-opportunities.data.json";
-import { formatCountMetric, getActiveJobCount, getUniqueCountries } from "@/lib/jobsMetrics";
+import { getActiveJobsCount, getUniqueJobCountries } from "@/lib/jobsMetrics";
 
 export const metadata: Metadata = publicPageMetadata("/", defaultTitle, defaultDescription);
 
 export default function HomePage() {
-  const activeJobCount = getActiveJobCount(curatedOpportunitiesData);
-  const countryCount = getUniqueCountries(curatedOpportunitiesData).length;
+  const activeJobCount = getActiveJobsCount(curatedOpportunitiesData);
+  const countryCount = getUniqueJobCountries(curatedOpportunitiesData).length;
 
   return (
     <>
@@ -25,8 +25,8 @@ export default function HomePage() {
       />
       <HomeExperience
         homepageMetrics={{
-          activeJobs: formatCountMetric(activeJobCount),
-          countries: formatCountMetric(countryCount),
+          activeJobs: String(activeJobCount),
+          countries: String(countryCount),
         }}
       />
     </>

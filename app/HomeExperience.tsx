@@ -7024,7 +7024,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
               <div className="mt-6 grid gap-3 text-sm text-slate-600 sm:mt-8 sm:grid-cols-3">
                 {[
                   {
-                    value: homepageMetrics?.activeJobs ?? "100+",
+                    value: homepageMetrics?.activeJobs ?? "0",
                     label: "Active Jobs",
                   },
                   {
