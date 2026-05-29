@@ -2,9 +2,125 @@ import {
   createSupabaseServerClient,
   createSupabaseServiceRoleClient,
 } from "@/lib/supabaseServer";
+import curatedOpportunitiesData from "@/data/created-opportunities.data.json";
+import type { CuratedOpportunitySeed } from "@/data/curated-opportunities-starter";
+import {
+  addCuratedOpportunityToDuplicateIndex,
+  createCuratedOpportunityDuplicateIndex,
+  findCuratedOpportunityDuplicate,
+  normalizeCuratedOpportunityText,
+} from "@/lib/curatedOpportunityDuplicatePrevention";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const curatedOpportunities = curatedOpportunitiesData as readonly CuratedOpportunitySeed[];
+
+function normalizeOption(value: string | null | undefined) {
+  const normalized = String(value ?? "").trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+
+  if (normalized === "full time") return "full-time";
+  if (normalized === "part time") return "part-time";
+  if (normalized === "not specified") return "not_specified";
+  if (normalized === "on site" || normalized === "onsite") return "onsite";
+
+  return normalized.replace(/\s+/g, "_");
+}
+
+function validDate(value: string | null | undefined) {
+  if (!value) return "";
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : "";
+}
+
+function curatedSeedDate(seed: CuratedOpportunitySeed, index: number) {
+  return (
+    validDate(seed.created_at) ||
+    validDate(seed.imported_at) ||
+    validDate(seed.date_added) ||
+    new Date(Date.UTC(2026, 4, 29, 0, 0, index)).toISOString()
+  );
+}
+
+function curatedSeedApplyUrl(seed: CuratedOpportunitySeed) {
+  return seed.apply_url ?? seed.external_apply_url ?? "";
+}
+
+function curatedSeedToJob(seed: CuratedOpportunitySeed, index: number) {
+  const applyUrl = curatedSeedApplyUrl(seed);
+  const createdAt = curatedSeedDate(seed, index);
+  const requirements = Array.isArray(seed.requirements)
+    ? seed.requirements.join("\n")
+    : seed.requirements ?? "";
+  const skills = seed.skills_keywords ?? seed.skills ?? [];
+
+  return {
+    id: `curated-${normalizeCuratedOpportunityText(`${seed.title}-${seed.company}-${applyUrl}`)}`,
+    recruiter_id: "curated_opportunity",
+    job_title: seed.title,
+    company_name: seed.company,
+    location: seed.location,
+    country: seed.country,
+    workplace_type: normalizeOption(seed.workplace_type ?? seed.work_mode),
+    employment_type: normalizeOption(seed.employment_type),
+    salary_range: seed.salary_range ?? seed.salary ?? null,
+    salary_currency: null,
+    salary_min: null,
+    salary_max: null,
+    salary_period: null,
+    role_summary: seed.description,
+    responsibilities: "",
+    requirements,
+    skills,
+    application_deadline: seed.application_deadline || null,
+    application_url: applyUrl,
+    status: "published",
+    opportunity_type: "curated_opportunity",
+    source_name: seed.source_name ?? seed.source_type ?? "curated_opportunity",
+    source_type: seed.source_type ?? "curated_opportunity",
+    source_description: seed.source_description,
+    applicants_count: 0,
+    published_at: createdAt,
+    created_at: createdAt,
+    updated_at: createdAt,
+    imported_at: seed.imported_at ?? createdAt,
+    date_added: seed.date_added ?? createdAt.slice(0, 10),
+    expires_at: null,
+    sponsorship_status: seed.sponsorship_status ?? null,
+  };
+}
+
+function mergePublishedSeedJobs<T extends { job_title: string; company_name: string; country?: string | null; application_url?: string | null }>(
+  supabaseJobs: readonly T[],
+) {
+  const duplicateIndex = createCuratedOpportunityDuplicateIndex(
+    supabaseJobs.map((job) => ({
+      job_title: job.job_title,
+      company_name: job.company_name,
+      country: job.country,
+      application_url: job.application_url,
+    })),
+  );
+  const seedJobs = [];
+
+  for (const [index, seed] of curatedOpportunities.entries()) {
+    if (seed.status !== "published") continue;
+
+    const candidate = {
+      title: seed.title,
+      company: seed.company,
+      country: seed.country,
+      external_apply_url: curatedSeedApplyUrl(seed),
+    };
+    const duplicateReason = findCuratedOpportunityDuplicate(duplicateIndex, candidate);
+    if (duplicateReason) continue;
+
+    addCuratedOpportunityToDuplicateIndex(duplicateIndex, candidate);
+    seedJobs.push(curatedSeedToJob(seed, index));
+  }
+
+  return [...supabaseJobs, ...seedJobs];
+}
 
 export async function GET(request: Request) {
   const supabase = createSupabaseServiceRoleClient();
@@ -80,7 +196,7 @@ export async function GET(request: Request) {
     return true;
   }
 
-  const publishedJobs = (data ?? []).filter(matchesFilters);
+  const publishedJobs = mergePublishedSeedJobs(data ?? []).filter(matchesFilters);
   const nativeRecruiterIds = Array.from(
     new Set(
       publishedJobs

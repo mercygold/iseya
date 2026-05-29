@@ -23,6 +23,7 @@ type JobPost = {
   job_title: string;
   company_name: string;
   location: string;
+  country?: string | null;
   workplace_type: string;
   employment_type: string;
   salary_range: string | null;
@@ -195,6 +196,45 @@ function newestJobsFirst(jobsToSort: readonly JobPost[]) {
     .map(({ job }) => job);
 }
 
+function normalizedMatch(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function uniqueSorted(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b),
+  );
+}
+
+function locationParts(job: JobPost) {
+  const location = job.location || "";
+  const commaParts = location.split(",").map((part) => part.trim()).filter(Boolean);
+  const slashParts = location.split("/").map((part) => part.trim()).filter(Boolean);
+
+  if (commaParts.length >= 2) {
+    return {
+      city: commaParts[0],
+      region: commaParts[1],
+    };
+  }
+
+  if (slashParts.length >= 2) {
+    const nonCountryPart = slashParts.find(
+      (part) => normalizedMatch(part) !== normalizedMatch(job.country ?? ""),
+    );
+
+    return {
+      city: nonCountryPart ?? slashParts[0],
+      region: "",
+    };
+  }
+
+  return {
+    city: location,
+    region: "",
+  };
+}
+
 function formatSalary(job: JobPost) {
   if (job.salary_currency && (job.salary_min !== null || job.salary_max !== null)) {
     const formatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
@@ -295,7 +335,9 @@ export default function JobsBoard() {
   const [applicationsByJobId, setApplicationsByJobId] = useState<Record<string, string>>({});
   const [query, setQuery] = useState("");
   const [titleQuery, setTitleQuery] = useState("");
-  const [locationQuery, setLocationQuery] = useState("");
+  const [countryFilter, setCountryFilter] = useState("");
+  const [regionFilter, setRegionFilter] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
   const [employmentType, setEmploymentType] = useState("");
   const [workplace, setWorkplace] = useState("");
   const [alertEmail, setAlertEmail] = useState(user?.email ?? "");
@@ -321,13 +363,46 @@ export default function JobsBoard() {
   const [sourceFilter, setSourceFilter] = useState<OpportunityType | "">("");
   const firstVisibleJobRef = useRef<HTMLButtonElement | null>(null);
 
-  const visibleJobs = useMemo(
-    () =>
-      sourceFilter
-        ? jobs.filter((job) => opportunityProfile(job).type === sourceFilter)
-        : jobs,
-    [jobs, sourceFilter],
+  const countryOptions = useMemo(
+    () => uniqueSorted(jobs.map((job) => job.country ?? "").filter(Boolean)),
+    [jobs],
   );
+  const regionOptions = useMemo(
+    () =>
+      uniqueSorted(
+        jobs
+          .filter((job) => !countryFilter || normalizedMatch(job.country ?? "") === normalizedMatch(countryFilter))
+          .map((job) => locationParts(job).region)
+          .filter(Boolean),
+      ),
+    [countryFilter, jobs],
+  );
+  const cityOptions = useMemo(
+    () =>
+      uniqueSorted(
+        jobs
+          .filter((job) => !countryFilter || normalizedMatch(job.country ?? "") === normalizedMatch(countryFilter))
+          .filter((job) => !regionFilter || normalizedMatch(locationParts(job).region) === normalizedMatch(regionFilter))
+          .map((job) => locationParts(job).city)
+          .filter(Boolean),
+      ),
+    [countryFilter, jobs, regionFilter],
+  );
+  const visibleJobs = useMemo(() => {
+    const sourceFilteredJobs = sourceFilter
+      ? jobs.filter((job) => opportunityProfile(job).type === sourceFilter)
+      : jobs;
+
+    return sourceFilteredJobs.filter((job) => {
+      const parts = locationParts(job);
+
+      if (countryFilter && normalizedMatch(job.country ?? "") !== normalizedMatch(countryFilter)) return false;
+      if (regionFilter && normalizedMatch(parts.region) !== normalizedMatch(regionFilter)) return false;
+      if (cityFilter && normalizedMatch(parts.city) !== normalizedMatch(cityFilter)) return false;
+
+      return true;
+    });
+  }, [cityFilter, countryFilter, jobs, regionFilter, sourceFilter]);
   const selectedJob = useMemo(
     () => visibleJobs.find((job) => job.id === selectedJobId) ?? visibleJobs[0] ?? null,
     [visibleJobs, selectedJobId],
@@ -339,6 +414,10 @@ export default function JobsBoard() {
     : "";
   const selectedOpportunity = selectedJob ? opportunityProfile(selectedJob) : null;
   const SelectedOpportunityIcon = selectedOpportunity?.icon;
+
+  useEffect(() => {
+    console.log("VISIBLE FIRST JOB", visibleJobs[0]?.job_title, visibleJobs[0]?.company_name);
+  }, [visibleJobs]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -365,7 +444,6 @@ export default function JobsBoard() {
       const params = new URLSearchParams();
       if (query.trim()) params.set("q", query.trim());
       if (titleQuery.trim()) params.set("title", titleQuery.trim());
-      if (locationQuery.trim()) params.set("location", locationQuery.trim());
       if (employmentType) params.set("employmentType", employmentType);
       if (workplace) params.set("workplace", workplace);
       const response = await fetch(`/api/jobs?${params.toString()}`, {
@@ -384,12 +462,10 @@ export default function JobsBoard() {
       const sortedJobs = newestJobsFirst(data.jobs ?? []);
       setJobs(sortedJobs);
       const requestedJobId = new URLSearchParams(window.location.search).get("job") ?? "";
-      setSelectedJobId((current) =>
+      setSelectedJobId(() =>
         sortedJobs.some((job) => job.id === requestedJobId)
           ? requestedJobId
-          : current && sortedJobs.some((job) => job.id === current)
-            ? current
-            : sortedJobs[0]?.id || "",
+          : sortedJobs[0]?.id || "",
       );
       const nextStatuses = Object.fromEntries(
         (data.applications ?? []).map((application) => [
@@ -414,7 +490,7 @@ export default function JobsBoard() {
     } finally {
       setLoading(false);
     }
-  }, [employmentType, locationQuery, query, titleQuery, user, workplace]);
+  }, [employmentType, query, titleQuery, user, workplace]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -425,9 +501,18 @@ export default function JobsBoard() {
   }, [loadJobs]);
 
   function filterBySource(source: OpportunityType | "") {
+    const locationFilteredJobs = jobs.filter((job) => {
+      const parts = locationParts(job);
+
+      if (countryFilter && normalizedMatch(job.country ?? "") !== normalizedMatch(countryFilter)) return false;
+      if (regionFilter && normalizedMatch(parts.region) !== normalizedMatch(regionFilter)) return false;
+      if (cityFilter && normalizedMatch(parts.city) !== normalizedMatch(cityFilter)) return false;
+
+      return true;
+    });
     const matchingJobs = source
-      ? jobs.filter((job) => opportunityProfile(job).type === source)
-      : jobs;
+      ? locationFilteredJobs.filter((job) => opportunityProfile(job).type === source)
+      : locationFilteredJobs;
     setSourceFilter(source);
     setSelectedJobId(matchingJobs[0]?.id ?? "");
 
@@ -547,7 +632,7 @@ export default function JobsBoard() {
           email: alertEmail,
           keywordQuery: query,
           titleQuery,
-          locationQuery,
+          locationQuery: [cityFilter, regionFilter, countryFilter].filter(Boolean).join(", "),
           employmentType,
           workplaceType: workplace,
           remoteOnly: workplace === "remote",
@@ -712,7 +797,7 @@ export default function JobsBoard() {
           </div>
         </div>
 
-        <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1.2fr_1fr_1fr_180px_180px]">
+        <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_180px_180px_180px_180px_180px]">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -725,12 +810,49 @@ export default function JobsBoard() {
             placeholder="Job title"
             className="rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
           />
-          <input
-            value={locationQuery}
-            onChange={(event) => setLocationQuery(event.target.value)}
-            placeholder="Location"
+          <select
+            value={countryFilter}
+            onChange={(event) => {
+              setCountryFilter(event.target.value);
+              setRegionFilter("");
+              setCityFilter("");
+            }}
             className="rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
-          />
+          >
+            <option value="">All countries</option>
+            {countryOptions.map((country) => (
+              <option key={country} value={country}>
+                {country}
+              </option>
+            ))}
+          </select>
+          <select
+            value={regionFilter}
+            onChange={(event) => {
+              setRegionFilter(event.target.value);
+              setCityFilter("");
+            }}
+            className="rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+          >
+            <option value="">All states/provinces</option>
+            {regionOptions.map((region) => (
+              <option key={region} value={region}>
+                {region}
+              </option>
+            ))}
+          </select>
+          <select
+            value={cityFilter}
+            onChange={(event) => setCityFilter(event.target.value)}
+            className="rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
+          >
+            <option value="">All cities/locations</option>
+            {cityOptions.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+          </select>
           <select
             value={employmentType}
             onChange={(event) => setEmploymentType(event.target.value)}
