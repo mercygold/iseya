@@ -6,6 +6,12 @@ import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/l
 import type { CuratedOpportunitySeed } from "@/data/curated-opportunities-starter";
 import curatedOpportunitiesData from "@/data/created-opportunities.data.json";
 import {
+  addCuratedOpportunityToDuplicateIndex,
+  createCuratedOpportunityDuplicateIndex,
+  findCuratedOpportunityDuplicate,
+  validateCuratedOpportunityRequiredFields,
+} from "@/lib/curatedOpportunityDuplicatePrevention";
+import {
   getRecruiterEntitlements,
   recruiterExpiryFromPublication,
 } from "@/lib/pricing/recruiter";
@@ -70,36 +76,51 @@ function cleanExternalUrl(value: string) {
 }
 
 function normalizeImportOption(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, "_");
+  const normalized = value.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+
+  if (normalized === "full time") return "full-time";
+  if (normalized === "part time") return "part-time";
+  if (normalized === "not specified") return "not_specified";
+  if (normalized === "on site" || normalized === "onsite") return "onsite";
+
+  return normalized.replace(/\s+/g, "_");
 }
 
-function curatedFingerprint(jobTitle: string, companyName: string, externalApplyUrl: string) {
-  return [
-    jobTitle.trim().toLowerCase(),
-    companyName.trim().toLowerCase(),
-    cleanExternalUrl(externalApplyUrl).toLowerCase(),
-  ].join("::");
+function seedWorkplaceType(seed: CuratedOpportunitySeed) {
+  return seed.workplace_type ?? seed.work_mode ?? "";
+}
+
+function seedExternalApplyUrl(seed: CuratedOpportunitySeed) {
+  return seed.external_apply_url ?? seed.apply_url ?? "";
+}
+
+function seedOpportunityType(seed: CuratedOpportunitySeed) {
+  return seed.opportunity_type ?? seed.source_type ?? "";
 }
 
 function curatedSeedRow(seed: CuratedOpportunitySeed, adminUserId: string) {
+  const requirements = Array.isArray(seed.requirements)
+    ? seed.requirements.join("\n")
+    : seed.requirements ?? "";
+
   return {
     recruiter_id: adminUserId,
     job_title: seed.title.trim(),
     company_name: seed.company.trim(),
     location: seed.location.trim(),
     country: seed.country.trim() || null,
-    workplace_type: normalizeImportOption(seed.workplace_type),
+    workplace_type: normalizeImportOption(seedWorkplaceType(seed)),
     employment_type: normalizeImportOption(seed.employment_type),
-    salary_range: seed.salary_range?.trim() || null,
+    salary_range: seed.salary_range?.trim() || seed.salary?.trim() || null,
     role_summary: seed.description.trim(),
     responsibilities: "",
-    requirements: "",
-    skills: seed.skills_keywords ?? [],
+    requirements,
+    skills: seed.skills_keywords ?? seed.skills ?? [],
     application_deadline: seed.application_deadline?.trim() || null,
-    application_url: cleanExternalUrl(seed.external_apply_url.trim()),
-    status: "draft",
+    application_url: cleanExternalUrl(seedExternalApplyUrl(seed).trim()),
+    status: seed.status === "published" ? "published" : "draft",
     opportunity_type: "curated_opportunity",
-    source_name: seed.source_name,
+    source_name: seed.source_name ?? seed.source_type ?? "curated_opportunity",
     source_description: "Sourced from active external hiring channels",
   };
 }
@@ -363,11 +384,13 @@ export async function POST(request: Request) {
       (job) =>
         !job.title.trim() ||
         !job.company.trim() ||
-        !validExternalUrl(job.external_apply_url.trim()) ||
-        job.status !== "draft" ||
-        job.opportunity_type !== "curated_opportunity" ||
+        !job.country.trim() ||
+        !job.location.trim() ||
+        !validExternalUrl(seedExternalApplyUrl(job).trim()) ||
+        !validCuratedStatuses.has(job.status) ||
+        seedOpportunityType(job) !== "curated_opportunity" ||
         job.source_description !== "Sourced from active external hiring channels" ||
-        !validWorkplaceTypes.has(normalizeImportOption(job.workplace_type)) ||
+        !validWorkplaceTypes.has(normalizeImportOption(seedWorkplaceType(job))) ||
         !validEmploymentTypes.has(normalizeImportOption(job.employment_type)),
     ).length;
 
@@ -382,9 +405,23 @@ export async function POST(request: Request) {
     }
 
     const seedRows = curatedOpportunitiesStarter.map((job) => curatedSeedRow(job, userId));
+    const invalidRequiredRows = seedRows.filter(
+      (job) => validateCuratedOpportunityRequiredFields(job).length > 0,
+    );
+
+    if (invalidRequiredRows.length > 0) {
+      console.error("[manage] starter curated opportunity rows are missing required fields", {
+        invalidRequiredRows: invalidRequiredRows.length,
+      });
+      return Response.json(
+        { error: "Starter opportunity data is missing required fields." },
+        { status: 400 },
+      );
+    }
+
     const { data: existingRows, error: existingError } = await serviceRole
       .from("job_posts")
-      .select("job_title, company_name, application_url")
+      .select("id, job_title, company_name, country, application_url")
       .eq("opportunity_type", "curated_opportunity");
 
     if (existingError) {
@@ -394,17 +431,23 @@ export async function POST(request: Request) {
       return Response.json({ error: "Unable to import starter opportunities right now." }, { status: 500 });
     }
 
-    const existingFingerprints = new Set(
-      (existingRows ?? []).map((job) =>
-        curatedFingerprint(job.job_title, job.company_name, job.application_url ?? ""),
-      ),
-    );
-    const uniqueRows = seedRows.filter((job) => {
-      const fingerprint = curatedFingerprint(job.job_title, job.company_name, job.application_url);
-      if (existingFingerprints.has(fingerprint)) return false;
-      existingFingerprints.add(fingerprint);
-      return true;
-    });
+    const duplicateIndex = createCuratedOpportunityDuplicateIndex(existingRows ?? []);
+    const skippedDuplicates: string[] = [];
+    const uniqueRows: ReturnType<typeof curatedSeedRow>[] = [];
+
+    for (const job of seedRows) {
+      const duplicateReason = findCuratedOpportunityDuplicate(duplicateIndex, job);
+
+      if (duplicateReason) {
+        const skippedMessage = `Skipped duplicate job: ${job.job_title} at ${job.company_name}`;
+        console.info(skippedMessage, { duplicateReason });
+        skippedDuplicates.push(skippedMessage);
+        continue;
+      }
+
+      addCuratedOpportunityToDuplicateIndex(duplicateIndex, job);
+      uniqueRows.push(job);
+    }
 
     if (uniqueRows.length > 0) {
       const { error: insertError } = await serviceRole.from("job_posts").insert(uniqueRows);
@@ -419,7 +462,8 @@ export async function POST(request: Request) {
 
     return Response.json({
       imported: uniqueRows.length,
-      skipped: curatedOpportunitiesStarter.length - uniqueRows.length,
+      skipped: skippedDuplicates.length,
+      skippedDuplicates,
     });
   }
 
