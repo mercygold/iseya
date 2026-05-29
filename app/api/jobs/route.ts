@@ -61,7 +61,7 @@ function curatedSeedToJob(seed: CuratedOpportunitySeed, index: number) {
     company_name: seed.company,
     location: seed.location,
     country: seed.country,
-    workplace_type: normalizeOption(seed.workplace_type ?? seed.work_mode),
+    workplace_type: normalizeOption(seed.workplace_type ?? seed.work_mode ?? seed.remote_type),
     employment_type: normalizeOption(seed.employment_type),
     salary_range: seed.salary_range ?? seed.salary ?? null,
     salary_currency: null,

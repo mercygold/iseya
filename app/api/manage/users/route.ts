@@ -87,7 +87,7 @@ function normalizeImportOption(value: string) {
 }
 
 function seedWorkplaceType(seed: CuratedOpportunitySeed) {
-  return seed.workplace_type ?? seed.work_mode ?? "";
+  return seed.workplace_type ?? seed.work_mode ?? seed.remote_type ?? "";
 }
 
 function seedExternalApplyUrl(seed: CuratedOpportunitySeed) {

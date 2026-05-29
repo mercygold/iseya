@@ -7,6 +7,7 @@ export type CuratedOpportunitySeed = {
   country: string;
   workplace_type?: string;
   work_mode?: string;
+  remote_type?: string;
   employment_type: string;
   salary_range?: string | null;
   salary?: string | null;
