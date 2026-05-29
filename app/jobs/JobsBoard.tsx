@@ -49,6 +49,7 @@ type JobPost = {
   source_description?: string | null;
   recruiter_verified?: boolean | null;
   employer_verified?: boolean | null;
+  sponsorship_status?: string | null;
 };
 
 type InterestDraft = {
@@ -131,6 +132,30 @@ const savedOpportunityStorageKey = "iseya_saved_opportunity_ids";
 
 function label(value: string) {
   return value.replace(/_/g, " ").replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function metadataLabel(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "onsite" || normalized === "on site" || normalized === "on-site") {
+    return "ON-SITE";
+  }
+
+  return label(value).toUpperCase();
+}
+
+function hasSponsorship(job: JobPost) {
+  return (
+    job.sponsorship_status === "confirmed_sponsorship" ||
+    job.sponsorship_status === "sponsorship_possible"
+  );
+}
+
+function jobMetadata(job: JobPost) {
+  return [
+    metadataLabel(job.workplace_type),
+    metadataLabel(job.employment_type),
+    ...(hasSponsorship(job) ? ["SPONSORSHIP"] : []),
+  ].join(" | ");
 }
 
 function formatSalary(job: JobPost) {
@@ -779,7 +804,7 @@ export default function JobsBoard() {
                     </p>
                   </button>
                   <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
-                    {label(job.workplace_type)} | {label(job.employment_type)}
+                    {jobMetadata(job)}
                   </p>
                   <p className="mt-2 text-xs font-semibold text-slate-600">
                     {formatSalary(job)}
@@ -852,6 +877,11 @@ export default function JobsBoard() {
                     {selectedOpportunity ? (
                       <p className="mt-3 text-sm leading-6 text-slate-500">
                         {selectedOpportunity.description}
+                      </p>
+                    ) : null}
+                    {hasSponsorship(selectedJob) ? (
+                      <p className="mt-2 text-sm font-medium text-slate-600">
+                        Sponsorship may be available for qualified candidates.
                       </p>
                     ) : null}
                     {selectedJob.application_deadline ? (
