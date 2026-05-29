@@ -10,6 +10,7 @@ import {
   findCuratedOpportunityDuplicate,
   normalizeCuratedOpportunityText,
 } from "@/lib/curatedOpportunityDuplicatePrevention";
+import { isVisibleJobForPublicListings } from "@/lib/jobsMetrics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -104,7 +105,7 @@ function mergePublishedSeedJobs<T extends { job_title: string; company_name: str
   const seedJobs = [];
 
   for (const [index, seed] of curatedOpportunities.entries()) {
-    if (seed.status !== "published") continue;
+    if (!isVisibleJobForPublicListings(seed)) continue;
 
     const candidate = {
       title: seed.title,

@@ -4,6 +4,8 @@ type CountryInput = {
 
 type ActiveJobInput = {
   status?: string | null;
+  opportunity_type?: string | null;
+  source_type?: string | null;
 };
 
 const excludedCountryNames = new Set([
@@ -18,6 +20,9 @@ const excludedCountryNames = new Set([
   "south america",
   "oceania",
 ]);
+
+const inactiveJobStatuses = new Set(["archived", "closed", "expired", "deleted", "inactive"]);
+const activeJobStatuses = new Set(["published", "active", "open"]);
 
 function cleanText(value: string | null | undefined) {
   return String(value ?? "").trim().replace(/\s+/g, " ");
@@ -52,6 +57,29 @@ function isIncludedCountry(country: string) {
   return Boolean(country) && !excludedCountryNames.has(country.toLowerCase());
 }
 
+function normalizedStatus(value: string | null | undefined) {
+  return cleanText(value).toLowerCase();
+}
+
+function isCuratedOpportunity(job: ActiveJobInput) {
+  return (
+    cleanText(job.opportunity_type).toLowerCase() === "curated_opportunity" ||
+    cleanText(job.source_type).toLowerCase() === "curated_opportunity"
+  );
+}
+
+export function isVisibleJobForPublicListings<T extends ActiveJobInput>(job: T) {
+  const status = normalizedStatus(job.status);
+
+  if (inactiveJobStatuses.has(status)) return false;
+  if (activeJobStatuses.has(status)) return true;
+  if (!status && isCuratedOpportunity(job)) return true;
+
+  // Legacy curated opportunities were originally stored as drafts in the seed file,
+  // but are already part of the public /jobs seed source. Keep recruiter drafts excluded.
+  return status === "draft" && isCuratedOpportunity(job);
+}
+
 export function getUniqueCountries<T extends CountryInput>(jobs: readonly T[]) {
   return Array.from(
     new Set(
@@ -63,19 +91,9 @@ export function getUniqueCountries<T extends CountryInput>(jobs: readonly T[]) {
 }
 
 export function getActiveJobsCount<T extends ActiveJobInput>(jobs: readonly T[]) {
-  return jobs.filter((job) => {
-    const status = cleanText(job.status).toLowerCase();
-
-    return status === "published" || status === "active" || status === "open";
-  }).length;
+  return jobs.filter(isVisibleJobForPublicListings).length;
 }
 
 export function getUniqueJobCountries<T extends CountryInput & ActiveJobInput>(jobs: readonly T[]) {
-  return getUniqueCountries(
-    jobs.filter((job) => {
-      const status = cleanText(job.status).toLowerCase();
-
-      return status === "published" || status === "active" || status === "open";
-    }),
-  );
+  return getUniqueCountries(jobs.filter(isVisibleJobForPublicListings));
 }
