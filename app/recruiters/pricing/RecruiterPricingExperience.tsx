@@ -18,6 +18,38 @@ const primaryButton =
 const secondaryButton =
   "inline-flex min-h-11 items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-[var(--iseya-navy)] transition hover:border-[var(--iseya-gold)] hover:bg-[#FFF8E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2";
 
+type RecruiterCheckoutErrorCode =
+  | "AUTH_REQUIRED"
+  | "PROFILE_REQUIRED"
+  | "PROFILE_LOOKUP_FAILED"
+  | "MISSING_PRICE_ID"
+  | "MISSING_STRIPE_SECRET"
+  | "APP_URL_MISSING"
+  | "UNSUPPORTED_PLAN"
+  | "UNSUPPORTED_CURRENCY"
+  | "STRIPE_SESSION_MISSING_URL"
+  | "STRIPE_SESSION_FAILED";
+
+type RecruiterCheckoutResponse = {
+  url?: string;
+  error?: string;
+  code?: RecruiterCheckoutErrorCode;
+  notice?: string;
+};
+
+function normalizeRecruiterCheckoutPlan(plan: string): RecruiterPaidPlanId | "" {
+  if (plan === "recruiter_quarterly" || plan === "recruiter_annual") return plan;
+  if (plan === "quarterly") return "recruiter_quarterly";
+  if (plan === "annual") return "recruiter_annual";
+  if (plan === "Recruiter Quarterly") return "recruiter_quarterly";
+  if (plan === "Recruiter Annual") return "recruiter_annual";
+  return "";
+}
+
+function normalizeCheckoutCurrency(value: SupportedCurrency) {
+  return value.toUpperCase() as SupportedCurrency;
+}
+
 const paidPlans: Array<{
   id: RecruiterPaidPlanId;
   name: string;
@@ -52,6 +84,28 @@ const paidPlans: Array<{
     ],
   },
 ];
+
+function recruiterCheckoutMessage(errorBody: RecruiterCheckoutResponse | null) {
+  switch (errorBody?.code) {
+    case "AUTH_REQUIRED":
+      return "Please sign in before upgrading.";
+    case "PROFILE_REQUIRED":
+    case "PROFILE_LOOKUP_FAILED":
+      return "Create your recruiter profile before upgrading.";
+    case "MISSING_PRICE_ID":
+    case "MISSING_STRIPE_SECRET":
+    case "APP_URL_MISSING":
+      return "Recruiter checkout is not configured for this plan yet.";
+    case "UNSUPPORTED_PLAN":
+    case "UNSUPPORTED_CURRENCY":
+      return errorBody.error || "This recruiter checkout option is not supported.";
+    case "STRIPE_SESSION_MISSING_URL":
+    case "STRIPE_SESSION_FAILED":
+      return "Checkout could not start. Please try again.";
+    default:
+      return errorBody?.error || "Checkout is temporarily unavailable. Please try again shortly.";
+  }
+}
 
 export default function RecruiterPricingExperience({ checkoutResult }: { checkoutResult?: string }) {
   const router = useRouter();
@@ -96,34 +150,66 @@ export default function RecruiterPricingExperience({ checkoutResult }: { checkou
 
   async function beginCheckout() {
     if (!upgradePlan) return;
+    const normalizedPlan = normalizeRecruiterCheckoutPlan(upgradePlan);
+    const normalizedCurrency = normalizeCheckoutCurrency(currency);
+    const requestPayload = {
+      planType: "recruiter",
+      plan: normalizedPlan,
+      currency: normalizedCurrency,
+    };
+
+    console.info("[recruiter-checkout:request]", JSON.stringify({
+      upgradePlan,
+      currency,
+      requestPayload,
+    }));
+
+    if (!normalizedPlan) {
+      setStatus("This recruiter checkout option is not supported.");
+      console.error("[recruiter-checkout]", JSON.stringify({
+        upgradePlan,
+        currency,
+        requestPayload,
+        errorBody: { error: "Unsupported recruiter checkout plan.", code: "UNSUPPORTED_PLAN" },
+      }));
+      return;
+    }
+
     setProcessing(true);
     setStatus("");
-    window.localStorage.setItem(storageKey, currency);
+    window.localStorage.setItem(storageKey, normalizedCurrency);
 
     try {
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planType: "recruiter", plan: upgradePlan, currency }),
+        body: JSON.stringify(requestPayload),
       });
-      const data = (await response.json().catch(() => ({}))) as {
-        url?: string;
-        error?: string;
-        notice?: string;
+      const errorBody = (await response.json().catch(() => null)) as RecruiterCheckoutResponse | null;
+      const checkoutLog = {
+        upgradePlan,
+        currency,
+        requestPayload,
+        status: response.status,
+        errorBody,
       };
 
+      console.info("[recruiter-checkout:response]", JSON.stringify(checkoutLog));
+
       if (response.status === 401) {
+        console.error("[recruiter-checkout]", JSON.stringify(checkoutLog));
         router.push("/login?redirectedFrom=/recruiters/pricing");
         return;
       }
-      if (!response.ok || !data.url) {
-        throw new Error(data.error || "Checkout is temporarily unavailable. Please try again shortly.");
+      if (!response.ok || !errorBody?.url) {
+        console.error("[recruiter-checkout]", JSON.stringify(checkoutLog));
+        throw new Error(recruiterCheckoutMessage(errorBody));
       }
-      if (data.notice) {
-        setStatus(data.notice);
+      if (errorBody.notice) {
+        setStatus(errorBody.notice);
         await new Promise((resolve) => window.setTimeout(resolve, 1000));
       }
-      window.location.assign(data.url);
+      window.location.assign(errorBody.url);
     } catch (error) {
       setStatus(
         error instanceof Error
