@@ -134,6 +134,15 @@ const headerNavigationLink =
   "rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]";
 const anonymousApplicationStorageKey = "iseya_anonymous_job_application_statuses";
 const savedOpportunityStorageKey = "iseya_saved_opportunity_ids";
+const countryFilterOptions = [
+  "Global",
+  "Canada",
+  "Germany",
+  "Nigeria",
+  "South Africa",
+  "United Kingdom",
+  "United States",
+];
 
 function label(value: string) {
   return value.replace(/_/g, " ").replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -363,10 +372,6 @@ export default function JobsBoard() {
   const [sourceFilter, setSourceFilter] = useState<OpportunityType | "">("");
   const firstVisibleJobRef = useRef<HTMLButtonElement | null>(null);
 
-  const countryOptions = useMemo(
-    () => uniqueSorted(jobs.map((job) => job.country ?? "").filter(Boolean)),
-    [jobs],
-  );
   const regionOptions = useMemo(
     () =>
       uniqueSorted(
@@ -820,7 +825,7 @@ export default function JobsBoard() {
             className="rounded-md border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-[var(--iseya-gold)] focus:ring-2 focus:ring-[var(--iseya-gold)]/25"
           >
             <option value="">All countries</option>
-            {countryOptions.map((country) => (
+            {countryFilterOptions.map((country) => (
               <option key={country} value={country}>
                 {country}
               </option>
