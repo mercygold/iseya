@@ -25,8 +25,8 @@ export default function HomePage() {
       />
       <HomeExperience
         homepageMetrics={{
-          activeJobs: String(activeJobCount),
-          countries: String(countryCount),
+          activeJobs: `${activeJobCount}+`,
+          countries: `${countryCount}+`,
         }}
       />
     </>
