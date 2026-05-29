@@ -11,7 +11,7 @@
     "source_name": "Greenhouse",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Product management role focused on ecosystem risk, platform trust, and cross-functional product execution.",
     "skills_keywords": [
       "Product Management",
@@ -21,7 +21,14 @@
       "Fintech"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Principal Product Manager, AI Native",
@@ -35,7 +42,7 @@
     "source_name": "Greenhouse",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Senior product leadership role focused on AI-native product experiences and user-centered platform development.",
     "skills_keywords": [
       "AI",
@@ -44,7 +51,14 @@
       "Roadmapping"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Product Manager, AI",
@@ -58,7 +72,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Product role focused on AI-enabled healthcare workflows, user experience, and product execution.",
     "skills_keywords": [
       "Product Management",
@@ -67,7 +81,14 @@
       "User Experience"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Technical Product Manager",
@@ -81,7 +102,7 @@
     "source_name": "Greenhouse",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Technical product role requiring coordination across product, engineering, and stakeholder teams.",
     "skills_keywords": [
       "Technical Product Management",
@@ -90,7 +111,14 @@
       "Stakeholder Management"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Product Manager, Sustainability AI",
@@ -104,7 +132,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Product role focused on sustainability, enterprise workflows, and AI-enabled product development.",
     "skills_keywords": [
       "Product Management",
@@ -114,7 +142,14 @@
       "Data"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Technical Product Manager",
@@ -128,7 +163,7 @@
     "source_name": "Greenhouse",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Technical product role focused on infrastructure, AI systems, and cross-functional platform delivery.",
     "skills_keywords": [
       "Technical Product Management",
@@ -138,7 +173,14 @@
       "Engineering"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Staff Product Manager, Growth",
@@ -152,7 +194,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Growth product leadership role focused on user acquisition, activation, retention, and product-led growth.",
     "skills_keywords": [
       "Growth Product",
@@ -162,7 +204,14 @@
       "Experimentation"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Product Manager",
@@ -176,7 +225,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Senior product role focused on complex technical products, cybersecurity, and enterprise customer needs.",
     "skills_keywords": [
       "Product Management",
@@ -186,7 +235,14 @@
       "Stakeholders"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Group Product Manager",
@@ -200,7 +256,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Product leadership role focused on team execution, product strategy, and scaling SaaS product experiences.",
     "skills_keywords": [
       "Product Leadership",
@@ -210,7 +266,14 @@
       "Execution"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Staff Product Manager, Platform & Infrastructure",
@@ -224,7 +287,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Platform product role focused on infrastructure, developer experience, and technical product strategy.",
     "skills_keywords": [
       "Platform Product",
@@ -234,7 +297,14 @@
       "Technical Product Management"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Product Manager, Integrations",
@@ -248,7 +318,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Product role focused on integrations, API-connected workflows, and financial technology platforms.",
     "skills_keywords": [
       "Product Management",
@@ -258,7 +328,14 @@
       "SaaS"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Product Operations Manager",
@@ -272,7 +349,7 @@
     "source_name": "Lever",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Product operations role focused on improving product execution, workflows, stakeholder coordination, and operational systems.",
     "skills_keywords": [
       "Product Operations",
@@ -282,7 +359,14 @@
       "Operations"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Product Operations Manager",
@@ -296,7 +380,7 @@
     "source_name": "Lever",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Senior product operations role focused on product processes, execution systems, cross-functional coordination, and business operations.",
     "skills_keywords": [
       "Product Operations",
@@ -306,7 +390,14 @@
       "Analytics"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Financial Analyst, Corporate Financial Planning",
@@ -320,7 +411,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Finance role focused on corporate financial planning, analysis, reporting, and business performance support.",
     "skills_keywords": [
       "Financial Analysis",
@@ -330,7 +421,14 @@
       "Excel"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Real Estate Analyst",
@@ -344,7 +442,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Real estate analyst role focused on portfolio analysis, site evaluation, financial modeling, and business decision support.",
     "skills_keywords": [
       "Real Estate Analysis",
@@ -354,7 +452,14 @@
       "Market Research"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Real Estate Senior Analyst",
@@ -368,7 +473,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Real estate analyst opportunity focused on commercial real estate research, client support, valuation, and market intelligence.",
     "skills_keywords": [
       "Commercial Real Estate",
@@ -378,7 +483,14 @@
       "Client Support"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Financial Analyst / Manager, R&D Finance and FinOps",
@@ -392,7 +504,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Finance role supporting R&D planning, financial operations, forecasting, and business partnership across technical teams.",
     "skills_keywords": [
       "FP&A",
@@ -402,7 +514,14 @@
       "Business Partnership"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Billing Analyst",
@@ -416,7 +535,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Billing operations role focused on revenue operations, invoicing accuracy, billing workflows, and customer account support.",
     "skills_keywords": [
       "Billing",
@@ -426,7 +545,14 @@
       "Customer Support"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "FP&A Analyst",
@@ -440,7 +566,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Finance planning and analysis role supporting budgeting, forecasting, reporting, and strategic business decisions.",
     "skills_keywords": [
       "FP&A",
@@ -450,7 +576,14 @@
       "Fintech"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Finance Manager, T-Ads",
@@ -464,7 +597,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Finance manager role supporting advertising business operations, financial planning, performance analysis, and strategic reporting.",
     "skills_keywords": [
       "Finance Management",
@@ -474,7 +607,14 @@
       "Reporting"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Product Manager",
@@ -488,7 +628,7 @@
     "source_name": "LinkedIn discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Product management opportunity in Nigerian fintech focused on digital financial services, user growth, and platform execution.",
     "skills_keywords": [
       "Product Management",
@@ -498,7 +638,14 @@
       "Nigeria"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Product Manager, Risk and Compliance",
@@ -512,7 +659,7 @@
     "source_name": "Indeed discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Fintech product role focused on risk, compliance, payments workflows, and regulated product development.",
     "skills_keywords": [
       "Product Management",
@@ -522,7 +669,14 @@
       "Payments"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Product Manager",
@@ -536,7 +690,7 @@
     "source_name": "Indeed discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Senior fintech product role focused on payments infrastructure, customer needs, and product execution.",
     "skills_keywords": [
       "Product Management",
@@ -546,7 +700,14 @@
       "Strategy"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Product Manager, Front-End Channels",
@@ -560,7 +721,7 @@
     "source_name": "LinkedIn discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Product role focused on digital channels, customer-facing fintech experiences, and product delivery.",
     "skills_keywords": [
       "Product Management",
@@ -570,7 +731,14 @@
       "Lagos"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Lead Product Manager",
@@ -584,7 +752,7 @@
     "source_name": "LinkedIn discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Leadership product role focused on lending, fintech operations, customer acquisition, and digital financial experiences.",
     "skills_keywords": [
       "Product Management",
@@ -594,7 +762,14 @@
       "Strategy"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Technical Product Manager, CredTech",
@@ -608,7 +783,7 @@
     "source_name": "Indeed discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Technical product role focused on fintech systems, credit technology, integrations, and enterprise product delivery.",
     "skills_keywords": [
       "Technical Product Management",
@@ -618,7 +793,14 @@
       "Enterprise Software"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Product Manager, B2B Travel SaaS",
@@ -632,7 +814,7 @@
     "source_name": "Indeed discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Product role focused on B2B travel technology, SaaS systems, operational workflows, and user experience.",
     "skills_keywords": [
       "Product Management",
@@ -642,7 +824,14 @@
       "Operations"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Technical Product Manager",
@@ -656,7 +845,7 @@
     "source_name": "Indeed discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Technical product role focused on payment systems, product operations, and digital platform delivery.",
     "skills_keywords": [
       "Technical Product Management",
@@ -666,7 +855,14 @@
       "Fintech"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Product Manager, Real Estate",
@@ -680,7 +876,7 @@
     "source_name": "Glassdoor discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Product and operations role focused on real estate workflows, client experience, and property operations systems.",
     "skills_keywords": [
       "Real Estate",
@@ -690,7 +886,14 @@
       "Customer Experience"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Technical Financial Crime Manager",
@@ -704,7 +907,7 @@
     "source_name": "Greenhouse",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Risk and financial crime role focused on fintech systems, compliance workflows, fraud prevention, and operational integrity.",
     "skills_keywords": [
       "Fintech",
@@ -714,7 +917,14 @@
       "Financial Crime"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Forward Deployed Product Manager",
@@ -728,7 +938,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Product role focused on enterprise deployments, customer workflows, implementation strategy, and technical coordination.",
     "skills_keywords": [
       "Product Management",
@@ -738,7 +948,14 @@
       "Technical Delivery"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Technical Product Manager, Vault Core",
@@ -752,7 +969,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Technical product role focused on banking infrastructure, core systems, APIs, and financial technology platforms.",
     "skills_keywords": [
       "Technical Product Management",
@@ -762,7 +979,14 @@
       "APIs"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Product Manager, Integrity",
@@ -776,7 +1000,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "AI product role focused on integrity systems, safety workflows, trust mechanisms, and platform reliability.",
     "skills_keywords": [
       "AI",
@@ -786,7 +1010,14 @@
       "Platform Systems"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Technical Product Manager, AI Native Onboarding Platform",
@@ -800,7 +1031,7 @@
     "source_name": "Indeed discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Technical product role focused on onboarding systems, AI-enabled workflows, enterprise financial platforms, and customer operations.",
     "skills_keywords": [
       "Technical Product Management",
@@ -810,7 +1041,14 @@
       "Enterprise Systems"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Martech Product Manager, Associate",
@@ -824,7 +1062,7 @@
     "source_name": "Indeed discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Product role focused on marketing technology, digital customer journeys, platform operations, and financial services product delivery.",
     "skills_keywords": [
       "Product Management",
@@ -834,7 +1072,14 @@
       "Customer Journeys"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Digital Markets Commodities Product Manager, Vice President",
@@ -848,7 +1093,7 @@
     "source_name": "Indeed discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Senior product role focused on digital markets, commodities platforms, trading workflows, and financial product strategy.",
     "skills_keywords": [
       "Product Management",
@@ -858,7 +1103,14 @@
       "Financial Services"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Technical Product Manager, Digital Platforms",
@@ -872,7 +1124,7 @@
     "source_name": "eFinancialCareers discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Technical product role focused on financial data platforms, digital product delivery, and enterprise market infrastructure.",
     "skills_keywords": [
       "Technical Product Management",
@@ -882,7 +1134,14 @@
       "Enterprise Systems"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Staff Product Manager, Alternative Payment Methods",
@@ -896,7 +1155,7 @@
     "source_name": "eFinancialCareers discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Payments product leadership role focused on alternative payment methods, merchant experiences, and payment infrastructure.",
     "skills_keywords": [
       "Product Management",
@@ -906,7 +1165,14 @@
       "Merchant Experience"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Product Manager",
@@ -920,7 +1186,7 @@
     "source_name": "Glassdoor discovery",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Senior fintech product role focused on consumer finance, savings/investment experiences, and product growth.",
     "skills_keywords": [
       "Product Management",
@@ -930,7 +1196,14 @@
       "Growth"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Product Manager, Expansion",
@@ -944,7 +1217,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Product role focused on market expansion, fintech infrastructure, investment platforms, and cross-border product strategy.",
     "skills_keywords": [
       "Product Management",
@@ -954,7 +1227,14 @@
       "Europe"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "AI Operations Analyst",
@@ -968,7 +1248,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Remote AI operations opportunity focused on evaluating model responses, improving content quality, and supporting AI workflow accuracy.",
     "skills_keywords": [
       "AI Operations",
@@ -978,7 +1258,14 @@
       "Analytical Thinking"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Business Analyst",
@@ -992,7 +1279,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Consulting analyst opportunity focused on business problem-solving, client research, market analysis, and strategy execution.",
     "skills_keywords": [
       "Consulting",
@@ -1002,7 +1289,14 @@
       "Problem Solving"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Software Engineer",
@@ -1016,7 +1310,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Software engineering opportunity focused on open-source systems, cloud infrastructure, Linux, and distributed product development.",
     "skills_keywords": [
       "Software Engineering",
@@ -1026,7 +1320,14 @@
       "Distributed Systems"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Healthcare Data Analyst",
@@ -1040,7 +1341,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Healthcare data role focused on reporting, analytics, service performance, and insight generation for healthcare operations.",
     "skills_keywords": [
       "Healthcare Analytics",
@@ -1050,7 +1351,14 @@
       "Operations"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Client Support Specialist, Workplaces B2B",
@@ -1064,7 +1372,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Customer support role focused on workplace operations, client service, and B2B support workflows.",
     "skills_keywords": [
       "Customer Support",
@@ -1074,7 +1382,14 @@
       "Remote Work"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Customer Experience Specialist",
@@ -1088,7 +1403,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Customer experience role focused on support quality, user communication, issue resolution, and service operations.",
     "skills_keywords": [
       "Customer Experience",
@@ -1098,7 +1413,14 @@
       "Remote Work"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Full Stack Engineer, NLP",
@@ -1112,7 +1434,7 @@
     "source_name": "Lever",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Engineering role focused on full-stack development, NLP-enabled systems, online education technology, and scalable product features.",
     "skills_keywords": [
       "Full Stack Engineering",
@@ -1122,7 +1444,14 @@
       "Remote Work"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "QA Automation Engineer",
@@ -1136,7 +1465,7 @@
     "source_name": "Lever",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Quality engineering role focused on automation testing, software quality, product reliability, and education technology platforms.",
     "skills_keywords": [
       "QA Automation",
@@ -1146,7 +1475,14 @@
       "Engineering"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Forward-Deployed Data Analyst",
@@ -1160,7 +1496,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Data analyst role focused on health data systems, field implementation, stakeholder support, and analytics across African markets.",
     "skills_keywords": [
       "Data Analysis",
@@ -1170,7 +1506,14 @@
       "Africa"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Clinical Template Officer",
@@ -1184,7 +1527,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Healthcare operations role focused on clinical templates, documentation quality, healthcare workflows, and product support.",
     "skills_keywords": [
       "Healthcare",
@@ -1194,7 +1537,14 @@
       "Health Tech"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Revenue Operations Specialist",
@@ -1208,7 +1558,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Revenue operations role focused on intake management, tooling support, process improvement, and sales operations workflows.",
     "skills_keywords": [
       "Revenue Operations",
@@ -1218,7 +1568,14 @@
       "Analytics"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Junior Operations Coordinator, French Speaker",
@@ -1232,7 +1589,7 @@
     "source_name": "Ashby",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Operations role focused on logistics coordination, multilingual communication, administrative support, and remote team operations.",
     "skills_keywords": [
       "Operations",
@@ -1242,7 +1599,14 @@
       "Remote Work"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Content Editor, SEO",
@@ -1256,7 +1620,7 @@
     "source_name": "Lever",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Content and SEO role focused on editing, search optimization, content quality, and digital publishing workflows.",
     "skills_keywords": [
       "SEO",
@@ -1266,7 +1630,14 @@
       "Remote Work"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Sales Development Representative",
@@ -1280,7 +1651,7 @@
     "source_name": "Lever",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Sales development role focused on outbound outreach, pipeline generation, lead qualification, and customer acquisition support.",
     "skills_keywords": [
       "Sales Development",
@@ -1290,7 +1661,14 @@
       "Remote Work"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Graduate Teaching Assistant",
@@ -1304,7 +1682,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Teaching support role focused on classroom assistance, student engagement, academic preparation, and course delivery support.",
     "skills_keywords": [
       "Teaching",
@@ -1314,7 +1692,14 @@
       "Communication"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Civil Engineering Graduate",
@@ -1328,7 +1713,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Graduate engineering role focused on infrastructure projects, design support, technical analysis, and multidisciplinary project delivery.",
     "skills_keywords": [
       "Civil Engineering",
@@ -1338,7 +1723,14 @@
       "Graduate"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Software Engineering Intern",
@@ -1352,7 +1744,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Internship opportunity focused on software engineering, systems development, technical problem-solving, and product engineering support.",
     "skills_keywords": [
       "Software Engineering",
@@ -1362,7 +1754,14 @@
       "Engineering"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Healthcare Assistant",
@@ -1376,7 +1775,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Healthcare support role focused on patient care, clinical team support, service delivery, and healthcare operations.",
     "skills_keywords": [
       "Healthcare",
@@ -1386,7 +1785,14 @@
       "NHS"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Business Graduate Programme",
@@ -1400,7 +1806,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Graduate business role focused on consulting, client delivery, problem-solving, analysis, and professional development.",
     "skills_keywords": [
       "Consulting",
@@ -1410,7 +1816,14 @@
       "Strategy"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Data Analyst",
@@ -1424,7 +1837,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Data role focused on business insights, product analytics, reporting, experimentation, and decision support.",
     "skills_keywords": [
       "Data Analysis",
@@ -1434,7 +1847,14 @@
       "Remote Work"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Registered Nurse",
@@ -1448,7 +1868,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Healthcare role focused on patient care, clinical documentation, interdisciplinary care delivery, and hospital operations.",
     "skills_keywords": [
       "Nursing",
@@ -1458,7 +1878,14 @@
       "Hospital Operations"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Mechanical Engineering Intern",
@@ -1472,7 +1899,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Engineering internship focused on mechanical systems, design support, product development, testing, and manufacturing collaboration.",
     "skills_keywords": [
       "Mechanical Engineering",
@@ -1482,7 +1909,14 @@
       "Testing"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Operations Associate",
@@ -1496,7 +1930,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Operations role focused on fulfillment processes, workflow execution, team coordination, and operational performance.",
     "skills_keywords": [
       "Operations",
@@ -1506,7 +1940,14 @@
       "Team Coordination"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Marketing Intern",
@@ -1520,7 +1961,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Marketing internship focused on campaigns, content, demand generation, analytics, and go-to-market support.",
     "skills_keywords": [
       "Marketing",
@@ -1530,7 +1971,14 @@
       "Analytics"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Software Engineering Intern",
@@ -1544,7 +1992,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Internship opportunity focused on software engineering, product development, cloud systems, and technical problem-solving.",
     "skills_keywords": [
       "Software Engineering",
@@ -1554,7 +2002,14 @@
       "Programming"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Project Engineer",
@@ -1568,7 +2023,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Engineering role focused on project delivery, technical coordination, infrastructure planning, and multidisciplinary collaboration.",
     "skills_keywords": [
       "Engineering",
@@ -1578,7 +2033,14 @@
       "Canada"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Teacher",
@@ -1592,7 +2054,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Education role focused on teaching, learning support, education equity, student development, and program delivery.",
     "skills_keywords": [
       "Teaching",
@@ -1602,7 +2064,14 @@
       "Program Delivery"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Graduate Civil Engineer",
@@ -1616,7 +2085,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Graduate engineering role focused on sustainable infrastructure, design analysis, technical delivery, and multidisciplinary projects.",
     "skills_keywords": [
       "Civil Engineering",
@@ -1626,7 +2095,14 @@
       "Sustainability"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Business Analyst Intern",
@@ -1640,7 +2116,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Consulting internship focused on research, business analysis, client problem-solving, and strategy development.",
     "skills_keywords": [
       "Consulting",
@@ -1650,7 +2126,14 @@
       "Research"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Data Science Intern",
@@ -1664,7 +2147,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Internship role focused on data science, analytics, machine learning support, business insights, and technical experimentation.",
     "skills_keywords": [
       "Data Science",
@@ -1674,7 +2157,14 @@
       "Python"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Clinical Research Associate",
@@ -1688,7 +2178,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Healthcare research role focused on clinical trial monitoring, site coordination, documentation, and regulatory compliance.",
     "skills_keywords": [
       "Clinical Research",
@@ -1698,7 +2188,14 @@
       "Documentation"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Supply Chain Analyst",
@@ -1712,7 +2209,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Operations role focused on supply chain planning, logistics analysis, demand forecasting, and business performance support.",
     "skills_keywords": [
       "Supply Chain",
@@ -1722,7 +2219,14 @@
       "Forecasting"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Graduate Trainee",
@@ -1736,7 +2240,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Graduate opportunity focused on banking, financial services, client operations, risk, and professional development.",
     "skills_keywords": [
       "Banking",
@@ -1746,7 +2250,14 @@
       "Client Operations"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Marketing Associate",
@@ -1760,7 +2271,7 @@
     "source_name": "Company Careers",
     "source_description": "Sourced from active external hiring channels",
     "opportunity_type": "curated_opportunity",
-    "status": "draft",
+    "status": "published",
     "description": "Marketing role focused on growth campaigns, content, go-to-market execution, customer engagement, and performance analysis.",
     "skills_keywords": [
       "Marketing",
@@ -1770,7 +2281,14 @@
       "Analytics"
     ],
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Healthcare Operations Analyst",
@@ -1814,7 +2332,14 @@
     "imported_at": "2026-05-29T00:00:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Associate Product Manager",
@@ -1856,7 +2381,14 @@
     "imported_at": "2026-05-29T00:00:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Business Intelligence Analyst",
@@ -1898,7 +2430,14 @@
     "imported_at": "2026-05-29T00:00:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Real Estate Investment Associate",
@@ -1940,7 +2479,14 @@
     "imported_at": "2026-05-29T00:00:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Cybersecurity Risk Analyst",
@@ -1982,7 +2528,14 @@
     "imported_at": "2026-05-29T00:00:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Graduate Business Analyst",
@@ -2024,7 +2577,14 @@
     "imported_at": "2026-05-29T00:00:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Healthcare Project Coordinator",
@@ -2066,7 +2626,14 @@
     "imported_at": "2026-05-29T00:00:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Marketing Analytics Specialist",
@@ -2108,7 +2675,14 @@
     "imported_at": "2026-05-29T00:00:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Operations Associate",
@@ -2150,7 +2724,14 @@
     "imported_at": "2026-05-29T00:00:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Financial Planning Analyst",
@@ -2192,7 +2773,14 @@
     "imported_at": "2026-05-29T00:00:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Healthcare Operations Coordinator",
@@ -2233,7 +2821,14 @@
     "imported_at": "2026-05-29T00:20:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Investment Analyst",
@@ -2274,7 +2869,14 @@
     "imported_at": "2026-05-29T00:20:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Cybersecurity Compliance Analyst",
@@ -2315,7 +2917,14 @@
     "imported_at": "2026-05-29T00:20:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Business Intelligence Analyst",
@@ -2356,7 +2965,14 @@
     "imported_at": "2026-05-29T00:20:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Healthcare Data Analyst",
@@ -2397,7 +3013,14 @@
     "imported_at": "2026-05-29T00:20:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "MBA Leadership Development Associate",
@@ -2438,7 +3061,14 @@
     "imported_at": "2026-05-29T00:20:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Commercial Real Estate Analyst",
@@ -2479,7 +3109,14 @@
     "imported_at": "2026-05-29T00:20:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Financial Planning Analyst",
@@ -2520,7 +3157,14 @@
     "imported_at": "2026-05-29T00:20:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "AI Product Operations Specialist",
@@ -2561,7 +3205,14 @@
     "imported_at": "2026-05-29T00:20:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Supply Chain Business Analyst",
@@ -2602,7 +3253,14 @@
     "imported_at": "2026-05-29T00:20:00.000Z",
     "date_added": "2026-05-29",
     "application_deadline": "",
-    "needs_verification": true
+    "needs_verification": true,
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Technical AI Product Manager",
@@ -2634,7 +3292,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Product Manager",
@@ -2666,7 +3331,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Product Manager - Data Foundation",
@@ -2698,7 +3370,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Principal Product Manager - Discovery & Onboarding",
@@ -2730,7 +3409,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Product Manager, AI Transformation",
@@ -2762,7 +3448,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Middle Office Business Analyst / Business Development Manager",
@@ -2794,7 +3487,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Growth Data Analyst",
@@ -2826,7 +3526,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Business Analyst",
@@ -2858,7 +3565,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Product Manager / Senior Product Manager, Developer Tools",
@@ -2890,7 +3604,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Product Manager (Japanese-English)",
@@ -2922,7 +3643,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Sr. Regional Business Analyst (Tinder Asia)",
@@ -2954,7 +3682,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Data Analyst Intern (H2 2026)",
@@ -2986,7 +3721,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Business Analyst",
@@ -3018,7 +3760,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Data Analyst - Risk & Compliance",
@@ -3050,7 +3799,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Product Manager - Electron",
@@ -3082,7 +3838,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Senior Technical Product Manager, Swap",
@@ -3114,7 +3877,14 @@
     "opportunity_type": "curated_opportunity",
     "created_at": "2026-05-29T00:40:00.000Z",
     "imported_at": "2026-05-29T00:40:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Healthcare Program Analyst",
@@ -3146,7 +3916,14 @@
     "application_deadline": "",
     "created_at": "2026-05-29T01:00:00.000Z",
     "imported_at": "2026-05-29T01:00:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Finance Transformation Associate",
@@ -3178,7 +3955,14 @@
     "application_deadline": "",
     "created_at": "2026-05-29T01:00:00.000Z",
     "imported_at": "2026-05-29T01:00:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   },
   {
     "title": "Product Operations Analyst",
@@ -3210,6 +3994,13 @@
     "application_deadline": "",
     "created_at": "2026-05-29T01:00:00.000Z",
     "imported_at": "2026-05-29T01:00:00.000Z",
-    "date_added": "2026-05-29"
+    "date_added": "2026-05-29",
+    "unpublished_at": null,
+    "expired_at": null,
+    "archived_at": null,
+    "deleted_at": null,
+    "status_reason": null,
+    "last_checked_at": null,
+    "source_health": "unchecked"
   }
 ]

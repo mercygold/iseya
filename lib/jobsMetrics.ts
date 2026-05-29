@@ -21,9 +21,6 @@ const excludedCountryNames = new Set([
   "oceania",
 ]);
 
-const inactiveJobStatuses = new Set(["archived", "closed", "expired", "deleted", "inactive"]);
-const activeJobStatuses = new Set(["published", "active", "open"]);
-
 function cleanText(value: string | null | undefined) {
   return String(value ?? "").trim().replace(/\s+/g, " ");
 }
@@ -61,23 +58,33 @@ function normalizedStatus(value: string | null | undefined) {
   return cleanText(value).toLowerCase();
 }
 
-function isCuratedOpportunity(job: ActiveJobInput) {
-  return (
-    cleanText(job.opportunity_type).toLowerCase() === "curated_opportunity" ||
-    cleanText(job.source_type).toLowerCase() === "curated_opportunity"
-  );
+export function isPublicJob<T extends ActiveJobInput>(job: T) {
+  const status = normalizedStatus(job.status);
+
+  return status === "published";
+}
+
+export function isAdminVisibleJob<T extends ActiveJobInput>(job: T, options?: { includeDeleted?: boolean }) {
+  const status = normalizedStatus(job.status);
+
+  if (status === "deleted" && !options?.includeDeleted) return false;
+
+  return true;
+}
+
+export function markJobExpired(jobId: string, reason: string) {
+  return {
+    jobId,
+    status: "expired",
+    expired_at: new Date().toISOString(),
+    status_reason: reason,
+    source_health: "expired",
+    last_checked_at: new Date().toISOString(),
+  };
 }
 
 export function isVisibleJobForPublicListings<T extends ActiveJobInput>(job: T) {
-  const status = normalizedStatus(job.status);
-
-  if (inactiveJobStatuses.has(status)) return false;
-  if (activeJobStatuses.has(status)) return true;
-  if (!status && isCuratedOpportunity(job)) return true;
-
-  // Legacy curated opportunities were originally stored as drafts in the seed file,
-  // but are already part of the public /jobs seed source. Keep recruiter drafts excluded.
-  return status === "draft" && isCuratedOpportunity(job);
+  return isPublicJob(job);
 }
 
 export function getUniqueCountries<T extends CountryInput>(jobs: readonly T[]) {

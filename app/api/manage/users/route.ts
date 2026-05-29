@@ -24,7 +24,14 @@ const validInstitutionPackages = new Set([
   "Campus Access",
   "Enterprise Access",
 ]);
-const validCuratedStatuses = new Set(["draft", "published", "closed"]);
+const validCuratedStatuses = new Set([
+  "draft",
+  "published",
+  "unpublished",
+  "expired",
+  "archived",
+  "deleted",
+]);
 const validWorkplaceTypes = new Set(["remote", "hybrid", "onsite", "not_specified"]);
 const validEmploymentTypes = new Set([
   "full-time",
@@ -310,8 +317,9 @@ export async function GET() {
       serviceRole
         .from("job_posts")
         .select("id, recruiter_id, job_title, company_name, location, country, workplace_type, employment_type, salary_range, application_url, role_summary, skills, application_deadline, status, opportunity_type, source_name, source_description, applicants_count, published_at, expires_at, created_at")
+        .neq("status", "deleted")
         .order("created_at", { ascending: false })
-        .limit(100),
+        .limit(500),
       serviceRole
         .from("institution_profiles")
         .select("id, user_id, institution_name, institution_type, admin_name, admin_email, website, country, state_region, city, student_email_domain, access_status, access_start_date, access_end_date, access_notes, estimated_student_coverage, seat_limit, active_seats, package_type, annual_contract_value, price_per_student, discount_notes, auto_domain_access, created_at, updated_at")
@@ -719,7 +727,17 @@ export async function PATCH(request: Request) {
 
   if (jobPostId) {
     const jobStatus = typeof body.jobStatus === "string" ? body.jobStatus : "";
-    const validJobStatuses = new Set(["draft", "pending_review", "published", "rejected", "expired", "closed", "archived"]);
+    const validJobStatuses = new Set([
+      "draft",
+      "pending_review",
+      "published",
+      "unpublished",
+      "rejected",
+      "expired",
+      "closed",
+      "archived",
+      "deleted",
+    ]);
 
     if (!validJobStatuses.has(jobStatus)) {
       return Response.json({ error: "Invalid job moderation update." }, { status: 400 });
@@ -797,7 +815,7 @@ export async function PATCH(request: Request) {
 
     const { error } = await serviceRole
       .from("job_posts")
-      .update({ status: jobStatus, ...visibilityUpdate })
+      .update({ status: jobStatus, ...visibilityUpdate, updated_at: new Date().toISOString() })
       .eq("id", jobPostId);
 
     if (error) {
@@ -898,7 +916,7 @@ export async function DELETE(request: Request) {
   if (curatedJobPostId) {
     const { error } = await serviceRole
       .from("job_posts")
-      .delete()
+      .update({ status: "deleted", updated_at: new Date().toISOString() })
       .eq("id", curatedJobPostId)
       .eq("opportunity_type", "curated_opportunity");
 

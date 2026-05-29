@@ -103,6 +103,8 @@ type JobPostModeration = {
   created_at: string;
 };
 
+type JobLifecycleStatus = "published" | "draft" | "unpublished" | "expired" | "archived";
+
 type CuratedOpportunityDraft = {
   jobTitle: string;
   companyName: string;
@@ -219,6 +221,7 @@ export default function ManageDashboard() {
   const [curatedImporting, setCuratedImporting] = useState(false);
   const [editingCuratedId, setEditingCuratedId] = useState("");
   const [curatedQuery, setCuratedQuery] = useState("");
+  const [jobStatusFilter, setJobStatusFilter] = useState<JobLifecycleStatus>("published");
   const [draft, setDraft] = useState({
     subscriptionPlan: "free",
     subscriptionStatus: "free",
@@ -280,8 +283,29 @@ export default function ManageDashboard() {
   const curatedOpportunities = (payload?.jobPosts ?? []).filter(
     (job) => job.opportunity_type === "curated_opportunity",
   );
+  const jobStatusTabs: Array<{ status: JobLifecycleStatus; label: string }> = [
+    { status: "published", label: "Published" },
+    { status: "draft", label: "Drafts" },
+    { status: "unpublished", label: "Unpublished" },
+    { status: "expired", label: "Expired" },
+    { status: "archived", label: "Archived" },
+  ];
+  const jobStatusCounts = jobStatusTabs.reduce<Record<JobLifecycleStatus, number>>(
+    (counts, tab) => ({
+      ...counts,
+      [tab.status]: curatedOpportunities.filter((job) => job.status === tab.status).length,
+    }),
+    {
+      published: 0,
+      draft: 0,
+      unpublished: 0,
+      expired: 0,
+      archived: 0,
+    },
+  );
   const filteredCuratedOpportunities = curatedOpportunities.filter((job) => {
     const needle = curatedQuery.trim().toLowerCase();
+    if (job.status !== jobStatusFilter) return false;
     if (!needle) return true;
 
     return [
@@ -524,7 +548,7 @@ export default function ManageDashboard() {
     }
   }
 
-  async function saveCuratedOpportunity(statusOverride?: "draft" | "published" | "closed") {
+  async function saveCuratedOpportunity(statusOverride?: "draft" | "published" | "unpublished" | "expired" | "archived") {
     const nextStatus = statusOverride ?? curatedDraft.status;
     setStatus("");
     setCuratedSaving(true);
@@ -629,7 +653,7 @@ export default function ManageDashboard() {
   }
 
   async function deleteCuratedOpportunity(job: JobPostModeration) {
-    if (!window.confirm(`Delete curated opportunity "${job.job_title}"?`)) {
+    if (!window.confirm(`Soft delete curated opportunity "${job.job_title}"?`)) {
       return;
     }
 
@@ -647,7 +671,7 @@ export default function ManageDashboard() {
         throw new Error(data.error || "Unable to delete curated opportunity.");
       }
 
-      setStatus("Curated opportunity deleted.");
+      setStatus("Curated opportunity soft deleted.");
       if (editingCuratedId === job.id) {
         setEditingCuratedId("");
         setCuratedDraft(emptyCuratedOpportunityDraft);
@@ -909,10 +933,12 @@ export default function ManageDashboard() {
                       <option value="draft">Draft</option>
                       <option value="pending_review">Pending Review</option>
                       <option value="published">Published</option>
+                      <option value="unpublished">Unpublished</option>
                       <option value="rejected">Rejected</option>
                       <option value="expired">Expired</option>
                       <option value="closed">Closed</option>
                       <option value="archived">Archived</option>
+                      <option value="deleted">Deleted</option>
                     </select>
                   </div>
                 </div>
@@ -964,6 +990,23 @@ export default function ManageDashboard() {
                 placeholder="Search title, company, source..."
                 className={`${inputClass} w-full`}
               />
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {jobStatusTabs.map((tab) => (
+                  <button
+                    key={tab.status}
+                    type="button"
+                    onClick={() => setJobStatusFilter(tab.status)}
+                    className={`rounded-md border px-2.5 py-2 text-left text-[11px] font-bold uppercase tracking-[0.08em] transition ${
+                      jobStatusFilter === tab.status
+                        ? "border-[var(--iseya-gold)] bg-[#FFF8E6] text-[var(--iseya-navy)]"
+                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                    }`}
+                  >
+                    {tab.label}
+                    <span className="ml-1 text-slate-400">({jobStatusCounts[tab.status]})</span>
+                  </button>
+                ))}
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={startNewCuratedOpportunity} className={secondaryButton}>
                   New Opportunity
@@ -1004,7 +1047,7 @@ export default function ManageDashboard() {
                         <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${
                           job.status === "published"
                             ? "bg-emerald-50 text-emerald-700"
-                            : job.status === "closed"
+                            : ["unpublished", "expired", "archived"].includes(job.status)
                               ? "bg-slate-200 text-slate-700"
                               : "bg-amber-50 text-amber-700"
                         }`}>
@@ -1021,6 +1064,9 @@ export default function ManageDashboard() {
                       </button>
                       <button type="button" onClick={() => updateJobStatus(job, "published")} className={`${primaryButton} min-h-8 flex-1 px-2 py-1`}>
                         Publish
+                      </button>
+                      <button type="button" onClick={() => updateJobStatus(job, "unpublished")} className={`${secondaryButton} min-h-8 flex-1 px-2 py-1`}>
+                        Unpublish
                       </button>
                       <button type="button" onClick={() => deleteCuratedOpportunity(job)} className={`${secondaryButton} min-h-8 px-2 py-1 text-rose-700`}>
                         Delete
@@ -1135,7 +1181,7 @@ export default function ManageDashboard() {
                   <span className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-[0.1em] ${
                     curatedDraft.status === "published"
                       ? "bg-emerald-50 text-emerald-700"
-                      : curatedDraft.status === "closed"
+                      : curatedDraft.status === "archived" || curatedDraft.status === "expired" || curatedDraft.status === "unpublished"
                         ? "bg-slate-200 text-slate-700"
                         : "bg-amber-50 text-amber-700"
                   }`}>
@@ -1152,8 +1198,17 @@ export default function ManageDashboard() {
                 <button type="button" disabled={curatedSaving} onClick={() => void saveCuratedOpportunity("published")} className={primaryButton}>
                   Publish
                 </button>
-                <button type="button" disabled={curatedSaving} onClick={() => void saveCuratedOpportunity("closed")} className={secondaryButton}>
-                  Close
+                <button type="button" disabled={curatedSaving} onClick={() => void saveCuratedOpportunity("unpublished")} className={secondaryButton}>
+                  Unpublish
+                </button>
+                <button type="button" disabled={curatedSaving} onClick={() => void saveCuratedOpportunity("expired")} className={secondaryButton}>
+                  Mark Expired
+                </button>
+                <button type="button" disabled={curatedSaving} onClick={() => void saveCuratedOpportunity("archived")} className={secondaryButton}>
+                  Archive
+                </button>
+                <button type="button" disabled={curatedSaving} onClick={() => void saveCuratedOpportunity("draft")} className={secondaryButton}>
+                  Restore to Draft
                 </button>
                 {editingCuratedId ? (
                   <button
