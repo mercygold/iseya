@@ -1374,6 +1374,32 @@ function safeStringArray(value: unknown, fallback: string[] = []) {
     : fallback;
 }
 
+async function safeFetchJson<T>(
+  url: string,
+  options: RequestInit | undefined,
+  fallback: T,
+  context = "workspace request",
+): Promise<T> {
+  try {
+    const response = await fetch(url, options);
+
+    if (!response.ok) {
+      console.warn(`${context} failed with status ${response.status}. Using fallback.`);
+      return fallback;
+    }
+
+    try {
+      return (await response.json()) as T;
+    } catch {
+      console.warn(`${context} returned invalid JSON. Using fallback.`);
+      return fallback;
+    }
+  } catch {
+    console.warn(`${context} failed to fetch. Using fallback.`);
+    return fallback;
+  }
+}
+
 function normalizePersonalBranding(value: unknown): PersonalBranding {
   if (!value || typeof value !== "object") {
     return emptyPersonalBranding;
@@ -4113,16 +4139,15 @@ async function extractUploadedFile(file: File): Promise<UploadedSourceFile> {
   formData.append("file", file);
 
   try {
-    const response = await fetch("/api/extract", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error("Extraction failed.");
-    }
-
-    const data = (await response.json()) as Partial<ExtractApiResponse>;
+    const data = await safeFetchJson<Partial<ExtractApiResponse>>(
+      "/api/extract",
+      {
+        method: "POST",
+        body: formData,
+      },
+      { extractionStatus: "failed", warnings: ["Extraction failed."] },
+      "Source file extraction",
+    );
 
     return {
       ...baseFile,
@@ -5344,14 +5369,16 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         console.warn("Unable to refresh workspace usage counters. Using local usage fallback.");
       }
     }
-    try {
-      const response = await fetch("/api/institution/associate");
-      const data = (await response.json().catch(() => ({}))) as {
+    {
+      const data = await safeFetchJson<{
         institution?: { institution_name?: string } | null;
-      };
+      }>(
+        "/api/institution/associate",
+        undefined,
+        {},
+        "Institution association refresh",
+      );
       setOrganizationName(data.institution?.institution_name ?? "");
-    } catch {
-      setOrganizationName("");
     }
     return true;
   }, [authLoaded, authUserId, savedVersions.length, supabase]);
@@ -5689,20 +5716,31 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     async function loadCloudResume() {
       setCloudSaveStatus("Loading saved workspace...");
 
-      const { data, error } = await activeSupabase
-        .from("resumes")
-        .select("id, user_id, content_json")
-        .eq("user_id", activeUser.id)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      type CloudResumeRow = { id: string; user_id: string; content_json: Json | null };
+      let data: CloudResumeRow | null = null;
+      let error: unknown = null;
+
+      try {
+        const resumeResult = await activeSupabase
+          .from("resumes")
+          .select("id, user_id, content_json")
+          .eq("user_id", activeUser.id)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        data = resumeResult.data as CloudResumeRow | null;
+        error = resumeResult.error;
+      } catch (caughtError) {
+        error = caughtError;
+      }
 
       if (cancelled) {
         return;
       }
 
       if (error) {
-        setCloudSaveStatus("Cloud resume load failed. Please refresh or try again.");
+        console.warn("Cloud resume load failed. Using local saved workspace fallback.");
+        setCloudSaveStatus("Workspace is using local saved data. Server sync will retry.");
         setCloudLoadedForUser(activeUser.id);
         cloudLoadInFlightUserRef.current = null;
         return;
@@ -5750,14 +5788,25 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
               .insert(starterPayload)
               .select("id")
               .single();
-        const { data: starterResume, error: starterError } = await starterQuery;
+        let starterResume: { id: string } | null = null;
+        let starterError: unknown = null;
+
+        try {
+          const starterResult = await starterQuery;
+          starterResume = starterResult.data;
+          starterError = starterResult.error;
+        } catch (caughtStarterError) {
+          starterError = caughtStarterError;
+        }
 
         if (cancelled) {
           return;
         }
 
         if (starterError) {
-          setCloudSaveStatus("Could not create your starter workspace yet.");
+          console.warn("Could not sync workspace to server. Keeping local saved workspace.");
+          applyCloudContent(fallbackState);
+          setCloudSaveStatus("Workspace is using local saved data. Server sync will retry.");
           setCloudLoadedForUser(activeUser.id);
           cloudLoadInFlightUserRef.current = null;
           return;
@@ -5765,7 +5814,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 
         skipNextSave.current = true;
         skipNextCloudSave.current = true;
-        setCloudResumeId(starterResume.id);
+        setCloudResumeId(starterResume?.id ?? null);
         applyCloudContent(fallbackState);
         setSelectedVersionId("");
         setCompareVersionIds([]);
@@ -5897,14 +5946,24 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
             .single()
         : activeSupabase.from("resumes").insert(payload).select("id").single();
 
-      const { data, error } = await query;
+      let data: { id: string } | null = null;
+      let error: unknown = null;
+
+      try {
+        const saveResult = await query;
+        data = saveResult.data;
+        error = saveResult.error;
+      } catch (caughtSaveError) {
+        error = caughtSaveError;
+      }
 
       if (error) {
+        console.warn("Workspace server autosave failed. Local draft remains saved.");
         setCloudSaveStatus("Autosave failed. Your local draft is still saved.");
         return;
       }
 
-      setCloudResumeId(data.id);
+      setCloudResumeId(data?.id ?? cloudResumeId);
       setCloudSaveStatus("Saved");
     }, 1200);
 
@@ -6139,12 +6198,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   }
 
   async function consumePersistedUsage(kind: "optimization" | "export") {
-    const response = await fetch("/api/usage/consume", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind }),
-    });
-    const data = (await response.json().catch(() => ({}))) as {
+    const data = await safeFetchJson<{
       downloadsUsed?: number;
       exportsRemaining?: number;
       exportLimit?: number;
@@ -6152,10 +6206,20 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       optimizationCreditsRemaining?: number;
       optimizationCreditLimit?: number;
       error?: string;
-    };
+    }>(
+      "/api/usage/consume",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind }),
+      },
+      { error: "Unable to update usage." },
+      "Usage persistence",
+    );
 
-    if (!response.ok) {
-      throw new Error(data.error || "Unable to update usage.");
+    if (data.error) {
+      console.warn(data.error);
+      return data;
     }
 
     if (typeof data.downloadsUsed === "number") {
@@ -6522,32 +6586,36 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     setIsTailoring(true);
 
     try {
-      const response = await fetch("/api/tailor", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          masterResume,
-          jobDescription,
-          targetRole,
-          industryTarget,
-          uploadedSourceMaterials: uploadedFiles.map((file) => ({
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            extractionStatus: file.extractionStatus,
-            warnings: file.warnings,
-            extractedText: file.extractedText,
-          })),
-          currentEditedResume: result?.rewrittenResume,
-          aiSettings,
-        }),
-      });
+      const data = await safeFetchJson<TailorApiResponse | null>(
+        "/api/tailor",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            masterResume,
+            jobDescription,
+            targetRole,
+            industryTarget,
+            uploadedSourceMaterials: uploadedFiles.map((file) => ({
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              extractionStatus: file.extractionStatus,
+              warnings: file.warnings,
+              extractedText: file.extractedText,
+            })),
+            currentEditedResume: result?.rewrittenResume,
+            aiSettings,
+          }),
+        },
+        null,
+        "Resume tailoring",
+      );
 
-      if (!response.ok) {
+      if (!data) {
         throw new Error("Resume tailoring is unavailable right now.");
       }
 
-      const data = (await response.json()) as TailorApiResponse;
       setResult(
         resultFromApiResponse(
           data,
@@ -6562,6 +6630,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       setTailorError(
         "Resume tailoring could not complete, so I used a safe fallback and kept your draft editable.",
       );
+      setSystemStatus("Workspace is using local saved data. Server sync will retry.");
       setResult(
         buildTailoredResume(
           [masterResume, extractedSourceText]
@@ -10325,41 +10394,40 @@ function ModularResumeEditor({
     setOptimizationStatus(`Optimizing ${sectionName.toLowerCase()}...`);
 
     try {
-      const response = await fetch("/api/tailor", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          masterResume,
-          jobDescription,
-          targetRole,
-          industryTarget,
-          uploadedSourceMaterials: uploadedFiles.map((file) => ({
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            extractionStatus: file.extractionStatus,
-            warnings: file.warnings,
-            extractedText: file.extractedText,
-          })),
-          currentEditedResume: resumeText,
-          aiSettings,
-          optimizationRequest: {
-            action,
-            sectionName,
-            sectionText: cleaned,
-            fullResumeText: resumeText,
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Section optimization failed.");
-      }
-
-      const data = (await response.json()) as {
+      const data = await safeFetchJson<{
         optimizedText?: string;
         warnings?: string[];
-      };
+      }>(
+        "/api/tailor",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            masterResume,
+            jobDescription,
+            targetRole,
+            industryTarget,
+            uploadedSourceMaterials: uploadedFiles.map((file) => ({
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              extractionStatus: file.extractionStatus,
+              warnings: file.warnings,
+              extractedText: file.extractedText,
+            })),
+            currentEditedResume: resumeText,
+            aiSettings,
+            optimizationRequest: {
+              action,
+              sectionName,
+              sectionText: cleaned,
+              fullResumeText: resumeText,
+            },
+          }),
+        },
+        {},
+        "Section optimization",
+      );
       const optimizedText =
         data.optimizedText?.trim() || optimizationFallbackText(cleaned, action);
       const warning = safeStringArray(data.warnings)[0];
