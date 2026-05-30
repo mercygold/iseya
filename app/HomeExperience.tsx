@@ -460,6 +460,8 @@ type UsageStats = {
 type SavedResumeVersion = {
   id: string;
   name: string;
+  source?: "autosave" | "manual";
+  previewLabel?: string;
   targetRole: string;
   industryTarget: IndustryTarget;
   companyName: string;
@@ -473,6 +475,7 @@ type SavedResumeVersion = {
   result: TailoringResult;
   uploadedFiles: UploadedSourceFile[];
   personalBranding: PersonalBranding;
+  workspaceState?: SavedState;
 };
 
 type IndustryTarget =
@@ -4116,6 +4119,17 @@ function formatVersionDate(value: string | Date = new Date()) {
   });
 }
 
+function formatVersionDateTime(value: string | Date = new Date()) {
+  const date = typeof value === "string" ? new Date(value) : value;
+
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function readableIndustryName(industry: IndustryTarget) {
   return industry
     .replace(" / ", " ")
@@ -4148,7 +4162,7 @@ function inferCompanyName(jobDescription: string) {
   return "";
 }
 
-function normalizeSavedVersion(version: Partial<SavedResumeVersion>) {
+function normalizeSavedVersion(version: Partial<SavedResumeVersion>): SavedResumeVersion | null {
   if (containsRestrictedSeedData(version)) {
     return null;
   }
@@ -4176,6 +4190,8 @@ function normalizeSavedVersion(version: Partial<SavedResumeVersion>) {
   return {
     id: version.id,
     name: version.name || defaultVersionName(targetRole, industryTarget),
+    source: version.source === "autosave" ? "autosave" : "manual",
+    previewLabel: version.previewLabel || `${targetRole} | ${formatVersionDateTime(version.updatedAt || version.createdAt || now)}`,
     targetRole,
     industryTarget,
     companyName: version.companyName || "",
@@ -4193,6 +4209,7 @@ function normalizeSavedVersion(version: Partial<SavedResumeVersion>) {
     personalBranding: normalizePersonalBranding(
       version.personalBranding ?? brandingFromResumeText(version.masterResume || sampleResume),
     ),
+    workspaceState: version.workspaceState ? migrateSavedWorkspaceState(version.workspaceState) : undefined,
   } satisfies SavedResumeVersion;
 }
 
@@ -5113,6 +5130,8 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   const [selectedVersionId, setSelectedVersionId] = useState("");
   const [compareVersionIds, setCompareVersionIds] = useState<string[]>([]);
   const [versionStatus, setVersionStatus] = useState("");
+  const [showSavedVersionsPanel, setShowSavedVersionsPanel] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState("");
   const [accountStatus, setAccountStatus] = useState("");
   const [systemStatus, setSystemStatus] = useState("");
   const [usageStats, setUsageStats] = useState<UsageStats>(defaultUsageStats);
@@ -5141,6 +5160,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   const cloudLoadInFlightUserRef = useRef<string | null>(null);
   const billingRefreshAttemptedRef = useRef(false);
   const subscriptionFetchFailedRef = useRef(false);
+  const lastAutosaveVersionKeyRef = useRef("");
   const opportunityPrefillRef = useRef("");
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [editableResumeSession, setEditableResumeSession] = useState<EditableResumeSession | null>(null);
@@ -5329,6 +5349,68 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     theme,
     uploadedFiles,
   ]);
+
+  const persistVisibleVersions = useCallback((nextVersions: SavedResumeVersion[]) => {
+    try {
+      window.localStorage.setItem(versionStorageKey, JSON.stringify(nextVersions));
+    } catch {
+      // Version state remains available in memory and cloud autosave can still run.
+    }
+  }, []);
+
+  const recordAutosaveVersion = useCallback((savedState: SavedState) => {
+    const snapshotResult = savedState.result ?? workspaceResult;
+
+    if (!snapshotResult) {
+      return;
+    }
+
+    const versionKey = JSON.stringify({
+      targetRole: savedState.targetRole,
+      resume: snapshotResult.rewrittenResume,
+      branding: savedState.personalBranding,
+      editable: savedState.editableResumeSession,
+    });
+
+    if (versionKey === lastAutosaveVersionKeyRef.current) {
+      return;
+    }
+
+    lastAutosaveVersionKeyRef.current = versionKey;
+    const now = new Date().toISOString();
+    const snapshot: SavedResumeVersion = {
+      id: versionId(),
+      name: `Autosave — ${savedState.targetRole?.trim() || "Resume"} — ${formatVersionDateTime(now)}`,
+      source: "autosave",
+      previewLabel: `Autosave | ${savedState.targetRole?.trim() || "Resume"} | ${formatVersionDateTime(now)}`,
+      targetRole: savedState.targetRole,
+      industryTarget: savedState.industryTarget,
+      companyName: inferCompanyName(savedState.jobDescription),
+      template: savedState.template,
+      theme: savedState.theme,
+      createdAt: now,
+      updatedAt: now,
+      matchScore: snapshotResult.score,
+      masterResume: savedState.masterResume,
+      jobDescription: savedState.jobDescription,
+      result: snapshotResult,
+      uploadedFiles: savedState.uploadedFiles ?? [],
+      personalBranding: savedState.personalBranding,
+      workspaceState: savedState,
+    };
+
+    setSavedVersions((current) => {
+      const manualVersions = current.filter((version) => version.source !== "autosave");
+      const autosaveVersions = current
+        .filter((version) => version.source === "autosave")
+        .slice(0, 19);
+      const nextVersions = [snapshot, ...manualVersions, ...autosaveVersions];
+      persistVisibleVersions(nextVersions);
+      return nextVersions;
+    });
+    setSavedVersionsCount((current) => Math.max(current, savedVersions.length + 1));
+    setLastSavedAt(snapshot.updatedAt);
+  }, [persistVisibleVersions, savedVersions.length, workspaceResult]);
 
   const refreshSubscriptionProfile = useCallback(async () => {
     const applySubscriptionFallback = () => {
@@ -5999,6 +6081,8 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 
       try {
         window.localStorage.setItem(storageKey, JSON.stringify(savedState));
+        recordAutosaveVersion(savedState);
+        setLastSavedAt(new Date().toISOString());
         setCloudSaveStatus("Saved");
       } catch {
         setCloudSaveStatus("Autosave failed. Your current draft is still editable.");
@@ -6021,6 +6105,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     aiSettings,
     personalBranding,
     buildSavedState,
+    recordAutosaveVersion,
     authUser,
   ]);
 
@@ -6058,6 +6143,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 
       try {
         window.localStorage.setItem(storageKey, JSON.stringify(content));
+        recordAutosaveVersion(content);
       } catch {
         // Cloud save remains the source of truth for signed-in users.
       }
@@ -6099,6 +6185,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       }
 
       setCloudResumeId(data?.id ?? cloudResumeId);
+      setLastSavedAt(new Date().toISOString());
       setCloudSaveStatus("Saved");
     }, 1200);
 
@@ -6123,6 +6210,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     theme,
     uploadedFiles,
     buildSavedState,
+    recordAutosaveVersion,
   ]);
 
   useEffect(() => {
@@ -6156,7 +6244,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   }, [authUser, cloudLoadedForUser, hydrated, pathname]);
 
   useEffect(() => {
-    if (!hydrated || authUser) {
+    if (!hydrated) {
       return;
     }
 
@@ -6165,7 +6253,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     } catch {
       // Keep the in-memory version list active even if browser storage rejects it.
     }
-  }, [authUser, hydrated, savedVersions]);
+  }, [hydrated, savedVersions]);
 
   useEffect(() => {
     if (!hydrated) {
@@ -6237,6 +6325,15 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         .filter((version): version is SavedResumeVersion => Boolean(version)),
     [compareVersionIds, savedVersions],
   );
+  const lastSavedAtLabel = useMemo(() => {
+    const latestVersionDate = savedVersions
+      .map((version) => new Date(version.updatedAt || version.createdAt).getTime())
+      .filter((timestamp) => Number.isFinite(timestamp))
+      .sort((left, right) => right - left)[0];
+    const dateValue = lastSavedAt || (latestVersionDate ? new Date(latestVersionDate).toISOString() : "");
+
+    return dateValue ? `Last saved at ${formatVersionDateTime(dateValue)}` : "No saved version yet";
+  }, [lastSavedAt, savedVersions]);
 
   function requireSubscriptionFeature(feature: SubscriptionFeature, label: string) {
     if (canUseSubscriptionFeature(subscriptionPlan, feature)) {
@@ -6503,8 +6600,12 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   function currentVersionSnapshot(
     id = versionId(),
     name = defaultVersionName(targetRole, industryTarget),
+    source: "autosave" | "manual" = "manual",
+    savedState: SavedState = buildSavedState(),
   ) {
-    if (!result) {
+    const snapshotResult = result ?? workspaceResult;
+
+    if (!snapshotResult) {
       return null;
     }
 
@@ -6513,6 +6614,8 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     return {
       id,
       name,
+      source,
+      previewLabel: `${source === "autosave" ? "Autosave" : "Manual save"} | ${targetRole.trim() || "Resume"} | ${formatVersionDateTime(now)}`,
       targetRole,
       industryTarget,
       companyName: inferCompanyName(jobDescription),
@@ -6520,39 +6623,46 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       theme,
       createdAt: now,
       updatedAt: now,
-      matchScore: result.score,
+      matchScore: snapshotResult.score,
       masterResume,
       jobDescription,
-      result,
+      result: snapshotResult,
       uploadedFiles,
       personalBranding,
+      workspaceState: savedState,
     } satisfies SavedResumeVersion;
   }
 
   async function saveCurrentVersion() {
-    if (!requireSubscriptionFeature("savedVersions", "Saved versions")) {
-      return;
-    }
-
-    if (!canSaveAnotherVersion) {
+    if (!canSaveAnotherVersion && canUseSubscriptionFeature(subscriptionPlan, "savedVersions")) {
       setVersionStatus(
         subscriptionPlan === "plus"
           ? "Plus includes up to 5 saved versions. Delete one or upgrade to Pro for unlimited saved versions."
-          : "Saved versions are locked on Starter. Upgrade to Plus or Pro to save history.",
+          : "Saved version limit reached. Delete one or upgrade to save more versions.",
       );
       return;
     }
 
-    const snapshot = currentVersionSnapshot();
+    const snapshot = currentVersionSnapshot(versionId(), defaultVersionName(targetRole, industryTarget), "manual");
 
     if (!snapshot) {
       setVersionStatus("Tailor a resume before saving a version.");
       return;
     }
 
-    setSavedVersions((current) => [snapshot, ...current]);
+    setSavedVersions((current) => {
+      const nextVersions = [snapshot, ...current];
+      persistVisibleVersions(nextVersions);
+      return nextVersions;
+    });
     setSelectedVersionId(snapshot.id);
-    setVersionStatus("Current resume version saved.");
+    setShowSavedVersionsPanel(true);
+    setLastSavedAt(snapshot.updatedAt);
+    setVersionStatus(
+      canUseSubscriptionFeature(subscriptionPlan, "savedVersions")
+        ? "Current resume version saved."
+        : "Current resume version saved locally for recovery.",
+    );
     const nextSavedVersionsCount = savedVersionsCount + 1;
     setSavedVersionsCount(nextSavedVersionsCount);
     syncProfileUsage({ savedVersionsCount: nextSavedVersionsCount });
@@ -6579,17 +6689,21 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     }
 
     try {
-      setMasterResume(version.masterResume);
-      setJobDescription(version.jobDescription);
-      setTargetRole(version.targetRole);
-      setIndustryTarget(version.industryTarget);
-      setTemplate(version.template);
-      setTheme(version.theme);
-      setPersonalBranding(
-        normalizePersonalBranding(
-          version.personalBranding ?? brandingFromResumeText(version.masterResume),
-        ),
-      );
+      if (version.workspaceState) {
+        applySavedState(version.workspaceState);
+      } else {
+        setMasterResume(version.masterResume);
+        setJobDescription(version.jobDescription);
+        setTargetRole(version.targetRole);
+        setIndustryTarget(version.industryTarget);
+        setTemplate(version.template);
+        setTheme(version.theme);
+        setPersonalBranding(
+          normalizePersonalBranding(
+            version.personalBranding ?? brandingFromResumeText(version.masterResume),
+          ),
+        );
+      }
       setResult(
         ensureTailoringResult(
           version.result,
@@ -6600,22 +6714,30 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       );
       setUploadedFiles(version.uploadedFiles);
       setActiveOutput("resume");
+      setLastSavedAt(new Date().toISOString());
       setVersionStatus(`Loaded ${version.name}.`);
     } catch {
       setVersionStatus("This saved version could not be loaded.");
     }
   }
 
-  function duplicateVersion(version: SavedResumeVersion | null) {
-    if (!requireSubscriptionFeature("savedVersions", "Saved versions")) {
+  function viewVersion(version: SavedResumeVersion | null) {
+    if (!version) {
+      setVersionStatus("Select a saved version to view.");
       return;
     }
 
-    if (!canSaveAnotherVersion) {
+    setSelectedVersionId(version.id);
+    setShowSavedVersionsPanel(true);
+    setVersionStatus(`Viewing ${version.name}. Use Restore version to recover it.`);
+  }
+
+  function duplicateVersion(version: SavedResumeVersion | null) {
+    if (!canSaveAnotherVersion && canUseSubscriptionFeature(subscriptionPlan, "savedVersions")) {
       setVersionStatus(
         subscriptionPlan === "plus"
           ? "Plus includes up to 5 saved versions. Delete one or upgrade to Pro for unlimited saved versions."
-          : "Saved versions are locked on Starter. Upgrade to Plus or Pro to duplicate versions.",
+          : "Saved version limit reached. Delete one or upgrade to duplicate more versions.",
       );
       return;
     }
@@ -6634,7 +6756,11 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       updatedAt: now,
     };
 
-    setSavedVersions((current) => [duplicate, ...current]);
+    setSavedVersions((current) => {
+      const nextVersions = [duplicate, ...current];
+      persistVisibleVersions(nextVersions);
+      return nextVersions;
+    });
     setSelectedVersionId(duplicate.id);
     const nextSavedVersionsCount = savedVersionsCount + 1;
     setSavedVersionsCount(nextSavedVersionsCount);
@@ -6654,13 +6780,15 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       return;
     }
 
-    setSavedVersions((current) =>
-      current.map((item) =>
+    setSavedVersions((current) => {
+      const nextVersions = current.map((item) =>
         item.id === version.id
           ? { ...item, name: nextName, updatedAt: new Date().toISOString() }
           : item,
-      ),
-    );
+      );
+      persistVisibleVersions(nextVersions);
+      return nextVersions;
+    });
     setVersionStatus("Version renamed.");
   }
 
@@ -6674,7 +6802,11 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       return;
     }
 
-    setSavedVersions((current) => current.filter((item) => item.id !== version.id));
+    setSavedVersions((current) => {
+      const nextVersions = current.filter((item) => item.id !== version.id);
+      persistVisibleVersions(nextVersions);
+      return nextVersions;
+    });
     setCompareVersionIds((current) => current.filter((id) => id !== version.id));
     setSelectedVersionId((current) => (current === version.id ? "" : current));
     const nextSavedVersionsCount = Math.max(0, savedVersionsCount - 1);
@@ -8867,6 +8999,13 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                 </button>
                 <button
                   type="button"
+                  onClick={() => setShowSavedVersionsPanel((current) => !current)}
+                  className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
+                >
+                  Saved Versions
+                </button>
+                <button
+                  type="button"
                   onClick={resetSavedResume}
                   className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
                 >
@@ -8952,17 +9091,96 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                 <button
                   type="button"
                   onClick={() => runWithFeedback("saveVersion", "Saving...", "Saved", saveCurrentVersion)}
-                  disabled={!canSaveAnotherVersion}
+                  disabled={!workspaceResult}
                   className={`${primaryButtonClass} ${buttonSizeMdClass}`}
                 >
-                  {actionFeedback.saveVersion ??
-                    (canUseSubscriptionFeature(subscriptionPlan, "savedVersions")
-                      ? "Save Version"
-                      : "🔒 Save Version")}
+                  {actionFeedback.saveVersion ?? "Save Version"}
                 </button>
 	              </div>
             </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs font-medium text-slate-600">
+              <span>{lastSavedAtLabel}</span>
+              <span>{savedVersions.length} recoverable version{savedVersions.length === 1 ? "" : "s"}</span>
+            </div>
           </div>
+
+          {showSavedVersionsPanel ? (
+            <div className="mb-3 rounded-xl border border-[var(--iseya-gold)]/30 bg-white p-4 shadow-[0_10px_28px_rgb(15_23_42_/_0.06)]">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-gold)]">
+                    Resume recovery
+                  </p>
+                  <h3 className="mt-1 text-base font-semibold text-[var(--iseya-navy)]">
+                    Saved Versions
+                  </h3>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">
+                    Autosaves and manual saves are stored locally first, so you can recover your latest workspace even if server sync fails.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => setShowSavedVersionsPanel(false)} className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
+                    Hide
+                  </button>
+                  <button type="button" onClick={() => runWithFeedback("saveVersion", "Saving...", "Saved", saveCurrentVersion)} disabled={!workspaceResult} className={`${primaryButtonClass} ${buttonSizeSmClass}`}>
+                    Save Version
+                  </button>
+                </div>
+              </div>
+              {versionStatus ? (
+                <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700">
+                  {versionStatus}
+                </p>
+              ) : null}
+              {savedVersions.length > 0 ? (
+                <div className="mt-4 grid max-h-80 gap-3 overflow-auto pr-1 md:grid-cols-2">
+                  {savedVersions.map((version) => (
+                    <div
+                      key={version.id}
+                      className={`rounded-lg border p-3 ${
+                        selectedVersionId === version.id
+                          ? "border-[var(--iseya-gold)] bg-[#FFF8E6]"
+                          : "border-slate-200 bg-slate-50/60"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-[var(--iseya-navy)]">{version.name}</p>
+                          <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                            {version.source === "autosave" ? "Autosave" : "Manual save"} | {formatVersionDateTime(version.updatedAt)}
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600">
+                          {Math.round(version.matchScore)}%
+                        </span>
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
+                        {version.previewLabel || `${version.targetRole} | ${readableIndustryName(version.industryTarget)}`}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button type="button" onClick={() => viewVersion(version)} className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
+                          View version
+                        </button>
+                        <button type="button" onClick={() => loadVersion(version)} className={`${primaryButtonClass} ${buttonSizeSmClass}`}>
+                          Restore version
+                        </button>
+                        <button type="button" onClick={() => duplicateVersion(version)} className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
+                          Duplicate
+                        </button>
+                        <button type="button" onClick={() => deleteVersion(version)} className={`${dangerButtonClass} ${buttonSizeSmClass}`}>
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-xs leading-5 text-slate-600">
+                  No saved versions yet. Edit your resume and wait for autosave, or click Save Version.
+                </p>
+              )}
+            </div>
+          ) : null}
 
 	          <div className="grid gap-3 xl:grid-cols-[352px_minmax(0,1fr)]">
 	            <aside className="order-2 xl:order-1">
@@ -9505,7 +9723,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                       <button
                         type="button"
                         onClick={() => runWithFeedback("saveVersion", "Saving...", "Saved", saveCurrentVersion)}
-                        disabled={!canSaveAnotherVersion}
+                        disabled={!workspaceResult}
                         className={`${primaryButtonClass} ${buttonSizeSmClass}`}
                       >
                         {actionFeedback.saveVersion ?? "Save Version"}
