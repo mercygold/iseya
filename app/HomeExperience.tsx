@@ -366,6 +366,7 @@ type EditableResumeSession = {
   draft: EditableResumeDraft;
   manualOverrides?: string[];
   lockedFields?: string[];
+  deletedSections?: string[];
 };
 
 type AiOptimizationAction =
@@ -3696,6 +3697,61 @@ function serializeStructuredResume(
     lines.push("", heading, ...cleanedItems.map((item) => `- ${item}`));
   }
 
+  function pushProjectSection(items: string[]) {
+    const cleanedItems = uniqueStrings(items);
+
+    if (cleanedItems.length === 0 && !preserveEmptySections) {
+      return;
+    }
+
+    lines.push("", inferProjectSectionTitle(cleanedItems));
+
+    for (const item of cleanedItems) {
+      const parts = item
+        .split(/\r?\n/)
+        .map(cleanEditorText)
+        .filter(Boolean)
+        .filter((part) => part !== "PROJECT_ENTRY");
+      const [name = "", context = "", tools = "", link = "", ...bullets] = parts;
+
+      if (!name) {
+        continue;
+      }
+
+      lines.push(name);
+      if (context) lines.push(context);
+      if (tools) lines.push(`Tools: ${tools}`);
+      if (/^https?:\/\//i.test(link)) lines.push(link);
+      lines.push(...bullets.map((bullet) => `- ${bullet}`));
+    }
+  }
+
+  function pushPublicationSection(items: string[]) {
+    const cleanedItems = uniqueStrings(items);
+
+    if (cleanedItems.length === 0 && !preserveEmptySections) {
+      return;
+    }
+
+    lines.push("", "PUBLICATIONS / RESEARCH");
+
+    for (const item of cleanedItems) {
+      const parts = item
+        .split(/\r?\n/)
+        .map(cleanEditorText)
+        .filter(Boolean)
+        .filter((part) => part !== "PUBLICATION_ENTRY");
+      const [title = "", description = "", link = "", publisher = "", date = ""] = parts;
+
+      if (title) lines.push(title);
+      if (description) lines.push(description);
+      if (link) lines.push(link);
+      if (publisher || date) {
+        lines.push([publisher, date].filter(Boolean).join(" | "));
+      }
+    }
+  }
+
   pushTextSection(
     "PROFESSIONAL SUMMARY",
     professionalSummaryNeedsReview(structured.summary)
@@ -3744,10 +3800,10 @@ function serializeStructuredResume(
     }
   }
 
-  pushListSection(inferProjectSectionTitle(structured.projects), structured.projects);
+  pushProjectSection(structured.projects);
   pushListSection("EDUCATION", structured.education);
   pushListSection("CERTIFICATIONS", structured.certifications);
-  pushListSection("PUBLICATIONS / RESEARCH", structured.publications);
+  pushPublicationSection(structured.publications);
   pushListSection("LEADERSHIP", structured.leadership);
   pushListSection("AWARDS", structured.awards);
   pushListSection("VOLUNTEER EXPERIENCE", structured.volunteerExperience);
@@ -5026,8 +5082,9 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       resumeText: string,
       manualOverrides: string[] = [],
       lockedFields: string[] = [],
+      deletedSections: string[] = [],
     ) => {
-      setEditableResumeSession({ draft, resumeText, manualOverrides, lockedFields });
+      setEditableResumeSession({ draft, resumeText, manualOverrides, lockedFields, deletedSections });
     },
     [],
   );
@@ -5383,17 +5440,25 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     return true;
   }, [authLoaded, authUserId, savedVersions.length, supabase]);
 
-  const applySavedState = useCallback((state: Partial<SavedState>) => {
-    setMasterResume(state.masterResume ?? sampleResume);
+  const applySavedState = useCallback((incomingState: Partial<SavedState>) => {
+    const state = migrateSavedWorkspaceState(incomingState);
+    const hasSavedContent = hasSavedWorkspaceContent(state);
+    const fallbackResume = hasSavedContent ? "" : sampleResume;
+    const fallbackJobDescription = hasSavedContent ? "" : sampleJob;
+    const fallbackTargetRole = hasSavedContent ? "" : "Product Manager";
+
+    setMasterResume(state.masterResume ?? fallbackResume);
     setPersonalBranding(
       state.personalBranding
         ? normalizePersonalBranding(state.personalBranding)
-        : brandingFromResumeText(state.masterResume ?? sampleResume),
+        : hasSavedContent
+          ? emptyPersonalBranding
+          : brandingFromResumeText(fallbackResume),
     );
-    setJobDescription(state.jobDescription ?? sampleJob);
-    setTargetRole(state.targetRole ?? "AI Product Manager");
+    setJobDescription(state.jobDescription ?? fallbackJobDescription);
+    setTargetRole(state.targetRole ?? fallbackTargetRole);
     setIndustryTarget(
-      isIndustryTarget(state.industryTarget) ? state.industryTarget : "AI / Technology",
+      isIndustryTarget(state.industryTarget) ? state.industryTarget : "General / ATS",
     );
     setTemplate(isTemplateId(state.template) ? state.template : "executive-navy");
     setTheme(isThemeId(state.theme) ? state.theme : "deep-navy");
@@ -5459,7 +5524,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         window.localStorage.removeItem(storageKey);
         return null;
       }
-      return parsed;
+      return migrateSavedWorkspaceState(parsed);
     } catch {
       window.localStorage.removeItem(storageKey);
       return null;
@@ -5475,10 +5540,12 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       return;
     }
 
-    applySavedState(content);
+    const migratedContent = migrateSavedWorkspaceState(content);
 
-    const cloudVersions = Array.isArray(content.savedVersions)
-      ? content.savedVersions
+    applySavedState(migratedContent);
+
+    const cloudVersions = Array.isArray(migratedContent.savedVersions)
+      ? migratedContent.savedVersions
           .map(normalizeSavedVersion)
           .filter((version): version is SavedResumeVersion => Boolean(version))
       : [];
@@ -5762,8 +5829,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         const fallbackState =
           localState && Object.keys(localState).length > 0
             ? ({
-                ...starterSavedState(),
-                ...localState,
+                ...migrateSavedWorkspaceState(localState),
                 savedVersions: Array.isArray(localState.savedVersions) ? localState.savedVersions : [],
               } as CloudResumeContent)
             : starterCloudContent();
@@ -9949,7 +10015,20 @@ function pipeSeparatedParts(value: string) {
 
 function editableProjectEntries(items: string[]): EditableProjectEntry[] {
   return items.map((item, index) => {
-    const [name = "", context = "", tools = "", ...details] = pipeSeparatedParts(item);
+    const parts = pipeSeparatedParts(item);
+
+    if (parts.length <= 1) {
+      return {
+        id: `project-${index}`,
+        name: "",
+        context: "",
+        tools: "",
+        link: "",
+        details: cleanEditorText(item),
+      };
+    }
+
+    const [name = "", context = "", tools = "", ...details] = parts;
     const link = details.find((detail) => /^https?:\/\//i.test(detail)) ?? "";
 
     return {
@@ -9965,8 +10044,20 @@ function editableProjectEntries(items: string[]): EditableProjectEntry[] {
 
 function editablePublicationEntries(items: string[]): EditablePublicationEntry[] {
   return items.map((item, index) => {
-    const [title = "", description = "", linkOrPublisher = "", publisherOrDate = "", date = ""] =
-      pipeSeparatedParts(item);
+    const parts = pipeSeparatedParts(item);
+
+    if (parts.length <= 1) {
+      return {
+        id: `publication-${index}`,
+        title: "",
+        description: cleanEditorText(item),
+        link: "",
+        publisher: "",
+        date: "",
+      };
+    }
+
+    const [title = "", description = "", linkOrPublisher = "", publisherOrDate = "", date = ""] = parts;
     const link = /^https?:\/\//i.test(linkOrPublisher) ? linkOrPublisher : "";
     const publisher = link ? publisherOrDate : linkOrPublisher;
 
@@ -9979,6 +10070,93 @@ function editablePublicationEntries(items: string[]): EditablePublicationEntry[]
       date: link ? date : publisherOrDate,
     };
   });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function fieldString(value: unknown) {
+  return typeof value === "string" ? value : value == null ? "" : String(value);
+}
+
+function legacyTextItems(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item : JSON.stringify(item)))
+      .map(cleanEditorText)
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(/\n{2,}/)
+      .map(cleanEditorText)
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function migrateProjectEntries(value: unknown): EditableProjectEntry[] {
+  if (!Array.isArray(value)) {
+    return editableProjectEntries(legacyTextItems(value));
+  }
+
+  return value
+    .map((item, index): EditableProjectEntry | null => {
+      if (typeof item === "string") {
+        return editableProjectEntries([item])[0] ?? null;
+      }
+
+      if (!isRecord(item)) {
+        return null;
+      }
+
+      const bullets = Array.isArray(item.bullets)
+        ? item.bullets.map(fieldString).filter(Boolean).join("\n")
+        : "";
+      const tools = Array.isArray(item.tools)
+        ? item.tools.map(fieldString).filter(Boolean).join(", ")
+        : fieldString(item.tools);
+
+      return {
+        id: fieldString(item.id) || `project-${index}`,
+        name: fieldString(item.name || item.projectName || item.title),
+        context: fieldString(item.context || item.roleOrContext),
+        tools,
+        link: fieldString(item.link || item.url),
+        details: fieldString(item.details || item.description || bullets),
+      };
+    })
+    .filter((item): item is EditableProjectEntry => Boolean(item));
+}
+
+function migratePublicationEntries(value: unknown): EditablePublicationEntry[] {
+  if (!Array.isArray(value)) {
+    return editablePublicationEntries(legacyTextItems(value));
+  }
+
+  return value
+    .map((item, index): EditablePublicationEntry | null => {
+      if (typeof item === "string") {
+        return editablePublicationEntries([item])[0] ?? null;
+      }
+
+      if (!isRecord(item)) {
+        return null;
+      }
+
+      return {
+        id: fieldString(item.id) || `publication-${index}`,
+        title: fieldString(item.title || item.name),
+        description: fieldString(item.description || item.summary || item.details),
+        link: fieldString(item.link || item.url),
+        publisher: fieldString(item.publisher),
+        date: fieldString(item.date || item.year),
+      };
+    })
+    .filter((item): item is EditablePublicationEntry => Boolean(item));
 }
 
 function editableEducationEntries(items: string[]): EditableEducationEntry[] {
@@ -10031,44 +10209,22 @@ function professionalSummaryNeedsReview(value: string) {
 }
 
 function cleanupEditableResumeDraft(draft: EditableResumeDraft): EditableResumeDraft {
-  const projectNameCounts = new Map<string, number>();
-  const projects = draft.projects
-    .map((project) => {
-      const name = /implementation reporting system/i.test(project.name) ? "" : project.name;
-      const key = name.toLowerCase().trim();
-      if (key) {
-        projectNameCounts.set(key, (projectNameCounts.get(key) ?? 0) + 1);
-      }
-      return {
-        ...project,
-        name,
-        details: project.details
-          .split(/\r?\n/)
-          .filter((item) => !isInstructionArtifactText(item) && !isSourceArtifactHeading(item))
-          .join("\n"),
-      };
-    })
-    .filter((project) => {
-      const key = project.name.toLowerCase().trim();
-      return !key || (projectNameCounts.get(key) ?? 0) < 3;
-    });
-
   return {
     ...draft,
-    summaryText: professionalSummaryNeedsReview(draft.summaryText) ? "" : draft.summaryText,
-    skillsText: splitResumeList(draft.skillsText)
-      .filter((skill) => !isInstructionArtifactText(skill))
-      .join(" | "),
-    projects,
-    certifications: draft.certifications.filter((certification) =>
-      isCredentialCertificationText(
-        [certification.name, certification.issuer, certification.year].filter(Boolean).join(", "),
-      ),
-    ),
-    leadership: draft.leadership.filter((item) => !parseExperienceLine(item).company && !isInstructionArtifactText(item)),
-    awards: draft.awards.filter((item) => !isInstructionArtifactText(item)),
-    volunteerExperience: draft.volunteerExperience.filter((item) => !isInstructionArtifactText(item)),
-    additionalSections: draft.additionalSections.filter((section) => !isInstructionArtifactText(section.heading)),
+    projects: draft.projects.map((project) => ({ ...project })),
+    certifications: draft.certifications.map((certification) => ({ ...certification })),
+    publications: draft.publications.map((publication) => ({ ...publication })),
+    experience: draft.experience.map((entry) => ({ ...entry })),
+    education: draft.education.map((education) => ({ ...education })),
+    leadership: [...draft.leadership],
+    awards: [...draft.awards],
+    volunteerExperience: [...draft.volunteerExperience],
+    additionalSections: draft.additionalSections.map((section) => ({
+      ...section,
+      body: [...section.body],
+      bullets: [...section.bullets],
+    })),
+    unmatchedSections: [...(draft.unmatchedSections ?? [])],
   };
 }
 
@@ -10096,6 +10252,161 @@ function editableResumeDraftFromText(resumeText: string): EditableResumeDraft {
   });
 }
 
+function migrateEditableResumeDraft(value: unknown, resumeText: string): EditableResumeDraft {
+  if (!isRecord(value)) {
+    return editableResumeDraftFromText(resumeText);
+  }
+
+  const fallback = editableResumeDraftFromText(resumeText);
+  const experience = Array.isArray(value.experience)
+    ? value.experience.map((entry, index): EditableExperienceEntry => {
+        if (!isRecord(entry)) {
+          return {
+            ...createEmptyExperience(),
+            id: `experience-${index}`,
+            bulletsText: fieldString(entry),
+          };
+        }
+
+        const bulletsText = Array.isArray(entry.bullets)
+          ? entry.bullets.map(fieldString).filter(Boolean).join("\n")
+          : fieldString(entry.bulletsText || entry.details || entry.description);
+
+        return {
+          ...createEmptyExperience(),
+          id: fieldString(entry.id) || `experience-${index}`,
+          title: fieldString(entry.title || entry.role),
+          company: fieldString(entry.company),
+          location: fieldString(entry.location),
+          startDate: fieldString(entry.startDate),
+          endDate: fieldString(entry.endDate),
+          isCurrent: Boolean(entry.isCurrent || entry.current),
+          bulletsText,
+        };
+      })
+    : fallback.experience;
+  const education = Array.isArray(value.education)
+    ? value.education.map((entry, index): EditableEducationEntry => {
+        if (!isRecord(entry)) {
+          return editableEducationEntries([fieldString(entry)])[0] ?? {
+            id: `education-${index}`,
+            school: "",
+            degree: "",
+            location: "",
+            dates: "",
+            details: "",
+          };
+        }
+
+        const details = Array.isArray(entry.details)
+          ? entry.details.map(fieldString).filter(Boolean).join("\n")
+          : fieldString(entry.details);
+
+        return {
+          id: fieldString(entry.id) || `education-${index}`,
+          school: fieldString(entry.school),
+          degree: fieldString(entry.degree),
+          location: fieldString(entry.location),
+          dates: fieldString(entry.dates || entry.graduationDate || entry.year),
+          details,
+        };
+      })
+    : fallback.education;
+  const certifications = Array.isArray(value.certifications)
+    ? value.certifications.map((entry, index): EditableCertificationEntry => {
+        if (!isRecord(entry)) {
+          return editableCertificationEntries([fieldString(entry)])[0] ?? {
+            id: `certification-${index}`,
+            name: fieldString(entry),
+            issuer: "",
+            year: "",
+          };
+        }
+
+        return {
+          id: fieldString(entry.id) || `certification-${index}`,
+          name: fieldString(entry.name || entry.title),
+          issuer: fieldString(entry.issuer || entry.provider),
+          year: fieldString(entry.year || entry.date),
+        };
+      })
+    : fallback.certifications;
+
+  return cleanupEditableResumeDraft({
+    header: isRecord(value.header) ? normalizePersonalBranding(value.header) : fallback.header,
+    summaryText: fieldString(value.summaryText || value.summary || fallback.summaryText),
+    skillsText: fieldString(value.skillsText) || safeStringArray(value.skills).join(" | ") || fallback.skillsText,
+    experience,
+    projects: migrateProjectEntries(value.projects),
+    education,
+    certifications,
+    publications: migratePublicationEntries(value.publications),
+    leadership: safeStringArray(value.leadership, fallback.leadership),
+    awards: safeStringArray(value.awards, fallback.awards),
+    volunteerExperience: safeStringArray(value.volunteerExperience, fallback.volunteerExperience),
+    toolsText: fieldString(value.toolsText) || safeStringArray(value.tools).join(" | ") || fallback.toolsText,
+    additionalSections: Array.isArray(value.additionalSections)
+      ? value.additionalSections
+          .map((section): StructuredResume["additionalSections"][number] | null => {
+            if (!isRecord(section)) return null;
+            return {
+              heading: fieldString(section.heading),
+              body: safeStringArray(section.body),
+              bullets: safeStringArray(section.bullets),
+            };
+          })
+          .filter((section): section is StructuredResume["additionalSections"][number] => Boolean(section))
+      : fallback.additionalSections,
+    unmatchedSections: Array.isArray(value.unmatchedSections)
+      ? value.unmatchedSections
+          .map((section): ResumeSection | null => {
+            if (!isRecord(section)) return null;
+            return {
+              heading: fieldString(section.heading),
+              body: safeStringArray(section.body),
+              bullets: safeStringArray(section.bullets),
+            };
+          })
+          .filter((section): section is ResumeSection => Boolean(section))
+      : fallback.unmatchedSections,
+  });
+}
+
+function migrateEditableResumeSession(value: unknown): EditableResumeSession | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const resumeText = fieldString(value.resumeText);
+
+  return {
+    resumeText,
+    draft: migrateEditableResumeDraft(value.draft, resumeText),
+    manualOverrides: safeStringArray(value.manualOverrides),
+    lockedFields: safeStringArray(value.lockedFields || value.manualOverrides),
+    deletedSections: safeStringArray(value.deletedSections),
+  };
+}
+
+function migrateSavedWorkspaceState<T extends Partial<CloudResumeContent>>(state: T): T {
+  return {
+    ...state,
+    editableResumeSession: migrateEditableResumeSession(state.editableResumeSession),
+  };
+}
+
+function hasSavedWorkspaceContent(state: Partial<SavedState>) {
+  return Boolean(
+    state.masterResume ||
+      state.jobDescription ||
+      state.targetRole ||
+      state.result ||
+      state.editableResumeSession ||
+      state.uploadedFiles?.length ||
+      state.personalBranding,
+  );
+}
+
 function structuredResumeFromEditableDraft(draft: EditableResumeDraft): StructuredResume {
   return {
     header: draft.header,
@@ -10114,9 +10425,19 @@ function structuredResumeFromEditableDraft(draft: EditableResumeDraft): Structur
     projects: draft.projects
       .filter((project) => project.name.trim().length > 0)
       .map((project) =>
-        [project.name, project.context, project.tools, project.link, project.details.replace(/\r?\n/g, " / ")]
+        [
+          "PROJECT_ENTRY",
+          project.name,
+          project.context,
+          project.tools,
+          project.link,
+          ...project.details
+            .split(/\r?\n|\s+\/\s+/)
+            .map((detail) => detail.trim())
+            .filter(Boolean),
+        ]
           .filter((value) => value.trim().length > 0)
-          .join(" | "),
+          .join("\n"),
       )
       .filter(Boolean),
     education: draft.education
@@ -10143,14 +10464,15 @@ function structuredResumeFromEditableDraft(draft: EditableResumeDraft): Structur
     publications: draft.publications
       .map((publication) =>
         [
+          "PUBLICATION_ENTRY",
           publication.title,
-          publication.description.replace(/\r?\n/g, " "),
+          publication.description,
           publication.link,
           publication.publisher,
           publication.date,
         ]
           .filter((value) => value.trim().length > 0)
-          .join(" | "),
+          .join("\n"),
       )
       .filter(Boolean),
     leadership: draft.leadership,
@@ -10239,6 +10561,7 @@ function ModularResumeEditor({
     resumeText: string,
     manualOverrides?: string[],
     lockedFields?: string[],
+    deletedSections?: string[],
   ) => void;
   canUseAiOptimization: boolean;
   onUpgradeRequired: () => boolean;
@@ -10257,11 +10580,17 @@ function ModularResumeEditor({
     () => new Set(persistedDraft?.lockedFields ?? persistedDraft?.manualOverrides ?? []),
     [persistedDraft?.lockedFields, persistedDraft?.manualOverrides],
   );
+  const initialDeletedSections = useMemo(
+    () => new Set(persistedDraft?.deletedSections ?? []),
+    [persistedDraft?.deletedSections],
+  );
   const [, setManualOverrides] = useState<Set<string>>(initialManualOverrides);
   const [, setLockedFields] = useState<Set<string>>(initialLockedFields);
+  const [, setDeletedSections] = useState<Set<string>>(initialDeletedSections);
   const editableResumeRef = useRef(editableResume);
   const manualOverridesRef = useRef(initialManualOverrides);
   const lockedFieldsRef = useRef(initialLockedFields);
+  const deletedSectionsRef = useRef(initialDeletedSections);
   const lastEmittedResumeTextRef = useRef(resumeText);
   const lastLoadedResumeTextRef = useRef(resumeText);
   const resetEditableResume = useMemo(
@@ -10283,9 +10612,10 @@ function ModularResumeEditor({
     }
 
     const nextDraft = editableResumeDraftFromText(resumeText);
+    const protectedFields = new Set([...lockedFieldsRef.current, ...deletedSectionsRef.current]);
     const nextDraftToLoad =
-      lockedFieldsRef.current.size > 0
-        ? mergeUnlockedResumeDraft(editableResumeRef.current, nextDraft, lockedFieldsRef.current)
+      protectedFields.size > 0
+        ? mergeUnlockedResumeDraft(editableResumeRef.current, nextDraft, protectedFields)
         : nextDraft;
     lastLoadedResumeTextRef.current = resumeText;
     const timer = window.setTimeout(() => {
@@ -10301,6 +10631,7 @@ function ModularResumeEditor({
         output,
         [...manualOverridesRef.current],
         [...lockedFieldsRef.current],
+        [...deletedSectionsRef.current],
       );
     }, 0);
 
@@ -10308,7 +10639,13 @@ function ModularResumeEditor({
   }, [onDraftPersist, personalBranding, resumeText]);
 
   function persistDraftSession(next: EditableResumeDraft, output: string) {
-    onDraftPersist(next, output, [...manualOverridesRef.current], [...lockedFieldsRef.current]);
+    onDraftPersist(
+      next,
+      output,
+      [...manualOverridesRef.current],
+      [...lockedFieldsRef.current],
+      [...deletedSectionsRef.current],
+    );
   }
 
   function lockManualField(path: string) {
@@ -10321,6 +10658,15 @@ function ModularResumeEditor({
     lockedFieldsRef.current = nextLocked;
     setManualOverrides(nextManual);
     setLockedFields(nextLocked);
+  }
+
+  function markDeletedSection(path: string) {
+    if (!path) return;
+    const nextDeleted = new Set(deletedSectionsRef.current);
+    nextDeleted.add(path);
+    deletedSectionsRef.current = nextDeleted;
+    setDeletedSections(nextDeleted);
+    lockManualField(path);
   }
 
   function commitDraft(next: EditableResumeDraft, manualPath = "") {
@@ -10345,9 +10691,10 @@ function ModularResumeEditor({
       preserveEmptySections: true,
     });
     const suggestedDraft = editableResumeDraftFromText(output);
+    const protectedFields = new Set([...lockedFieldsRef.current, ...deletedSectionsRef.current]);
     const nextDraft =
-      options.respectLockedFields && lockedFieldsRef.current.size > 0
-        ? mergeUnlockedResumeDraft(editableResumeRef.current, suggestedDraft, lockedFieldsRef.current)
+      options.respectLockedFields && protectedFields.size > 0
+        ? mergeUnlockedResumeDraft(editableResumeRef.current, suggestedDraft, protectedFields)
         : suggestedDraft;
     const nextOutput = serializeStructuredResume(
       structuredResumeFromEditableDraft(nextDraft),
@@ -10363,6 +10710,18 @@ function ModularResumeEditor({
   }
 
   function patchDraft(patch: Partial<EditableResumeDraft>, manualPath = "") {
+    const currentSection = manualPath ? editableResumeRef.current[manualPath as keyof EditableResumeDraft] : undefined;
+    const nextSection = manualPath ? patch[manualPath as keyof EditableResumeDraft] : undefined;
+
+    if (
+      manualPath &&
+      Array.isArray(currentSection) &&
+      Array.isArray(nextSection) &&
+      nextSection.length < currentSection.length
+    ) {
+      markDeletedSection(manualPath);
+    }
+
     commitDraft({ ...editableResumeRef.current, ...patch }, manualPath);
   }
 

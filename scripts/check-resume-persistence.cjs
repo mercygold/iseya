@@ -13,6 +13,7 @@ const savedWorkspace = {
     resumeText: "Manual Name\nSenior Implementation Project Manager",
     manualOverrides: ["summary", "experience.0", "publications", "projects"],
     lockedFields: ["summary", "experience.0", "publications", "projects"],
+    deletedSections: ["projects"],
     draft: {
       summaryText: "Senior implementation leader with source-verified delivery experience across SaaS implementation, UAT, release readiness, and stakeholder communication.",
       skillsText: "SaaS Implementation Management | UAT & QA Coordination | Release Readiness",
@@ -79,6 +80,7 @@ if (restored.editableResumeSession.draft.publications.length !== 2) failures.pus
 if (restored.editableResumeSession.draft.projects.length !== 2) failures.push("projects merged or disappeared");
 if (!restored.editableResumeSession.lockedFields.includes("summary")) failures.push("manual summary was not locked");
 if (!restored.editableResumeSession.lockedFields.includes("publications")) failures.push("publications were not locked");
+if (!restored.editableResumeSession.deletedSections.includes("projects")) failures.push("deleted project section was not persisted");
 if (/Avery Morgan|dummy|sample/i.test(JSON.stringify(restored))) failures.push("dummy data returned after manual edits");
 
 const badSummary = "Known for Date Accuracy Description Field Full Job";
@@ -95,4 +97,5 @@ console.log("[resume-persistence] passed", {
   publications: restored.editableResumeSession.draft.publications.length,
   projects: restored.editableResumeSession.draft.projects.length,
   lockedFields: restored.editableResumeSession.lockedFields,
+  deletedSections: restored.editableResumeSession.deletedSections,
 });
