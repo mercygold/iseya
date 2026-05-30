@@ -331,6 +331,15 @@ type EditablePublicationEntry = {
   date: string;
 };
 
+type EditableAwardVolunteerEntry = {
+  id: string;
+  title: string;
+  organization: string;
+  location: string;
+  date: string;
+  description: string;
+};
+
 type EditableEducationEntry = {
   id: string;
   school: string;
@@ -349,7 +358,17 @@ type EditableCertificationEntry = {
 
 type EditableResumeDraft = Omit<
   StructuredResume,
-  "summary" | "skills" | "experience" | "projects" | "education" | "certifications" | "publications" | "tools"
+  | "summary"
+  | "skills"
+  | "experience"
+  | "projects"
+  | "education"
+  | "certifications"
+  | "publications"
+  | "awards"
+  | "leadership"
+  | "volunteerExperience"
+  | "tools"
 > & {
   summaryText: string;
   skillsText: string;
@@ -358,6 +377,7 @@ type EditableResumeDraft = Omit<
   education: EditableEducationEntry[];
   certifications: EditableCertificationEntry[];
   publications: EditablePublicationEntry[];
+  awardsVolunteer: EditableAwardVolunteerEntry[];
   toolsText: string;
 };
 
@@ -801,17 +821,19 @@ type TemplateProfile = {
 const professionalResumeSectionOrder = [
   "SUMMARY",
   "SKILLS",
+  "TOOLS",
+  "TECHNOLOGIES",
   "EXPERIENCE",
   "PROJECTS",
   "EDUCATION",
   "CERTIFICATIONS",
-  "ACHIEVEMENTS",
-  "TOOLS",
+  "PUBLICATIONS",
+  "RESEARCH",
+  "AWARDS & VOLUNTEER",
   "LEADERSHIP",
   "AWARDS",
   "VOLUNTEER",
-  "PUBLICATIONS",
-  "RESEARCH",
+  "ACHIEVEMENTS",
 ];
 
 const templates: Record<TemplateId, TemplateProfile> = {
@@ -2755,12 +2777,14 @@ function canonicalResumeHeading(value: string) {
     return "TOOLS / TECHNOLOGIES";
   }
 
-  if (/^(LEADERSHIP|LEADERSHIP EXPERIENCE|AWARDS|HONORS|AWARDS & HONORS|VOLUNTEER|VOLUNTEER EXPERIENCE|COMMUNITY LEADERSHIP)$/.test(heading)) {
-    return heading.includes("AWARD") || heading.includes("HONOR")
-      ? "AWARDS"
-      : heading.includes("VOLUNTEER")
-        ? "VOLUNTEER EXPERIENCE"
-        : "LEADERSHIP";
+  if (/^(LEADERSHIP|LEADERSHIP EXPERIENCE|AWARDS|HONORS|AWARDS & HONORS|AWARDS & VOLUNTEER|VOLUNTEER|VOLUNTEER EXPERIENCE|COMMUNITY LEADERSHIP)$/.test(heading)) {
+    return heading.includes("AWARDS & VOLUNTEER")
+      ? "AWARDS & VOLUNTEER"
+      : heading.includes("AWARD") || heading.includes("HONOR")
+        ? "AWARDS"
+        : heading.includes("VOLUNTEER")
+          ? "VOLUNTEER EXPERIENCE"
+          : "LEADERSHIP";
   }
 
   return heading;
@@ -2775,7 +2799,7 @@ function isRecognizedResumeHeading(value: string) {
   }
 
   if (
-    /^(PROFILE|SUMMARY|PROFESSIONAL SUMMARY|CAREER SUMMARY|EXECUTIVE SUMMARY|CORE SKILLS|SKILLS|KEY SKILLS|TECHNICAL SKILLS|COMPETENCIES|AREAS OF EXPERTISE|EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|EMPLOYMENT|EMPLOYMENT HISTORY|CAREER EXPERIENCE|PROJECTS|PROJECT EXPERIENCE|SELECTED PROJECTS|AI PROJECTS|AI & AUTOMATION PROJECTS|EDUCATION|ACADEMIC BACKGROUND|CERTIFICATIONS|CERTIFICATES|LICENSES|LICENSES & CERTIFICATIONS|ACHIEVEMENTS|KEY ACHIEVEMENTS|CAREER ACHIEVEMENTS|SELECTED ACHIEVEMENTS|PUBLICATIONS|RESEARCH|PUBLICATIONS \/ RESEARCH|PUBLICATIONS & RESEARCH|TOOLS|TECHNOLOGIES|TOOLS \/ TECHNOLOGIES|TECHNICAL TOOLS|PLATFORMS|LEADERSHIP|LEADERSHIP EXPERIENCE|AWARDS|HONORS|AWARDS & HONORS|VOLUNTEER|VOLUNTEER EXPERIENCE|COMMUNITY LEADERSHIP)$/i.test(cleaned)
+    /^(PROFILE|SUMMARY|PROFESSIONAL SUMMARY|CAREER SUMMARY|EXECUTIVE SUMMARY|CORE SKILLS|SKILLS|KEY SKILLS|TECHNICAL SKILLS|COMPETENCIES|AREAS OF EXPERTISE|EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|EMPLOYMENT|EMPLOYMENT HISTORY|CAREER EXPERIENCE|PROJECTS|PROJECT EXPERIENCE|SELECTED PROJECTS|AI PROJECTS|AI & AUTOMATION PROJECTS|EDUCATION|ACADEMIC BACKGROUND|CERTIFICATIONS|CERTIFICATES|LICENSES|LICENSES & CERTIFICATIONS|ACHIEVEMENTS|KEY ACHIEVEMENTS|CAREER ACHIEVEMENTS|SELECTED ACHIEVEMENTS|PUBLICATIONS|RESEARCH|PUBLICATIONS \/ RESEARCH|PUBLICATIONS & RESEARCH|TOOLS|TECHNOLOGIES|TOOLS \/ TECHNOLOGIES|TECHNICAL TOOLS|PLATFORMS|LEADERSHIP|LEADERSHIP EXPERIENCE|AWARDS|HONORS|AWARDS & HONORS|AWARDS & VOLUNTEER|VOLUNTEER|VOLUNTEER EXPERIENCE|COMMUNITY LEADERSHIP)$/i.test(cleaned)
   ) {
     return true;
   }
@@ -2822,6 +2846,15 @@ function cleanEditorText(value: string) {
     .replace(/^[•●▪◦]\s*/, "")
     .replace(/\*\*/g, "")
     .replace(/\bpage\s+\d+(?:\s+of\s+\d+)?\b/gi, "")
+    .replace(/\bAI powered\b/gi, "AI-powered")
+    .replace(/\bFin Tech\b/gi, "FinTech")
+    .replace(/\bIrv ine\b/gi, "Irvine")
+    .replace(/\bAk ure\b/gi, "Akure")
+    .replace(/\bA zure\b/gi, "Azure")
+    .replace(/\bproduct work flows\b/gi, "product workflows")
+    .replace(/\bcross functional\b/gi, "cross-functional")
+    .replace(/\bclient facing\b/gi, "client-facing")
+    .replace(/\bgo live\b/gi, "go-live")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -3578,9 +3611,10 @@ function structuredResumeFromText(resumeText: string): StructuredResume {
     "TOOLS",
     "TECHNOLOGIES",
   ]);
-  const leadershipSection = findResumeSection(sections, ["LEADERSHIP"]);
-  const awardsSection = findResumeSection(sections, ["AWARDS", "HONORS"]);
-  const volunteerSection = findResumeSection(sections, ["VOLUNTEER"]);
+  const awardsVolunteerSection = findResumeSection(sections, ["AWARDS & VOLUNTEER"]);
+  const leadershipSection = awardsVolunteerSection ? undefined : findResumeSection(sections, ["LEADERSHIP"]);
+  const awardsSection = awardsVolunteerSection ?? findResumeSection(sections, ["AWARDS", "HONORS"]);
+  const volunteerSection = awardsVolunteerSection ? undefined : findResumeSection(sections, ["VOLUNTEER"]);
   const knownSections = new Set(
     [
       summarySection,
@@ -3712,7 +3746,14 @@ function serializeStructuredResume(
         .map(cleanEditorText)
         .filter(Boolean)
         .filter((part) => part !== "PROJECT_ENTRY");
-      const [name = "", context = "", tools = "", link = "", ...bullets] = parts;
+      const hasLabels = parts.some((part) => /^(NAME|ROLE|TOOLS|LINK|BULLET):/i.test(part));
+      const name = hasLabels ? parts.find((part) => /^NAME:/i.test(part))?.replace(/^NAME:\s*/i, "") ?? "" : parts[0] ?? "";
+      const context = hasLabels ? parts.find((part) => /^ROLE:/i.test(part))?.replace(/^ROLE:\s*/i, "") ?? "" : parts[1] ?? "";
+      const tools = hasLabels ? parts.find((part) => /^TOOLS:/i.test(part))?.replace(/^TOOLS:\s*/i, "") ?? "" : parts[2] ?? "";
+      const link = hasLabels ? parts.find((part) => /^LINK:/i.test(part))?.replace(/^LINK:\s*/i, "") ?? "" : parts[3] ?? "";
+      const bullets = hasLabels
+        ? parts.filter((part) => /^BULLET:/i.test(part)).map((part) => part.replace(/^BULLET:\s*/i, ""))
+        : parts.slice(4);
 
       if (!name) {
         continue;
@@ -3741,14 +3782,53 @@ function serializeStructuredResume(
         .map(cleanEditorText)
         .filter(Boolean)
         .filter((part) => part !== "PUBLICATION_ENTRY");
-      const [title = "", description = "", link = "", publisher = "", date = ""] = parts;
+      const hasLabels = parts.some((part) => /^(TITLE|DESCRIPTION|LINK|PUBLISHER|DATE):/i.test(part));
+      const title = hasLabels ? parts.find((part) => /^TITLE:/i.test(part))?.replace(/^TITLE:\s*/i, "") ?? "" : parts[0] ?? "";
+      const link = hasLabels ? parts.find((part) => /^LINK:/i.test(part))?.replace(/^LINK:\s*/i, "") ?? "" : parts[2] ?? "";
+      const publisher = hasLabels ? parts.find((part) => /^PUBLISHER:/i.test(part))?.replace(/^PUBLISHER:\s*/i, "") ?? "" : parts[3] ?? "";
+      const date = hasLabels ? parts.find((part) => /^DATE:/i.test(part))?.replace(/^DATE:\s*/i, "") ?? "" : parts[4] ?? "";
+      const descriptions = hasLabels
+        ? parts.filter((part) => /^DESCRIPTION:/i.test(part)).map((part) => part.replace(/^DESCRIPTION:\s*/i, ""))
+        : [parts[1] ?? ""].filter(Boolean);
 
       if (title) lines.push(title);
-      if (description) lines.push(description);
-      if (link) lines.push(link);
       if (publisher || date) {
         lines.push([publisher, date].filter(Boolean).join(" | "));
       }
+      if (link) lines.push(link);
+      lines.push(...descriptions.map((description) => `- ${description}`));
+    }
+  }
+
+  function pushAwardsVolunteerSection(items: string[]) {
+    const cleanedItems = uniqueStrings(items);
+
+    if (cleanedItems.length === 0 && !preserveEmptySections) {
+      return;
+    }
+
+    lines.push("", "AWARDS & VOLUNTEER");
+
+    for (const item of cleanedItems) {
+      const parts = item
+        .split(/\r?\n/)
+        .map(cleanEditorText)
+        .filter(Boolean)
+        .filter((part) => part !== "AWARD_VOLUNTEER_ENTRY");
+      const hasLabels = parts.some((part) => /^(TITLE|ORGANIZATION|LOCATION|DATE|DESCRIPTION):/i.test(part));
+      const title = hasLabels ? parts.find((part) => /^TITLE:/i.test(part))?.replace(/^TITLE:\s*/i, "") ?? "" : parts[0] ?? "";
+      const organization = hasLabels ? parts.find((part) => /^ORGANIZATION:/i.test(part))?.replace(/^ORGANIZATION:\s*/i, "") ?? "" : parts[1] ?? "";
+      const location = hasLabels ? parts.find((part) => /^LOCATION:/i.test(part))?.replace(/^LOCATION:\s*/i, "") ?? "" : parts[2] ?? "";
+      const date = hasLabels ? parts.find((part) => /^DATE:/i.test(part))?.replace(/^DATE:\s*/i, "") ?? "" : parts[3] ?? "";
+      const description = hasLabels
+        ? parts.filter((part) => /^DESCRIPTION:/i.test(part)).map((part) => part.replace(/^DESCRIPTION:\s*/i, ""))
+        : parts.slice(4);
+
+      if (title) lines.push(title);
+      if (organization || location || date) {
+        lines.push([organization, location, date].filter(Boolean).join(" | "));
+      }
+      lines.push(...description.map((line) => `- ${line}`));
     }
   }
 
@@ -3761,6 +3841,10 @@ function serializeStructuredResume(
 
   if (structured.skills.length > 0 || preserveEmptySections) {
     lines.push("", "CORE SKILLS", uniqueStrings(structured.skills).join(" | "));
+  }
+
+  if (structured.tools.length > 0) {
+    lines.push("", "TOOLS / TECHNOLOGIES", uniqueStrings(structured.tools).join(" | "));
   }
 
   const experience = dedupeExperience(
@@ -3804,13 +3888,11 @@ function serializeStructuredResume(
   pushListSection("EDUCATION", structured.education);
   pushListSection("CERTIFICATIONS", structured.certifications);
   pushPublicationSection(structured.publications);
-  pushListSection("LEADERSHIP", structured.leadership);
-  pushListSection("AWARDS", structured.awards);
-  pushListSection("VOLUNTEER EXPERIENCE", structured.volunteerExperience);
-
-  if (structured.tools.length > 0) {
-    lines.push("", "TOOLS / TECHNOLOGIES", uniqueStrings(structured.tools).join(" | "));
-  }
+  pushAwardsVolunteerSection([
+    ...structured.awards,
+    ...structured.leadership,
+    ...structured.volunteerExperience,
+  ]);
 
   for (const section of structured.additionalSections) {
     const heading = cleanEditorText(section.heading).toUpperCase();
@@ -4404,20 +4486,16 @@ async function createResumePdfBlob(
           View,
           { key: `${section.heading}-${sectionIndex}`, style: styles.section },
           createElement(Text, { style: styles.heading }, section.heading),
-          ...section.body.map((paragraph, paragraphIndex) =>
+          ...orderedSectionLines(section).map((line, lineIndex) =>
             createElement(
               Text,
-              { key: `${paragraph}-${paragraphIndex}`, style: styles.paragraph },
-              paragraph,
+              {
+                key: `${section.heading}-${line.text}-${lineIndex}`,
+                style: line.isBullet ? styles.bullet : styles.paragraph,
+              },
+              line.isBullet ? `• ${line.text}` : line.text,
             ),
           ),
-	          ...section.bullets.map((bullet, bulletIndex) =>
-	            createElement(
-	              Text,
-	              { key: `${bullet}-${bulletIndex}`, style: styles.bullet },
-	              `• ${cleanExportBullet(bullet)}`,
-	            ),
-	          ),
         ),
       ),
     ),
@@ -4585,23 +4663,14 @@ async function createResumeDocxBlob(
       }),
     );
 
-    for (const paragraph of section.body) {
+    for (const line of orderedSectionLines(section)) {
       children.push(
         new Paragraph({
-          spacing: { after: 90 },
-          children: [new TextRun({ text: paragraph, color: textColor, size: bodySize })],
-        }),
-      );
-    }
-
-    for (const bullet of section.bullets) {
-      children.push(
-        new Paragraph({
-          bullet: { level: 0 },
-          spacing: { after: family === "consulting" || family === "finance" ? 75 : 90 },
+          bullet: line.isBullet ? { level: 0 } : undefined,
+          spacing: { after: line.isBullet && (family === "consulting" || family === "finance") ? 75 : 90 },
           children: [
             new TextRun({
-              text: cleanExportBullet(bullet),
+              text: line.text,
               color: textColor,
               size: bodySize,
             }),
@@ -10159,6 +10228,62 @@ function migratePublicationEntries(value: unknown): EditablePublicationEntry[] {
     .filter((item): item is EditablePublicationEntry => Boolean(item));
 }
 
+function editableAwardVolunteerEntries(items: string[]): EditableAwardVolunteerEntry[] {
+  return items.map((item, index) => {
+    const parts = pipeSeparatedParts(item);
+
+    if (parts.length <= 1) {
+      return {
+        id: `award-volunteer-${index}`,
+        title: cleanEditorText(item),
+        organization: "",
+        location: "",
+        date: "",
+        description: "",
+      };
+    }
+
+    const [title = "", organization = "", locationOrDate = "", ...description] = parts;
+    const date = /\b(?:19|20)\d{2}\b|present|current/i.test(locationOrDate) ? locationOrDate : "";
+
+    return {
+      id: `award-volunteer-${index}`,
+      title,
+      organization,
+      location: date ? "" : locationOrDate,
+      date,
+      description: description.join("\n"),
+    };
+  });
+}
+
+function migrateAwardVolunteerEntries(value: unknown): EditableAwardVolunteerEntry[] {
+  if (!Array.isArray(value)) {
+    return editableAwardVolunteerEntries(legacyTextItems(value));
+  }
+
+  return value
+    .map((item, index): EditableAwardVolunteerEntry | null => {
+      if (typeof item === "string") {
+        return editableAwardVolunteerEntries([item])[0] ?? null;
+      }
+
+      if (!isRecord(item)) {
+        return null;
+      }
+
+      return {
+        id: fieldString(item.id) || `award-volunteer-${index}`,
+        title: fieldString(item.title || item.name || item.role),
+        organization: fieldString(item.organization || item.issuer),
+        location: fieldString(item.location),
+        date: fieldString(item.date || item.year),
+        description: fieldString(item.description || item.details),
+      };
+    })
+    .filter((item): item is EditableAwardVolunteerEntry => Boolean(item));
+}
+
 function editableEducationEntries(items: string[]): EditableEducationEntry[] {
   return items.map((item, index) => {
     const [school = "", degree = "", ...metadata] = pipeSeparatedParts(item);
@@ -10214,11 +10339,9 @@ function cleanupEditableResumeDraft(draft: EditableResumeDraft): EditableResumeD
     projects: draft.projects.map((project) => ({ ...project })),
     certifications: draft.certifications.map((certification) => ({ ...certification })),
     publications: draft.publications.map((publication) => ({ ...publication })),
+    awardsVolunteer: draft.awardsVolunteer.map((entry) => ({ ...entry })),
     experience: draft.experience.map((entry) => ({ ...entry })),
     education: draft.education.map((education) => ({ ...education })),
-    leadership: [...draft.leadership],
-    awards: [...draft.awards],
-    volunteerExperience: [...draft.volunteerExperience],
     additionalSections: draft.additionalSections.map((section) => ({
       ...section,
       body: [...section.body],
@@ -10243,9 +10366,11 @@ function editableResumeDraftFromText(resumeText: string): EditableResumeDraft {
     education: editableEducationEntries(structured.education),
     certifications: editableCertificationEntries(structured.certifications),
     publications: editablePublicationEntries(structured.publications),
-    leadership: structured.leadership,
-    awards: structured.awards,
-    volunteerExperience: structured.volunteerExperience,
+    awardsVolunteer: editableAwardVolunteerEntries([
+      ...structured.awards,
+      ...structured.leadership,
+      ...structured.volunteerExperience,
+    ]),
     toolsText: structured.tools.join(" | "),
     additionalSections: structured.additionalSections,
     unmatchedSections: structured.unmatchedSections,
@@ -10331,6 +10456,11 @@ function migrateEditableResumeDraft(value: unknown, resumeText: string): Editabl
         };
       })
     : fallback.certifications;
+  const legacyAwardsVolunteer = [
+    ...safeStringArray(value.awards),
+    ...safeStringArray(value.leadership),
+    ...safeStringArray(value.volunteerExperience),
+  ];
 
   return cleanupEditableResumeDraft({
     header: isRecord(value.header) ? normalizePersonalBranding(value.header) : fallback.header,
@@ -10341,9 +10471,11 @@ function migrateEditableResumeDraft(value: unknown, resumeText: string): Editabl
     education,
     certifications,
     publications: migratePublicationEntries(value.publications),
-    leadership: safeStringArray(value.leadership, fallback.leadership),
-    awards: safeStringArray(value.awards, fallback.awards),
-    volunteerExperience: safeStringArray(value.volunteerExperience, fallback.volunteerExperience),
+    awardsVolunteer: value.awardsVolunteer
+      ? migrateAwardVolunteerEntries(value.awardsVolunteer)
+      : legacyAwardsVolunteer.length > 0
+        ? editableAwardVolunteerEntries(legacyAwardsVolunteer)
+        : fallback.awardsVolunteer,
     toolsText: fieldString(value.toolsText) || safeStringArray(value.tools).join(" | ") || fallback.toolsText,
     additionalSections: Array.isArray(value.additionalSections)
       ? value.additionalSections
@@ -10427,14 +10559,15 @@ function structuredResumeFromEditableDraft(draft: EditableResumeDraft): Structur
       .map((project) =>
         [
           "PROJECT_ENTRY",
-          project.name,
-          project.context,
-          project.tools,
-          project.link,
+          project.name ? `NAME: ${project.name}` : "",
+          project.context ? `ROLE: ${project.context}` : "",
+          project.tools ? `TOOLS: ${project.tools}` : "",
+          project.link ? `LINK: ${project.link}` : "",
           ...project.details
             .split(/\r?\n|\s+\/\s+/)
             .map((detail) => detail.trim())
-            .filter(Boolean),
+            .filter(Boolean)
+            .map((detail) => `BULLET: ${detail}`),
         ]
           .filter((value) => value.trim().length > 0)
           .join("\n"),
@@ -10465,19 +10598,40 @@ function structuredResumeFromEditableDraft(draft: EditableResumeDraft): Structur
       .map((publication) =>
         [
           "PUBLICATION_ENTRY",
-          publication.title,
-          publication.description,
-          publication.link,
-          publication.publisher,
-          publication.date,
+          publication.title ? `TITLE: ${publication.title}` : "",
+          publication.publisher ? `PUBLISHER: ${publication.publisher}` : "",
+          publication.date ? `DATE: ${publication.date}` : "",
+          publication.link ? `LINK: ${publication.link}` : "",
+          ...publication.description
+            .split(/\r?\n|\s+\/\s+/)
+            .map((description) => description.trim())
+            .filter(Boolean)
+            .map((description) => `DESCRIPTION: ${description}`),
         ]
           .filter((value) => value.trim().length > 0)
           .join("\n"),
       )
       .filter(Boolean),
-    leadership: draft.leadership,
-    awards: draft.awards,
-    volunteerExperience: draft.volunteerExperience,
+    awards: draft.awardsVolunteer
+      .map((entry) =>
+        [
+          "AWARD_VOLUNTEER_ENTRY",
+          entry.title ? `TITLE: ${entry.title}` : "",
+          entry.organization ? `ORGANIZATION: ${entry.organization}` : "",
+          entry.location ? `LOCATION: ${entry.location}` : "",
+          entry.date ? `DATE: ${entry.date}` : "",
+          ...entry.description
+            .split(/\r?\n|\s+\/\s+/)
+            .map((description) => description.trim())
+            .filter(Boolean)
+            .map((description) => `DESCRIPTION: ${description}`),
+        ]
+          .filter((value) => value.trim().length > 0)
+          .join("\n"),
+      )
+      .filter(Boolean),
+    leadership: [],
+    volunteerExperience: [],
     tools: splitResumeList(draft.toolsText),
     additionalSections: draft.additionalSections,
     unmatchedSections: draft.unmatchedSections,
@@ -10511,11 +10665,7 @@ function mergeUnlockedResumeDraft(
     education: lockedPrefixMatch(lockedFields, "education") ? current.education : suggestion.education,
     certifications: lockedPrefixMatch(lockedFields, "certifications") ? current.certifications : suggestion.certifications,
     publications: lockedPrefixMatch(lockedFields, "publications") ? current.publications : suggestion.publications,
-    leadership: lockedPrefixMatch(lockedFields, "leadership") ? current.leadership : suggestion.leadership,
-    awards: lockedPrefixMatch(lockedFields, "awards") ? current.awards : suggestion.awards,
-    volunteerExperience: lockedPrefixMatch(lockedFields, "volunteerExperience")
-      ? current.volunteerExperience
-      : suggestion.volunteerExperience,
+    awardsVolunteer: lockedPrefixMatch(lockedFields, "awardsVolunteer") ? current.awardsVolunteer : suggestion.awardsVolunteer,
     toolsText: lockedPrefixMatch(lockedFields, "tools") ? current.toolsText : suggestion.toolsText,
     additionalSections: lockedPrefixMatch(lockedFields, "additionalSections")
       ? current.additionalSections
@@ -10819,6 +10969,7 @@ function ModularResumeEditor({
       | "education"
       | "certifications"
       | "publications"
+      | "awardsVolunteer"
       | "tools",
   ) {
     const next = { ...editableResumeRef.current };
@@ -10830,6 +10981,7 @@ function ModularResumeEditor({
     if (field === "education") next.education = resetEditableResume.education;
     if (field === "certifications") next.certifications = resetEditableResume.certifications;
     if (field === "publications") next.publications = resetEditableResume.publications;
+    if (field === "awardsVolunteer") next.awardsVolunteer = resetEditableResume.awardsVolunteer;
     if (field === "tools") next.toolsText = resetEditableResume.toolsText;
 
     commitDraft(next);
@@ -10862,13 +11014,15 @@ function ModularResumeEditor({
   }
 
   async function applyListAiAction(
-    field: "publications" | "tools",
+    field: "publications" | "awardsVolunteer" | "tools",
     title: string,
     action: AiOptimizationAction,
   ) {
     const sourceText =
       field === "publications"
         ? structuredResumeFromEditableDraft(editableResume).publications.join("\n")
+        : field === "awardsVolunteer"
+          ? structuredResumeFromEditableDraft(editableResume).awards.join("\n")
         : editableResume.toolsText;
     const optimized = await optimizeWithBackend({
       key: `${field}-${action}`,
@@ -10881,6 +11035,8 @@ function ModularResumeEditor({
       commitDraft(
         field === "publications"
           ? { ...editableResumeRef.current, publications: editablePublicationEntries(optimized.split(/\r?\n/).filter(Boolean)) }
+          : field === "awardsVolunteer"
+            ? { ...editableResumeRef.current, awardsVolunteer: editableAwardVolunteerEntries(optimized.split(/\r?\n/).filter(Boolean)) }
           : { ...editableResumeRef.current, toolsText: optimized },
       );
     }
@@ -11300,6 +11456,13 @@ function ModularResumeEditor({
         onAiAction={(action) => applyListAiAction("publications", "Publications / Research", action)}
         isOptimizing={optimizingKey.startsWith("publications-")}
       />
+      <EditableAwardsVolunteerSection
+        entries={editableResume.awardsVolunteer}
+        onChange={(awardsVolunteer) => patchDraft({ awardsVolunteer }, "awardsVolunteer")}
+        onReset={() => resetSection("awardsVolunteer")}
+        onAiAction={(action) => applyListAiAction("awardsVolunteer", "Awards & Volunteer", action)}
+        isOptimizing={optimizingKey.startsWith("awardsVolunteer-")}
+      />
       <ModularListSection title="Tools / Technologies" value={editableResume.toolsText} onChange={(value) => patchDraft({ toolsText: value }, "tools")} onOptimize={() => applyListAiAction("tools", "Tools / Technologies", "Optimize this section")} onReset={() => resetSection("tools")} onAiAction={(action) => applyListAiAction("tools", "Tools / Technologies", action)} isOptimizing={optimizingKey.startsWith("tools-")} />
 
       {unmatchedReviewSections.length > 0 ? (
@@ -11658,6 +11821,79 @@ function EditablePublicationsSection({
           className={`${primaryButtonClass} ${buttonSizeSmClass}`}
         >
           Add Publication
+        </FeedbackButton>
+      </div>
+    </ModularSection>
+  );
+}
+
+function EditableAwardsVolunteerSection({
+  entries,
+  onChange,
+  onReset,
+  onAiAction,
+  isOptimizing,
+}: {
+  entries: EditableAwardVolunteerEntry[];
+  onChange: (entries: EditableAwardVolunteerEntry[]) => void;
+  onReset: () => void;
+  onAiAction: (action: AiOptimizationAction) => void;
+  isOptimizing: boolean;
+}) {
+  function updateEntry(index: number, patch: Partial<EditableAwardVolunteerEntry>) {
+    onChange(entries.map((entry, entryIndex) => (
+      entryIndex === index ? { ...entry, ...patch } : entry
+    )));
+  }
+
+  return (
+    <ModularSection
+      title="Awards & Volunteer"
+      onOptimize={() => onAiAction("Optimize this section")}
+      onReset={onReset}
+      onAiAction={onAiAction}
+      isOptimizing={isOptimizing}
+    >
+      <div className="space-y-3">
+        {entries.map((entry, index) => (
+          <div key={entry.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                Award / Volunteer {index + 1}
+              </p>
+              <EditorActionButton
+                variant="danger"
+                onClick={() => onChange(entries.filter((_, entryIndex) => entryIndex !== index))}
+              >
+                Remove Entry
+              </EditorActionButton>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <ContactField label="Title / Award / Volunteer Role" value={entry.title} onChange={(value) => updateEntry(index, { title: value })} />
+              <ContactField label="Organization" value={entry.organization} onChange={(value) => updateEntry(index, { organization: value })} />
+              <ContactField label="Location optional" value={entry.location} onChange={(value) => updateEntry(index, { location: value })} />
+              <ContactField label="Date optional" value={entry.date} onChange={(value) => updateEntry(index, { date: value })} />
+            </div>
+            <label className="mt-3 block text-xs font-semibold text-slate-700">
+              Description optional
+              <textarea
+                value={entry.description}
+                onChange={(event) => updateEntry(index, { description: event.target.value })}
+                placeholder="One supporting detail per line"
+                className="mt-2 min-h-20 w-full resize-y rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+              />
+            </label>
+          </div>
+        ))}
+        <FeedbackButton
+          doneLabel="Added"
+          onClick={() => onChange([
+            ...entries,
+            { id: editorEntryId("award-volunteer"), title: "", organization: "", location: "", date: "", description: "" },
+          ])}
+          className={`${primaryButtonClass} ${buttonSizeSmClass}`}
+        >
+          Add Award / Volunteer
         </FeedbackButton>
       </div>
     </ModularSection>
@@ -12337,6 +12573,24 @@ function previewSectionItems(section: ResumeSection) {
     .filter(Boolean);
 }
 
+function orderedSectionLines(section: ResumeSection) {
+  const rawLines = section.lines ?? [
+    ...section.body,
+    ...section.bullets.map((bullet) => `- ${bullet}`),
+  ];
+
+  return rawLines
+    .map((rawLine) => {
+      const trimmed = rawLine.trim();
+      const isBullet = /^[-*•]\s+/.test(trimmed);
+      const text = isBullet
+        ? cleanExportBullet(trimmed.replace(/^[-*•]\s+/, ""))
+        : cleanEditorText(trimmed);
+      return { text, isBullet };
+    })
+    .filter((line) => line.text);
+}
+
 function previewEntryParts(item: string) {
   return item
     .split(/\s+\|\s+/)
@@ -12381,20 +12635,40 @@ function ResumePreviewSectionContent({ section }: { section: ResumeSection }) {
   }
 
   if (/PROJECTS$/.test(section.heading)) {
+    const entries: Array<{ title: string; meta: string[]; bullets: string[] }> = [];
+    let current: { title: string; meta: string[]; bullets: string[] } | null = null;
+
+    for (const line of orderedSectionLines(section)) {
+      if (line.isBullet) {
+        current?.bullets.push(line.text);
+        continue;
+      }
+
+      if (!current || current.bullets.length > 0) {
+        current = { title: line.text, meta: [], bullets: [] };
+        entries.push(current);
+      } else {
+        current.meta.push(line.text);
+      }
+    }
+
     return (
       <div className="mt-3 space-y-3">
-        {previewSectionItems(section).map((project, projectIndex) => {
-          const [title, ...details] = previewEntryParts(project);
-
-          return (
-            <div key={`${project}-${projectIndex}`} className="break-inside-avoid">
-              <p className="text-sm font-semibold text-zinc-900">{title}</p>
-              {details.length > 0 ? (
-                <p className="mt-1 text-sm leading-6 text-zinc-700">{details.join(" | ")}</p>
-              ) : null}
-            </div>
-          );
-        })}
+        {entries.map((project, projectIndex) => (
+          <div key={`${project.title}-${projectIndex}`} className="break-inside-avoid">
+            <p className="text-sm font-semibold text-zinc-900">{project.title}</p>
+            {project.meta.length > 0 ? (
+              <p className="mt-1 text-sm leading-6 text-zinc-700">{project.meta.join(" | ")}</p>
+            ) : null}
+            {project.bullets.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
+                {project.bullets.map((bullet, bulletIndex) => (
+                  <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ))}
       </div>
     );
   }
