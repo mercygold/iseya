@@ -5180,8 +5180,25 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   ]);
 
   const refreshSubscriptionProfile = useCallback(async () => {
-    if (!authLoaded || !supabase || !authUserId) {
+    const applySubscriptionFallback = () => {
+      setSubscriptionProfileLoaded(true);
+      setSubscriptionPlan("free");
+      setSubscriptionStatus("free");
+      setResumeDownloadCredits(0);
+      setOptimizationCredits(0);
+      setDownloadsUsed(0);
+      setOptimizationCreditsUsed(0);
+      setSavedVersionsCount(savedVersions.length);
+      setOrganizationName("");
+    };
+
+    if (!authLoaded) {
       return false;
+    }
+
+    if (!supabase || !authUserId) {
+      applySubscriptionFallback();
+      return true;
     }
 
     let liveUserId = authUserId;
@@ -5194,39 +5211,62 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 
       if (liveUserError) {
         if (isTransientSessionError(liveUserError)) {
+          applySubscriptionFallback();
           return false;
         }
 
-        console.error("Unable to refresh workspace session.");
+        console.warn("Unable to refresh workspace session. Using local workspace fallback.");
+        applySubscriptionFallback();
         return false;
       }
 
       liveUserId = liveUser?.id ?? authUserId;
     } catch (sessionError) {
       if (!isTransientSessionError(sessionError)) {
-        console.error("Unable to refresh workspace session.");
+        console.warn("Unable to refresh workspace session. Using local workspace fallback.");
       }
 
+      applySubscriptionFallback();
       return false;
     }
 
     if (!liveUserId) {
+      applySubscriptionFallback();
       return false;
     }
 
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select(
-        "id, email, subscription_plan, subscription_status, stripe_customer_id, stripe_subscription_id, resume_download_credits, optimization_credits",
-      )
-      .eq("id", liveUserId)
-      .maybeSingle();
+    let profile: {
+      id?: string | null;
+      email?: string | null;
+      subscription_plan?: string | null;
+      subscription_status?: string | null;
+      stripe_customer_id?: string | null;
+      stripe_subscription_id?: string | null;
+      resume_download_credits?: number | null;
+      optimization_credits?: number | null;
+    } | null = null;
+    let error: unknown = null;
+
+    try {
+      const profileResult = await supabase
+        .from("profiles")
+        .select(
+          "id, email, subscription_plan, subscription_status, stripe_customer_id, stripe_subscription_id, resume_download_credits, optimization_credits",
+        )
+        .eq("id", liveUserId)
+        .maybeSingle();
+      profile = profileResult.data;
+      error = profileResult.error;
+    } catch (profileError) {
+      error = profileError;
+    }
 
     if (error) {
       if (!isTransientSessionError(error)) {
-        console.error("Unable to refresh workspace subscription profile.");
+        console.warn("Unable to refresh workspace subscription profile. Using local workspace fallback.");
       }
 
+      applySubscriptionFallback();
       return false;
     }
 
@@ -5267,11 +5307,24 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         ? defaultOptimizationCredits
         : profile.optimization_credits ?? defaultOptimizationCredits,
     );
-    const { data: usageData, error: usageError } = await supabase
-      .from("profiles")
-      .select("document_exports_used, optimization_credits_used, saved_versions_count")
-      .eq("id", liveUserId)
-      .maybeSingle();
+    let usageData: {
+      document_exports_used?: number | null;
+      optimization_credits_used?: number | null;
+      saved_versions_count?: number | null;
+    } | null = null;
+    let usageError: unknown = null;
+
+    try {
+      const usageResult = await supabase
+        .from("profiles")
+        .select("document_exports_used, optimization_credits_used, saved_versions_count")
+        .eq("id", liveUserId)
+        .maybeSingle();
+      usageData = usageResult.data;
+      usageError = usageResult.error;
+    } catch (caughtUsageError) {
+      usageError = caughtUsageError;
+    }
 
     if (!usageError && usageData) {
       setDownloadsUsed(Math.max(0, Number(usageData.document_exports_used) || 0));
@@ -5281,16 +5334,24 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       setDownloadsUsed(0);
       setOptimizationCreditsUsed(0);
       setSavedVersionsCount(savedVersions.length);
-      if (usageError && !/column .* does not exist/i.test(usageError.message)) {
-        console.error("Unable to refresh workspace usage counters.");
+      const usageMessage =
+        usageError instanceof Error
+          ? usageError.message
+          : typeof usageError === "object" && usageError && "message" in usageError
+            ? String((usageError as { message?: unknown }).message ?? "")
+            : String(usageError ?? "");
+      if (usageError && !/column .* does not exist/i.test(usageMessage)) {
+        console.warn("Unable to refresh workspace usage counters. Using local usage fallback.");
       }
     }
-    {
+    try {
       const response = await fetch("/api/institution/associate");
       const data = (await response.json().catch(() => ({}))) as {
         institution?: { institution_name?: string } | null;
       };
       setOrganizationName(data.institution?.institution_name ?? "");
+    } catch {
+      setOrganizationName("");
     }
     return true;
   }, [authLoaded, authUserId, savedVersions.length, supabase]);
@@ -5481,7 +5542,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     if (!supabase || !authUserId) {
       window.setTimeout(() => {
         subscriptionFetchFailedRef.current = false;
-        setSubscriptionProfileLoaded(false);
+        setSubscriptionProfileLoaded(true);
         setSubscriptionPlan("free");
         setSubscriptionStatus("free");
         setResumeDownloadCredits(0);
@@ -5545,7 +5606,10 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 
     function refreshLiveProfile() {
       subscriptionFetchFailedRef.current = false;
-      void refreshSubscriptionProfile();
+      void refreshSubscriptionProfile().catch(() => {
+        setSubscriptionProfileLoaded(true);
+        setSystemStatus("We could not refresh your session. Your current workspace remains available.");
+      });
     }
 
     function refreshVisibleProfile() {
@@ -5579,10 +5643,14 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     router.refresh();
     const immediateTimer = window.setTimeout(() => {
       setSubscriptionProfileLoaded(false);
-      void refreshSubscriptionProfile();
+      void refreshSubscriptionProfile().catch(() => {
+        setSubscriptionProfileLoaded(true);
+      });
     }, 0);
     const retryTimer = window.setTimeout(() => {
-      void refreshSubscriptionProfile();
+      void refreshSubscriptionProfile().catch(() => {
+        setSubscriptionProfileLoaded(true);
+      });
     }, 1500);
 
     return () => {
