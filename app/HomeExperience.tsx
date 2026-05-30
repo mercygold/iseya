@@ -21,6 +21,7 @@ import {
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import type { Json } from "@/lib/database.types";
 import { trackAnalyticsEvent } from "@/lib/analytics";
+import { separateResumeInputs } from "@/lib/resume/inputSeparation";
 import {
   FinalConversionCta,
   HomepageStatsStrip,
@@ -317,7 +318,17 @@ type EditableProjectEntry = {
   name: string;
   context: string;
   tools: string;
+  link: string;
   details: string;
+};
+
+type EditablePublicationEntry = {
+  id: string;
+  title: string;
+  description: string;
+  link: string;
+  publisher: string;
+  date: string;
 };
 
 type EditableEducationEntry = {
@@ -346,13 +357,15 @@ type EditableResumeDraft = Omit<
   projects: EditableProjectEntry[];
   education: EditableEducationEntry[];
   certifications: EditableCertificationEntry[];
-  publicationsText: string;
+  publications: EditablePublicationEntry[];
   toolsText: string;
 };
 
 type EditableResumeSession = {
   resumeText: string;
   draft: EditableResumeDraft;
+  manualOverrides?: string[];
+  lockedFields?: string[];
 };
 
 type AiOptimizationAction =
@@ -408,6 +421,7 @@ type SavedState = {
   uploadedFiles?: UploadedSourceFile[];
   aiSettings?: AiSettings;
   personalBranding: PersonalBranding;
+  editableResumeSession?: EditableResumeSession | null;
 };
 
 type CloudResumeContent = SavedState & {
@@ -1791,6 +1805,39 @@ function isPlaceholderResumeText(value: string) {
   );
 }
 
+function isInstructionArtifactText(value: string) {
+  const cleaned = cleanEditorText(value);
+
+  return (
+    /full job description|target positioning|start month year|degree or certificate|school or organization|add a short project summary|keep the resume|do not\b|important resume cleanup instructions|i am tailoring my resume|placeholder|professional summary repeated|professional experience\.|target role|job description|resume cleanup instructions|cleanup instructions|resume notes|user instructions/i.test(cleaned) ||
+    /^[-*\u2022]?\s*(professional summary|core skills|professional experience|education|certifications|awards|projects)\s*[:.-]\s+/i.test(cleaned) ||
+    (/\b(add|include|keep|make|rewrite|tailor|optimize|remove|format|ensure)\b/i.test(cleaned) &&
+      /\b(resume|cv|summary|skills|project|education|experience|bullet|section)\b/i.test(cleaned))
+  );
+}
+
+function isPastedJobDescriptionHeading(value: string) {
+  return /^(full job description|job description|about\s+\w+|about estream|responsibilities|qualifications|requirements|what success looks like|preferred qualifications|about the role|the role|who you are)\b/i.test(
+    cleanEditorText(value).replace(/[:.]\s*$/g, ""),
+  );
+}
+
+function looksLikeCandidateResumeFact(value: string) {
+  return /\b(llc|consulting|plc|group|foods|investofly|jormp|bech360|japaul|patjeda|choice foods|university|certificate|certification|scrummaster|google project management|blockchain council|deeplearning\.?ai|award|representative|volunteer|coach|manager|lead|owner|analyst|engineer|director|20\d{2}|19\d{2})\b/i.test(
+    cleanEditorText(value),
+  );
+}
+
+function isCredentialCertificationText(value: string) {
+  const cleaned = cleanEditorText(value);
+
+  return (
+    /\b(certificate|certification|certified|license|licensed|credential|scrummaster|scrum master|pmp|google project management|blockchain council|deeplearning\.?ai|ai ethics|ai product development)\b/i.test(cleaned) &&
+    !/\b(llc|consulting|manager|product owner|program lead|growth lead|platform|built|led|implemented|shipped|improved|supported|developed|delivered|launched|principal|owner|associate|analyst|coordinator|director)\b/i.test(cleaned) &&
+    !isInstructionArtifactText(cleaned)
+  );
+}
+
 function isResumeNoiseLine(value: string) {
   const cleaned = value.trim();
 
@@ -1808,16 +1855,33 @@ function isResumeNoiseLine(value: string) {
 }
 
 function sanitizeResumeSourceText(value: string) {
-  return value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(
-      (line) =>
-        line &&
-        !isResumeNoiseLine(line) &&
-        !isSourceArtifactHeading(line) &&
-        !isPlaceholderResumeText(line),
-    )
+  const lines: string[] = [];
+  let inPastedJobDescription = false;
+
+  for (const rawLine of value.split(/\r?\n/)) {
+    const line = rawLine.trim();
+
+    if (!line || isResumeNoiseLine(line) || isSourceArtifactHeading(line) || isPlaceholderResumeText(line)) {
+      continue;
+    }
+
+    if (isPastedJobDescriptionHeading(line)) {
+      inPastedJobDescription = true;
+      continue;
+    }
+
+    if (isInstructionArtifactText(line)) {
+      continue;
+    }
+
+    if (inPastedJobDescription && !looksLikeCandidateResumeFact(line)) {
+      continue;
+    }
+
+    lines.push(line);
+  }
+
+  return lines
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -2760,7 +2824,7 @@ function cleanBullets(bullets: string[]) {
   return uniqueStrings(
     bullets
       .map((bullet) => cleanAchievementBullet(bullet.replace(/^[-*]\s+/, "")))
-      .filter(Boolean),
+      .filter((bullet) => bullet && !isInstructionArtifactText(bullet)),
   );
 }
 
@@ -2878,7 +2942,7 @@ function inferProjectSectionTitle(projects: string[], industryTarget?: string) {
 }
 
 function parseExperienceLine(line: string) {
-  const cleaned = cleanEditorText(line);
+  const cleaned = cleanEditorText(line).replace(/^\d+\.\s*/, "");
   const parts = cleaned.split(/\s+\|\s+/).map(cleanEditorText).filter(Boolean);
   const datePart = parts.find((part) => dateSignalRegex().test(part)) || "";
   const roleCompany = (parts.find((part) => part !== datePart && !/^[A-Za-z .'-]+,\s*[A-Z]{2}/.test(part)) || parts[0] || cleaned)
@@ -2887,7 +2951,7 @@ function parseExperienceLine(line: string) {
     .trim();
   const location = parts.find((part) => part !== roleCompany && part !== datePart) || "";
   const atMatch = roleCompany.match(/^(.+?)\s+at\s+(.+)$/i);
-  const dashParts = roleCompany.split(/\s+-\s+/);
+  const dashParts = roleCompany.split(/\s+[-–—]\s+/);
   const commaParts = roleCompany.split(/\s*,\s*/).filter(Boolean);
   const dateRange = splitDateRange(datePart);
 
@@ -2945,10 +3009,43 @@ function cleanResumeSkill(value: string) {
   const cleaned = cleanEditorText(value)
     .replace(/^[-*]\s+/, "")
     .replace(/\.$/, "");
+  const normalized = cleaned.toLowerCase().replace(/\s+/g, " ").trim();
+  const badSkillWords = new Set([
+    "accuracy",
+    "across",
+    "active",
+    "description",
+    "field",
+    "full",
+    "job",
+    "manage",
+    "national",
+    "onboarding",
+    "platform",
+    "programs",
+    "time",
+    "training",
+    "date",
+  ]);
+  const allowedSingleSkills = new Set([
+    "jira",
+    "asana",
+    "supabase",
+    "next.js",
+    "nextjs",
+    "react",
+    "typescript",
+    "sql",
+    "excel",
+  ]);
+  const wordCount = normalized.split(/\s+/).filter(Boolean).length;
 
   if (
     !cleaned ||
     cleaned.length > 48 ||
+    isInstructionArtifactText(cleaned) ||
+    badSkillWords.has(normalized) ||
+    (wordCount === 1 && !allowedSingleSkills.has(normalized) && !/^[A-Z0-9][A-Za-z0-9.+#-]{2,}$/.test(cleaned)) ||
     /\b(?:award|honor|dean'?s list|scholarship|club|society|volunteer)\b/i.test(cleaned) ||
     /[.!?]/.test(cleaned)
   ) {
@@ -2983,6 +3080,8 @@ function cleanAchievementBullet(value: string) {
     !cleaned ||
     isResumeNoiseLine(cleaned) ||
     isRecognizedResumeHeading(cleaned) ||
+    isInstructionArtifactText(cleaned) ||
+    parseExperienceLine(cleaned).company.length > 0 ||
     isLikelyEducationLine(cleaned)
   ) {
     return "";
@@ -2992,16 +3091,23 @@ function cleanAchievementBullet(value: string) {
 }
 
 function normalizeExperience(entry: Partial<ExperienceEntry>, index = 0): ExperienceEntry | null {
+  const parsedTitle = parseExperienceLine(entry.title || "");
   const normalized: ExperienceEntry = {
     id: entry.id || `experience-${index}`,
-    title: cleanEditorText(entry.title || ""),
-    company: cleanEditorText(entry.company || ""),
-    location: cleanEditorText(entry.location || ""),
+    title: parsedTitle.company ? parsedTitle.title : cleanEditorText(entry.title || ""),
+    company: cleanEditorText(entry.company || "") || parsedTitle.company,
+    location: cleanEditorText(entry.location || "") || parsedTitle.location,
     startDate: cleanEditorText(entry.startDate || ""),
     endDate: cleanEditorText(entry.endDate || ""),
     isCurrent: Boolean(entry.isCurrent),
     bullets: cleanBullets(entry.bullets ?? []),
   };
+
+  for (const key of ["title", "company", "location", "startDate", "endDate"] as const) {
+    if (isInstructionArtifactText(normalized[key])) {
+      normalized[key] = "";
+    }
+  }
 
   const hasIdentity = Boolean(normalized.title || normalized.company);
 
@@ -3368,22 +3474,35 @@ function validateCanonicalResume(structured: StructuredResume) {
             item &&
             !isResumeNoiseLine(item) &&
             !isSourceArtifactHeading(item) &&
-            !isPlaceholderResumeText(item),
+            !isPlaceholderResumeText(item) &&
+            !isInstructionArtifactText(item),
         ),
     );
 
+  const summary = cleanEditorText(structured.summary);
+
   return {
     ...structured,
-    summary: cleanEditorText(structured.summary),
+    summary: isInstructionArtifactText(summary) ? "" : summary,
     skills: prioritizeSkillsForJob(structured.skills, "", 18),
     experience: dedupeExperience(
       structured.experience
         .map((entry, index) => normalizeExperience(entry, index))
         .filter((entry): entry is ExperienceEntry => Boolean(entry)),
     ),
-    projects: cleanList(structured.projects),
+    projects: cleanList(structured.projects).map((project) => {
+      if (
+        project.length > 90 ||
+        (/\b(i|we|built|led|implemented|platform|system)\b/i.test(project) &&
+          /[.!?]/.test(project))
+      ) {
+        return `Implementation Reporting System | ${project}`;
+      }
+
+      return project;
+    }),
     education: cleanList(structured.education),
-    certifications: cleanList(structured.certifications),
+    certifications: cleanList(structured.certifications).filter(isCredentialCertificationText),
     publications: cleanList(structured.publications),
     leadership: cleanList(structured.leadership),
     awards: cleanList(structured.awards),
@@ -3551,7 +3670,12 @@ function serializeStructuredResume(
     lines.push("", heading, ...cleanedItems.map((item) => `- ${item}`));
   }
 
-  pushTextSection("PROFESSIONAL SUMMARY", structured.summary);
+  pushTextSection(
+    "PROFESSIONAL SUMMARY",
+    professionalSummaryNeedsReview(structured.summary)
+      ? "Professional summary needs review before export."
+      : structured.summary,
+  );
 
   if (structured.skills.length > 0 || preserveEmptySections) {
     lines.push("", "CORE SKILLS", uniqueStrings(structured.skills).join(" | "));
@@ -4801,6 +4925,19 @@ function isTransientSessionError(error: unknown) {
   return /jwt issued at future|failed to fetch|fetch failed|network|session|auth/i.test(message);
 }
 
+function sourceBucketLineCount(value: string) {
+  return value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).length;
+}
+
+function sourceBucketPreview(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 8)
+    .join("\n");
+}
+
 export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: HomepageMetrics }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -4821,6 +4958,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   const [isTailoring, setIsTailoring] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedSourceFile[]>([]);
   const [previewSourceFileId, setPreviewSourceFileId] = useState("");
+  const [showSourceReview, setShowSourceReview] = useState(false);
   const [savedVersions, setSavedVersions] = useState<SavedResumeVersion[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState("");
   const [compareVersionIds, setCompareVersionIds] = useState<string[]>([]);
@@ -4858,8 +4996,13 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   const [editableResumeSession, setEditableResumeSession] = useState<EditableResumeSession | null>(null);
   const feedbackTimers = useRef<Record<string, number>>({});
   const persistEditableResumeDraft = useCallback(
-    (draft: EditableResumeDraft, resumeText: string) => {
-      setEditableResumeSession({ draft, resumeText });
+    (
+      draft: EditableResumeDraft,
+      resumeText: string,
+      manualOverrides: string[] = [],
+      lockedFields: string[] = [],
+    ) => {
+      setEditableResumeSession({ draft, resumeText, manualOverrides, lockedFields });
     },
     [],
   );
@@ -4916,6 +5059,30 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     .filter((text): text is string => Boolean(text))
     .join("\n\n");
   const hasExtractedSourceText = extractedSourceTextForPreview.trim().length > 0;
+  const sourceMaterialsIntelligence = useMemo(() => {
+    const buckets = separateResumeInputs({
+      sourceResumeText: masterResume,
+      uploadedSourceText: extractedSourceTextForPreview,
+      explicitJobDescription: jobDescription,
+      targetRole,
+    });
+
+    return {
+      buckets,
+      counts: {
+        facts: sourceBucketLineCount(buckets.candidateResumeFacts),
+        instructions: sourceBucketLineCount(buckets.userResumeInstructions),
+        jobDescription: sourceBucketLineCount(buckets.targetJobDescription),
+        noise: sourceBucketLineCount(buckets.ignoreNoise),
+      },
+      previews: {
+        facts: sourceBucketPreview(buckets.candidateResumeFacts),
+        instructions: sourceBucketPreview(buckets.userResumeInstructions),
+        jobDescription: sourceBucketPreview(buckets.targetJobDescription),
+        noise: sourceBucketPreview(buckets.ignoreNoise),
+      },
+    };
+  }, [extractedSourceTextForPreview, jobDescription, masterResume, targetRole]);
   const premiumPreviewResult = useMemo(
     () => buildTailoredResume(sampleResume, sampleJob, "Product Manager"),
     [],
@@ -4996,9 +5163,11 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       uploadedFiles,
       aiSettings,
       personalBranding,
+      editableResumeSession,
     };
   }, [
     aiSettings,
+    editableResumeSession,
     industryTarget,
     jobDescription,
     masterResume,
@@ -5158,6 +5327,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       ),
     );
     setUploadedFiles(state.uploadedFiles ?? []);
+    setEditableResumeSession(state.editableResumeSession ?? null);
   }, []);
 
   const starterSavedState = useCallback(
@@ -5179,6 +5349,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         phone: "(949) 555-0142",
         location: "Irvine, CA",
       },
+      editableResumeSession: null,
     }),
     [],
   );
@@ -5190,6 +5361,22 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     }),
     [starterSavedState],
   );
+
+  const loadLocalSavedState = useCallback((): Partial<CloudResumeContent> | null => {
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      if (!saved) return null;
+      const parsed = JSON.parse(saved) as Partial<CloudResumeContent>;
+      if (containsRestrictedSeedData(parsed)) {
+        window.localStorage.removeItem(storageKey);
+        return null;
+      }
+      return parsed;
+    } catch {
+      window.localStorage.removeItem(storageKey);
+      return null;
+    }
+  }, []);
 
   const applyCloudContent = useCallback((content: CloudResumeContent) => {
     if (containsRestrictedSeedData(content)) {
@@ -5220,21 +5407,12 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 
     window.setTimeout(() => {
       try {
-        if (authUser) {
-          setHydrated(true);
-          return;
-        }
-
-        const saved = window.localStorage.getItem(storageKey);
+        const saved = loadLocalSavedState();
 
         if (saved) {
-          const parsed = JSON.parse(saved) as Partial<SavedState>;
-          if (containsRestrictedSeedData(parsed)) {
-            window.localStorage.removeItem(storageKey);
-            applySavedState(starterSavedState());
-          } else {
-            applySavedState(parsed);
-          }
+          applySavedState(saved);
+        } else if (!authUser) {
+          applySavedState(starterSavedState());
         }
 
         const savedVersionData = window.localStorage.getItem(versionStorageKey);
@@ -5266,7 +5444,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         setHydrated(true);
       }
     }, 0);
-  }, [applySavedState, authLoaded, authUser, starterSavedState]);
+  }, [applySavedState, authLoaded, authUser, loadLocalSavedState, starterSavedState]);
 
   useEffect(() => {
     if (!authLoaded) {
@@ -5291,12 +5469,9 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       setSelectedVersionId("");
       setCompareVersionIds([]);
       setPreviewSourceFileId("");
-      setUploadedFiles([]);
-      setResult(null);
       setTailorError("");
-      applySavedState(starterSavedState());
     }, 0);
-  }, [applySavedState, authLoaded, authUser?.id, starterSavedState]);
+  }, [authLoaded, authUser?.id]);
 
   useEffect(() => {
     if (!authLoaded) {
@@ -5477,15 +5652,22 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         applyCloudContent(data.content_json as CloudResumeContent);
         setCloudSaveStatus("Loaded saved workspace.");
       } else {
-        const starterState = starterSavedState();
-        const starterContent = starterCloudContent();
+        const localState = loadLocalSavedState();
+        const fallbackState =
+          localState && Object.keys(localState).length > 0
+            ? ({
+                ...starterSavedState(),
+                ...localState,
+                savedVersions: Array.isArray(localState.savedVersions) ? localState.savedVersions : [],
+              } as CloudResumeContent)
+            : starterCloudContent();
         const starterPayload = {
           user_id: activeUser.id,
-          title: starterState.targetRole,
-          target_role: starterState.targetRole,
-          content_json: starterContent as Json,
-          template: starterState.template,
-          theme: starterState.theme,
+          title: fallbackState.targetRole || "Untitled Resume",
+          target_role: fallbackState.targetRole || null,
+          content_json: fallbackState as Json,
+          template: fallbackState.template || "executive-navy",
+          theme: fallbackState.theme || "deep-navy",
         };
         const starterQuery = data?.id && data.user_id === activeUser.id
           ? activeSupabase
@@ -5516,11 +5698,16 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         skipNextSave.current = true;
         skipNextCloudSave.current = true;
         setCloudResumeId(starterResume.id);
-        applySavedState(starterState);
-        setSavedVersions([]);
+        applyCloudContent(fallbackState);
         setSelectedVersionId("");
         setCompareVersionIds([]);
-        setCloudSaveStatus(data?.id ? "Starter workspace restored." : "Starter workspace created.");
+        setCloudSaveStatus(
+          localState
+            ? "Local workspace synced to your account."
+            : data?.id
+              ? "Starter workspace restored."
+              : "Starter workspace created.",
+        );
       }
 
       setCloudLoadedForUser(activeUser.id);
@@ -5535,7 +5722,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         cloudLoadInFlightUserRef.current = null;
       }
     };
-  }, [applyCloudContent, applySavedState, authLoaded, authUser, cloudLoadedForUser, hydrated, starterCloudContent, starterSavedState, supabase]);
+  }, [applyCloudContent, applySavedState, authLoaded, authUser, cloudLoadedForUser, hydrated, loadLocalSavedState, starterCloudContent, starterSavedState, supabase]);
 
   useEffect(() => {
     if (!hydrated || authUser) {
@@ -5547,14 +5734,28 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       return;
     }
 
-    const savedState = buildSavedState();
-
+    setCloudSaveStatus("Unsaved changes");
     try {
-      window.localStorage.setItem(storageKey, JSON.stringify(savedState));
+      window.localStorage.setItem(storageKey, JSON.stringify(buildSavedState()));
     } catch {
-      // Storage can fail in private mode or when quota is full. User-facing
-      // save/load actions surface their own status messages.
+      // Debounced save below surfaces the user-facing failure state.
     }
+
+    const timeout = window.setTimeout(() => {
+      setCloudSaveStatus("Saving...");
+      const savedState = buildSavedState();
+
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(savedState));
+        setCloudSaveStatus("Saved");
+      } catch {
+        setCloudSaveStatus("Autosave failed. Your current draft is still editable.");
+      }
+    }, 900);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
   }, [
     hydrated,
     jobDescription,
@@ -5588,13 +5789,26 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     const activeSupabase = supabase;
     const activeUser = authUser;
 
+    setCloudSaveStatus("Unsaved changes");
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(buildSavedState()));
+    } catch {
+      // Cloud save remains the durable path for signed-in users.
+    }
+
     const timeout = window.setTimeout(async () => {
-      setCloudSaveStatus("Autosaving...");
+      setCloudSaveStatus("Saving...");
 
       const content = {
         ...buildSavedState(),
         savedVersions,
       } satisfies CloudResumeContent;
+
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(content));
+      } catch {
+        // Cloud save remains the source of truth for signed-in users.
+      }
 
       const payload = {
         user_id: activeUser.id,
@@ -5623,8 +5837,8 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       }
 
       setCloudResumeId(data.id);
-      setCloudSaveStatus("Autosaved to your account.");
-    }, 60000);
+      setCloudSaveStatus("Saved");
+    }, 1200);
 
     return () => {
       window.clearTimeout(timeout);
@@ -5702,6 +5916,28 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       // Usage limits are advisory in local mode.
     }
   }, [hydrated, usageStats]);
+
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+
+    const persistBeforeExit = () => {
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(buildSavedState()));
+      } catch {
+        // The in-memory state remains active for the current session.
+      }
+    };
+
+    window.addEventListener("pagehide", persistBeforeExit);
+    window.addEventListener("beforeunload", persistBeforeExit);
+
+    return () => {
+      window.removeEventListener("pagehide", persistBeforeExit);
+      window.removeEventListener("beforeunload", persistBeforeExit);
+    };
+  }, [buildSavedState, hydrated]);
 
   useEffect(
     () => () => {
@@ -6333,7 +6569,6 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     trackUsage("optimizationCreditsUsed");
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function resetSavedResume() {
     const starterState = starterSavedState();
     skipNextSave.current = true;
@@ -6342,6 +6577,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     setTailorError("");
     setPreviewSourceFileId("");
     setActiveOutput("resume");
+    setCloudSaveStatus("Draft cleared.");
   }
 
   async function handleSourceFiles(files: FileList | null) {
@@ -8357,6 +8593,13 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                 >
                   Templates
                 </button>
+                <button
+                  type="button"
+                  onClick={resetSavedResume}
+                  className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
+                >
+                  Clear draft
+                </button>
                 <details className="relative">
                   <summary className={`${primaryButtonClass} ${buttonSizeMdClass} cursor-pointer list-none`}>
                     {actionFeedback.exportMenu ?? "Export"}
@@ -8585,7 +8828,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                           Source Materials
                         </summary>
                         <p className="mt-2.5 text-xs leading-5 text-slate-500">
-                          Paste a resume or upload supporting material for accurate tailoring.
+                          Paste your resume, notes, or job description here. ISEYA will separate resume facts, instructions, and job details before generating.
                         </p>
                         <textarea
                           value={masterResume}
@@ -8593,6 +8836,61 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                           className="mt-2.5 min-h-72 w-full resize-y rounded-md border border-slate-300 bg-white p-2.5 text-xs leading-5 text-slate-700 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
                           placeholder="Paste your source resume here..."
                         />
+                        <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--iseya-gold)]">
+                                Source Intelligence
+                              </p>
+                              <p className="mt-1 text-xs leading-5 text-slate-500">
+                                Review how pasted material is separated before resume generation.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setShowSourceReview((current) => !current)}
+                              className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
+                              aria-expanded={showSourceReview}
+                            >
+                              Review extracted source
+                            </button>
+                          </div>
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                            {[
+                              ["Resume Facts detected", sourceMaterialsIntelligence.counts.facts],
+                              ["Instructions detected", sourceMaterialsIntelligence.counts.instructions],
+                              ["Job Description detected", sourceMaterialsIntelligence.counts.jobDescription],
+                              ["Noise removed", sourceMaterialsIntelligence.counts.noise],
+                            ].map(([label, count]) => (
+                              <div key={label} className="rounded-md border border-slate-200 bg-slate-50/70 p-2.5">
+                                <p className="text-[11px] font-semibold text-slate-500">{label}</p>
+                                <p className="mt-1 text-lg font-bold text-[var(--iseya-navy)]">{count}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {sourceMaterialsIntelligence.buckets.needsReview ? (
+                            <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                              Some source content needs review before generating a clean resume.
+                            </p>
+                          ) : null}
+                          {showSourceReview ? (
+                            <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                              {[
+                                ["Resume Facts", sourceMaterialsIntelligence.previews.facts],
+                                ["User Instructions", sourceMaterialsIntelligence.previews.instructions],
+                                ["Target Job Description", sourceMaterialsIntelligence.previews.jobDescription],
+                                ["Ignore / Noise", sourceMaterialsIntelligence.previews.noise],
+                              ].map(([label, preview]) => (
+                                <div key={label} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                                  <p className="text-xs font-semibold text-[var(--iseya-navy)]">{label}</p>
+                                  <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap text-[11px] leading-5 text-slate-600">
+                                    {preview || "Nothing detected yet."}
+                                  </pre>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
                         <label htmlFor="workspace-source-file-upload" className={`${secondaryButtonClass} ${buttonSizeSmClass} mt-2.5 cursor-pointer`}>
                           Upload Files
                         </label>
@@ -9514,14 +9812,34 @@ function pipeSeparatedParts(value: string) {
 
 function editableProjectEntries(items: string[]): EditableProjectEntry[] {
   return items.map((item, index) => {
-    const [name = "", ...details] = pipeSeparatedParts(item);
+    const [name = "", context = "", tools = "", ...details] = pipeSeparatedParts(item);
+    const link = details.find((detail) => /^https?:\/\//i.test(detail)) ?? "";
 
     return {
       id: `project-${index}`,
       name,
-      context: "",
-      tools: "",
-      details: details.join(" | "),
+      context,
+      tools,
+      link,
+      details: details.filter((detail) => detail !== link).join(" | "),
+    };
+  });
+}
+
+function editablePublicationEntries(items: string[]): EditablePublicationEntry[] {
+  return items.map((item, index) => {
+    const [title = "", description = "", linkOrPublisher = "", publisherOrDate = "", date = ""] =
+      pipeSeparatedParts(item);
+    const link = /^https?:\/\//i.test(linkOrPublisher) ? linkOrPublisher : "";
+    const publisher = link ? publisherOrDate : linkOrPublisher;
+
+    return {
+      id: `publication-${index}`,
+      title,
+      description,
+      link,
+      publisher,
+      date: link ? date : publisherOrDate,
     };
   });
 }
@@ -9548,7 +9866,7 @@ function editableEducationEntries(items: string[]): EditableEducationEntry[] {
 }
 
 function editableCertificationEntries(items: string[]): EditableCertificationEntry[] {
-  return items.map((item, index) => {
+  return items.filter(isCredentialCertificationText).map((item, index) => {
     const segments = item.split(",").map((part) => part.trim()).filter(Boolean);
     const possibleYear = segments.at(-1) ?? "";
     const year = /\b(?:19|20)\d{2}\b/.test(possibleYear) ? segments.pop() ?? "" : "";
@@ -9562,10 +9880,65 @@ function editableCertificationEntries(items: string[]): EditableCertificationEnt
   });
 }
 
+function professionalSummaryNeedsReview(value: string) {
+  const cleaned = cleanEditorText(value);
+  if (!cleaned) return false;
+  const lineCount = cleaned.split(/\r?\n/).filter((line) => line.trim()).length;
+  const wordCount = cleaned.split(/\s+/).filter(Boolean).length;
+  return (
+    lineCount > 5 ||
+    wordCount < 25 ||
+    isInstructionArtifactText(cleaned) ||
+    /\b(accuracy|description|field|full|job|known for date|placeholder|dummy|start month|target positioning)\b/i.test(cleaned)
+  );
+}
+
+function cleanupEditableResumeDraft(draft: EditableResumeDraft): EditableResumeDraft {
+  const projectNameCounts = new Map<string, number>();
+  const projects = draft.projects
+    .map((project) => {
+      const name = /implementation reporting system/i.test(project.name) ? "" : project.name;
+      const key = name.toLowerCase().trim();
+      if (key) {
+        projectNameCounts.set(key, (projectNameCounts.get(key) ?? 0) + 1);
+      }
+      return {
+        ...project,
+        name,
+        details: project.details
+          .split(/\r?\n/)
+          .filter((item) => !isInstructionArtifactText(item) && !isSourceArtifactHeading(item))
+          .join("\n"),
+      };
+    })
+    .filter((project) => {
+      const key = project.name.toLowerCase().trim();
+      return !key || (projectNameCounts.get(key) ?? 0) < 3;
+    });
+
+  return {
+    ...draft,
+    summaryText: professionalSummaryNeedsReview(draft.summaryText) ? "" : draft.summaryText,
+    skillsText: splitResumeList(draft.skillsText)
+      .filter((skill) => !isInstructionArtifactText(skill))
+      .join(" | "),
+    projects,
+    certifications: draft.certifications.filter((certification) =>
+      isCredentialCertificationText(
+        [certification.name, certification.issuer, certification.year].filter(Boolean).join(", "),
+      ),
+    ),
+    leadership: draft.leadership.filter((item) => !parseExperienceLine(item).company && !isInstructionArtifactText(item)),
+    awards: draft.awards.filter((item) => !isInstructionArtifactText(item)),
+    volunteerExperience: draft.volunteerExperience.filter((item) => !isInstructionArtifactText(item)),
+    additionalSections: draft.additionalSections.filter((section) => !isInstructionArtifactText(section.heading)),
+  };
+}
+
 function editableResumeDraftFromText(resumeText: string): EditableResumeDraft {
   const structured = structuredResumeFromText(resumeText);
 
-  return {
+  return cleanupEditableResumeDraft({
     header: structured.header,
     summaryText: structured.summary,
     skillsText: structured.skills.join(" | "),
@@ -9576,14 +9949,14 @@ function editableResumeDraftFromText(resumeText: string): EditableResumeDraft {
     projects: editableProjectEntries(structured.projects),
     education: editableEducationEntries(structured.education),
     certifications: editableCertificationEntries(structured.certifications),
-    publicationsText: structured.publications.join("\n"),
+    publications: editablePublicationEntries(structured.publications),
     leadership: structured.leadership,
     awards: structured.awards,
     volunteerExperience: structured.volunteerExperience,
     toolsText: structured.tools.join(" | "),
     additionalSections: structured.additionalSections,
     unmatchedSections: structured.unmatchedSections,
-  };
+  });
 }
 
 function structuredResumeFromEditableDraft(draft: EditableResumeDraft): StructuredResume {
@@ -9602,8 +9975,9 @@ function structuredResumeFromEditableDraft(draft: EditableResumeDraft): Structur
       bullets: entry.bulletsText.split(/\r?\n/).filter((bullet) => bullet.trim().length > 0),
     })),
     projects: draft.projects
+      .filter((project) => project.name.trim().length > 0)
       .map((project) =>
-        [project.name, project.context, project.tools, project.details.replace(/\r?\n/g, " / ")]
+        [project.name, project.context, project.tools, project.link, project.details.replace(/\r?\n/g, " / ")]
           .filter((value) => value.trim().length > 0)
           .join(" | "),
       )
@@ -9627,8 +10001,21 @@ function structuredResumeFromEditableDraft(draft: EditableResumeDraft): Structur
           .filter((value) => value.trim().length > 0)
           .join(", "),
       )
+      .filter(isCredentialCertificationText)
       .filter(Boolean),
-    publications: draft.publicationsText.split(/\r?\n/).filter((item) => item.trim().length > 0),
+    publications: draft.publications
+      .map((publication) =>
+        [
+          publication.title,
+          publication.description.replace(/\r?\n/g, " "),
+          publication.link,
+          publication.publisher,
+          publication.date,
+        ]
+          .filter((value) => value.trim().length > 0)
+          .join(" | "),
+      )
+      .filter(Boolean),
     leadership: draft.leadership,
     awards: draft.awards,
     volunteerExperience: draft.volunteerExperience,
@@ -9642,6 +10029,39 @@ function createEditableExperience(): EditableExperienceEntry {
   return {
     ...createEmptyExperience(),
     bulletsText: "",
+  };
+}
+
+function lockedPrefixMatch(lockedFields: Set<string>, field: string) {
+  return [...lockedFields].some(
+    (lockedField) => lockedField === field || lockedField.startsWith(`${field}.`),
+  );
+}
+
+function mergeUnlockedResumeDraft(
+  current: EditableResumeDraft,
+  suggestion: EditableResumeDraft,
+  lockedFields: Set<string>,
+) {
+  return {
+    ...current,
+    summaryText: lockedPrefixMatch(lockedFields, "summary") ? current.summaryText : suggestion.summaryText,
+    skillsText: lockedPrefixMatch(lockedFields, "skills") ? current.skillsText : suggestion.skillsText,
+    experience: lockedPrefixMatch(lockedFields, "experience") ? current.experience : suggestion.experience,
+    projects: lockedPrefixMatch(lockedFields, "projects") ? current.projects : suggestion.projects,
+    education: lockedPrefixMatch(lockedFields, "education") ? current.education : suggestion.education,
+    certifications: lockedPrefixMatch(lockedFields, "certifications") ? current.certifications : suggestion.certifications,
+    publications: lockedPrefixMatch(lockedFields, "publications") ? current.publications : suggestion.publications,
+    leadership: lockedPrefixMatch(lockedFields, "leadership") ? current.leadership : suggestion.leadership,
+    awards: lockedPrefixMatch(lockedFields, "awards") ? current.awards : suggestion.awards,
+    volunteerExperience: lockedPrefixMatch(lockedFields, "volunteerExperience")
+      ? current.volunteerExperience
+      : suggestion.volunteerExperience,
+    toolsText: lockedPrefixMatch(lockedFields, "tools") ? current.toolsText : suggestion.toolsText,
+    additionalSections: lockedPrefixMatch(lockedFields, "additionalSections")
+      ? current.additionalSections
+      : suggestion.additionalSections,
+    unmatchedSections: current.unmatchedSections,
   };
 }
 
@@ -9677,7 +10097,12 @@ function ModularResumeEditor({
   onProfileImage: (file: File | undefined) => void;
   onResumeTextChange: (value: string) => void;
   persistedDraft: EditableResumeSession | null;
-  onDraftPersist: (draft: EditableResumeDraft, resumeText: string) => void;
+  onDraftPersist: (
+    draft: EditableResumeDraft,
+    resumeText: string,
+    manualOverrides?: string[],
+    lockedFields?: string[],
+  ) => void;
   canUseAiOptimization: boolean;
   onUpgradeRequired: () => boolean;
   onOptimizationUsed: () => void;
@@ -9685,11 +10110,21 @@ function ModularResumeEditor({
   const [optimizingKey, setOptimizingKey] = useState("");
   const [optimizationStatus, setOptimizationStatus] = useState("");
   const [editableResume, setEditableResume] = useState<EditableResumeDraft>(() =>
-    persistedDraft?.resumeText === resumeText
-      ? persistedDraft.draft
-      : editableResumeDraftFromText(resumeText),
+    persistedDraft?.draft ?? editableResumeDraftFromText(resumeText),
   );
+  const initialManualOverrides = useMemo(
+    () => new Set(persistedDraft?.manualOverrides ?? []),
+    [persistedDraft?.manualOverrides],
+  );
+  const initialLockedFields = useMemo(
+    () => new Set(persistedDraft?.lockedFields ?? persistedDraft?.manualOverrides ?? []),
+    [persistedDraft?.lockedFields, persistedDraft?.manualOverrides],
+  );
+  const [, setManualOverrides] = useState<Set<string>>(initialManualOverrides);
+  const [, setLockedFields] = useState<Set<string>>(initialLockedFields);
   const editableResumeRef = useRef(editableResume);
+  const manualOverridesRef = useRef(initialManualOverrides);
+  const lockedFieldsRef = useRef(initialLockedFields);
   const lastEmittedResumeTextRef = useRef(resumeText);
   const lastLoadedResumeTextRef = useRef(resumeText);
   const resetEditableResume = useMemo(
@@ -9710,18 +10145,51 @@ function ModularResumeEditor({
       return;
     }
 
-    lastLoadedResumeTextRef.current = resumeText;
     const nextDraft = editableResumeDraftFromText(resumeText);
+    const nextDraftToLoad =
+      lockedFieldsRef.current.size > 0
+        ? mergeUnlockedResumeDraft(editableResumeRef.current, nextDraft, lockedFieldsRef.current)
+        : nextDraft;
+    lastLoadedResumeTextRef.current = resumeText;
     const timer = window.setTimeout(() => {
-      editableResumeRef.current = nextDraft;
-      setEditableResume(nextDraft);
-      onDraftPersist(nextDraft, resumeText);
+      editableResumeRef.current = nextDraftToLoad;
+      setEditableResume(nextDraftToLoad);
+      const output = serializeStructuredResume(
+        structuredResumeFromEditableDraft(nextDraftToLoad),
+        personalBranding,
+        { preserveEmptySections: true },
+      );
+      onDraftPersist(
+        nextDraftToLoad,
+        output,
+        [...manualOverridesRef.current],
+        [...lockedFieldsRef.current],
+      );
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [onDraftPersist, resumeText]);
+  }, [onDraftPersist, personalBranding, resumeText]);
 
-  function commitDraft(next: EditableResumeDraft) {
+  function persistDraftSession(next: EditableResumeDraft, output: string) {
+    onDraftPersist(next, output, [...manualOverridesRef.current], [...lockedFieldsRef.current]);
+  }
+
+  function lockManualField(path: string) {
+    if (!path) return;
+    const nextManual = new Set(manualOverridesRef.current);
+    const nextLocked = new Set(lockedFieldsRef.current);
+    nextManual.add(path);
+    nextLocked.add(path);
+    manualOverridesRef.current = nextManual;
+    lockedFieldsRef.current = nextLocked;
+    setManualOverrides(nextManual);
+    setLockedFields(nextLocked);
+  }
+
+  function commitDraft(next: EditableResumeDraft, manualPath = "") {
+    if (manualPath) {
+      lockManualField(manualPath);
+    }
     editableResumeRef.current = next;
     setEditableResume(next);
     const output = serializeStructuredResume(
@@ -9731,25 +10199,34 @@ function ModularResumeEditor({
     );
     lastEmittedResumeTextRef.current = output;
     lastLoadedResumeTextRef.current = output;
-    onDraftPersist(next, output);
+    persistDraftSession(next, output);
     onResumeTextChange(output);
   }
 
-  function commitStructured(next: StructuredResume) {
+  function commitStructured(next: StructuredResume, options: { respectLockedFields?: boolean } = {}) {
     const output = serializeStructuredResume(next, personalBranding, {
       preserveEmptySections: true,
     });
-    const nextDraft = editableResumeDraftFromText(output);
-    lastEmittedResumeTextRef.current = output;
-    lastLoadedResumeTextRef.current = output;
+    const suggestedDraft = editableResumeDraftFromText(output);
+    const nextDraft =
+      options.respectLockedFields && lockedFieldsRef.current.size > 0
+        ? mergeUnlockedResumeDraft(editableResumeRef.current, suggestedDraft, lockedFieldsRef.current)
+        : suggestedDraft;
+    const nextOutput = serializeStructuredResume(
+      structuredResumeFromEditableDraft(nextDraft),
+      personalBranding,
+      { preserveEmptySections: true },
+    );
+    lastEmittedResumeTextRef.current = nextOutput;
+    lastLoadedResumeTextRef.current = nextOutput;
     editableResumeRef.current = nextDraft;
     setEditableResume(nextDraft);
-    onDraftPersist(nextDraft, output);
-    onResumeTextChange(output);
+    persistDraftSession(nextDraft, nextOutput);
+    onResumeTextChange(nextOutput);
   }
 
-  function patchDraft(patch: Partial<EditableResumeDraft>) {
-    commitDraft({ ...editableResumeRef.current, ...patch });
+  function patchDraft(patch: Partial<EditableResumeDraft>, manualPath = "") {
+    commitDraft({ ...editableResumeRef.current, ...patch }, manualPath);
   }
 
   async function optimizeWithBackend({
@@ -9857,7 +10334,7 @@ function ModularResumeEditor({
     if (field === "projects") next.projects = resetEditableResume.projects;
     if (field === "education") next.education = resetEditableResume.education;
     if (field === "certifications") next.certifications = resetEditableResume.certifications;
-    if (field === "publications") next.publicationsText = resetEditableResume.publicationsText;
+    if (field === "publications") next.publications = resetEditableResume.publications;
     if (field === "tools") next.toolsText = resetEditableResume.toolsText;
 
     commitDraft(next);
@@ -9895,7 +10372,9 @@ function ModularResumeEditor({
     action: AiOptimizationAction,
   ) {
     const sourceText =
-      field === "publications" ? editableResume.publicationsText : editableResume.toolsText;
+      field === "publications"
+        ? structuredResumeFromEditableDraft(editableResume).publications.join("\n")
+        : editableResume.toolsText;
     const optimized = await optimizeWithBackend({
       key: `${field}-${action}`,
       action,
@@ -9906,7 +10385,7 @@ function ModularResumeEditor({
     if (optimized) {
       commitDraft(
         field === "publications"
-          ? { ...editableResumeRef.current, publicationsText: optimized }
+          ? { ...editableResumeRef.current, publications: editablePublicationEntries(optimized.split(/\r?\n/).filter(Boolean)) }
           : { ...editableResumeRef.current, toolsText: optimized },
       );
     }
@@ -10049,7 +10528,7 @@ function ModularResumeEditor({
       experience: current.experience.map((entry, entryIndex) =>
         entryIndex === index ? { ...entry, ...patch } : entry,
       ),
-    });
+    }, `experience.${index}`);
   }
 
   function removeExperience(index: number) {
@@ -10057,7 +10536,7 @@ function ModularResumeEditor({
     commitDraft({
       ...current,
       experience: current.experience.filter((_, entryIndex) => entryIndex !== index),
-    });
+    }, "experience");
   }
 
   function updateAdditionalSection(
@@ -10070,7 +10549,7 @@ function ModularResumeEditor({
       additionalSections: current.additionalSections.map((section, index) =>
         index === sectionIndex ? { ...section, ...patch } : section,
       ),
-    });
+    }, `additionalSections.${sectionIndex}`);
   }
 
   return (
@@ -10095,7 +10574,10 @@ function ModularResumeEditor({
               });
 
               if (optimized) {
-                commitStructured(structuredResumeFromText(optimized));
+                commitStructured(structuredResumeFromText(optimized), { respectLockedFields: true });
+                if (lockedFieldsRef.current.size > 0) {
+                  setOptimizationStatus("Unlocked fields were optimized. Manual edits stayed locked; use section optimization to replace a locked section.");
+                }
               }
             }}
           >
@@ -10154,7 +10636,7 @@ function ModularResumeEditor({
         <textarea
           value={editableResume.summaryText}
           onChange={(event) =>
-            patchDraft({ summaryText: event.target.value })
+            patchDraft({ summaryText: event.target.value }, "summary")
           }
           className="min-h-32 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
         />
@@ -10170,7 +10652,7 @@ function ModularResumeEditor({
         <textarea
           value={editableResume.skillsText}
           onChange={(event) =>
-            patchDraft({ skillsText: event.target.value })
+            patchDraft({ skillsText: event.target.value }, "skills")
           }
           className="min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
         />
@@ -10195,7 +10677,7 @@ function ModularResumeEditor({
 	              onClick={() =>
 	                patchDraft({
 	                  experience: [...editableResume.experience, createEditableExperience()],
-	                })
+	                }, "experience")
 	              }
 	              className={`${primaryButtonClass} ${buttonSizeSmClass}`}
 	            >
@@ -10297,27 +10779,33 @@ function ModularResumeEditor({
 
       <EditableProjectsSection
         projects={editableResume.projects}
-        onChange={(projects) => patchDraft({ projects })}
+        onChange={(projects) => patchDraft({ projects }, "projects")}
         onReset={() => resetSection("projects")}
         onAiAction={(action) => applyEntryListAiAction("projects", "Projects", action)}
         isOptimizing={optimizingKey.startsWith("projects-")}
       />
       <EditableEducationSection
         education={editableResume.education}
-        onChange={(education) => patchDraft({ education })}
+        onChange={(education) => patchDraft({ education }, "education")}
         onReset={() => resetSection("education")}
         onAiAction={(action) => applyEntryListAiAction("education", "Education", action)}
         isOptimizing={optimizingKey.startsWith("education-")}
       />
       <EditableCertificationsSection
         certifications={editableResume.certifications}
-        onChange={(certifications) => patchDraft({ certifications })}
+        onChange={(certifications) => patchDraft({ certifications }, "certifications")}
         onReset={() => resetSection("certifications")}
         onAiAction={(action) => applyEntryListAiAction("certifications", "Certifications", action)}
         isOptimizing={optimizingKey.startsWith("certifications-")}
       />
-      <ModularListSection title="Publications / Research" value={editableResume.publicationsText} onChange={(value) => patchDraft({ publicationsText: value })} onOptimize={() => applyListAiAction("publications", "Publications / Research", "Optimize this section")} onReset={() => resetSection("publications")} onAiAction={(action) => applyListAiAction("publications", "Publications / Research", action)} isOptimizing={optimizingKey.startsWith("publications-")} />
-      <ModularListSection title="Tools / Technologies" value={editableResume.toolsText} onChange={(value) => patchDraft({ toolsText: value })} onOptimize={() => applyListAiAction("tools", "Tools / Technologies", "Optimize this section")} onReset={() => resetSection("tools")} onAiAction={(action) => applyListAiAction("tools", "Tools / Technologies", action)} isOptimizing={optimizingKey.startsWith("tools-")} />
+      <EditablePublicationsSection
+        publications={editableResume.publications}
+        onChange={(publications) => patchDraft({ publications }, "publications")}
+        onReset={() => resetSection("publications")}
+        onAiAction={(action) => applyListAiAction("publications", "Publications / Research", action)}
+        isOptimizing={optimizingKey.startsWith("publications-")}
+      />
+      <ModularListSection title="Tools / Technologies" value={editableResume.toolsText} onChange={(value) => patchDraft({ toolsText: value }, "tools")} onOptimize={() => applyListAiAction("tools", "Tools / Technologies", "Optimize this section")} onReset={() => resetSection("tools")} onAiAction={(action) => applyListAiAction("tools", "Tools / Technologies", action)} isOptimizing={optimizingKey.startsWith("tools-")} />
 
       {unmatchedReviewSections.length > 0 ? (
         <ModularSection title="Review unmatched content">
@@ -10582,6 +11070,7 @@ function EditableProjectsSection({
               <ContactField label="Project Name" value={project.name} onChange={(value) => updateEntry(index, { name: value })} />
               <ContactField label="Role / Context optional" value={project.context} onChange={(value) => updateEntry(index, { context: value })} />
               <ContactField label="Tools optional" value={project.tools} onChange={(value) => updateEntry(index, { tools: value })} />
+              <ContactField label="Link optional" value={project.link} onChange={(value) => updateEntry(index, { link: value })} />
             </div>
             <label className="mt-3 block text-xs font-semibold text-slate-700">
               Description / Bullets
@@ -10597,11 +11086,83 @@ function EditableProjectsSection({
           doneLabel="Added"
           onClick={() => onChange([
             ...projects,
-            { id: editorEntryId("project"), name: "", context: "", tools: "", details: "" },
+            { id: editorEntryId("project"), name: "", context: "", tools: "", link: "", details: "" },
           ])}
           className={`${primaryButtonClass} ${buttonSizeSmClass}`}
         >
           Add Project
+        </FeedbackButton>
+      </div>
+    </ModularSection>
+  );
+}
+
+function EditablePublicationsSection({
+  publications,
+  onChange,
+  onReset,
+  onAiAction,
+  isOptimizing,
+}: {
+  publications: EditablePublicationEntry[];
+  onChange: (publications: EditablePublicationEntry[]) => void;
+  onReset: () => void;
+  onAiAction: (action: AiOptimizationAction) => void;
+  isOptimizing: boolean;
+}) {
+  function updateEntry(index: number, patch: Partial<EditablePublicationEntry>) {
+    onChange(publications.map((entry, entryIndex) => (
+      entryIndex === index ? { ...entry, ...patch } : entry
+    )));
+  }
+
+  return (
+    <ModularSection
+      title="Publications / Research"
+      onOptimize={() => onAiAction("Optimize this section")}
+      onReset={onReset}
+      onAiAction={onAiAction}
+      isOptimizing={isOptimizing}
+    >
+      <div className="space-y-3">
+        {publications.map((publication, index) => (
+          <div key={publication.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                Publication {index + 1}
+              </p>
+              <EditorActionButton
+                variant="danger"
+                onClick={() => onChange(publications.filter((_, entryIndex) => entryIndex !== index))}
+              >
+                Remove Publication
+              </EditorActionButton>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <ContactField label="Title" value={publication.title} onChange={(value) => updateEntry(index, { title: value })} />
+              <ContactField label="Link" value={publication.link} onChange={(value) => updateEntry(index, { link: value })} />
+              <ContactField label="Publisher optional" value={publication.publisher} onChange={(value) => updateEntry(index, { publisher: value })} />
+              <ContactField label="Date optional" value={publication.date} onChange={(value) => updateEntry(index, { date: value })} />
+            </div>
+            <label className="mt-3 block text-xs font-semibold text-slate-700">
+              Description
+              <textarea
+                value={publication.description}
+                onChange={(event) => updateEntry(index, { description: event.target.value })}
+                className="mt-2 min-h-24 w-full resize-y rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+              />
+            </label>
+          </div>
+        ))}
+        <FeedbackButton
+          doneLabel="Added"
+          onClick={() => onChange([
+            ...publications,
+            { id: editorEntryId("publication"), title: "", description: "", link: "", publisher: "", date: "" },
+          ])}
+          className={`${primaryButtonClass} ${buttonSizeSmClass}`}
+        >
+          Add Publication
         </FeedbackButton>
       </div>
     </ModularSection>

@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check:user-isolation": "node scripts/check-user-isolation.mjs"
+    "check:user-isolation": "node scripts/check-user-isolation.mjs",
+    "check:resume-contamination": "node scripts/check-resume-contamination.mjs",
+    "check:resume-pipeline": "node scripts/check-resume-structured-pipeline.cjs",
+    "check:resume-persistence": "node scripts/check-resume-persistence.cjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

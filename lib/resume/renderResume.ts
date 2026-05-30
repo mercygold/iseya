@@ -6,7 +6,7 @@ import type {
   ResumeExperience,
   ResumeProject,
 } from "./types";
-import { validateResume } from "./validateResume";
+import { isInstructionArtifactText, validateResume } from "./validateResume";
 
 function projectTitle(projects: ResumeProject[]) {
   const text = JSON.stringify(projects).toLowerCase();
@@ -133,6 +133,18 @@ export function renderResume(resume: CanonicalResume): RenderResumeState {
   const validation = validateResume(resume);
   const clean = validation.resume;
   const sections: RenderResumeSection[] = [];
+  const qualityBlocked = validation.issues.some(
+    (issue) => issue.code === "resume_quality_block",
+  );
+
+  if (qualityBlocked) {
+    return {
+      header: clean.header,
+      sections: [],
+      plainText: "We need a cleaner source resume or manual review before generating.",
+      validationIssues: validation.issues,
+    };
+  }
 
   if (clean.professionalSummary) {
     sections.push(section("professional-summary", "Professional Summary", "summary", clean.professionalSummary));
@@ -173,10 +185,26 @@ export function renderResume(resume: CanonicalResume): RenderResumeState {
     }
   }
 
+  const plainText = resumeToPlainText(clean);
+  const safePlainTextLines = plainText
+    .split(/\r?\n/)
+    .filter((line) => !isInstructionArtifactText(line));
+  const safePlainText = safePlainTextLines.join("\n").trim();
+  const validationIssues =
+    safePlainText === plainText
+      ? validation.issues
+      : [
+          ...validation.issues,
+          {
+            code: "render_contamination_removed",
+            message: "Instruction-like text was removed before rendering.",
+          },
+        ];
+
   return {
     header: clean.header,
     sections,
-    plainText: resumeToPlainText(clean),
-    validationIssues: validation.issues,
+    plainText: safePlainText,
+    validationIssues,
   };
 }

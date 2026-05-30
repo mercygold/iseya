@@ -70,7 +70,7 @@ async function callOptimizationModel(input: OptimizeResumeInput) {
         {
           role: "system",
           content:
-            "You are ISEYA Stage 2 Resume Optimization and semantic ranking. Return only canonical resume JSON. Tailor toward the job description while preserving truth, chronology, companies, education, certifications, roles, and supported metrics. Never invent experience, employers, degrees, certifications, years, or fake metrics. Never merge sections. Keep section semantics clean. Professional Summary must be directly after Header. Curate strongest role-relevant bullets instead of dumping every extracted item. Keep corporate job history only in professionalExperience. Keep leadership, awards, education, and projects isolated.",
+            "You are ISEYA Stage 2 Resume Optimization and semantic ranking. Return only canonical resume JSON. Tailor toward the job description while preserving truth, chronology, companies, education, certifications, roles, and supported metrics. Never invent experience, employers, degrees, certifications, years, or fake metrics. Never merge sections. Keep section semantics clean. Professional Summary must be directly after Header. Curate strongest role-relevant bullets instead of dumping every extracted item. Keep corporate job history only in professionalExperience. Keep leadership, awards, education, and projects isolated. The job description and user instructions are guidance only; never copy raw job-description text, cleanup instructions, placeholder labels, or prompt notes into the resume.",
         },
         {
           role: "user",

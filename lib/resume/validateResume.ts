@@ -12,25 +12,67 @@ import type {
 
 const artifactPattern =
   /\b(source resume excerpt|supporting source material|tailoring notes|parser|debug|ocr artifact|page \d+ of \d+)\b/i;
+const instructionArtifactPattern =
+  /\b(full job description|target positioning|start month year|degree or certificate|school or organization|add a short project summary|keep the resume|keep resume senior|do not\b|important resume cleanup instructions|i am tailoring my resume|placeholder|professional summary repeated|professional experience\.|target role|job description|resume cleanup instructions|cleanup instructions|resume notes|user instructions|paste your|replace this|remove this|if space allows|if space is limited|use implementation language|reconcile inconsistent dates|prioritize|make it sound)\b/i;
 const headingOnlyPattern =
   /^(profile|summary|professional summary|skills|core skills|experience|professional experience|projects|education|certifications|leadership|awards|publications)$/i;
 const dateOnlyPattern =
   /^(present|current|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}|\d{4})(?:\s*[-–]\s*(?:present|current|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}|\d{4}))?$/i;
 const educationSignalPattern =
-  /\b(university|college|school|institute|academy|bachelor|master|mba|phd|doctor|degree|certification)\b/i;
+  /\b(university|college|school|institute|academy|bachelor|master|mba|phd|doctor|degree)\b/i;
 const experienceSignalPattern =
   /\b(manager|director|analyst|engineer|consultant|specialist|coordinator|lead|owner|associate|intern|developer|designer|officer|company|llc|inc|ltd|corp)\b/i;
+const companySignalPattern =
+  /\b(llc|inc\.?|ltd\.?|corp\.?|corporation|company|group|partners|solutions|systems|technologies|technology|consulting|university|bank|health|labs|agency|foods|fintech|platform)\b/i;
 const leadershipSignalPattern =
   /\b(mentor|representative|president|chair|volunteer|community|advisor|speaker|ambassador|csr|student leader)\b/i;
+const volunteerSignalPattern =
+  /\b(volunteer|volunteering|mentor|mentoring|coach|coaching|community service|unpaid service|nonprofit|non-profit|training)\b/i;
 const projectSignalPattern =
   /\b(project|platform|application|app|implementation|launch|prototype|research|study|model|dashboard|system|automation|workflow|tool|product)\b/i;
 const awardSignalPattern =
-  /\b(award|honor|recognition|scholarship|winner|finalist|distinction|dean's list|excellence)\b/i;
+  /\b(award|honou?r|recognition|scholarship|winner|finalist|distinction|dean's list|excellence|productivity|\d+(?:st|nd|rd|th)\s+(?:position|place)|competition placement)\b/i;
+const certificationSignalPattern =
+  /\b(certified|certification|certificate|license|licensed|credential|course|specialization|professional certificate|scrummaster|scrum master|google project management|deeplearning\.?ai|blockchain council|ai product development|ai ethics)\b/i;
+const certificationRejectPattern =
+  /\b(llc|consulting|manager|product owner|program lead|growth lead|platform|built|led|implemented|shipped|improved|supported|developed|delivered|launched|principal|owner|associate|analyst|coordinator|director)\b/i;
 const enterpriseVerbPattern =
   /\b(led|managed|owned|delivered|launched|implemented|coordinated|directed|built|improved|reduced|increased|optimized|partnered|developed|analyzed|executed|supported|drove)\b/i;
 const metricPattern = /(\$?\d[\d,.]*\+?%?|\b\d+\+?\b)/;
 const summarySignalPattern =
   /\b(years of experience|experienced|professional|specialist|leader|background in|expertise in|track record|skilled in)\b/i;
+const genericSkillRejectSet = new Set([
+  "accuracy",
+  "across",
+  "active",
+  "description",
+  "field",
+  "full",
+  "job",
+  "manage",
+  "national",
+  "onboarding",
+  "platform",
+  "programs",
+  "time",
+  "training",
+  "date",
+]);
+const allowedSingleSkillSet = new Set([
+  "jira",
+  "asana",
+  "supabase",
+  "next.js",
+  "nextjs",
+  "react",
+  "typescript",
+  "sql",
+  "excel",
+]);
+const strongSkillPhrasePattern =
+  /\b(saas implementation|enterprise platform|uat|qa|release readiness|go-live|stakeholder communication|risk|change control|agile|hybrid delivery|llm workflow|ai product|prompt engineering|rag|product design|openai api|implementation management|platform delivery)\b/i;
+const summaryDebrisPattern =
+  /\b(accuracy|description|field|full job|active platform|start month|target positioning|what success looks like|about estream|qualifications|responsibilities)\b/i;
 
 export function emptyCanonicalResume(): CanonicalResume {
   return {
@@ -67,10 +109,41 @@ export function cleanText(value: unknown): string {
 }
 
 function cleanLine(value: unknown): string {
-  return cleanText(value)
+  const cleaned = cleanText(value)
     .replace(/^[-*\u2022]\s*/, "")
     .replace(/\s*[-–]\s*$/g, "")
     .trim();
+
+  return isInstructionArtifactText(cleaned) ? "" : cleaned;
+}
+
+export function isInstructionArtifactText(value: unknown): boolean {
+  const cleaned = cleanText(value);
+
+  if (!cleaned) {
+    return false;
+  }
+
+  if (instructionArtifactPattern.test(cleaned) || artifactPattern.test(cleaned)) {
+    return true;
+  }
+
+  if (/^[-*\u2022]?\s*(professional summary|core skills|professional experience|education|certifications|awards|projects)\s*[:.]$/i.test(cleaned)) {
+    return true;
+  }
+
+  if (/^[-*\u2022]?\s*(professional summary|core skills|professional experience|education|certifications|awards|projects)\s*[:.-]\s+/i.test(cleaned)) {
+    return true;
+  }
+
+  if (
+    /\b(add|include|keep|make|rewrite|tailor|optimize|remove|format|ensure)\b/i.test(cleaned) &&
+    /\b(resume|cv|summary|skills|project|education|experience|bullet|section)\b/i.test(cleaned)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function uniqueStrings(values: unknown[]): string[] {
@@ -81,7 +154,7 @@ function uniqueStrings(values: unknown[]): string[] {
     const cleaned = cleanLine(value);
     const key = cleaned.toLowerCase();
 
-    if (!cleaned || seen.has(key) || artifactPattern.test(cleaned)) {
+    if (!cleaned || seen.has(key) || artifactPattern.test(cleaned) || isInstructionArtifactText(cleaned)) {
       continue;
     }
 
@@ -141,7 +214,7 @@ export function classifySemanticBlock(text: string): SemanticClassification {
   if (educationSignalPattern.test(normalized)) {
     scores.education += 38;
   }
-  if (/\b(certified|certification|certificate|license|credential)\b/i.test(normalized)) {
+  if (certificationSignalPattern.test(normalized)) {
     scores.certifications += 40;
   }
   if (leadershipSignalPattern.test(normalized)) {
@@ -152,7 +225,7 @@ export function classifySemanticBlock(text: string): SemanticClassification {
     scores.awards += 45;
     scores.projects -= 16;
   }
-  if (/\b(volunteer|nonprofit|community service)\b/i.test(normalized)) {
+  if (volunteerSignalPattern.test(normalized)) {
     scores.volunteerExperience += 35;
   }
   if (/\b(publication|published|journal|conference|paper|research)\b/i.test(normalized)) {
@@ -188,14 +261,19 @@ function bulletQualityScore(bullet: string, jobKeywords: string[] = []) {
   if (jobKeywords.some((keyword) => lower.includes(keyword))) score += 16;
   if (bullet.length >= 55 && bullet.length <= 210) score += 12;
   if (/^(responsible for|worked on|helped with|participated in)\b/i.test(bullet)) score -= 18;
-  if (headingOnlyPattern.test(bullet) || artifactPattern.test(bullet)) score -= 80;
+  if (headingOnlyPattern.test(bullet) || artifactPattern.test(bullet) || isInstructionArtifactText(bullet)) {
+    score -= 80;
+  }
 
   return score;
 }
 
 function prioritizeBullets(bullets: string[], limit: number, jobKeywords: string[] = []) {
   const unique = uniqueStrings(bullets).filter((bullet) => {
-    if (headingOnlyPattern.test(bullet) || dateOnlyPattern.test(bullet)) return false;
+    if (headingOnlyPattern.test(bullet) || dateOnlyPattern.test(bullet) || isInstructionArtifactText(bullet)) {
+      return false;
+    }
+    if (parseCombinedCompanyRole(bullet)) return false;
     if (classifySemanticBlock(bullet).sectionType === "education") return false;
     return true;
   });
@@ -217,7 +295,7 @@ export function normalizeProfessionalSummary(value: unknown): string {
     .split(/\n+/)
     .map((line) => cleanLine(line))
     .filter((line) => {
-      if (!line || headingOnlyPattern.test(line) || artifactPattern.test(line)) {
+      if (!line || headingOnlyPattern.test(line) || artifactPattern.test(line) || isInstructionArtifactText(line)) {
         return false;
       }
       const classification = classifySemanticBlock(line);
@@ -236,19 +314,68 @@ export function normalizeSkills(values: unknown): string[] {
   return uniqueStrings(raw)
     .map((skill) => skill.replace(/[.:]$/g, "").trim())
     .filter((skill) => {
-      if (!skill || skill.length > 80 || headingOnlyPattern.test(skill)) {
+      if (!skill || skill.length > 80 || headingOnlyPattern.test(skill) || isInstructionArtifactText(skill)) {
         return false;
       }
-
-      return !/[.!?]\s*$/.test(skill);
+      return !/[.!?]\s*$/.test(skill) && isMeaningfulSkill(skill);
     })
     .slice(0, 32);
+}
+
+function isMeaningfulSkill(skill: string) {
+  const normalized = skill.toLowerCase().replace(/\s+/g, " ").trim();
+  const wordCount = normalized.split(/\s+/).filter(Boolean).length;
+
+  if (genericSkillRejectSet.has(normalized)) {
+    return false;
+  }
+
+  if (allowedSingleSkillSet.has(normalized)) {
+    return true;
+  }
+
+  if (wordCount === 1) {
+    return (
+      /^[A-Z0-9][A-Za-z0-9.+#-]{2,}$/.test(skill) &&
+      !genericSkillRejectSet.has(normalized)
+    );
+  }
+
+  return strongSkillPhrasePattern.test(skill) || wordCount >= 2;
 }
 
 function normalizeBullets(values: unknown): string[] {
   const raw = Array.isArray(values) ? values : String(values ?? "").split(/\n+/);
 
   return prioritizeBullets(raw, 5);
+}
+
+function stripLeadingNumber(value: string) {
+  return cleanLine(value).replace(/^\d+\.\s*/, "").trim();
+}
+
+function parseCombinedCompanyRole(value: string) {
+  const cleaned = stripLeadingNumber(value);
+  const parts = cleaned.split(/\s+[-–—]\s+/).map((part) => part.trim()).filter(Boolean);
+
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const [first, ...rest] = parts;
+  const second = rest.join(" - ");
+  const firstLooksCompany = companySignalPattern.test(first);
+  const secondLooksCompany = companySignalPattern.test(second);
+
+  if (!firstLooksCompany && secondLooksCompany) {
+    return { company: second, title: first };
+  }
+
+  if (firstLooksCompany) {
+    return { company: first, title: second };
+  }
+
+  return null;
 }
 
 export function normalizeExperience(values: unknown): ResumeExperience[] {
@@ -258,8 +385,9 @@ export function normalizeExperience(values: unknown): ResumeExperience[] {
 
   for (const item of raw) {
     const source = (item ?? {}) as Partial<ResumeExperience>;
-    const title = cleanLine(source.title);
-    const company = cleanLine(source.company);
+    const combined = parseCombinedCompanyRole(source.title || "");
+    const title = combined?.title || cleanLine(source.title);
+    const company = cleanLine(source.company) || combined?.company || "";
     const startDate = cleanLine(source.startDate);
     const endDate = cleanLine(source.endDate);
     const bullets = normalizeBullets(source.bullets);
@@ -283,6 +411,28 @@ export function normalizeExperience(values: unknown): ResumeExperience[] {
       employmentType: cleanLine(source.employmentType),
       bullets,
     });
+
+    const roleHeaders = (Array.isArray(source.bullets) ? source.bullets : [])
+      .map(parseCombinedCompanyRole)
+      .filter((entry): entry is { company: string; title: string } => Boolean(entry));
+
+    for (const roleHeader of roleHeaders) {
+      const roleKey = [roleHeader.title, roleHeader.company, "", ""].join("|").toLowerCase();
+      if (seen.has(roleKey)) {
+        continue;
+      }
+
+      seen.add(roleKey);
+      entries.push({
+        title: roleHeader.title,
+        company: roleHeader.company,
+        location: "",
+        startDate: "",
+        endDate: "",
+        employmentType: "",
+        bullets: [],
+      });
+    }
   }
 
   return entries;
@@ -294,10 +444,17 @@ export function normalizeProjects(values: unknown): ResumeProject[] {
   return raw
     .map((item) => {
       const source = (item ?? {}) as Partial<ResumeProject>;
+      const title = cleanLine(source.title);
+      const titleLooksLikeAchievement =
+        title.length > 90 ||
+        (enterpriseVerbPattern.test(title) && /\b(i|we|built|led|implemented|platform|system)\b/i.test(title));
       return {
-        title: cleanLine(source.title),
+        title: titleLooksLikeAchievement ? "Implementation Reporting System" : title,
         organization: cleanLine(source.organization),
-        bullets: normalizeBullets(source.bullets),
+        bullets: normalizeBullets([
+          ...(titleLooksLikeAchievement ? [title] : []),
+          ...(Array.isArray(source.bullets) ? source.bullets : []),
+        ]),
       };
     })
     .filter((project) => project.title || project.bullets.length > 0)
@@ -340,6 +497,42 @@ export function normalizeAwards(values: unknown): string[] {
   return uniqueStrings(Array.isArray(values) ? values : String(values ?? "").split(/\n+/));
 }
 
+function isCertificationText(value: string) {
+  const cleaned = cleanLine(value);
+
+  return (
+    Boolean(cleaned) &&
+    certificationSignalPattern.test(cleaned) &&
+    !certificationRejectPattern.test(cleaned) &&
+    !companySignalPattern.test(cleaned) &&
+    !enterpriseVerbPattern.test(cleaned) &&
+    !awardSignalPattern.test(cleaned) &&
+    !leadershipSignalPattern.test(cleaned) &&
+    !volunteerSignalPattern.test(cleaned) &&
+    !isInstructionArtifactText(cleaned)
+  );
+}
+
+function isAwardText(value: string) {
+  const cleaned = cleanLine(value);
+  return Boolean(cleaned) && awardSignalPattern.test(cleaned) && !isInstructionArtifactText(cleaned);
+}
+
+function isLeadershipText(value: string) {
+  const cleaned = cleanLine(value);
+  return (
+    Boolean(cleaned) &&
+    leadershipSignalPattern.test(cleaned) &&
+    !volunteerSignalPattern.test(cleaned) &&
+    !isInstructionArtifactText(cleaned)
+  );
+}
+
+function isVolunteerText(value: string) {
+  const cleaned = cleanLine(value);
+  return Boolean(cleaned) && volunteerSignalPattern.test(cleaned) && !isInstructionArtifactText(cleaned);
+}
+
 function normalizeAdditionalSections(values: unknown): AdditionalResumeSection[] {
   const raw = Array.isArray(values) ? values : [];
 
@@ -351,12 +544,13 @@ function normalizeAdditionalSections(values: unknown): AdditionalResumeSection[]
         items: uniqueStrings(Array.isArray(source.items) ? source.items : []),
       };
     })
-    .filter((section) => section.heading && section.items.length > 0);
+    .filter((section) => section.heading && !isInstructionArtifactText(section.heading) && section.items.length > 0);
 }
 
 export function normalizeCanonicalResume(input: Partial<CanonicalResume> = {}): CanonicalResume {
   const empty = emptyCanonicalResume();
   const header = { ...empty.header, ...(input.header ?? {}) };
+  const certificationSourceItems = uniqueStrings(input.certifications ?? []);
 
   const resume = {
     header: {
@@ -373,10 +567,19 @@ export function normalizeCanonicalResume(input: Partial<CanonicalResume> = {}): 
     professionalExperience: normalizeExperience(input.professionalExperience),
     projects: normalizeProjects(input.projects),
     education: normalizeEducation(input.education),
-    certifications: uniqueStrings(input.certifications ?? []),
-    leadership: normalizeLeadership(input.leadership),
-    awards: normalizeAwards(input.awards),
-    volunteerExperience: uniqueStrings(input.volunteerExperience ?? []),
+    certifications: certificationSourceItems.filter(isCertificationText),
+    leadership: normalizeLeadership([
+      ...(Array.isArray(input.leadership) ? input.leadership : []),
+      ...certificationSourceItems.filter(isLeadershipText),
+    ]),
+    awards: normalizeAwards([
+      ...(Array.isArray(input.awards) ? input.awards : []),
+      ...certificationSourceItems.filter(isAwardText),
+    ]),
+    volunteerExperience: uniqueStrings([
+      ...(Array.isArray(input.volunteerExperience) ? input.volunteerExperience : []),
+      ...certificationSourceItems.filter(isVolunteerText),
+    ]),
     publications: uniqueStrings(input.publications ?? []),
     additionalSections: normalizeAdditionalSections(input.additionalSections),
   };
@@ -466,6 +669,7 @@ function isolateContaminatedSections(resume: CanonicalResume): CanonicalResume {
   next.professionalExperience = normalizeExperience(next.professionalExperience);
   next.leadership = normalizeLeadership(next.leadership);
   next.awards = normalizeAwards(next.awards);
+  next.certifications = uniqueStrings(next.certifications).filter(isCertificationText);
 
   return next;
 }
@@ -486,6 +690,51 @@ export function validateResume(input: Partial<CanonicalResume> = {}): ResumeVali
       code: "malformed_summary",
       section: "professionalSummary",
       message: "Professional summary contains only a heading.",
+    });
+  }
+
+  if (
+    !resume.professionalSummary ||
+    resume.professionalSummary.length < 120 ||
+    summaryDebrisPattern.test(resume.professionalSummary)
+  ) {
+    issues.push({
+      code: "resume_quality_block",
+      section: "professionalSummary",
+      message: "Professional summary is too weak or contains source debris.",
+    });
+  }
+
+  const badSkills = resume.coreSkills.filter((skill) => !isMeaningfulSkill(skill));
+  if (badSkills.length > 0 || resume.coreSkills.length < 4) {
+    issues.push({
+      code: "resume_quality_block",
+      section: "coreSkills",
+      message: "Core skills contain generic parser debris or too few meaningful skills.",
+    });
+  }
+
+  const contaminatedCertifications = resume.certifications.filter(
+    (certification) => !isCertificationText(certification),
+  );
+  if (contaminatedCertifications.length > 0) {
+    issues.push({
+      code: "resume_quality_block",
+      section: "certifications",
+      message: "Certifications contain non-credential content.",
+    });
+  }
+
+  const projectTitleCounts = new Map<string, number>();
+  for (const project of resume.projects) {
+    const key = project.title.toLowerCase();
+    projectTitleCounts.set(key, (projectTitleCounts.get(key) ?? 0) + 1);
+  }
+  if ([...projectTitleCounts.values()].some((count) => count >= 3)) {
+    issues.push({
+      code: "resume_quality_block",
+      section: "projects",
+      message: "Project section repeats the same generated project name.",
     });
   }
 
@@ -528,14 +777,42 @@ export function validateResume(input: Partial<CanonicalResume> = {}): ResumeVali
     }
 
     for (const bullet of experience.bullets) {
-      if (headingOnlyPattern.test(bullet) || artifactPattern.test(bullet)) {
+      if (headingOnlyPattern.test(bullet) || artifactPattern.test(bullet) || isInstructionArtifactText(bullet)) {
         issues.push({
           code: "malformed_bullet",
           section: `professionalExperience.${index}`,
           message: "Experience bullet contains a heading or extraction artifact.",
         });
       }
+      if (parseCombinedCompanyRole(bullet)) {
+        issues.push({
+          code: "resume_quality_block",
+          section: `professionalExperience.${index}`,
+          message: "Experience contains another role inside a bullet list.",
+        });
+      }
+      if (companySignalPattern.test(bullet) && experienceSignalPattern.test(bullet)) {
+        issues.push({
+          code: "resume_quality_block",
+          section: `professionalExperience.${index}`,
+          message: "Experience bullet appears to contain a separate company or role.",
+        });
+      }
     }
+  }
+
+  if (instructionArtifactPattern.test(JSON.stringify(resume))) {
+    issues.push({
+      code: "instruction_artifact",
+      message: "Instruction-like text detected in structured resume.",
+    });
+  }
+
+  if (resume.additionalSections.some((section) => /review unmatched content/i.test(section.heading))) {
+    issues.push({
+      code: "review_needed",
+      message: "Some items need review before final export.",
+    });
   }
 
   return { resume, issues };

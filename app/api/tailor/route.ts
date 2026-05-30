@@ -1,9 +1,19 @@
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { optimizationModel } from "@/lib/ai/models";
-import { extractResume } from "@/lib/resume/extractResume";
 import { rankResumeIntelligence } from "@/lib/resume/intelligenceRanker";
+import {
+  generatedResumeContainsContamination,
+  repairGeneratedResumeContamination,
+  separateResumeInputs,
+} from "@/lib/resume/inputSeparation";
 import { optimizeResume } from "@/lib/resume/optimizeResume";
 import { renderResume } from "@/lib/resume/renderResume";
+import {
+  canonicalToResumeSchema,
+  extractResumeSchemaFromFacts,
+  resumeSchemaToCanonical,
+  validateResumeSchema,
+} from "@/lib/resume/schema";
 import type { CanonicalResume, RenderResumeState } from "@/lib/resume/types";
 import { isProPlan, normalizeSubscriptionPlan, planOptimizationLimit } from "@/lib/subscription";
 
@@ -40,6 +50,16 @@ type TailorRequest = {
     sectionText?: string;
     fullResumeText?: string;
   };
+};
+
+type ResumePipelineInputs = {
+  candidateResumeFacts: string;
+  userInstructions: string;
+  targetJobDescription: string;
+  targetRole: string;
+  ignoreNoise: string;
+  sourceConfidence: "high" | "medium" | "low";
+  needsSourceReview: boolean;
 };
 
 type OptimizationResponse = {
@@ -867,13 +887,12 @@ function sourceMaterialWarnings(
 }
 
 function localTailor(request: TailorRequest): TailorResponse {
-  const baseResume = request.currentEditedResume || request.masterResume || "";
-  const extractedSources = sourceMaterialText(request.uploadedSourceMaterials);
-  const masterResume = [baseResume, extractedSources]
-    .filter((text) => text.trim().length > 0)
-    .join("\n\nSUPPORTING SOURCE MATERIAL\n");
-  const jobDescription = request.jobDescription || "";
-  const targetRole = request.targetRole || firstMeaningfulLine(jobDescription, "Target Role");
+  const {
+    candidateResumeFacts: masterResume,
+    targetJobDescription: jobDescription,
+    targetRole: separatedTargetRole,
+  } = resumePipelineInputs(request);
+  const targetRole = separatedTargetRole || firstMeaningfulLine(jobDescription, "Target Role");
   const role = titleCase(targetRole);
   const resumeKeywords = extractKeywords(masterResume);
   const jobKeywords = extractKeywords(jobDescription);
@@ -935,10 +954,7 @@ ${[
 EXPERIENCE HIGHLIGHTS
 - Reframed relevant experience around ${role} priorities while staying grounded in the provided source material.
 - Connected stakeholder needs, technical execution, and launch readiness across product and delivery work.
-- Improved ATS alignment by emphasizing role-relevant language that appears in the job description.
-
-SOURCE RESUME EXCERPT
-${masterResume.trim()}`;
+- Improved ATS alignment by emphasizing role-relevant language that appears in the job description.`;
   const signature = candidateName ? `\n${candidateName}` : "";
   const coverLetter = `Dear Hiring Team,
 
@@ -1132,14 +1148,25 @@ function normalizeResponse(response: TailorResponse): TailorResponse {
   };
 }
 
-function resumeIntelligenceSourceText(request: TailorRequest) {
-  return [
-    request.currentEditedResume,
-    request.masterResume,
-    sourceMaterialText(request.uploadedSourceMaterials),
-  ]
-    .filter((text): text is string => Boolean(text?.trim()))
-    .join("\n\n");
+function resumePipelineInputs(request: TailorRequest): ResumePipelineInputs {
+  const sourceResumeText = request.currentEditedResume || request.masterResume || "";
+  const uploadedResumeText = sourceMaterialText(request.uploadedSourceMaterials);
+  const buckets = separateResumeInputs({
+    sourceResumeText,
+    uploadedSourceText: uploadedResumeText,
+    explicitJobDescription: request.jobDescription || "",
+    targetRole: request.targetRole || "",
+  });
+
+  return {
+    candidateResumeFacts: buckets.candidateResumeFacts,
+    userInstructions: buckets.userResumeInstructions,
+    targetJobDescription: buckets.targetJobDescription,
+    targetRole: buckets.targetRole,
+    ignoreNoise: buckets.ignoreNoise,
+    sourceConfidence: buckets.sourceConfidence,
+    needsSourceReview: buckets.needsReview,
+  };
 }
 
 async function applyResumePipeline(
@@ -1147,48 +1174,127 @@ async function applyResumePipeline(
   response: TailorResponse,
   apiKey?: string,
 ): Promise<TailorResponse> {
-  const sourceText = resumeIntelligenceSourceText(request);
+  const {
+    candidateResumeFacts,
+    userInstructions,
+    targetJobDescription,
+    targetRole,
+    sourceConfidence,
+    needsSourceReview,
+  } =
+    resumePipelineInputs(request);
 
-  if (!sourceText.trim()) {
-    return normalizeResponse(response);
+  if (!candidateResumeFacts.trim()) {
+    return normalizeResponse({
+      ...response,
+      tailoredResume: "Some source content needs review before generating a clean resume.",
+      riskFlags: Array.from(
+        new Set([
+          ...(response.riskFlags ?? []),
+          "Some source content needs review before generating a clean resume.",
+        ]),
+      ),
+    });
   }
 
-  const extractedResumeJson = await extractResume({
-    rawText: sourceText,
-    openAiApiKey: apiKey,
-  });
+  const extractedResumeSchema = extractResumeSchemaFromFacts(candidateResumeFacts, targetRole);
+  const extractedSchemaValidation = validateResumeSchema(extractedResumeSchema);
+  const extractedResumeJson = resumeSchemaToCanonical(extractedSchemaValidation.resume);
   const optimizedResumeJson = await optimizeResume({
     resume: extractedResumeJson,
-    jobDescription: request.jobDescription,
-    targetRole: request.targetRole,
+    jobDescription: targetJobDescription,
+    targetRole,
     industryTarget: request.industryTarget,
     openAiApiKey: apiKey,
   });
   const rankedResume = await rankResumeIntelligence({
     resume: optimizedResumeJson,
-    jobDescription: request.jobDescription,
-    targetRole: request.targetRole,
+    jobDescription: targetJobDescription,
+    targetRole,
     industryTarget: request.industryTarget,
     openAiApiKey: apiKey,
   });
-  const renderResumeState = renderResume(rankedResume.resume);
+  const finalSchemaValidation = validateResumeSchema(canonicalToResumeSchema(rankedResume.resume));
+  const renderReadyCanonicalResume = resumeSchemaToCanonical(finalSchemaValidation.resume);
+  const renderResumeState = renderResume(renderReadyCanonicalResume);
+  const hasContamination = generatedResumeContainsContamination(renderResumeState.plainText, {
+    userResumeInstructions: userInstructions,
+    targetJobDescription,
+  });
+  const renderReadyResume = hasContamination
+    ? repairGeneratedResumeContamination(renderResumeState.plainText, {
+        userResumeInstructions: userInstructions,
+        targetJobDescription,
+      })
+    : renderResumeState.plainText;
 
-  if (renderResumeState.validationIssues.length > 0) {
+  const allValidationIssueCount =
+    renderResumeState.validationIssues.length +
+    extractedSchemaValidation.issues.length +
+    finalSchemaValidation.issues.length;
+
+  if (allValidationIssueCount > 0) {
     console.warn("ISEYA pipeline validation failures", {
-      issueCount: renderResumeState.validationIssues.length,
+      issueCount: allValidationIssueCount,
     });
   }
 
+  const needsReview = renderResumeState.validationIssues.some(
+    (issue) => issue.code === "review_needed",
+  );
+  const qualityBlocked =
+    renderResumeState.validationIssues.some((issue) => issue.code === "resume_quality_block") ||
+    finalSchemaValidation.issues.some((issue) =>
+      [
+        "instruction_or_jd_contamination",
+        "generic_skill_debris",
+        "combined_company_role",
+        "company_paragraph",
+        "repeated_project_names",
+      ].includes(issue.code),
+    );
+  const sourceReviewBlocked =
+    needsSourceReview && sourceConfidence === "low" && targetJobDescription.trim().length > 0;
+
   return normalizeResponse({
     ...response,
-    tailoredResume: renderResumeState.plainText || response.tailoredResume,
+    tailoredResume: qualityBlocked || sourceReviewBlocked
+      ? "We need a cleaner source resume or manual review before generating."
+      : renderReadyResume,
+    riskFlags: needsReview || hasContamination || qualityBlocked || sourceReviewBlocked
+      ? Array.from(
+          new Set([
+            ...(response.riskFlags ?? []),
+            needsReview ? "Some items need review before final export." : "",
+            hasContamination ? "Instruction or job-description text was blocked before preview." : "",
+            qualityBlocked ? "We need a cleaner source resume or manual review before generating." : "",
+            sourceReviewBlocked ? "Some source content needs review before generating a clean resume." : "",
+          ]),
+        ).filter(Boolean)
+      : response.riskFlags,
     extractedResumeJson,
-    optimizedResumeJson: rankedResume.resume,
-    renderResumeState,
+    optimizedResumeJson: renderReadyCanonicalResume,
+    renderResumeState: {
+      ...renderResumeState,
+      validationIssues: [
+        ...renderResumeState.validationIssues,
+        ...extractedSchemaValidation.issues.map((issue) => ({
+          code: issue.code,
+          message: issue.message,
+          section: issue.path,
+        })),
+        ...finalSchemaValidation.issues.map((issue) => ({
+          code: issue.code,
+          message: issue.message,
+          section: issue.path,
+        })),
+      ],
+    },
   });
 }
 
 async function callOpenAI(request: TailorRequest, apiKey: string) {
+  const pipelineInputs = resumePipelineInputs(request);
   const sourceMaterials = (request.uploadedSourceMaterials ?? []).map((file) => ({
     name: file.name,
     type: file.type,
@@ -1221,7 +1327,7 @@ async function callOpenAI(request: TailorRequest, apiKey: string) {
         {
           role: "system",
           content:
-            "You are Iseya, a truthful senior resume strategist and recruiter-facing resume coach. Return only structured JSON that matches the schema. Do not fabricate employers, degrees, certifications, metrics, tools, keywords, or experience. Treat uploaded materials as supporting source material, not as permission to invent. If uploaded materials conflict with the master resume, surface that in riskFlags and coaching.recruiterObjections. Reframe only what is supported by the provided resume and source materials. Rewrite weak bullets without inventing metrics; include metrics only when directly supported. Use clean plain text with no markdown symbols.",
+            "You are Iseya, a truthful senior resume strategist and recruiter-facing resume coach. Return only structured JSON that matches the schema. Only candidateResumeFacts may become resume content. userResumeInstructions may guide tone and priority but must never appear in output. targetJobDescription may guide tailoring but must never appear in output. Do not fabricate employers, degrees, certifications, metrics, tools, keywords, or experience. Treat uploaded materials as supporting source material, not as permission to invent. Never copy raw job-description fragments, user instructions, placeholder labels, or prompt notes into the resume. If uploaded materials conflict with the candidate facts, surface that in riskFlags and coaching.recruiterObjections. Reframe only what is supported by candidateResumeFacts. Rewrite weak bullets without inventing metrics; include metrics only when directly supported. Use clean plain text with no markdown symbols.",
         },
         {
           role: "user",
@@ -1229,11 +1335,15 @@ async function callOpenAI(request: TailorRequest, apiKey: string) {
             task:
               "Analyze the role, industry, required skills, preferred skills, tools, responsibilities, seniority, hidden hiring signals, ATS fit, recruiter readability, truthful candidate positioning, recruiter objections, section-by-section resume quality, weak bullets, keyword density, role positioning, and uploaded source materials. Use uploaded extracted text only when relevant and truthful. Generate a tailored resume, concise recruiter-ready cover letter, score breakdown, detailed AI Resume Coach data, LinkedIn optimization kit, and job application kit. For weakBullets, include the original bullet, issue type, issue, and a stronger rewritten version grounded only in the source material.",
             industryTarget: request.industryTarget || "General / ATS",
-            targetRole: request.targetRole || "",
-            masterResume: request.masterResume || "",
-            currentEditedResume: request.currentEditedResume || "",
-            jobDescription: request.jobDescription || "",
-            uploadedSourceMaterials: sourceMaterials,
+            targetRole: pipelineInputs.targetRole || "",
+            candidateResumeFacts: pipelineInputs.candidateResumeFacts,
+            userResumeInstructions: pipelineInputs.userInstructions,
+            targetJobDescription: pipelineInputs.targetJobDescription,
+            uploadedSourceMaterials: sourceMaterials.map((file) => ({
+              ...file,
+              extractedText: undefined,
+              extractedCharacters: file.extractedText?.length ?? 0,
+            })),
             aiSettings: request.aiSettings,
           }),
         },

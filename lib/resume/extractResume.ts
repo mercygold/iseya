@@ -86,7 +86,7 @@ async function callExtractionModel(rawText: string, apiKey: string) {
         {
           role: "system",
           content:
-            "You are ISEYA Stage 1 Resume Intelligence. Extract and reconstruct only. Return valid JSON matching the canonical resume schema. Do not optimize, rewrite, tailor, summarize, invent, or improve wording. Preserve section boundaries, chronology, role grouping, dates, companies, bullets, education, leadership, awards, publications, and projects. Never include raw extraction notes or markdown.",
+            "You are ISEYA Stage 1 Resume Intelligence. Extract and reconstruct only. Return valid JSON matching the canonical resume schema. Do not optimize, rewrite, tailor, summarize, invent, or improve wording. Preserve section boundaries, chronology, role grouping, dates, companies, bullets, education, leadership, awards, publications, and projects. Treat cleanup notes, user instructions, placeholder labels, and pasted job descriptions as non-resume context and never include them as resume content. Never include raw extraction notes or markdown.",
         },
         {
           role: "user",
@@ -176,7 +176,7 @@ async function callSemanticRepairModel(
         {
           role: "system",
           content:
-            "You are ISEYA semantic repair for Stage 1 extraction. Return only corrected canonical resume JSON. Reclassify contaminated blocks using confidence scoring. Professional summary must remain separate from leadership. Experience must not enter projects. Leadership, awards, education, and projects must remain isolated. Do not optimize or rewrite content.",
+            "You are ISEYA semantic repair for Stage 1 extraction. Return only corrected canonical resume JSON. Reclassify contaminated blocks using confidence scoring. Professional summary must remain separate from leadership. Experience must not enter projects. Leadership, awards, education, and projects must remain isolated. Remove user instructions, placeholder labels, and job-description fragments from renderable resume fields. Do not optimize or rewrite content.",
         },
         {
           role: "user",
