@@ -72,16 +72,14 @@ function getAuthErrorDetails(error: unknown): AuthErrorDetails {
   };
 }
 
-function logMissingAuthConfig(label: string) {
-  if (process.env.NODE_ENV !== "production") {
-    const debug = getSupabasePublicEnvDebug();
-
-    if (debug.reason === "configured") {
-      return;
-    }
-
-    console.warn(`[auth] ${label}`, debug);
+function logAuthConfigDiagnostic(label: string) {
+  if (process.env.NODE_ENV === "production") {
+    return;
   }
+
+  const debug = getSupabasePublicEnvDebug();
+  const log = debug.reason === "configured" ? console.info : console.warn;
+  log(`[auth] ${label}`, debug);
 }
 
 function mapLoginError(error: unknown) {
@@ -152,9 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState(() => getSupabaseBrowserConfigMessage());
 
   useEffect(() => {
-    if (!supabase) {
-      logMissingAuthConfig("Supabase browser config unavailable");
-    }
+    logAuthConfigDiagnostic("Supabase browser config");
   }, [supabase]);
 
   useEffect(() => {
@@ -272,7 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!supabase) {
         const message = authNotConfiguredMessage;
-        logMissingAuthConfig("signup blocked because Supabase client is unavailable");
+        logAuthConfigDiagnostic("signup blocked because Supabase client is unavailable");
         setError(message);
         throw new Error(message);
       }
@@ -321,7 +317,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!supabase) {
         const message = authNotConfiguredMessage;
-        logMissingAuthConfig("login blocked because Supabase client is unavailable");
+        logAuthConfigDiagnostic("login blocked because Supabase client is unavailable");
         setError(message);
         throw new Error(message);
       }
@@ -361,7 +357,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!supabase) {
       const message = authNotConfiguredMessage;
-      logMissingAuthConfig("logout blocked because Supabase client is unavailable");
+      logAuthConfigDiagnostic("logout blocked because Supabase client is unavailable");
       setError(message);
       throw new Error(message);
     }
@@ -392,7 +388,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!supabase) {
         const message = authNotConfiguredMessage;
-        logMissingAuthConfig("password reset blocked because Supabase client is unavailable");
+        logAuthConfigDiagnostic("password reset blocked because Supabase client is unavailable");
         setError(message);
         throw new Error(message);
       }
@@ -424,7 +420,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!supabase) {
         const message = authNotConfiguredMessage;
-        logMissingAuthConfig("password update blocked because Supabase client is unavailable");
+        logAuthConfigDiagnostic("password update blocked because Supabase client is unavailable");
         setError(message);
         throw new Error(message);
       }

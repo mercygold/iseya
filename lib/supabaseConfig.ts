@@ -46,6 +46,20 @@ function isLikelySecretKey(value: string) {
   return value.startsWith("sb_secret_");
 }
 
+function getSupabaseProjectRef(value: string) {
+  try {
+    const url = new URL(value);
+
+    if (url.protocol !== "https:" || !url.hostname.endsWith(".supabase.co")) {
+      return null;
+    }
+
+    return url.hostname.split(".")[0] || null;
+  } catch {
+    return null;
+  }
+}
+
 function publicConfigError(): SupabaseConfigResult {
   return {
     ok: false,
@@ -92,6 +106,8 @@ export function getSupabasePublicEnvDebug() {
   return {
     hasSupabaseUrl: Boolean(url),
     hasSupabaseAnonKey: Boolean(anonKey),
+    projectRef: getSupabaseProjectRef(url),
+    environment: process.env.NODE_ENV || "unknown",
     supabaseUrlShapeOk,
     supabaseAnonKeyShapeOk,
     anonKeyType: anonKey.startsWith("sb_publishable_")

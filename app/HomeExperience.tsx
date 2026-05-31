@@ -6718,15 +6718,6 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
             .map(normalizeSavedResumeRecord)
             .filter((record): record is SavedResumeRecord => Boolean(record))
         : [];
-      const activeResume = activeId
-        ? savedResumes.find((resume) => resume.id === activeId)
-        : null;
-
-      if (activeResume?.workspaceState && !containsRestrictedSeedData(activeResume.workspaceState)) {
-	        setActiveResumeId((current) => (current === activeResume.id ? current : activeResume.id));
-        return migrateSavedWorkspaceState(activeResume.workspaceState);
-      }
-
       const saved = window.localStorage.getItem(storageKey);
 
       if (saved) {
@@ -6735,6 +6726,15 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 	          return null;
 	        }
         return migrateSavedWorkspaceState(parsed);
+      }
+
+      const activeResume = activeId
+        ? savedResumes.find((resume) => resume.id === activeId)
+        : null;
+
+      if (activeResume?.workspaceState && !containsRestrictedSeedData(activeResume.workspaceState)) {
+	        setActiveResumeId((current) => (current === activeResume.id ? current : activeResume.id));
+        return migrateSavedWorkspaceState(activeResume.workspaceState);
       }
 
       const currentDraft = window.localStorage.getItem(currentDraftStorageKey);
@@ -12183,6 +12183,72 @@ function migrateEditableResumeSession(value: unknown): EditableResumeSession | n
   };
 }
 
+function experiencePersistenceKey(entry: Pick<ExperienceEntry, "company" | "title" | "startDate" | "endDate">) {
+  return [
+    cleanEditorText(entry.company).toLowerCase(),
+    cleanEditorText(entry.title).toLowerCase(),
+    cleanEditorText(entry.startDate).toLowerCase(),
+    cleanEditorText(entry.endDate).toLowerCase(),
+  ].join("|");
+}
+
+function repairEditableExperienceBulletsFromCanonical(
+  session: EditableResumeSession | null,
+  canonicalResume: ResumeV2 | null,
+) {
+  if (!session || !canonicalResume?.experience.length) {
+    return session;
+  }
+
+  const canonicalById = new Map(
+    canonicalResume.experience
+      .filter((entry) => entry.bullets.some((bullet) => bullet.trim()))
+      .map((entry) => [entry.id, entry]),
+  );
+  const canonicalByIdentity = new Map(
+    canonicalResume.experience
+      .filter((entry) => entry.bullets.some((bullet) => bullet.trim()))
+      .map((entry) => [experiencePersistenceKey(entry), entry]),
+  );
+  let repairedCount = 0;
+  const experience = session.draft.experience.map((entry) => {
+    if (entry.bulletsText.trim()) {
+      return entry;
+    }
+
+    const canonical =
+      canonicalById.get(entry.id) ?? canonicalByIdentity.get(experiencePersistenceKey(entry));
+
+    if (!canonical?.bullets.length) {
+      return entry;
+    }
+
+    repairedCount += 1;
+    return {
+      ...entry,
+      bulletsText: canonical.bullets.join("\n"),
+    };
+  });
+
+  if (repairedCount === 0) {
+    return session;
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[resume-persistence] restored experience bullets from canonical resume", {
+      repairedEntries: repairedCount,
+    });
+  }
+
+  return {
+    ...session,
+    draft: {
+      ...session.draft,
+      experience,
+    },
+  };
+}
+
 function migrateSavedWorkspaceState<T extends Partial<CloudResumeContent>>(state: T): T {
   const result = state.result && hasMalformedParserData(state.result.rewrittenResume)
     ? null
@@ -12192,13 +12258,18 @@ function migrateSavedWorkspaceState<T extends Partial<CloudResumeContent>>(state
     (state.result && hasMalformedParserData(state.result.rewrittenResume)
       ? state.result.rewrittenResume
       : undefined);
+  const canonicalResumeV2 = normalizeResumeV2(state.canonicalResumeV2);
+  const editableResumeSession = repairEditableExperienceBulletsFromCanonical(
+    migrateEditableResumeSession(state.editableResumeSession),
+    canonicalResumeV2,
+  );
 
   return {
     ...state,
     result,
     quarantinedGeneratedResume,
-    canonicalResumeV2: normalizeResumeV2(state.canonicalResumeV2),
-    editableResumeSession: migrateEditableResumeSession(state.editableResumeSession),
+    canonicalResumeV2,
+    editableResumeSession,
   };
 }
 
