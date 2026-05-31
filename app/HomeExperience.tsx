@@ -709,13 +709,11 @@ const sampleJob = `Paste the target job description here.
 Include the role title, company priorities, required skills, preferred skills, tools, responsibilities, seniority signals, and any keywords you want ISEYA to consider while tailoring your resume.`;
 
 const restrictedSeedDataPatterns = [
-  new RegExp(`\\b${["a", "nu"].join("")}\\b`, "i"),
-  new RegExp(["mercy", "gold"].join(""), "i"),
-  new RegExp(["jos", "hua"].join(""), "i"),
-  new RegExp(["949", "510", "1667"].join(""), "i"),
-  new RegExp(["mercy", "gold", "96"].join(""), "i"),
-  new RegExp(["inves", "tofly"].join(""), "i"),
-  new RegExp(["ja", "paul"].join(""), "i"),
+  /avery morgan/i,
+  /avery\.morgan@example\.com/i,
+  /meridian cloud/i,
+  /northstar payments/i,
+  /meridian cloud product excellence award/i,
 ];
 
 function containsRestrictedSeedData(value: unknown): boolean {
@@ -1078,6 +1076,12 @@ function preparedPreviewSections(sections: ResumeSection[], template: TemplateId
         bullets: uniqueAchievements,
       });
     }
+  }
+
+  if (prepared.has("AWARDS & VOLUNTEER")) {
+    prepared.delete("AWARDS");
+    prepared.delete("VOLUNTEER EXPERIENCE");
+    prepared.delete("LEADERSHIP");
   }
 
   return orderedResumeSections(Array.from(prepared.values()), template);
@@ -1871,7 +1875,7 @@ function isSourceArtifactHeading(value: string) {
 }
 
 function isPlaceholderResumeText(value: string) {
-  return /jordan taylor|jordan@example\.com|555-0100|write a 3-?4 line|role title|company name|add 3-?5 measurable|replace this placeholder|paste the target job description/i.test(
+  return /jordan taylor|jordan@example\.com|555-0100|avery morgan|avery\.morgan@example\.com|meridian cloud|northstar payments|meridian cloud product excellence award|write a 3-?4 line|role title|company name|add 3-?5 measurable|replace this placeholder|paste the target job description/i.test(
     value,
   );
 }
@@ -2747,8 +2751,8 @@ function parseResumePreview(resumeText: string) {
       sections.push(currentSection);
     }
 
-    if (/^[-*•]\s+/.test(cleanedLine)) {
-      const bullet = cleanedLine.replace(/^[-*•]\s+/, "");
+    if (/^(?:[-*•]\s*)+/.test(cleanedLine)) {
+      const bullet = cleanStructuredBullet(cleanedLine);
       currentSection.bullets.push(bullet);
       currentSection.lines?.push(`- ${bullet}`);
     } else {
@@ -2849,7 +2853,13 @@ function uniqueStrings(items: string[]) {
     new Set(
       items
         .map((item) => cleanEditorText(item))
-        .filter((item) => item && !isResumeNoiseLine(item) && !isSourceArtifactHeading(item)),
+        .filter(
+          (item) =>
+            item &&
+            !isResumeNoiseLine(item) &&
+            !isSourceArtifactHeading(item) &&
+            !isPlaceholderResumeText(item),
+        ),
     ),
   );
 }
@@ -3774,8 +3784,10 @@ function serializeStructuredResume(
       const tools = hasLabels ? parts.find((part) => /^TOOLS:/i.test(part))?.replace(/^TOOLS:\s*/i, "") ?? "" : parts[2] ?? "";
       const link = hasLabels ? parts.find((part) => /^LINK:/i.test(part))?.replace(/^LINK:\s*/i, "") ?? "" : parts[3] ?? "";
       const bullets = hasLabels
-        ? parts.filter((part) => /^BULLET:/i.test(part)).map((part) => part.replace(/^BULLET:\s*/i, ""))
-        : parts.slice(4);
+        ? parts
+            .filter((part) => /^BULLET:/i.test(part))
+            .map((part) => cleanStructuredBullet(part.replace(/^BULLET:\s*/i, "")))
+        : parts.slice(4).flatMap(structuredBulletLines);
 
       if (!name) {
         continue;
@@ -3783,9 +3795,9 @@ function serializeStructuredResume(
 
       lines.push(name);
       if (context) lines.push(context);
-      if (tools) lines.push(`Tools: ${tools}`);
+      if (tools) lines.push(tools);
       if (/^https?:\/\//i.test(link)) lines.push(link);
-      lines.push(...bullets.map((bullet) => `- ${bullet}`));
+      lines.push(...bullets.filter(Boolean).map((bullet) => `- ${bullet}`));
     }
   }
 
@@ -3810,8 +3822,10 @@ function serializeStructuredResume(
       const publisher = hasLabels ? parts.find((part) => /^PUBLISHER:/i.test(part))?.replace(/^PUBLISHER:\s*/i, "") ?? "" : parts[3] ?? "";
       const date = hasLabels ? parts.find((part) => /^DATE:/i.test(part))?.replace(/^DATE:\s*/i, "") ?? "" : parts[4] ?? "";
       const descriptions = hasLabels
-        ? parts.filter((part) => /^DESCRIPTION:/i.test(part)).map((part) => part.replace(/^DESCRIPTION:\s*/i, ""))
-        : [parts[1] ?? ""].filter(Boolean);
+        ? parts
+            .filter((part) => /^DESCRIPTION:/i.test(part))
+            .flatMap((part) => structuredBulletLines(part.replace(/^DESCRIPTION:\s*/i, "")))
+        : structuredBulletLines(parts[1] ?? "");
 
       if (title) lines.push(title);
       if (publisher || date) {
@@ -3843,8 +3857,10 @@ function serializeStructuredResume(
       const location = hasLabels ? parts.find((part) => /^LOCATION:/i.test(part))?.replace(/^LOCATION:\s*/i, "") ?? "" : parts[2] ?? "";
       const date = hasLabels ? parts.find((part) => /^DATE:/i.test(part))?.replace(/^DATE:\s*/i, "") ?? "" : parts[3] ?? "";
       const description = hasLabels
-        ? parts.filter((part) => /^DESCRIPTION:/i.test(part)).map((part) => part.replace(/^DESCRIPTION:\s*/i, ""))
-        : parts.slice(4);
+        ? parts
+            .filter((part) => /^DESCRIPTION:/i.test(part))
+            .flatMap((part) => structuredBulletLines(part.replace(/^DESCRIPTION:\s*/i, "")))
+        : parts.slice(4).flatMap(structuredBulletLines);
 
       if (title) lines.push(title);
       if (organization || location || date) {
@@ -3961,6 +3977,7 @@ function optimizeResumeBullet(value: string) {
 
 function cleanExportBullet(value: string) {
   return cleanEditorText(value)
+    .replace(/^(?:[-*•]\s*)+/g, "")
     .replace(
       /,?\s*clarifying scope, stakeholders, and outcome using only verified source details\.?/gi,
       "",
@@ -3977,6 +3994,21 @@ function cleanExportBullet(value: string) {
     .replace(/^participated in\s+/i, "Collaborated on ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function cleanStructuredBullet(value: string) {
+  return cleanExportBullet(value)
+    .replace(/^(?:bullet|description|detail)\s*:\s*/i, "")
+    .replace(/^(?:[-*•]\s*)+/g, "")
+    .trim();
+}
+
+function structuredBulletLines(value: string) {
+  return value
+    .split(/\r?\n|\s+\/\s+/)
+    .map(cleanStructuredBullet)
+    .filter(Boolean)
+    .filter((line) => !isPlaceholderResumeText(line) && !isSourceArtifactHeading(line));
 }
 
 function userFacingGuidance(value: string) {
@@ -11103,11 +11135,7 @@ function structuredResumeFromEditableDraft(draft: EditableResumeDraft): Structur
           project.context ? `ROLE: ${project.context}` : "",
           project.tools ? `TOOLS: ${project.tools}` : "",
           project.link ? `LINK: ${project.link}` : "",
-          ...project.details
-            .split(/\r?\n|\s+\/\s+/)
-            .map((detail) => detail.trim())
-            .filter(Boolean)
-            .map((detail) => `BULLET: ${detail}`),
+          ...structuredBulletLines(project.details).map((detail) => `BULLET: ${detail}`),
         ]
           .filter((value) => value.trim().length > 0)
           .join("\n"),
@@ -11142,11 +11170,9 @@ function structuredResumeFromEditableDraft(draft: EditableResumeDraft): Structur
           publication.publisher ? `PUBLISHER: ${publication.publisher}` : "",
           publication.date ? `DATE: ${publication.date}` : "",
           publication.link ? `LINK: ${publication.link}` : "",
-          ...publication.description
-            .split(/\r?\n|\s+\/\s+/)
-            .map((description) => description.trim())
-            .filter(Boolean)
-            .map((description) => `DESCRIPTION: ${description}`),
+          ...structuredBulletLines(publication.description).map(
+            (description) => `DESCRIPTION: ${description}`,
+          ),
         ]
           .filter((value) => value.trim().length > 0)
           .join("\n"),
@@ -11160,11 +11186,9 @@ function structuredResumeFromEditableDraft(draft: EditableResumeDraft): Structur
           entry.organization ? `ORGANIZATION: ${entry.organization}` : "",
           entry.location ? `LOCATION: ${entry.location}` : "",
           entry.date ? `DATE: ${entry.date}` : "",
-          ...entry.description
-            .split(/\r?\n|\s+\/\s+/)
-            .map((description) => description.trim())
-            .filter(Boolean)
-            .map((description) => `DESCRIPTION: ${description}`),
+          ...structuredBulletLines(entry.description).map(
+            (description) => `DESCRIPTION: ${description}`,
+          ),
         ]
           .filter((value) => value.trim().length > 0)
           .join("\n"),
@@ -11722,6 +11746,43 @@ function ModularResumeEditor({
     }, `experience.${index}`);
   }
 
+  function experienceBullets(entry: EditableExperienceEntry) {
+    const source = entry.bulletsText.includes("\n")
+      ? entry.bulletsText.split(/\r?\n/)
+      : entry.bulletsText
+        ? entry.bulletsText.split(/\s+\/\s+/)
+        : [""];
+    return source
+      .map(cleanStructuredBullet)
+      .filter((line) => !isPlaceholderResumeText(line) && !isSourceArtifactHeading(line));
+  }
+
+  function updateExperienceBullet(entryIndex: number, bulletIndex: number, value: string) {
+    const entry = editableResumeRef.current.experience[entryIndex];
+    if (!entry) return;
+    const bullets = experienceBullets(entry);
+    bullets[bulletIndex] = cleanStructuredBullet(value);
+    updateExperience(entryIndex, { bulletsText: bullets.join("\n") });
+  }
+
+  function addExperienceBullet(entryIndex: number) {
+    const entry = editableResumeRef.current.experience[entryIndex];
+    if (!entry) return;
+    updateExperience(entryIndex, {
+      bulletsText: [...experienceBullets(entry), ""].join("\n"),
+    });
+  }
+
+  function removeExperienceBullet(entryIndex: number, bulletIndex: number) {
+    const entry = editableResumeRef.current.experience[entryIndex];
+    if (!entry) return;
+    updateExperience(entryIndex, {
+      bulletsText: experienceBullets(entry)
+        .filter((_, index) => index !== bulletIndex)
+        .join("\n"),
+    });
+  }
+
   function removeExperience(index: number) {
     const current = editableResumeRef.current;
     commitDraft({
@@ -11951,17 +12012,34 @@ function ModularResumeEditor({
 	                </label>
 	              </div>
 	              <div className="mt-3 space-y-2">
-	                <label className="block text-xs font-semibold text-slate-700">
-	                  Bullets / Achievements
-	                  <textarea
-	                    value={entry.bulletsText}
-	                    onChange={(event) =>
-	                      updateExperience(entryIndex, { bulletsText: event.target.value })
-	                    }
-	                    placeholder="One achievement per line"
-	                    className="mt-2 min-h-28 w-full resize-y rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
-	                  />
-	                </label>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-slate-700">
+                      Bullets / Achievements
+                    </p>
+                    <EditorActionButton onClick={() => addExperienceBullet(entryIndex)}>
+                      Add Bullet
+                    </EditorActionButton>
+                  </div>
+                  <div className="space-y-2">
+                    {experienceBullets(entry).map((bullet, bulletIndex) => (
+                      <div key={`${entry.id}-bullet-${bulletIndex}`} className="flex gap-2">
+                        <textarea
+                          value={bullet}
+                          onChange={(event) =>
+                            updateExperienceBullet(entryIndex, bulletIndex, event.target.value)
+                          }
+                          placeholder="One achievement"
+                          className="min-h-16 flex-1 resize-y rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                        />
+                        <EditorActionButton
+                          variant="danger"
+                          onClick={() => removeExperienceBullet(entryIndex, bulletIndex)}
+                        >
+                          Remove
+                        </EditorActionButton>
+                      </div>
+                    ))}
+                  </div>
               </div>
             </div>
           ))}
@@ -12242,6 +12320,39 @@ function EditableProjectsSection({
     )));
   }
 
+  function projectBullets(project: EditableProjectEntry) {
+    const source = project.details.includes("\n")
+      ? project.details.split(/\r?\n/)
+      : project.details
+        ? project.details.split(/\s+\/\s+/)
+        : [""];
+    return source
+      .map(cleanStructuredBullet)
+      .filter((line) => !isPlaceholderResumeText(line) && !isSourceArtifactHeading(line));
+  }
+
+  function updateProjectBullet(projectIndex: number, bulletIndex: number, value: string) {
+    const project = projects[projectIndex];
+    if (!project) return;
+    const bullets = projectBullets(project);
+    bullets[bulletIndex] = cleanStructuredBullet(value);
+    updateEntry(projectIndex, { details: bullets.join("\n") });
+  }
+
+  function addProjectBullet(projectIndex: number) {
+    const project = projects[projectIndex];
+    if (!project) return;
+    const bullets = [...projectBullets(project), ""];
+    updateEntry(projectIndex, { details: bullets.join("\n") });
+  }
+
+  function removeProjectBullet(projectIndex: number, bulletIndex: number) {
+    const project = projects[projectIndex];
+    if (!project) return;
+    const bullets = projectBullets(project).filter((_, index) => index !== bulletIndex);
+    updateEntry(projectIndex, { details: bullets.join("\n") });
+  }
+
   return (
     <ModularSection
       title="Projects"
@@ -12270,14 +12381,42 @@ function EditableProjectsSection({
               <ContactField label="Tools optional" value={project.tools} onChange={(value) => updateEntry(index, { tools: value })} />
               <ContactField label="Link optional" value={project.link} onChange={(value) => updateEntry(index, { link: value })} />
             </div>
-            <label className="mt-3 block text-xs font-semibold text-slate-700">
-              Description / Bullets
-              <textarea
-                value={project.details}
-                onChange={(event) => updateEntry(index, { details: event.target.value })}
-                className="mt-2 min-h-24 w-full resize-y rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
-              />
-            </label>
+            <div className="mt-3 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-slate-700">
+                  Description / Bullets
+                </p>
+                <EditorActionButton onClick={() => addProjectBullet(index)}>
+                  Add Bullet
+                </EditorActionButton>
+              </div>
+              {projectBullets(project).length > 0 ? (
+                <div className="space-y-2">
+                  {projectBullets(project).map((bullet, bulletIndex) => (
+                    <div key={`${project.id}-bullet-${bulletIndex}`} className="flex gap-2">
+                      <textarea
+                        value={bullet}
+                        onChange={(event) =>
+                          updateProjectBullet(index, bulletIndex, event.target.value)
+                        }
+                        placeholder="Project achievement or scope"
+                        className="min-h-16 flex-1 resize-y rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                      />
+                      <EditorActionButton
+                        variant="danger"
+                        onClick={() => removeProjectBullet(index, bulletIndex)}
+                      >
+                        Remove
+                      </EditorActionButton>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-md border border-dashed border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
+                  Add bullets to keep this project readable in preview and export.
+                </p>
+              )}
+            </div>
           </div>
         ))}
         <FeedbackButton
@@ -12314,6 +12453,43 @@ function EditablePublicationsSection({
     )));
   }
 
+  function publicationDescriptionLines(publication: EditablePublicationEntry) {
+    const source = publication.description.includes("\n")
+      ? publication.description.split(/\r?\n/)
+      : publication.description
+        ? publication.description.split(/\s+\/\s+/)
+        : [""];
+    return source
+      .map(cleanStructuredBullet)
+      .filter((line) => !isPlaceholderResumeText(line) && !isSourceArtifactHeading(line));
+  }
+
+  function updatePublicationDescription(index: number, lineIndex: number, value: string) {
+    const publication = publications[index];
+    if (!publication) return;
+    const lines = publicationDescriptionLines(publication);
+    lines[lineIndex] = cleanStructuredBullet(value);
+    updateEntry(index, { description: lines.join("\n") });
+  }
+
+  function addPublicationDescription(index: number) {
+    const publication = publications[index];
+    if (!publication) return;
+    updateEntry(index, {
+      description: [...publicationDescriptionLines(publication), ""].join("\n"),
+    });
+  }
+
+  function removePublicationDescription(index: number, lineIndex: number) {
+    const publication = publications[index];
+    if (!publication) return;
+    updateEntry(index, {
+      description: publicationDescriptionLines(publication)
+        .filter((_, currentIndex) => currentIndex !== lineIndex)
+        .join("\n"),
+    });
+  }
+
   return (
     <ModularSection
       title="Publications / Research"
@@ -12342,14 +12518,32 @@ function EditablePublicationsSection({
               <ContactField label="Publisher optional" value={publication.publisher} onChange={(value) => updateEntry(index, { publisher: value })} />
               <ContactField label="Date optional" value={publication.date} onChange={(value) => updateEntry(index, { date: value })} />
             </div>
-            <label className="mt-3 block text-xs font-semibold text-slate-700">
-              Description
-              <textarea
-                value={publication.description}
-                onChange={(event) => updateEntry(index, { description: event.target.value })}
-                className="mt-2 min-h-24 w-full resize-y rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
-              />
-            </label>
+            <div className="mt-3 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-slate-700">Description</p>
+                <EditorActionButton onClick={() => addPublicationDescription(index)}>
+                  Add Bullet
+                </EditorActionButton>
+              </div>
+              {publicationDescriptionLines(publication).map((line, lineIndex) => (
+                <div key={`${publication.id}-description-${lineIndex}`} className="flex gap-2">
+                  <textarea
+                    value={line}
+                    onChange={(event) =>
+                      updatePublicationDescription(index, lineIndex, event.target.value)
+                    }
+                    placeholder="Publication description"
+                    className="min-h-16 flex-1 resize-y rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                  />
+                  <EditorActionButton
+                    variant="danger"
+                    onClick={() => removePublicationDescription(index, lineIndex)}
+                  >
+                    Remove
+                  </EditorActionButton>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
         <FeedbackButton
@@ -12386,6 +12580,41 @@ function EditableAwardsVolunteerSection({
     )));
   }
 
+  function entryDescriptionLines(entry: EditableAwardVolunteerEntry) {
+    const source = entry.description.includes("\n")
+      ? entry.description.split(/\r?\n/)
+      : entry.description
+        ? entry.description.split(/\s+\/\s+/)
+        : [""];
+    return source
+      .map(cleanStructuredBullet)
+      .filter((line) => !isPlaceholderResumeText(line) && !isSourceArtifactHeading(line));
+  }
+
+  function updateEntryDescription(index: number, lineIndex: number, value: string) {
+    const entry = entries[index];
+    if (!entry) return;
+    const lines = entryDescriptionLines(entry);
+    lines[lineIndex] = cleanStructuredBullet(value);
+    updateEntry(index, { description: lines.join("\n") });
+  }
+
+  function addEntryDescription(index: number) {
+    const entry = entries[index];
+    if (!entry) return;
+    updateEntry(index, { description: [...entryDescriptionLines(entry), ""].join("\n") });
+  }
+
+  function removeEntryDescription(index: number, lineIndex: number) {
+    const entry = entries[index];
+    if (!entry) return;
+    updateEntry(index, {
+      description: entryDescriptionLines(entry)
+        .filter((_, currentIndex) => currentIndex !== lineIndex)
+        .join("\n"),
+    });
+  }
+
   return (
     <ModularSection
       title="Awards & Volunteer"
@@ -12414,27 +12643,56 @@ function EditableAwardsVolunteerSection({
               <ContactField label="Location optional" value={entry.location} onChange={(value) => updateEntry(index, { location: value })} />
               <ContactField label="Date optional" value={entry.date} onChange={(value) => updateEntry(index, { date: value })} />
             </div>
-            <label className="mt-3 block text-xs font-semibold text-slate-700">
-              Description optional
-              <textarea
-                value={entry.description}
-                onChange={(event) => updateEntry(index, { description: event.target.value })}
-                placeholder="One supporting detail per line"
-                className="mt-2 min-h-20 w-full resize-y rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
-              />
-            </label>
+            <div className="mt-3 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-slate-700">Description optional</p>
+                <EditorActionButton onClick={() => addEntryDescription(index)}>
+                  Add Bullet
+                </EditorActionButton>
+              </div>
+              {entryDescriptionLines(entry).map((line, lineIndex) => (
+                <div key={`${entry.id}-description-${lineIndex}`} className="flex gap-2">
+                  <textarea
+                    value={line}
+                    onChange={(event) =>
+                      updateEntryDescription(index, lineIndex, event.target.value)
+                    }
+                    placeholder="Supporting detail"
+                    className="min-h-16 flex-1 resize-y rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[var(--iseya-gold)] focus:ring-4 focus:ring-[#FFF8E6]"
+                  />
+                  <EditorActionButton
+                    variant="danger"
+                    onClick={() => removeEntryDescription(index, lineIndex)}
+                  >
+                    Remove
+                  </EditorActionButton>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
-        <FeedbackButton
-          doneLabel="Added"
-          onClick={() => onChange([
-            ...entries,
-            { id: editorEntryId("award-volunteer"), title: "", organization: "", location: "", date: "", description: "" },
-          ])}
-          className={`${primaryButtonClass} ${buttonSizeSmClass}`}
-        >
-          Add Award / Volunteer
-        </FeedbackButton>
+        <div className="flex flex-wrap gap-2">
+          <FeedbackButton
+            doneLabel="Added"
+            onClick={() => onChange([
+              ...entries,
+              { id: editorEntryId("award"), title: "", organization: "", location: "", date: "", description: "" },
+            ])}
+            className={`${primaryButtonClass} ${buttonSizeSmClass}`}
+          >
+            Add Award
+          </FeedbackButton>
+          <FeedbackButton
+            doneLabel="Added"
+            onClick={() => onChange([
+              ...entries,
+              { id: editorEntryId("volunteer"), title: "", organization: "", location: "", date: "", description: "" },
+            ])}
+            className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
+          >
+            Add Volunteer
+          </FeedbackButton>
+        </div>
       </div>
     </ModularSection>
   );
@@ -13122,13 +13380,18 @@ function orderedSectionLines(section: ResumeSection) {
   return rawLines
     .map((rawLine) => {
       const trimmed = rawLine.trim();
-      const isBullet = /^[-*•]\s+/.test(trimmed);
+      const isBullet = /^(?:[-*•]\s*)+/.test(trimmed);
       const text = isBullet
-        ? cleanExportBullet(trimmed.replace(/^[-*•]\s+/, ""))
+        ? cleanStructuredBullet(trimmed)
         : cleanEditorText(trimmed);
       return { text, isBullet };
     })
-    .filter((line) => line.text);
+    .filter(
+      (line) =>
+        line.text &&
+        !isPlaceholderResumeText(line.text) &&
+        !isSourceArtifactHeading(line.text),
+    );
 }
 
 function previewEntryParts(item: string) {
@@ -13194,16 +13457,127 @@ function ResumePreviewSectionContent({ section }: { section: ResumeSection }) {
 
     return (
       <div className="mt-3 space-y-3">
-        {entries.map((project, projectIndex) => (
+        {entries.map((project, projectIndex) => {
+          const [role = "", ...meta] = project.meta;
+
+          return (
           <div key={`${project.title}-${projectIndex}`} className="break-inside-avoid">
-            <p className="text-sm font-semibold text-zinc-900">{project.title}</p>
-            {project.meta.length > 0 ? (
-              <p className="mt-1 text-sm leading-6 text-zinc-700">{project.meta.join(" | ")}</p>
+            <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+              <p className="text-sm font-bold text-zinc-900">{project.title}</p>
+              {role ? (
+                <p className="shrink-0 text-sm font-semibold text-zinc-700 sm:text-right">
+                  {role}
+                </p>
+              ) : null}
+            </div>
+            {meta.length > 0 ? (
+              <div className="mt-1 space-y-0.5 text-sm leading-6 text-zinc-700">
+                {meta.map((item, itemIndex) => (
+                  <p key={`${project.title}-meta-${itemIndex}`}>{item}</p>
+                ))}
+              </div>
             ) : null}
             {project.bullets.length > 0 ? (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
                 {project.bullets.map((bullet, bulletIndex) => (
-                  <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
+                  <li key={`${bullet}-${bulletIndex}`}>{cleanStructuredBullet(bullet)}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (section.heading === "PUBLICATIONS / RESEARCH") {
+    const entries: Array<{ title: string; meta: string[]; bullets: string[] }> = [];
+    let current: { title: string; meta: string[]; bullets: string[] } | null = null;
+
+    for (const line of orderedSectionLines(section)) {
+      if (line.isBullet) {
+        current?.bullets.push(line.text);
+        continue;
+      }
+
+      if (!current || current.bullets.length > 0) {
+        current = { title: line.text, meta: [], bullets: [] };
+        entries.push(current);
+      } else {
+        current.meta.push(line.text);
+      }
+    }
+
+    return (
+      <div className="mt-3 space-y-3">
+        {entries.map((publication, publicationIndex) => (
+          <div key={`${publication.title}-${publicationIndex}`} className="break-inside-avoid">
+            <p className="text-sm font-bold text-zinc-900">{publication.title}</p>
+            {publication.meta.map((item, itemIndex) => (
+              isUrlLike(item) ? (
+                <a
+                  key={`${publication.title}-meta-${itemIndex}`}
+                  href={normalizeUrl(item)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 block break-words text-sm leading-6 text-zinc-700 underline decoration-current/30 underline-offset-2"
+                >
+                  {item}
+                </a>
+              ) : (
+                <p key={`${publication.title}-meta-${itemIndex}`} className="mt-1 text-sm leading-6 text-zinc-700">
+                  {item}
+                </p>
+              )
+            ))}
+            {publication.bullets.length > 1 ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
+                {publication.bullets.map((bullet, bulletIndex) => (
+                  <li key={`${bullet}-${bulletIndex}`}>{cleanStructuredBullet(bullet)}</li>
+                ))}
+              </ul>
+            ) : publication.bullets[0] ? (
+              <p className="mt-2 text-sm leading-6 text-zinc-700">
+                {cleanStructuredBullet(publication.bullets[0])}
+              </p>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (section.heading === "AWARDS & VOLUNTEER") {
+    const entries: Array<{ title: string; meta: string[]; bullets: string[] }> = [];
+    let current: { title: string; meta: string[]; bullets: string[] } | null = null;
+
+    for (const line of orderedSectionLines(section)) {
+      if (line.isBullet) {
+        current?.bullets.push(line.text);
+        continue;
+      }
+
+      if (!current || current.bullets.length > 0) {
+        current = { title: line.text, meta: [], bullets: [] };
+        entries.push(current);
+      } else {
+        current.meta.push(line.text);
+      }
+    }
+
+    return (
+      <div className="mt-3 space-y-3">
+        {entries.map((entry, entryIndex) => (
+          <div key={`${entry.title}-${entryIndex}`} className="break-inside-avoid">
+            <p className="text-sm font-bold text-zinc-900">{entry.title}</p>
+            {entry.meta.length > 0 ? (
+              <p className="mt-1 text-sm leading-6 text-zinc-700">{entry.meta.join(" | ")}</p>
+            ) : null}
+            {entry.bullets.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
+                {entry.bullets.map((bullet, bulletIndex) => (
+                  <li key={`${bullet}-${bulletIndex}`}>{cleanStructuredBullet(bullet)}</li>
                 ))}
               </ul>
             ) : null}
