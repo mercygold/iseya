@@ -2907,18 +2907,7 @@ function createEmptyExperience(index = 0): ExperienceEntry {
 }
 
 function cleanBullets(bullets: string[]) {
-  return uniqueStrings(
-    bullets
-      .map((bullet) => cleanStructuredBullet(bullet))
-      .filter(
-        (bullet) =>
-          bullet &&
-          !containsParserToken(bullet) &&
-          !isPlaceholderResumeText(bullet) &&
-          !isSourceArtifactHeading(bullet) &&
-          !isInstructionArtifactText(bullet),
-      ),
-  );
+  return bullets.map((bullet) => cleanStructuredBullet(bullet)).filter(Boolean);
 }
 
 function splitDateRange(value: string) {
@@ -4357,6 +4346,11 @@ function splitCleanLines(value: string) {
   return structuredBulletLines(value).filter((line) => !hasMalformedParserData(line));
 }
 
+function splitExperienceBulletLines(value: string) {
+  const lines = value.includes("\n") ? value.split(/\r?\n/) : value.split(/\s+\/\s+/);
+  return lines.map((line) => cleanStructuredBullet(line)).filter(Boolean);
+}
+
 function resumeV2FromDraft(
   draft: EditableResumeDraft,
   branding: PersonalBranding,
@@ -4418,7 +4412,7 @@ function resumeV2FromDraft(
           normalizeExperience(
             {
               ...entry,
-              bullets: splitCleanLines(entry.bulletsText),
+              bullets: splitExperienceBulletLines(entry.bulletsText),
             },
             index,
           ),
@@ -4637,7 +4631,45 @@ function resumePreviewLinesFromV2Section(section: ResumeV2Section) {
     lines.push(...section.value.items.map((item) => ({ text: item, isBullet: true })));
   }
 
-  return lines.filter((line) => line.text && !hasMalformedParserData(line.text));
+  return lines.filter((line) => line.text && (section.kind === "experience" || !hasMalformedParserData(line.text)));
+}
+
+const experienceBulletRenderCheckCompanies = [
+  "Jormp LLC",
+  "Bech360",
+  "Japaul",
+  "PATJEDA",
+  "Choice Foods",
+];
+const loggedExperienceBulletRenderChecks = new Set<string>();
+
+function logExperienceBulletRenderCheck(resume: ResumeV2) {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
+  const rows = resume.experience
+    .filter((entry) =>
+      experienceBulletRenderCheckCompanies.some((company) =>
+        entry.company.toLowerCase().includes(company.toLowerCase()),
+      ),
+    )
+    .map((entry) => ({
+      company: entry.company || entry.title,
+      renderedBullets: entry.bullets.filter((bullet) => bullet.trim()).length,
+    }));
+
+  if (rows.length === 0) {
+    return;
+  }
+
+  const key = JSON.stringify(rows);
+  if (loggedExperienceBulletRenderChecks.has(key)) {
+    return;
+  }
+
+  loggedExperienceBulletRenderChecks.add(key);
+  console.info("[resume-preview] experience bullet render check", rows);
 }
 
 function buildResumePreviewFromResumeV2(resume: ResumeV2) {
@@ -4651,6 +4683,7 @@ function buildResumePreviewFromResumeV2(resume: ResumeV2) {
     ...resume,
     customSections: resume.customSections.filter((section) => section.items.length > 0),
   });
+  logExperienceBulletRenderCheck(resume);
 
   return {
     contact: resume.contact,
