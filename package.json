@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "check:env": "node scripts/check-env.cjs",
     "check:user-isolation": "node scripts/check-user-isolation.mjs",
     "check:resume-contamination": "node scripts/check-resume-contamination.mjs",
     "check:resume-pipeline": "node scripts/check-resume-structured-pipeline.cjs",
