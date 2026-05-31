@@ -128,17 +128,6 @@ export function getAppBaseUrl() {
     return window.location.origin;
   }
 
-  const configuredUrl = cleanEnvValue(process.env.NEXT_PUBLIC_APP_URL);
-
-  if (configuredUrl) {
-    try {
-      const url = new URL(configuredUrl);
-      return url.origin;
-    } catch {
-      return productionAppUrl;
-    }
-  }
-
   if (typeof window !== "undefined" && allowedLocalOrigins.has(window.location.origin)) {
     return window.location.origin;
   }
