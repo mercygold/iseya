@@ -667,42 +667,31 @@ const keywordBank = [
   "legal tech",
 ];
 
-const sampleResume = `Avery Morgan
-Senior Product Manager
-avery.morgan@example.com | (949) 555-0142 | Irvine, CA | linkedin.com/in/averymorgan
+const sampleResume = `Your Name
+Target Role
+email@example.com | Phone | Location | LinkedIn URL
 
 PROFESSIONAL SUMMARY
-Product leader with eight years of experience delivering SaaS workflow products, translating customer needs into roadmap decisions, and guiding cross-functional launches across product, design, engineering, and operations.
+Write a focused 3-4 line summary based on your real career facts.
 
 CORE SKILLS
-Product Strategy | Roadmapping | Agile Delivery | Jira | SQL | API Integrations | Stakeholder Management | Customer Discovery
+Add relevant skills separated by commas or pipes.
 
 PROFESSIONAL EXPERIENCE
-Senior Product Manager - Meridian Cloud
-Irvine, CA | Jan 2022 - Present
-- Led roadmap delivery for a workflow automation portfolio serving 40 enterprise customers, improving feature adoption by 24%.
-- Partnered with engineering and design to launch onboarding improvements that reduced time-to-value from 21 days to 14 days.
-- Managed quarterly prioritization with sales, support, and operations leaders using customer evidence and product performance data.
-
-Product Manager - Northstar Payments
-Costa Mesa, CA | Jun 2018 - Dec 2021
-- Delivered merchant reporting enhancements that reduced manual reconciliation effort by 30% across operations teams.
-- Coordinated API integration requirements with compliance, engineering, and partner stakeholders for three platform releases.
-- Established release-readiness reviews and issue triage practices that improved launch predictability.
-
-PROJECTS
-- Customer Health Dashboard | Consolidated product usage and support signals into an account health view for customer success planning.
+Role Title - Company Name
+Location | Start Date - End Date
+- Add one source-backed achievement per line.
 
 EDUCATION
-- University of California, Irvine | Bachelor of Science, Business Information Management | 2017
-
-CERTIFICATIONS
-- Certified Scrum Product Owner (CSPO), Scrum Alliance
-- Pragmatic Institute Product Management Certification
-
-ACHIEVEMENTS
-- Recognized with the Meridian Cloud Product Excellence Award for cross-functional launch execution.
+School | Degree or Program | Year
 `;
+const starterBrandingIdentity = {
+  fullName: "Your Name",
+  professionalTitle: "Target Role",
+  email: "email@example.com",
+  phone: "Phone",
+  location: "Location",
+};
 
 const sampleJob = `Paste the target job description here.
 
@@ -1875,7 +1864,7 @@ function isSourceArtifactHeading(value: string) {
 }
 
 function isPlaceholderResumeText(value: string) {
-  return /jordan taylor|jordan@example\.com|555-0100|avery morgan|avery\.morgan@example\.com|meridian cloud|northstar payments|meridian cloud product excellence award|write a 3-?4 line|role title|company name|add 3-?5 measurable|replace this placeholder|paste the target job description/i.test(
+  return /your name|email@example\.com|target role|jordan taylor|jordan@example\.com|555-0100|avery morgan|avery\.morgan@example\.com|meridian cloud|northstar payments|meridian cloud product excellence award|write a 3-?4 line|role title|company name|add 3-?5 measurable|replace this placeholder|paste the target job description/i.test(
     value,
   );
 }
@@ -2969,12 +2958,6 @@ function isLikelyEducationLine(line: string) {
   );
 }
 
-function isLikelyCertificationLine(line: string) {
-  return /\b(?:certified|certification|certificate|license|licensed|pmp|scrum|aws|azure|google|salesforce|cfa|cpa|security\+|six sigma)\b/i.test(
-    line,
-  );
-}
-
 function isLikelySkillLine(line: string) {
   const cleaned = cleanEditorText(line);
 
@@ -3005,6 +2988,148 @@ function isLikelyAwardLine(line: string) {
   return /\b(?:award|honor|honour|dean'?s list|scholarship|recognition|recognized|winner|finalist|fellowship)\b/i.test(
     line,
   );
+}
+
+function isLikelyVolunteerLine(line: string) {
+  return /\b(?:volunteer|community|coach|mentor|mentoring|training|teaching|service)\b/i.test(
+    line,
+  );
+}
+
+function isLikelyAwardVolunteerEntry(line: string) {
+  const cleaned = cleanEditorText(line);
+
+  if (
+    !cleaned ||
+    isInstructionArtifactText(cleaned) ||
+    likelyExperienceLine(cleaned) ||
+    parseExperienceLine(cleaned).company
+  ) {
+    return false;
+  }
+
+  return (
+    isLikelyAwardLine(cleaned) ||
+    isLikelyLeadershipLine(cleaned) ||
+    isLikelyVolunteerLine(cleaned) ||
+    /\b(?:representative|4th position|competition|recognition|recognized)\b/i.test(cleaned)
+  );
+}
+
+function parseProjectSectionEntries(section?: ResumeSection) {
+  if (!section) return [];
+
+  const entries: Array<{ name: string; role: string; tools: string; link: string; bullets: string[] }> = [];
+  let current: { name: string; role: string; tools: string; link: string; bullets: string[] } | null = null;
+
+  for (const line of orderedSectionLines(section)) {
+    if (line.isBullet) {
+      current?.bullets.push(line.text);
+      continue;
+    }
+
+    if (!current || current.bullets.length > 0) {
+      current = { name: line.text, role: "", tools: "", link: "", bullets: [] };
+      entries.push(current);
+      continue;
+    }
+
+    if (/^https?:\/\//i.test(line.text)) {
+      current.link = line.text;
+    } else if (!current.role) {
+      current.role = line.text;
+    } else if (!current.tools) {
+      current.tools = line.text;
+    } else {
+      current.bullets.push(line.text);
+    }
+  }
+
+  return entries
+    .filter((entry) => entry.name && !isPlaceholderResumeText(entry.name))
+    .map((entry) =>
+      [
+        "PROJECT_ENTRY",
+        `NAME: ${entry.name}`,
+        entry.role ? `ROLE: ${entry.role}` : "",
+        entry.tools ? `TOOLS: ${entry.tools}` : "",
+        entry.link ? `LINK: ${entry.link}` : "",
+        ...entry.bullets.map((bullet) => `BULLET: ${bullet}`),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+}
+
+function parsePublicationSectionEntries(section?: ResumeSection) {
+  if (!section) return [];
+
+  const entries: Array<{ title: string; publisher: string; date: string; link: string; descriptions: string[] }> = [];
+  let current: { title: string; publisher: string; date: string; link: string; descriptions: string[] } | null = null;
+
+  for (const line of orderedSectionLines(section)) {
+    if (line.isBullet) {
+      current?.descriptions.push(line.text);
+      continue;
+    }
+
+    if (!current || current.descriptions.length > 0) {
+      current = { title: line.text, publisher: "", date: "", link: "", descriptions: [] };
+      entries.push(current);
+      continue;
+    }
+
+    if (/^https?:\/\//i.test(line.text)) {
+      current.link = line.text;
+    } else if (/\b(?:19|20)\d{2}\b/.test(line.text) || /\s+\|\s+/.test(line.text)) {
+      const [publisher = "", date = ""] = line.text.split(/\s+\|\s+/);
+      current.publisher = publisher && !/\b(?:19|20)\d{2}\b/.test(publisher) ? publisher : current.publisher;
+      current.date = date || (/\b(?:19|20)\d{2}\b/.test(publisher) ? publisher : current.date);
+    } else {
+      current.descriptions.push(line.text);
+    }
+  }
+
+  return entries
+    .filter((entry) => entry.title && !isPlaceholderResumeText(entry.title))
+    .map((entry) =>
+      [
+        "PUBLICATION_ENTRY",
+        `TITLE: ${entry.title}`,
+        entry.publisher ? `PUBLISHER: ${entry.publisher}` : "",
+        entry.date ? `DATE: ${entry.date}` : "",
+        entry.link ? `LINK: ${entry.link}` : "",
+        ...entry.descriptions.map((description) => `DESCRIPTION: ${description}`),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+}
+
+function normalizeExperienceLocationForCompany(entry: ExperienceEntry) {
+  const company = cleanEditorText(entry.company).toLowerCase();
+  const currentLocation = cleanEditorText(entry.location);
+  const hasWrongNigeriaBleed =
+    /nigeria/i.test(currentLocation) &&
+    /\b(?:jormp|trafford|uk|united kingdom)\b/i.test(company);
+
+  if (/jormp/.test(company) && (!currentLocation || hasWrongNigeriaBleed)) {
+    return "Remote / United States";
+  }
+
+  if (/bech360/.test(company) && (!currentLocation || /^nigeria$/i.test(currentLocation))) {
+    return "Lagos, Nigeria / Remote";
+  }
+
+  if (/japaul/.test(company) && (!currentLocation || /^nigeria$/i.test(currentLocation))) {
+    return "Lagos, Nigeria";
+  }
+
+  if (/\btrafford\b|kent|united kingdom|uk\b/i.test(company) && (!currentLocation || hasWrongNigeriaBleed)) {
+    return "Kent, United Kingdom";
+  }
+
+  return currentLocation;
 }
 
 function inferProjectSectionTitle(projects: string[], industryTarget?: string) {
@@ -3214,6 +3339,8 @@ function normalizeExperience(entry: Partial<ExperienceEntry>, index = 0): Experi
   ) {
     normalized.title = "";
   }
+
+  normalized.location = normalizeExperienceLocationForCompany(normalized);
 
   normalized.bullets = normalized.bullets.slice(0, 5);
 
@@ -3673,36 +3800,28 @@ function structuredResumeFromText(resumeText: string): StructuredResume {
     skillsSection ? parsedSkills : inferListFromResumeText(cleanedResumeText, isLikelySkillLine, 24);
   const parsedEducation = sectionItems(educationSection);
   const parsedCertifications = sectionItems(certificationSection);
-  const parsedProjects = sectionItems(projectSection);
+  const parsedProjects = parseProjectSectionEntries(projectSection);
   const unmatchedSections = sections.filter(
     (section) =>
       !knownSections.has(section.heading) &&
       !isSourceArtifactHeading(section.heading),
   );
-  const inferredAwards = sectionItems(awardsSection);
-  const inferredLeadership = sectionItems(leadershipSection);
-  const inferredVolunteer = sectionItems(volunteerSection);
+  const inferredAwards = sectionItems(awardsSection).filter(isLikelyAwardVolunteerEntry);
+  const inferredLeadership = sectionItems(leadershipSection).filter(isLikelyAwardVolunteerEntry);
+  const inferredVolunteer = sectionItems(volunteerSection).filter(isLikelyAwardVolunteerEntry);
 
   return validateCanonicalResume({
     header: brandingFromResumeText(cleanedResumeText),
     summary: sectionItems(summarySection).join(" "),
     skills: inferredSkills,
     experience: inferredExperience,
-    projects:
-      projectSection ? parsedProjects : inferListFromResumeText(cleanedResumeText, isLikelyProjectLine, 8),
+    projects: projectSection ? parsedProjects : [],
     education:
       educationSection ? parsedEducation : inferListFromResumeText(cleanedResumeText, isLikelyEducationLine, 8),
-    certifications:
-      certificationSection ? parsedCertifications : inferListFromResumeText(cleanedResumeText, isLikelyCertificationLine, 8),
-    publications: sectionItems(publicationSection),
-    leadership:
-      inferredLeadership.length > 0
-        ? inferredLeadership
-        : inferListFromResumeText(cleanedResumeText, isLikelyLeadershipLine, 6),
-    awards:
-      inferredAwards.length > 0
-        ? inferredAwards
-        : inferListFromResumeText(cleanedResumeText, isLikelyAwardLine, 6),
+    certifications: certificationSection ? parsedCertifications : [],
+    publications: parsePublicationSectionEntries(publicationSection),
+    leadership: leadershipSection ? inferredLeadership : [],
+    awards: awardsSection ? inferredAwards : [],
     volunteerExperience: inferredVolunteer,
     tools: splitResumeList(sectionItems(toolsSection).join(", ")),
     additionalSections: [],
@@ -5407,8 +5526,8 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   const workspaceResult = result ?? starterWorkspacePreviewResult;
   const isStarterWorkflowPreview = !result && Boolean(workspaceResult) && isStarterPlan(subscriptionPlan);
   const isStarterBranding =
-    personalBranding.fullName === "Avery Morgan" &&
-    personalBranding.email === "avery.morgan@example.com";
+    personalBranding.fullName === starterBrandingIdentity.fullName &&
+    personalBranding.email === starterBrandingIdentity.email;
   const workspaceBranding =
     isStarterPlan(subscriptionPlan) && hasExtractedSourceText && isStarterBranding
       ? brandingFromResumeText(extractedSourceTextForPreview)
@@ -5790,11 +5909,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       aiSettings: defaultAiSettings,
       personalBranding: {
         ...brandingFromResumeText(sampleResume),
-        fullName: "Avery Morgan",
-        professionalTitle: "Senior Product Manager",
-        email: "avery.morgan@example.com",
-        phone: "(949) 555-0142",
-        location: "Irvine, CA",
+        ...starterBrandingIdentity,
       },
       editableResumeSession: null,
     }),
@@ -7269,8 +7384,8 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         const extractedBranding = brandingFromResumeText(nextExtractedText);
         setPersonalBranding((current) => {
           const currentIsStarter =
-            current.fullName === "Avery Morgan" &&
-            current.email === "avery.morgan@example.com";
+            current.fullName === starterBrandingIdentity.fullName &&
+            current.email === starterBrandingIdentity.email;
 
           return currentIsStarter
             ? {
@@ -10656,6 +10771,24 @@ function pipeSeparatedParts(value: string) {
 
 function editableProjectEntries(items: string[]): EditableProjectEntry[] {
   return items.map((item, index) => {
+    const lines = item.split(/\r?\n/).map(cleanEditorText).filter(Boolean);
+    const hasLabels = lines.some((line) => /^(NAME|ROLE|TOOLS|LINK|BULLET):/i.test(line));
+
+    if (hasLabels) {
+      return {
+        id: `project-${index}`,
+        name: lines.find((line) => /^NAME:/i.test(line))?.replace(/^NAME:\s*/i, "") ?? "",
+        context: lines.find((line) => /^ROLE:/i.test(line))?.replace(/^ROLE:\s*/i, "") ?? "",
+        tools: lines.find((line) => /^TOOLS:/i.test(line))?.replace(/^TOOLS:\s*/i, "") ?? "",
+        link: lines.find((line) => /^LINK:/i.test(line))?.replace(/^LINK:\s*/i, "") ?? "",
+        details: lines
+          .filter((line) => /^BULLET:/i.test(line))
+          .map((line) => cleanStructuredBullet(line.replace(/^BULLET:\s*/i, "")))
+          .filter(Boolean)
+          .join("\n"),
+      };
+    }
+
     const parts = pipeSeparatedParts(item);
 
     if (parts.length <= 1) {
@@ -10685,6 +10818,24 @@ function editableProjectEntries(items: string[]): EditableProjectEntry[] {
 
 function editablePublicationEntries(items: string[]): EditablePublicationEntry[] {
   return items.map((item, index) => {
+    const lines = item.split(/\r?\n/).map(cleanEditorText).filter(Boolean);
+    const hasLabels = lines.some((line) => /^(TITLE|DESCRIPTION|LINK|PUBLISHER|DATE):/i.test(line));
+
+    if (hasLabels) {
+      return {
+        id: `publication-${index}`,
+        title: lines.find((line) => /^TITLE:/i.test(line))?.replace(/^TITLE:\s*/i, "") ?? "",
+        description: lines
+          .filter((line) => /^DESCRIPTION:/i.test(line))
+          .map((line) => cleanStructuredBullet(line.replace(/^DESCRIPTION:\s*/i, "")))
+          .filter(Boolean)
+          .join("\n"),
+        link: lines.find((line) => /^LINK:/i.test(line))?.replace(/^LINK:\s*/i, "") ?? "",
+        publisher: lines.find((line) => /^PUBLISHER:/i.test(line))?.replace(/^PUBLISHER:\s*/i, "") ?? "",
+        date: lines.find((line) => /^DATE:/i.test(line))?.replace(/^DATE:\s*/i, "") ?? "",
+      };
+    }
+
     const parts = pipeSeparatedParts(item);
 
     if (parts.length <= 1) {
@@ -10802,6 +10953,24 @@ function migratePublicationEntries(value: unknown): EditablePublicationEntry[] {
 
 function editableAwardVolunteerEntries(items: string[]): EditableAwardVolunteerEntry[] {
   return items.map((item, index) => {
+    const lines = item.split(/\r?\n/).map(cleanEditorText).filter(Boolean);
+    const hasLabels = lines.some((line) => /^(TITLE|ORGANIZATION|LOCATION|DATE|DESCRIPTION):/i.test(line));
+
+    if (hasLabels) {
+      return {
+        id: `award-volunteer-${index}`,
+        title: lines.find((line) => /^TITLE:/i.test(line))?.replace(/^TITLE:\s*/i, "") ?? "",
+        organization: lines.find((line) => /^ORGANIZATION:/i.test(line))?.replace(/^ORGANIZATION:\s*/i, "") ?? "",
+        location: lines.find((line) => /^LOCATION:/i.test(line))?.replace(/^LOCATION:\s*/i, "") ?? "",
+        date: lines.find((line) => /^DATE:/i.test(line))?.replace(/^DATE:\s*/i, "") ?? "",
+        description: lines
+          .filter((line) => /^DESCRIPTION:/i.test(line))
+          .map((line) => cleanStructuredBullet(line.replace(/^DESCRIPTION:\s*/i, "")))
+          .filter(Boolean)
+          .join("\n"),
+      };
+    }
+
     const parts = pipeSeparatedParts(item);
 
     if (parts.length <= 1) {
@@ -13120,6 +13289,21 @@ function AdvancedIntelligencePanel({
   analysis: AdvancedAnalysis;
   onReplaceBullet: (original: string, replacement: string) => void;
 }) {
+  const [previewImprovement, setPreviewImprovement] = useState<{
+    original: string;
+    replacement: string;
+  } | null>(null);
+  const [gapActionStatus, setGapActionStatus] = useState("");
+  const groundedImprovements = analysis.bulletImprovements
+    .filter((bullet) => bullet.original && bullet.strongerVersion)
+    .slice(0, 5);
+
+  function applyGroundedImprovement(original: string, replacement: string) {
+    onReplaceBullet(original, replacement);
+    setGapActionStatus("Applied");
+    window.setTimeout(() => setGapActionStatus(""), 1400);
+  }
+
   return (
     <details className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
       <summary className="cursor-pointer list-none text-sm font-semibold text-[var(--iseya-navy)]">
@@ -13182,6 +13366,87 @@ function AdvancedIntelligencePanel({
             />
             <CoachBlock title="Recommendations" items={analysis.gapAnalysis.recommendations} />
             <CoachBlock title="Wording Changes" items={analysis.gapAnalysis.wordingChanges} />
+            {groundedImprovements.length > 0 ? (
+              <div className="rounded-md border border-[var(--iseya-gold)]/30 bg-white p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
+                      Active Optimization
+                    </h3>
+                    <p className="mt-1 text-xs leading-5 text-zinc-600">
+                      Suggestions are built from existing resume bullets. Review before applying.
+                    </p>
+                  </div>
+                  <FeedbackButton
+                    doneLabel="Applied"
+                    onClick={() => {
+                      groundedImprovements.forEach((item) =>
+                        onReplaceBullet(item.original, item.strongerVersion),
+                      );
+                      setGapActionStatus("Applied suggested improvements");
+                    }}
+                    className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
+                  >
+                    Apply Suggested Improvements
+                  </FeedbackButton>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {groundedImprovements.slice(0, 3).map((item, itemIndex) => (
+                    <div key={`${item.original}-${itemIndex}`} className="rounded-md border border-zinc-200 bg-zinc-50 p-2">
+                      <p className="text-xs font-semibold text-zinc-500">
+                        {item.original}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewImprovement({
+                              original: item.original,
+                              replacement: item.strongerVersion,
+                            })
+                          }
+                          className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
+                        >
+                          Preview Improvement
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => applyGroundedImprovement(item.original, item.strongerVersion)}
+                          className={`${primaryButtonClass} ${buttonSizeSmClass}`}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPreviewImprovement(null);
+                            setGapActionStatus("Rejected");
+                          }}
+                          className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {previewImprovement ? (
+                  <div className="mt-3 rounded-md border border-zinc-200 bg-white p-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
+                      Preview Improvement
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-700">
+                      {previewImprovement.replacement}
+                    </p>
+                  </div>
+                ) : null}
+                {gapActionStatus ? (
+                  <p className="mt-2 text-xs font-semibold text-[var(--iseya-navy)]">
+                    {gapActionStatus}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </details>
 
