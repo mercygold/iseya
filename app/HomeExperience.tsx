@@ -5936,10 +5936,11 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   const subscriptionFetchFailedRef = useRef(false);
   const lastAutosaveVersionKeyRef = useRef("");
   const opportunityPrefillRef = useRef("");
-	  const uploadInputRef = useRef<HTMLInputElement | null>(null);
-	  const [editableResumeSession, setEditableResumeSession] = useState<EditableResumeSession | null>(null);
-	  const [canonicalResumeV2, setCanonicalResumeV2] = useState<ResumeV2 | null>(null);
-	  const feedbackTimers = useRef<Record<string, number>>({});
+  const hasLoadedLocalStateRef = useRef(false);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const [editableResumeSession, setEditableResumeSession] = useState<EditableResumeSession | null>(null);
+  const [canonicalResumeV2, setCanonicalResumeV2] = useState<ResumeV2 | null>(null);
+  const feedbackTimers = useRef<Record<string, number>>({});
   const persistEditableResumeDraft = useCallback(
     (
       draft: EditableResumeDraft,
@@ -6253,9 +6254,9 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     }
 
     try {
-      window.localStorage.setItem(currentDraftStorageKey, JSON.stringify({ ...draft, contentHash: draftHash }));
-      window.localStorage.setItem(activeResumeIdStorageKey, draftId);
-      setActiveResumeId(draftId);
+	      window.localStorage.setItem(currentDraftStorageKey, JSON.stringify({ ...draft, contentHash: draftHash }));
+	      window.localStorage.setItem(activeResumeIdStorageKey, draftId);
+	      setActiveResumeId((current) => (current === draftId ? current : draftId));
     } catch {
       // Main workspace localStorage save still protects the editable draft.
     }
@@ -6539,7 +6540,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         : null;
 
       if (activeResume?.workspaceState && !containsRestrictedSeedData(activeResume.workspaceState)) {
-        setActiveResumeId(activeResume.id);
+	        setActiveResumeId((current) => (current === activeResume.id ? current : activeResume.id));
         return migrateSavedWorkspaceState(activeResume.workspaceState);
       }
 
@@ -6558,7 +6559,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       if (currentDraft) {
         const parsedDraft = normalizeSavedResumeRecord(JSON.parse(currentDraft) as Partial<SavedResumeRecord>);
         if (parsedDraft?.workspaceState && !containsRestrictedSeedData(parsedDraft.workspaceState)) {
-          setActiveResumeId(parsedDraft.id);
+	          setActiveResumeId((current) => (current === parsedDraft.id ? current : parsedDraft.id));
           return migrateSavedWorkspaceState(parsedDraft.workspaceState);
         }
       }
@@ -6568,7 +6569,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       )[0];
 
       if (latestSavedResume?.workspaceState && !containsRestrictedSeedData(latestSavedResume.workspaceState)) {
-        setActiveResumeId(latestSavedResume.id);
+	        setActiveResumeId((current) => (current === latestSavedResume.id ? current : latestSavedResume.id));
         return migrateSavedWorkspaceState(latestSavedResume.workspaceState);
       }
 
@@ -6632,11 +6633,17 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     setSelectedVersionId((current) => current || manualVersions[0]?.id || "");
   }, [applySavedState, starterSavedState]);
 
-  useEffect(() => {
-    if (!authLoaded) {
-      return;
-    }
+	  useEffect(() => {
+	    if (!authLoaded) {
+	      return;
+	    }
 
+	    if (hasLoadedLocalStateRef.current) {
+	      return;
+	    }
+
+	    hasLoadedLocalStateRef.current = true;
+	
 	    window.setTimeout(() => {
 	      try {
 	        ensureResumeEngineV2Backup();
@@ -6696,12 +6703,12 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         if (savedUsageData) {
           setUsageStats(normalizeUsageStats(JSON.parse(savedUsageData)));
         }
-      } catch {
-        window.localStorage.removeItem(storageKey);
-      } finally {
-        setHydrated(true);
-      }
-    }, 0);
+	      } catch {
+	        // Keep existing saved data intact; failed hydration should not become destructive.
+	      } finally {
+	        setHydrated(true);
+	      }
+	    }, 0);
 	  }, [applySavedState, authLoaded, authUser, ensureResumeEngineV2Backup, loadLocalSavedState, starterSavedState]);
 
   useEffect(() => {
@@ -7641,7 +7648,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         } catch {
           // Version and workspace state remain available in memory.
         }
-        setActiveResumeId(resumeId);
+	        setActiveResumeId((current) => (current === resumeId ? current : resumeId));
       }
     }
     setSelectedVersionId(snapshot.id);
