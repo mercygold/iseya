@@ -389,6 +389,62 @@ type EditableResumeSession = {
   deletedSections?: string[];
 };
 
+type ResumeV2 = {
+  contact: PersonalBranding;
+  summary: string;
+  skills: string[];
+  experience: ExperienceEntry[];
+  projects: Array<{
+    name: string;
+    role: string;
+    organization: string;
+    description: string;
+    link: string;
+    bullets: string[];
+  }>;
+  education: EditableEducationEntry[];
+  certifications: EditableCertificationEntry[];
+  tools: string[];
+  publications: Array<{
+    title: string;
+    date: string;
+    description: string;
+    link: string;
+    publisher: string;
+    bullets: string[];
+  }>;
+  awards: Array<{
+    title: string;
+    organization: string;
+    location: string;
+    date: string;
+    description: string;
+    bullets: string[];
+  }>;
+  volunteer: Array<{
+    title: string;
+    organization: string;
+    location: string;
+    date: string;
+    description: string;
+    bullets: string[];
+  }>;
+  customSections: ResumeSection[];
+};
+
+type ResumeV2Section =
+  | { heading: "PROFESSIONAL SUMMARY"; kind: "summary"; value: string }
+  | { heading: "CORE SKILLS"; kind: "skills"; value: string[] }
+  | { heading: "TOOLS / TECHNOLOGIES"; kind: "tools"; value: string[] }
+  | { heading: "PROFESSIONAL EXPERIENCE"; kind: "experience"; value: ExperienceEntry[] }
+  | { heading: "PROJECTS"; kind: "projects"; value: ResumeV2["projects"] }
+  | { heading: "EDUCATION"; kind: "education"; value: EditableEducationEntry[] }
+  | { heading: "CERTIFICATIONS"; kind: "certifications"; value: EditableCertificationEntry[] }
+  | { heading: "PUBLICATIONS / RESEARCH"; kind: "publications"; value: ResumeV2["publications"] }
+  | { heading: "AWARDS"; kind: "awards"; value: ResumeV2["awards"] }
+  | { heading: "VOLUNTEER"; kind: "volunteer"; value: ResumeV2["volunteer"] }
+  | { heading: string; kind: "custom"; value: ResumeSection };
+
 type AiOptimizationAction =
   | "Optimize Summary"
   | "Improve Skills"
@@ -2998,22 +3054,21 @@ function isLikelyVolunteerLine(line: string) {
 
 function isLikelyAwardVolunteerEntry(line: string) {
   const cleaned = cleanEditorText(line);
+  const hasAwardVolunteerSignal =
+    isLikelyAwardLine(cleaned) ||
+    isLikelyLeadershipLine(cleaned) ||
+    isLikelyVolunteerLine(cleaned) ||
+    /\b(?:representative|4th position|competition|recognition|recognized)\b/i.test(cleaned);
 
   if (
     !cleaned ||
     isInstructionArtifactText(cleaned) ||
-    likelyExperienceLine(cleaned) ||
-    parseExperienceLine(cleaned).company
+    (!hasAwardVolunteerSignal && (likelyExperienceLine(cleaned) || Boolean(parseExperienceLine(cleaned).company)))
   ) {
     return false;
   }
 
-  return (
-    isLikelyAwardLine(cleaned) ||
-    isLikelyLeadershipLine(cleaned) ||
-    isLikelyVolunteerLine(cleaned) ||
-    /\b(?:representative|4th position|competition|recognition|recognized)\b/i.test(cleaned)
-  );
+  return hasAwardVolunteerSignal;
 }
 
 function parseProjectSectionEntries(section?: ResumeSection) {
@@ -3709,23 +3764,25 @@ function validateCanonicalResume(structured: StructuredResume) {
         .map((entry, index) => normalizeExperience(entry, index))
         .filter((entry): entry is ExperienceEntry => Boolean(entry)),
     ),
-    projects: cleanList(structured.projects).map((project) => {
-      if (
-        project.length > 90 ||
-        (/\b(i|we|built|led|implemented|platform|system)\b/i.test(project) &&
-          /[.!?]/.test(project))
-      ) {
-        return `Implementation Reporting System | ${project}`;
-      }
-
-      return project;
-    }),
+    projects: structured.projects
+      .map((project) => project.trim())
+      .filter(Boolean)
+      .filter((project) => !isPlaceholderResumeText(project) && !isSourceArtifactHeading(project)),
     education: cleanList(structured.education),
     certifications: cleanList(structured.certifications).filter(isCredentialCertificationText),
-    publications: cleanList(structured.publications),
-    leadership: cleanList(structured.leadership),
-    awards: cleanList(structured.awards),
-    volunteerExperience: cleanList(structured.volunteerExperience),
+    publications: structured.publications
+      .map((publication) => publication.trim())
+      .filter(Boolean)
+      .filter((publication) => !isPlaceholderResumeText(publication) && !isSourceArtifactHeading(publication)),
+    leadership: cleanList(structured.leadership).filter(isLikelyAwardVolunteerEntry),
+    awards: structured.awards
+      .map((award) => award.trim())
+      .filter(Boolean)
+      .filter((award) => {
+        const parsed = parseAwardVolunteerRecord(award);
+        return isLikelyAwardVolunteerEntry([parsed.title, parsed.organization, parsed.location, parsed.date].filter(Boolean).join(" "));
+      }),
+    volunteerExperience: cleanList(structured.volunteerExperience).filter(isLikelyAwardVolunteerEntry),
     tools: cleanList(structured.tools),
     additionalSections: structured.additionalSections.filter(
       (section) =>
@@ -3883,109 +3940,77 @@ function serializeStructuredResume(
   }
 
   function pushProjectSection(items: string[]) {
-    const cleanedItems = uniqueStrings(items);
+    const projects = items
+      .map(parseProjectRecord)
+      .filter((project) => project.name && !containsParserToken(project.name));
 
-    if (cleanedItems.length === 0 && !preserveEmptySections) {
+    if (projects.length === 0 && !preserveEmptySections) {
       return;
     }
 
-    lines.push("", inferProjectSectionTitle(cleanedItems));
+    lines.push(
+      "",
+      inferProjectSectionTitle(
+        projects.map((project) =>
+          [project.name, project.role, project.description, ...project.bullets].join(" "),
+        ),
+      ),
+    );
 
-    for (const item of cleanedItems) {
-      const parts = item
-        .split(/\r?\n/)
-        .map(cleanEditorText)
-        .filter(Boolean)
-        .filter((part) => part !== "PROJECT_ENTRY");
-      const hasLabels = parts.some((part) => /^(NAME|ROLE|TOOLS|LINK|BULLET):/i.test(part));
-      const name = hasLabels ? parts.find((part) => /^NAME:/i.test(part))?.replace(/^NAME:\s*/i, "") ?? "" : parts[0] ?? "";
-      const context = hasLabels ? parts.find((part) => /^ROLE:/i.test(part))?.replace(/^ROLE:\s*/i, "") ?? "" : parts[1] ?? "";
-      const tools = hasLabels ? parts.find((part) => /^TOOLS:/i.test(part))?.replace(/^TOOLS:\s*/i, "") ?? "" : parts[2] ?? "";
-      const link = hasLabels ? parts.find((part) => /^LINK:/i.test(part))?.replace(/^LINK:\s*/i, "") ?? "" : parts[3] ?? "";
-      const bullets = hasLabels
-        ? parts
-            .filter((part) => /^BULLET:/i.test(part))
-            .map((part) => cleanStructuredBullet(part.replace(/^BULLET:\s*/i, "")))
-        : parts.slice(4).flatMap(structuredBulletLines);
-
-      if (!name) {
-        continue;
+    for (const project of projects) {
+      lines.push(project.name);
+      if (project.role || project.organization) {
+        lines.push([project.role, project.organization].filter(Boolean).join(" | "));
       }
-
-      lines.push(name);
-      if (context) lines.push(context);
-      if (tools) lines.push(tools);
-      if (/^https?:\/\//i.test(link)) lines.push(link);
-      lines.push(...bullets.filter(Boolean).map((bullet) => `- ${bullet}`));
+      if (project.description) lines.push(project.description);
+      if (/^https?:\/\//i.test(project.link)) lines.push(project.link);
+      lines.push(...uniqueStrings(project.bullets).map((bullet) => `- ${bullet}`));
     }
   }
 
   function pushPublicationSection(items: string[]) {
-    const cleanedItems = uniqueStrings(items);
+    const publications = items
+      .map(parsePublicationRecord)
+      .filter((publication) => publication.title && !containsParserToken(publication.title));
 
-    if (cleanedItems.length === 0 && !preserveEmptySections) {
+    if (publications.length === 0 && !preserveEmptySections) {
       return;
     }
 
     lines.push("", "PUBLICATIONS / RESEARCH");
 
-    for (const item of cleanedItems) {
-      const parts = item
-        .split(/\r?\n/)
-        .map(cleanEditorText)
-        .filter(Boolean)
-        .filter((part) => part !== "PUBLICATION_ENTRY");
-      const hasLabels = parts.some((part) => /^(TITLE|DESCRIPTION|LINK|PUBLISHER|DATE):/i.test(part));
-      const title = hasLabels ? parts.find((part) => /^TITLE:/i.test(part))?.replace(/^TITLE:\s*/i, "") ?? "" : parts[0] ?? "";
-      const link = hasLabels ? parts.find((part) => /^LINK:/i.test(part))?.replace(/^LINK:\s*/i, "") ?? "" : parts[2] ?? "";
-      const publisher = hasLabels ? parts.find((part) => /^PUBLISHER:/i.test(part))?.replace(/^PUBLISHER:\s*/i, "") ?? "" : parts[3] ?? "";
-      const date = hasLabels ? parts.find((part) => /^DATE:/i.test(part))?.replace(/^DATE:\s*/i, "") ?? "" : parts[4] ?? "";
-      const descriptions = hasLabels
-        ? parts
-            .filter((part) => /^DESCRIPTION:/i.test(part))
-            .flatMap((part) => structuredBulletLines(part.replace(/^DESCRIPTION:\s*/i, "")))
-        : structuredBulletLines(parts[1] ?? "");
-
-      if (title) lines.push(title);
-      if (publisher || date) {
-        lines.push([publisher, date].filter(Boolean).join(" | "));
+    for (const publication of publications) {
+      lines.push(publication.title);
+      if (publication.publisher || publication.date) {
+        lines.push([publication.publisher, publication.date].filter(Boolean).join(" | "));
       }
-      if (link) lines.push(link);
-      lines.push(...descriptions.map((description) => `- ${description}`));
+      if (publication.link) lines.push(publication.link);
+      if (publication.description) lines.push(publication.description);
+      lines.push(...uniqueStrings(publication.bullets).map((description) => `- ${description}`));
     }
   }
 
   function pushAwardsVolunteerSection(items: string[]) {
-    const cleanedItems = uniqueStrings(items);
+    const entries = items
+      .map(parseAwardVolunteerRecord)
+      .filter((entry) => {
+        const identity = [entry.title, entry.organization, entry.location, entry.date].filter(Boolean).join(" ");
+        return entry.title && !containsParserToken(entry.title) && isLikelyAwardVolunteerEntry(identity);
+      });
 
-    if (cleanedItems.length === 0 && !preserveEmptySections) {
+    if (entries.length === 0 && !preserveEmptySections) {
       return;
     }
 
     lines.push("", "AWARDS & VOLUNTEER");
 
-    for (const item of cleanedItems) {
-      const parts = item
-        .split(/\r?\n/)
-        .map(cleanEditorText)
-        .filter(Boolean)
-        .filter((part) => part !== "AWARD_VOLUNTEER_ENTRY");
-      const hasLabels = parts.some((part) => /^(TITLE|ORGANIZATION|LOCATION|DATE|DESCRIPTION):/i.test(part));
-      const title = hasLabels ? parts.find((part) => /^TITLE:/i.test(part))?.replace(/^TITLE:\s*/i, "") ?? "" : parts[0] ?? "";
-      const organization = hasLabels ? parts.find((part) => /^ORGANIZATION:/i.test(part))?.replace(/^ORGANIZATION:\s*/i, "") ?? "" : parts[1] ?? "";
-      const location = hasLabels ? parts.find((part) => /^LOCATION:/i.test(part))?.replace(/^LOCATION:\s*/i, "") ?? "" : parts[2] ?? "";
-      const date = hasLabels ? parts.find((part) => /^DATE:/i.test(part))?.replace(/^DATE:\s*/i, "") ?? "" : parts[3] ?? "";
-      const description = hasLabels
-        ? parts
-            .filter((part) => /^DESCRIPTION:/i.test(part))
-            .flatMap((part) => structuredBulletLines(part.replace(/^DESCRIPTION:\s*/i, "")))
-        : parts.slice(4).flatMap(structuredBulletLines);
-
-      if (title) lines.push(title);
-      if (organization || location || date) {
-        lines.push([organization, location, date].filter(Boolean).join(" | "));
+    for (const entry of entries) {
+      lines.push(entry.title);
+      if (entry.organization || entry.location || entry.date) {
+        lines.push([entry.organization, entry.location, entry.date].filter(Boolean).join(" | "));
       }
-      lines.push(...description.map((line) => `- ${line}`));
+      if (entry.description) lines.push(entry.description);
+      lines.push(...uniqueStrings(entry.bullets).map((line) => `- ${line}`));
     }
   }
 
@@ -4072,7 +4097,7 @@ function serializeStructuredResume(
     lines.push("", heading, ...body, ...bullets.map((bullet) => `- ${bullet}`));
   }
 
-  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return cleanRenderedResumeText(lines.join("\n").replace(/\n{3,}/g, "\n\n").trim());
 }
 
 function optimizeResumeText(value: string) {
@@ -4117,7 +4142,8 @@ function cleanExportBullet(value: string) {
 
 function cleanStructuredBullet(value: string) {
   return cleanExportBullet(value)
-    .replace(/^(?:bullet|description|detail)\s*:\s*/i, "")
+    .replace(/^(?:bullet|description|detail|role|organization|location|tools|name|title|date|publisher|link)\s*:\s*/i, "")
+    .replace(/\b(?:PROJECT_ENTRY|PUBLICATION_ENTRY|AWARD_VOLUNTEER_ENTRY)\b/gi, "")
     .replace(/^(?:[-*•]\s*)+/g, "")
     .trim();
 }
@@ -4128,6 +4154,363 @@ function structuredBulletLines(value: string) {
     .map(cleanStructuredBullet)
     .filter(Boolean)
     .filter((line) => !isPlaceholderResumeText(line) && !isSourceArtifactHeading(line));
+}
+
+function containsParserToken(value: string) {
+  return /\b(?:PROJECT_ENTRY|PUBLICATION_ENTRY|AWARD_VOLUNTEER_ENTRY)\b|(?:^|\s)(?:NAME|TITLE|ROLE|DESCRIPTION|BULLET|ORGANIZATION|LOCATION|TOOLS|PUBLISHER|DATE|LINK):/i.test(
+    value,
+  );
+}
+
+function normalizeParserRecordLines(value: string) {
+  return value
+    .replace(/\b(PROJECT_ENTRY|PUBLICATION_ENTRY|AWARD_VOLUNTEER_ENTRY)\b/gi, "\n$1")
+    .replace(/\s+(NAME|TITLE|ROLE|DESCRIPTION|BULLET|ORGANIZATION|LOCATION|TOOLS|PUBLISHER|DATE|LINK):/gi, "\n$1:")
+    .split(/\r?\n/)
+    .map(cleanEditorText)
+    .filter(Boolean)
+    .filter((line) => !/^(PROJECT_ENTRY|PUBLICATION_ENTRY|AWARD_VOLUNTEER_ENTRY)$/i.test(line));
+}
+
+function labelValue(lines: string[], label: string) {
+  return cleanStructuredBullet(
+    lines.find((line) => new RegExp(`^${label}:`, "i").test(line))?.replace(new RegExp(`^${label}:\\s*`, "i"), "") ?? "",
+  );
+}
+
+function labelValues(lines: string[], label: string) {
+  return lines
+    .filter((line) => new RegExp(`^${label}:`, "i").test(line))
+    .map((line) => cleanStructuredBullet(line.replace(new RegExp(`^${label}:\\s*`, "i"), "")))
+    .filter(Boolean);
+}
+
+function parseProjectRecord(item: string) {
+  const lines = normalizeParserRecordLines(item);
+  const hasLabels = lines.some((line) => /^(NAME|ROLE|TOOLS|LINK|BULLET):/i.test(line));
+
+  if (hasLabels) {
+    return {
+      name: labelValue(lines, "NAME"),
+      role: labelValue(lines, "ROLE"),
+      organization: "",
+      description: labelValue(lines, "TOOLS"),
+      link: labelValue(lines, "LINK"),
+      bullets: labelValues(lines, "BULLET"),
+    };
+  }
+
+  const parts = pipeSeparatedParts(item);
+  if (parts.length <= 1) {
+    return {
+      name: "",
+      role: "",
+      organization: "",
+      description: "",
+      link: "",
+      bullets: structuredBulletLines(item),
+    };
+  }
+  const [name = "", role = "", description = "", ...details] = parts;
+  const link = details.find((detail) => /^https?:\/\//i.test(detail)) ?? "";
+
+  return {
+    name: cleanStructuredBullet(name),
+    role: cleanStructuredBullet(role),
+    organization: "",
+    description: cleanStructuredBullet(description),
+    link,
+    bullets: details.filter((detail) => detail !== link).flatMap(structuredBulletLines),
+  };
+}
+
+function parsePublicationRecord(item: string) {
+  const lines = normalizeParserRecordLines(item);
+  const hasLabels = lines.some((line) => /^(TITLE|DESCRIPTION|LINK|PUBLISHER|DATE):/i.test(line));
+
+  if (hasLabels) {
+    return {
+      title: labelValue(lines, "TITLE"),
+      publisher: labelValue(lines, "PUBLISHER"),
+      date: labelValue(lines, "DATE"),
+      link: labelValue(lines, "LINK"),
+      description: "",
+      bullets: labelValues(lines, "DESCRIPTION"),
+    };
+  }
+
+  const parts = pipeSeparatedParts(item);
+  const [title = "", description = "", linkOrPublisher = "", publisherOrDate = "", date = ""] = parts;
+  const link = /^https?:\/\//i.test(linkOrPublisher) ? linkOrPublisher : "";
+
+  return {
+    title: cleanStructuredBullet(title),
+    publisher: link ? cleanStructuredBullet(publisherOrDate) : cleanStructuredBullet(linkOrPublisher),
+    date: link ? cleanStructuredBullet(date) : cleanStructuredBullet(publisherOrDate),
+    link,
+    description: "",
+    bullets: structuredBulletLines(description),
+  };
+}
+
+function parseAwardVolunteerRecord(item: string) {
+  const lines = normalizeParserRecordLines(item);
+  const hasLabels = lines.some((line) => /^(TITLE|ORGANIZATION|LOCATION|DATE|DESCRIPTION):/i.test(line));
+
+  if (hasLabels) {
+    return {
+      title: labelValue(lines, "TITLE"),
+      organization: labelValue(lines, "ORGANIZATION"),
+      location: labelValue(lines, "LOCATION"),
+      date: labelValue(lines, "DATE"),
+      description: "",
+      bullets: labelValues(lines, "DESCRIPTION"),
+    };
+  }
+
+  const parts = pipeSeparatedParts(item);
+  const [title = "", organization = "", locationOrDate = "", ...description] = parts;
+  const date = /\b(?:19|20)\d{2}\b|present|current/i.test(locationOrDate) ? locationOrDate : "";
+
+  return {
+    title: cleanStructuredBullet(title),
+    organization: cleanStructuredBullet(organization),
+    location: date ? "" : cleanStructuredBullet(locationOrDate),
+    date: cleanStructuredBullet(date),
+    description: "",
+    bullets: description.flatMap(structuredBulletLines),
+  };
+}
+
+function cleanRenderedResumeText(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((line) => {
+      if (!containsParserToken(line)) {
+        return line;
+      }
+
+      const cleaned = cleanStructuredBullet(line);
+      return containsParserToken(cleaned) ? "" : cleaned;
+    })
+    .filter((line) => line.trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function rawSectionText(section: ResumeSection) {
+  return (section.lines && section.lines.length > 0
+    ? section.lines
+    : [...section.body, ...section.bullets.map((bullet) => `- ${bullet}`)]
+  ).join("\n");
+}
+
+function encodedRecordsFromSection(section: ResumeSection, marker: string) {
+  const raw = rawSectionText(section);
+  if (!containsParserToken(raw)) {
+    return [];
+  }
+
+  const pattern = new RegExp(`\\b${marker}\\b`, "i");
+  return raw
+    .split(new RegExp(`(?=\\b${marker}\\b)`, "gi"))
+    .map((item) => item.trim())
+    .filter((item) => pattern.test(item));
+}
+
+function hasMalformedParserData(value: string) {
+  return containsParserToken(value);
+}
+
+function splitCleanLines(value: string) {
+  return structuredBulletLines(value).filter((line) => !hasMalformedParserData(line));
+}
+
+function resumeV2FromDraft(draft: EditableResumeDraft, branding: PersonalBranding): ResumeV2 {
+  const awards: ResumeV2["awards"] = [];
+  const volunteer: ResumeV2["volunteer"] = [];
+
+  for (const entry of draft.awardsVolunteer) {
+    const normalized = {
+      title: cleanStructuredBullet(entry.title),
+      organization: cleanStructuredBullet(entry.organization),
+      location: cleanStructuredBullet(entry.location),
+      date: cleanStructuredBullet(entry.date),
+      description: "",
+      bullets: splitCleanLines(entry.description),
+    };
+
+    if (!normalized.title || hasMalformedParserData(normalized.title)) {
+      continue;
+    }
+
+    const joined = [normalized.title, normalized.organization].join(" ");
+
+    if (isLikelyVolunteerLine(joined)) {
+      volunteer.push(normalized);
+    } else if (isLikelyAwardVolunteerEntry(joined)) {
+      awards.push(normalized);
+    }
+  }
+
+  return {
+    contact: normalizePersonalBranding({
+      ...draft.header,
+      ...branding,
+    }),
+    summary: cleanEditorText(draft.summaryText),
+    skills: splitResumeList(draft.skillsText).filter((skill) => !hasMalformedParserData(skill)),
+    experience: dedupeExperience(
+      draft.experience
+        .map((entry, index) =>
+          normalizeExperience(
+            {
+              ...entry,
+              bullets: splitCleanLines(entry.bulletsText),
+            },
+            index,
+          ),
+        )
+        .filter((entry): entry is ExperienceEntry => Boolean(entry)),
+    ),
+    projects: draft.projects
+      .map((project) => ({
+        name: cleanStructuredBullet(project.name),
+        role: cleanStructuredBullet(project.context),
+        organization: "",
+        description: cleanStructuredBullet(project.tools),
+        link: cleanStructuredBullet(project.link),
+        bullets: splitCleanLines(project.details),
+      }))
+      .filter((project) => project.name && !hasMalformedParserData(project.name)),
+    education: draft.education
+      .map((education) => ({
+        ...education,
+        school: cleanStructuredBullet(education.school),
+        degree: cleanStructuredBullet(education.degree),
+        location: cleanStructuredBullet(education.location),
+        dates: cleanStructuredBullet(education.dates),
+        details: splitCleanLines(education.details).join("\n"),
+      }))
+      .filter((education) => education.school || education.degree),
+    certifications: draft.certifications
+      .map((certification) => ({
+        ...certification,
+        name: cleanStructuredBullet(certification.name),
+        issuer: cleanStructuredBullet(certification.issuer),
+        year: cleanStructuredBullet(certification.year),
+      }))
+      .filter((certification) => certification.name && !hasMalformedParserData(certification.name)),
+    tools: splitResumeList(draft.toolsText).filter((tool) => !hasMalformedParserData(tool)),
+    publications: draft.publications
+      .map((publication) => ({
+        title: cleanStructuredBullet(publication.title),
+        date: cleanStructuredBullet(publication.date),
+        description: "",
+        link: cleanStructuredBullet(publication.link),
+        publisher: cleanStructuredBullet(publication.publisher),
+        bullets: splitCleanLines(publication.description),
+      }))
+      .filter((publication) => publication.title && !hasMalformedParserData(publication.title)),
+    awards,
+    volunteer,
+    customSections: draft.additionalSections
+      .map((section) => ({
+        heading: cleanStructuredBullet(section.heading),
+        body: section.body.map(cleanStructuredBullet).filter(Boolean),
+        bullets: section.bullets.map(cleanStructuredBullet).filter(Boolean),
+      }))
+      .filter((section) => section.heading && !hasMalformedParserData(section.heading)),
+  };
+}
+
+function resumeV2Sections(resume: ResumeV2): ResumeV2Section[] {
+  const sections: ResumeV2Section[] = [];
+
+  if (resume.summary) sections.push({ heading: "PROFESSIONAL SUMMARY", kind: "summary", value: resume.summary });
+  if (resume.skills.length > 0) sections.push({ heading: "CORE SKILLS", kind: "skills", value: resume.skills });
+  if (resume.tools.length > 0) sections.push({ heading: "TOOLS / TECHNOLOGIES", kind: "tools", value: resume.tools });
+  if (resume.experience.length > 0) sections.push({ heading: "PROFESSIONAL EXPERIENCE", kind: "experience", value: resume.experience });
+  if (resume.projects.length > 0) sections.push({ heading: "PROJECTS", kind: "projects", value: resume.projects });
+  if (resume.education.length > 0) sections.push({ heading: "EDUCATION", kind: "education", value: resume.education });
+  if (resume.certifications.length > 0) sections.push({ heading: "CERTIFICATIONS", kind: "certifications", value: resume.certifications });
+  if (resume.publications.length > 0) sections.push({ heading: "PUBLICATIONS / RESEARCH", kind: "publications", value: resume.publications });
+  if (resume.awards.length > 0) sections.push({ heading: "AWARDS", kind: "awards", value: resume.awards });
+  if (resume.volunteer.length > 0) sections.push({ heading: "VOLUNTEER", kind: "volunteer", value: resume.volunteer });
+  for (const section of resume.customSections) {
+    sections.push({ heading: section.heading, kind: "custom", value: section });
+  }
+  return sections;
+}
+
+function serializeResumeV2(resume: ResumeV2) {
+  const lines: string[] = [];
+  const contact = normalizePersonalBranding(resume.contact);
+  const contactLine = [
+    contact.email,
+    contact.phone,
+    contact.location,
+    contact.linkedInUrl,
+    contact.portfolioUrl,
+    contact.websiteUrl,
+  ].filter(Boolean);
+
+  if (contact.fullName) lines.push(contact.fullName);
+  if (contact.professionalTitle) lines.push(contact.professionalTitle);
+  if (contactLine.length > 0) lines.push(contactLine.join(" | "));
+
+  for (const section of resumeV2Sections(resume)) {
+    lines.push("", section.heading);
+    if (section.kind === "summary") {
+      lines.push(section.value);
+    } else if (section.kind === "skills" || section.kind === "tools") {
+      lines.push(section.value.join(" | "));
+    } else if (section.kind === "experience") {
+      for (const entry of section.value) {
+        lines.push([entry.title, entry.company].filter(Boolean).join(" - "));
+        lines.push([
+          entry.location,
+          [entry.startDate, entry.isCurrent ? "Present" : entry.endDate].filter(Boolean).join(" - "),
+        ].filter(Boolean).join(" | "));
+        lines.push(...entry.bullets.map((bullet) => `- ${bullet}`));
+      }
+    } else if (section.kind === "projects") {
+      for (const project of section.value) {
+        lines.push(project.name);
+        if (project.role || project.organization) lines.push([project.role, project.organization].filter(Boolean).join(" | "));
+        if (project.description) lines.push(project.description);
+        if (project.link) lines.push(project.link);
+        lines.push(...project.bullets.map((bullet) => `- ${bullet}`));
+      }
+    } else if (section.kind === "education") {
+      for (const education of section.value) {
+        lines.push([education.school, education.degree, education.location, education.dates].filter(Boolean).join(" | "));
+        lines.push(...splitCleanLines(education.details).map((detail) => `- ${detail}`));
+      }
+    } else if (section.kind === "certifications") {
+      lines.push(...section.value.map((certification) => `- ${[certification.name, certification.issuer, certification.year].filter(Boolean).join(", ")}`));
+    } else if (section.kind === "publications") {
+      for (const publication of section.value) {
+        lines.push(publication.title);
+        if (publication.publisher || publication.date) lines.push([publication.publisher, publication.date].filter(Boolean).join(" | "));
+        if (publication.link) lines.push(publication.link);
+        if (publication.description) lines.push(publication.description);
+        lines.push(...publication.bullets.map((bullet) => `- ${bullet}`));
+      }
+    } else if (section.kind === "awards" || section.kind === "volunteer") {
+      for (const entry of section.value) {
+        lines.push(entry.title);
+        if (entry.organization || entry.location || entry.date) lines.push([entry.organization, entry.location, entry.date].filter(Boolean).join(" | "));
+        if (entry.description) lines.push(entry.description);
+        lines.push(...entry.bullets.map((bullet) => `- ${bullet}`));
+      }
+    } else if (section.kind === "custom") {
+      lines.push(...section.value.body, ...section.value.bullets.map((bullet) => `- ${bullet}`));
+    }
+  }
+
+  return cleanRenderedResumeText(lines.join("\n"));
 }
 
 function userFacingGuidance(value: string) {
@@ -5524,6 +5907,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     ? result?.applicationKit ?? premiumPreviewPackage.applicationKit
     : result?.applicationKit ?? premiumPreviewPackage.applicationKit;
   const workspaceResult = result ?? starterWorkspacePreviewResult;
+  const generatedResumeIsMalformed = hasMalformedParserData(workspaceResult.rewrittenResume);
   const isStarterWorkflowPreview = !result && Boolean(workspaceResult) && isStarterPlan(subscriptionPlan);
   const isStarterBranding =
     personalBranding.fullName === starterBrandingIdentity.fullName &&
@@ -5543,6 +5927,22 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       workspaceBranding.location,
     ].some((field) => field.trim().length > 0);
   const workspaceDirection = targetRole.trim() || "your target direction";
+  const resumeV2 = useMemo(() => {
+    if (editableResumeSession?.draft) {
+      return resumeV2FromDraft(editableResumeSession.draft, workspaceBranding);
+    }
+
+    if (generatedResumeIsMalformed) {
+      return null;
+    }
+
+    return resumeV2FromDraft(editableResumeDraftFromText(workspaceResult.rewrittenResume), workspaceBranding);
+  }, [editableResumeSession, generatedResumeIsMalformed, workspaceBranding, workspaceResult.rewrittenResume]);
+  const resumeV2Text = useMemo(
+    () => (resumeV2 ? serializeResumeV2(resumeV2) : ""),
+    [resumeV2],
+  );
+  const shouldBlockResumePreview = !resumeV2 || hasMalformedParserData(resumeV2Text);
 
   const buildSavedState = useCallback((): SavedState => {
     return {
@@ -7275,6 +7675,30 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     }
   }
 
+  function cleanRegenerateResumeV2() {
+    const cleanSource = separateResumeInputs({
+      sourceResumeText: masterResume,
+      uploadedSourceText: extractedSourceText,
+      explicitJobDescription: jobDescription,
+      targetRole,
+    }).candidateResumeFacts;
+    const sourceText = cleanSource.trim().length >= 40
+      ? cleanSource
+      : [masterResume, extractedSourceText]
+          .filter((text) => text.trim().length > 0)
+          .join("\n\nSUPPORTING SOURCE MATERIAL\n");
+    const nextResult = buildTailoredResume(sourceText, jobDescription, targetRole);
+
+    setResult(nextResult);
+    setActiveOutput("resume");
+    setTailorError("");
+    setSystemStatus("Resume Engine V2 regenerated a clean editable draft from current source materials.");
+
+    if (!editableResumeSession?.draft) {
+      setEditableResumeSession(null);
+    }
+  }
+
   function generateCoverLetter() {
     if (!requireSubscriptionFeature("coverLetter", "Cover letters")) {
       return;
@@ -7650,15 +8074,14 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       return;
     }
 
-    const exportResult = result ?? workspaceResult;
-
-    if (!exportResult) {
+    if (!resumeV2Text || shouldBlockResumePreview) {
+      setSystemStatus("Resume output contains malformed parser data. Please regenerate with Resume Engine V2.");
       return;
     }
 
     try {
       const blob = await createResumePdfBlob(
-        exportResult.rewrittenResume,
+        resumeV2Text,
         template,
         previewTheme,
         workspaceBranding,
@@ -7675,15 +8098,14 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       return;
     }
 
-    const exportResult = result ?? workspaceResult;
-
-    if (!exportResult) {
+    if (!resumeV2Text || shouldBlockResumePreview) {
+      setSystemStatus("Resume output contains malformed parser data. Please regenerate with Resume Engine V2.");
       return;
     }
 
     try {
       const blob = await createResumeDocxBlob(
-        exportResult.rewrittenResume,
+        resumeV2Text,
         template,
         previewTheme,
         workspaceBranding,
@@ -9380,6 +9802,15 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                 >
                   Clear draft
                 </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    runWithFeedback("cleanRegenerate", "Regenerating...", "Regenerated", cleanRegenerateResumeV2)
+                  }
+                  className={`${shouldBlockResumePreview ? primaryButtonClass : secondaryButtonClass} ${buttonSizeMdClass}`}
+                >
+                  {actionFeedback.cleanRegenerate ?? "Clean Regenerate Resume"}
+                </button>
                 <details className="relative">
                   <summary className={`${primaryButtonClass} ${buttonSizeMdClass} cursor-pointer list-none`}>
                     {actionFeedback.exportMenu ?? "Export"}
@@ -9944,6 +10375,9 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                               theme={previewTheme}
                               template={template}
                               branding={workspaceBranding}
+                              resumeV2={resumeV2}
+                              blocked={shouldBlockResumePreview}
+                              onRegenerate={cleanRegenerateResumeV2}
                             />
                           </div>
                         </div>
@@ -10006,6 +10440,9 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                             theme={previewTheme}
                             template={template}
                             branding={workspaceBranding}
+                            resumeV2={resumeV2}
+                            blocked={shouldBlockResumePreview}
+                            onRegenerate={cleanRegenerateResumeV2}
                           />
                         </div>
                       </div>
@@ -10156,6 +10593,9 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                         theme={previewTheme}
                         template={template}
                         branding={workspaceBranding}
+                        resumeV2={resumeV2}
+                        blocked={shouldBlockResumePreview}
+                        onRegenerate={cleanRegenerateResumeV2}
                         fullPage
                       />
                     </div>
@@ -10771,21 +11211,16 @@ function pipeSeparatedParts(value: string) {
 
 function editableProjectEntries(items: string[]): EditableProjectEntry[] {
   return items.map((item, index) => {
-    const lines = item.split(/\r?\n/).map(cleanEditorText).filter(Boolean);
-    const hasLabels = lines.some((line) => /^(NAME|ROLE|TOOLS|LINK|BULLET):/i.test(line));
+    const parsed = parseProjectRecord(item);
 
-    if (hasLabels) {
+    if (parsed.name || parsed.role || parsed.description || parsed.bullets.length > 0) {
       return {
         id: `project-${index}`,
-        name: lines.find((line) => /^NAME:/i.test(line))?.replace(/^NAME:\s*/i, "") ?? "",
-        context: lines.find((line) => /^ROLE:/i.test(line))?.replace(/^ROLE:\s*/i, "") ?? "",
-        tools: lines.find((line) => /^TOOLS:/i.test(line))?.replace(/^TOOLS:\s*/i, "") ?? "",
-        link: lines.find((line) => /^LINK:/i.test(line))?.replace(/^LINK:\s*/i, "") ?? "",
-        details: lines
-          .filter((line) => /^BULLET:/i.test(line))
-          .map((line) => cleanStructuredBullet(line.replace(/^BULLET:\s*/i, "")))
-          .filter(Boolean)
-          .join("\n"),
+        name: parsed.name,
+        context: parsed.role,
+        tools: parsed.description,
+        link: parsed.link,
+        details: parsed.bullets.join("\n"),
       };
     }
 
@@ -10818,21 +11253,16 @@ function editableProjectEntries(items: string[]): EditableProjectEntry[] {
 
 function editablePublicationEntries(items: string[]): EditablePublicationEntry[] {
   return items.map((item, index) => {
-    const lines = item.split(/\r?\n/).map(cleanEditorText).filter(Boolean);
-    const hasLabels = lines.some((line) => /^(TITLE|DESCRIPTION|LINK|PUBLISHER|DATE):/i.test(line));
+    const parsed = parsePublicationRecord(item);
 
-    if (hasLabels) {
+    if (parsed.title || parsed.publisher || parsed.date || parsed.link || parsed.bullets.length > 0) {
       return {
         id: `publication-${index}`,
-        title: lines.find((line) => /^TITLE:/i.test(line))?.replace(/^TITLE:\s*/i, "") ?? "",
-        description: lines
-          .filter((line) => /^DESCRIPTION:/i.test(line))
-          .map((line) => cleanStructuredBullet(line.replace(/^DESCRIPTION:\s*/i, "")))
-          .filter(Boolean)
-          .join("\n"),
-        link: lines.find((line) => /^LINK:/i.test(line))?.replace(/^LINK:\s*/i, "") ?? "",
-        publisher: lines.find((line) => /^PUBLISHER:/i.test(line))?.replace(/^PUBLISHER:\s*/i, "") ?? "",
-        date: lines.find((line) => /^DATE:/i.test(line))?.replace(/^DATE:\s*/i, "") ?? "",
+        title: parsed.title,
+        description: [parsed.description, ...parsed.bullets].filter(Boolean).join("\n"),
+        link: parsed.link,
+        publisher: parsed.publisher,
+        date: parsed.date,
       };
     }
 
@@ -10953,21 +11383,16 @@ function migratePublicationEntries(value: unknown): EditablePublicationEntry[] {
 
 function editableAwardVolunteerEntries(items: string[]): EditableAwardVolunteerEntry[] {
   return items.map((item, index) => {
-    const lines = item.split(/\r?\n/).map(cleanEditorText).filter(Boolean);
-    const hasLabels = lines.some((line) => /^(TITLE|ORGANIZATION|LOCATION|DATE|DESCRIPTION):/i.test(line));
+    const parsed = parseAwardVolunteerRecord(item);
 
-    if (hasLabels) {
+    if (parsed.title || parsed.organization || parsed.location || parsed.date || parsed.bullets.length > 0) {
       return {
         id: `award-volunteer-${index}`,
-        title: lines.find((line) => /^TITLE:/i.test(line))?.replace(/^TITLE:\s*/i, "") ?? "",
-        organization: lines.find((line) => /^ORGANIZATION:/i.test(line))?.replace(/^ORGANIZATION:\s*/i, "") ?? "",
-        location: lines.find((line) => /^LOCATION:/i.test(line))?.replace(/^LOCATION:\s*/i, "") ?? "",
-        date: lines.find((line) => /^DATE:/i.test(line))?.replace(/^DATE:\s*/i, "") ?? "",
-        description: lines
-          .filter((line) => /^DESCRIPTION:/i.test(line))
-          .map((line) => cleanStructuredBullet(line.replace(/^DESCRIPTION:\s*/i, "")))
-          .filter(Boolean)
-          .join("\n"),
+        title: parsed.title,
+        organization: parsed.organization,
+        location: parsed.location,
+        date: parsed.date,
+        description: [parsed.description, ...parsed.bullets].filter(Boolean).join("\n"),
       };
     }
 
@@ -13654,6 +14079,7 @@ function orderedSectionLines(section: ResumeSection) {
     .filter(
       (line) =>
         line.text &&
+        !containsParserToken(line.text) &&
         !isPlaceholderResumeText(line.text) &&
         !isSourceArtifactHeading(line.text),
     );
@@ -13703,27 +14129,48 @@ function ResumePreviewSectionContent({ section }: { section: ResumeSection }) {
   }
 
   if (/PROJECTS$/.test(section.heading)) {
-    const entries: Array<{ title: string; meta: string[]; bullets: string[] }> = [];
+    const encodedProjects = encodedRecordsFromSection(section, "PROJECT_ENTRY")
+      .map(parseProjectRecord)
+      .filter((project) => project.name);
+    const entries: Array<{ title: string; role: string; organization: string; description: string; meta: string[]; bullets: string[] }> =
+      encodedProjects.map((project) => ({
+        title: project.name,
+        role: project.role,
+        organization: project.organization,
+        description: project.description,
+        meta: [project.link].filter(Boolean),
+        bullets: project.bullets,
+      }));
     let current: { title: string; meta: string[]; bullets: string[] } | null = null;
 
-    for (const line of orderedSectionLines(section)) {
-      if (line.isBullet) {
-        current?.bullets.push(line.text);
-        continue;
-      }
+    if (entries.length === 0) {
+      for (const line of orderedSectionLines(section)) {
+        if (line.isBullet) {
+          current?.bullets.push(line.text);
+          continue;
+        }
 
-      if (!current || current.bullets.length > 0) {
-        current = { title: line.text, meta: [], bullets: [] };
-        entries.push(current);
-      } else {
-        current.meta.push(line.text);
+        if (!current || current.bullets.length > 0) {
+          current = { title: line.text, meta: [], bullets: [] };
+          entries.push({ ...current, role: "", organization: "", description: "" });
+        } else {
+          current.meta.push(line.text);
+          entries[entries.length - 1] = {
+            ...entries[entries.length - 1],
+            meta: current.meta,
+          };
+        }
       }
     }
 
     return (
       <div className="mt-3 space-y-3">
         {entries.map((project, projectIndex) => {
-          const [role = "", ...meta] = project.meta;
+          const [fallbackRole = "", ...fallbackMeta] = project.meta;
+          const role = project.role || fallbackRole;
+          const meta = [project.organization, project.description, ...fallbackMeta]
+            .map(cleanStructuredBullet)
+            .filter(Boolean);
 
           return (
           <div key={`${project.title}-${projectIndex}`} className="break-inside-avoid">
@@ -13757,20 +14204,35 @@ function ResumePreviewSectionContent({ section }: { section: ResumeSection }) {
   }
 
   if (section.heading === "PUBLICATIONS / RESEARCH") {
-    const entries: Array<{ title: string; meta: string[]; bullets: string[] }> = [];
+    const encodedPublications = encodedRecordsFromSection(section, "PUBLICATION_ENTRY")
+      .map(parsePublicationRecord)
+      .filter((publication) => publication.title);
+    const entries: Array<{ title: string; date: string; meta: string[]; bullets: string[] }> =
+      encodedPublications.map((publication) => ({
+        title: publication.title,
+        date: publication.date,
+        meta: [publication.publisher, publication.link, publication.description].filter(Boolean),
+        bullets: publication.bullets,
+      }));
     let current: { title: string; meta: string[]; bullets: string[] } | null = null;
 
-    for (const line of orderedSectionLines(section)) {
-      if (line.isBullet) {
-        current?.bullets.push(line.text);
-        continue;
-      }
+    if (entries.length === 0) {
+      for (const line of orderedSectionLines(section)) {
+        if (line.isBullet) {
+          current?.bullets.push(line.text);
+          continue;
+        }
 
-      if (!current || current.bullets.length > 0) {
-        current = { title: line.text, meta: [], bullets: [] };
-        entries.push(current);
-      } else {
-        current.meta.push(line.text);
+        if (!current || current.bullets.length > 0) {
+          current = { title: line.text, meta: [], bullets: [] };
+          entries.push({ ...current, date: "" });
+        } else {
+          current.meta.push(line.text);
+          entries[entries.length - 1] = {
+            ...entries[entries.length - 1],
+            meta: current.meta,
+          };
+        }
       }
     }
 
@@ -13778,7 +14240,12 @@ function ResumePreviewSectionContent({ section }: { section: ResumeSection }) {
       <div className="mt-3 space-y-3">
         {entries.map((publication, publicationIndex) => (
           <div key={`${publication.title}-${publicationIndex}`} className="break-inside-avoid">
-            <p className="text-sm font-bold text-zinc-900">{publication.title}</p>
+            <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+              <p className="text-sm font-bold text-zinc-900">{publication.title}</p>
+              {publication.date ? (
+                <p className="shrink-0 text-xs font-semibold text-zinc-500">{publication.date}</p>
+              ) : null}
+            </div>
             {publication.meta.map((item, itemIndex) => (
               isUrlLike(item) ? (
                 <a
@@ -13814,20 +14281,30 @@ function ResumePreviewSectionContent({ section }: { section: ResumeSection }) {
   }
 
   if (section.heading === "AWARDS & VOLUNTEER") {
-    const entries: Array<{ title: string; meta: string[]; bullets: string[] }> = [];
+    const encodedEntries = encodedRecordsFromSection(section, "AWARD_VOLUNTEER_ENTRY")
+      .map(parseAwardVolunteerRecord)
+      .filter((entry) => entry.title);
+    const entries: Array<{ title: string; meta: string[]; bullets: string[] }> =
+      encodedEntries.map((entry) => ({
+        title: entry.title,
+        meta: [entry.organization, entry.location, entry.date].filter(Boolean),
+        bullets: [entry.description, ...entry.bullets].filter(Boolean),
+      }));
     let current: { title: string; meta: string[]; bullets: string[] } | null = null;
 
-    for (const line of orderedSectionLines(section)) {
-      if (line.isBullet) {
-        current?.bullets.push(line.text);
-        continue;
-      }
+    if (entries.length === 0) {
+      for (const line of orderedSectionLines(section)) {
+        if (line.isBullet) {
+          current?.bullets.push(line.text);
+          continue;
+        }
 
-      if (!current || current.bullets.length > 0) {
-        current = { title: line.text, meta: [], bullets: [] };
-        entries.push(current);
-      } else {
-        current.meta.push(line.text);
+        if (!current || current.bullets.length > 0) {
+          current = { title: line.text, meta: [], bullets: [] };
+          entries.push(current);
+        } else {
+          current.meta.push(line.text);
+        }
       }
     }
 
@@ -13989,21 +14466,235 @@ function ResumePreviewSectionContent({ section }: { section: ResumeSection }) {
   );
 }
 
+function ResumeV2SectionContent({ section }: { section: ResumeV2Section }) {
+  if (section.kind === "summary") {
+    return <p className="mt-3 text-sm leading-6 text-zinc-700">{section.value}</p>;
+  }
+
+  if (section.kind === "skills" || section.kind === "tools") {
+    return (
+      <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1.5 text-xs font-medium text-zinc-700">
+        {section.value.map((item) => (
+          <span key={item} className="flex items-center gap-2">
+            <span className="h-1 w-1 rounded-full bg-slate-400" />
+            {item}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  if (section.kind === "experience") {
+    return (
+      <div className="mt-3 space-y-4">
+        {section.value.map((entry, entryIndex) => (
+          <div key={`${entry.company}-${entry.title}-${entryIndex}`} className="break-inside-avoid">
+            <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+              <p className="text-sm font-bold text-zinc-900">{entry.company || entry.title}</p>
+              {entry.location ? <p className="shrink-0 text-xs text-zinc-500">{entry.location}</p> : null}
+            </div>
+            <div className="mt-0.5 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+              {entry.company && entry.title ? (
+                <p className="text-sm font-medium text-zinc-800">{entry.title}</p>
+              ) : null}
+              {[entry.startDate, entry.isCurrent ? "Present" : entry.endDate].filter(Boolean).join(" - ") ? (
+                <p className="shrink-0 text-xs font-semibold text-zinc-500">
+                  {[entry.startDate, entry.isCurrent ? "Present" : entry.endDate].filter(Boolean).join(" - ")}
+                </p>
+              ) : null}
+            </div>
+            {entry.bullets.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
+                {entry.bullets.map((bullet, bulletIndex) => (
+                  <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (section.kind === "projects") {
+    return (
+      <div className="mt-3 space-y-3">
+        {section.value.map((project, projectIndex) => (
+          <div key={`${project.name}-${projectIndex}`} className="break-inside-avoid">
+            <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+              <p className="text-sm font-bold text-zinc-900">{project.name}</p>
+              {[project.role, project.organization].filter(Boolean).join(" | ") ? (
+                <p className="shrink-0 text-sm font-semibold text-zinc-700 sm:text-right">
+                  {[project.role, project.organization].filter(Boolean).join(" | ")}
+                </p>
+              ) : null}
+            </div>
+            {project.description ? (
+              <p className="mt-1 text-sm leading-6 text-zinc-700">{project.description}</p>
+            ) : null}
+            {project.link ? (
+              <a href={normalizeUrl(project.link)} target="_blank" rel="noreferrer" className="mt-1 block break-words text-sm leading-6 text-zinc-700 underline decoration-current/30 underline-offset-2">
+                {project.link}
+              </a>
+            ) : null}
+            {project.bullets.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
+                {project.bullets.map((bullet, bulletIndex) => (
+                  <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (section.kind === "publications") {
+    return (
+      <div className="mt-3 space-y-3">
+        {section.value.map((publication, publicationIndex) => (
+          <div key={`${publication.title}-${publicationIndex}`} className="break-inside-avoid">
+            <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+              <p className="text-sm font-bold text-zinc-900">{publication.title}</p>
+              {publication.date ? <p className="shrink-0 text-xs font-semibold text-zinc-500">{publication.date}</p> : null}
+            </div>
+            {publication.publisher ? <p className="mt-1 text-sm leading-6 text-zinc-700">{publication.publisher}</p> : null}
+            {publication.description ? <p className="mt-1 text-sm leading-6 text-zinc-700">{publication.description}</p> : null}
+            {publication.link ? (
+              <a href={normalizeUrl(publication.link)} target="_blank" rel="noreferrer" className="mt-1 block break-words text-sm leading-6 text-zinc-700 underline decoration-current/30 underline-offset-2">
+                {publication.link}
+              </a>
+            ) : null}
+            {publication.bullets.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
+                {publication.bullets.map((bullet, bulletIndex) => (
+                  <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (section.kind === "awards" || section.kind === "volunteer") {
+    return (
+      <div className="mt-3 space-y-3">
+        {section.value.map((entry, entryIndex) => (
+          <div key={`${entry.title}-${entryIndex}`} className="break-inside-avoid">
+            <p className="text-sm font-bold text-zinc-900">{entry.title}</p>
+            {[entry.organization, entry.location, entry.date].filter(Boolean).join(" | ") ? (
+              <p className="mt-1 text-sm leading-6 text-zinc-700">
+                {[entry.organization, entry.location, entry.date].filter(Boolean).join(" | ")}
+              </p>
+            ) : null}
+            {entry.description ? <p className="mt-1 text-sm leading-6 text-zinc-700">{entry.description}</p> : null}
+            {entry.bullets.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
+                {entry.bullets.map((bullet, bulletIndex) => (
+                  <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (section.kind === "education") {
+    return (
+      <div className="mt-3 space-y-3">
+        {section.value.map((education, educationIndex) => (
+          <div key={`${education.school}-${educationIndex}`} className="break-inside-avoid">
+            <p className="text-sm font-bold text-zinc-900">{education.school || education.degree}</p>
+            {[education.degree, education.location, education.dates].filter(Boolean).join(" | ") ? (
+              <p className="mt-1 text-sm leading-6 text-zinc-700">
+                {[education.degree, education.location, education.dates].filter(Boolean).join(" | ")}
+              </p>
+            ) : null}
+            {splitCleanLines(education.details).length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
+                {splitCleanLines(education.details).map((detail, detailIndex) => (
+                  <li key={`${detail}-${detailIndex}`}>{detail}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (section.kind === "certifications") {
+    return (
+      <div className="mt-3 space-y-1.5 text-sm leading-6 text-zinc-700">
+        {section.value.map((certification, certificationIndex) => (
+          <p key={`${certification.name}-${certificationIndex}`}>
+            {[certification.name, certification.issuer, certification.year].filter(Boolean).join(", ")}
+          </p>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {section.value.body.length > 0 ? (
+        <div className="mt-3 space-y-1.5">
+          {section.value.body.map((paragraph, paragraphIndex) => (
+            <p key={`${paragraph}-${paragraphIndex}`} className="text-sm leading-6 text-zinc-700">
+              {paragraph}
+            </p>
+          ))}
+        </div>
+      ) : null}
+      {section.value.bullets.length > 0 ? (
+        <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-6 text-zinc-700">
+          {section.value.bullets.map((bullet, bulletIndex) => (
+            <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
+          ))}
+        </ul>
+      ) : null}
+    </>
+  );
+}
+
 function ResumePreview({
   resumeText,
   theme,
   template,
   branding,
+  resumeV2,
+  blocked = false,
+  onRegenerate,
   fullPage = false,
 }: {
   resumeText: string;
   theme: (typeof previewThemes)[ThemeId];
   template: TemplateId;
   branding?: PersonalBranding;
+  resumeV2?: ResumeV2 | null;
+  blocked?: boolean;
+  onRegenerate?: () => void;
   fullPage?: boolean;
 }) {
-  const resume = parseResumePreview(resumeText);
-  const contact = mergeBrandingWithResume(resumeText, branding);
+  const resume = resumeV2 ? null : parseResumePreview(resumeText);
+  const contact = resumeV2
+    ? {
+        name: resumeV2.contact.fullName,
+        title: resumeV2.contact.professionalTitle,
+        email: resumeV2.contact.email,
+        phone: resumeV2.contact.phone,
+        location: resumeV2.contact.location,
+        linkedIn: resumeV2.contact.linkedInUrl,
+        portfolio: resumeV2.contact.portfolioUrl,
+        website: resumeV2.contact.websiteUrl,
+        profileImageDataUrl: resumeV2.contact.profileImageDataUrl,
+      }
+    : mergeBrandingWithResume(resumeText, branding);
   const contactItems = [
     contact.email,
     contact.phone,
@@ -14015,7 +14706,8 @@ function ResumePreview({
   const profile = templateProfile(template);
   const family = profile.family;
   const isExecutive = family === "executive";
-  const orderedSections = preparedPreviewSections(resume.sections, template);
+  const orderedSections = resume ? preparedPreviewSections(resume.sections, template) : [];
+  const orderedV2Sections = resumeV2 ? resumeV2Sections(resumeV2) : [];
   const bodyClassByFamily: Record<TemplateFamily, string> = {
     ats: fullPage ? "space-y-4 px-10 py-8" : "space-y-4 p-6",
     executive: fullPage ? "space-y-5 px-12 py-9" : "space-y-5 p-7",
@@ -14136,7 +14828,35 @@ function ResumePreview({
       </header>
 
       <div className={bodyClass}>
-        {orderedSections.map((section, sectionIndex) => (
+        {blocked ? (
+          <section className={sectionClassByFamily[family]}>
+            <h5 className={headingClassByFamily[family]}>Resume Engine V2</h5>
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+              <p className="font-semibold">
+                Resume output contains malformed parser data. Please regenerate with Resume Engine V2.
+              </p>
+              {onRegenerate ? (
+                <button
+                  type="button"
+                  onClick={onRegenerate}
+                  className={`${primaryButtonClass} ${buttonSizeSmClass} mt-3`}
+                >
+                  Clean Regenerate Resume
+                </button>
+              ) : null}
+            </div>
+          </section>
+        ) : resumeV2 ? orderedV2Sections.map((section, sectionIndex) => (
+          <section
+            key={`${section.heading}-${sectionIndex}`}
+            className={sectionClassByFamily[family]}
+          >
+            <h5 className={headingClassByFamily[family]}>
+              {section.heading}
+            </h5>
+            <ResumeV2SectionContent section={section} />
+          </section>
+        )) : orderedSections.map((section, sectionIndex) => (
           <section
             key={`${section.heading}-${sectionIndex}`}
             className={sectionClassByFamily[family]}
