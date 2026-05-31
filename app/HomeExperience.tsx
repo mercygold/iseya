@@ -2909,8 +2909,15 @@ function createEmptyExperience(index = 0): ExperienceEntry {
 function cleanBullets(bullets: string[]) {
   return uniqueStrings(
     bullets
-      .map((bullet) => cleanAchievementBullet(bullet.replace(/^[-*]\s+/, "")))
-      .filter((bullet) => bullet && !isInstructionArtifactText(bullet)),
+      .map((bullet) => cleanStructuredBullet(bullet))
+      .filter(
+        (bullet) =>
+          bullet &&
+          !containsParserToken(bullet) &&
+          !isPlaceholderResumeText(bullet) &&
+          !isSourceArtifactHeading(bullet) &&
+          !isInstructionArtifactText(bullet),
+      ),
   );
 }
 
@@ -3286,26 +3293,6 @@ function prioritizeSkillsForJob(skills: string[], jobDescription: string, maxIte
     .slice(0, maxItems);
 }
 
-function cleanAchievementBullet(value: string) {
-  const cleaned = cleanExportBullet(value)
-    .replace(/^selected delivery highlights:?$/i, "")
-    .replace(/^key achievements:?$/i, "")
-    .replace(/^achievements:?$/i, "");
-
-  if (
-    !cleaned ||
-    isResumeNoiseLine(cleaned) ||
-    isRecognizedResumeHeading(cleaned) ||
-    isInstructionArtifactText(cleaned) ||
-    parseExperienceLine(cleaned).company.length > 0 ||
-    isLikelyEducationLine(cleaned)
-  ) {
-    return "";
-  }
-
-  return cleaned;
-}
-
 function normalizeExperience(entry: Partial<ExperienceEntry>, index = 0): ExperienceEntry | null {
   const parsedTitle = parseExperienceLine(entry.title || "");
   const normalized: ExperienceEntry = {
@@ -3340,8 +3327,6 @@ function normalizeExperience(entry: Partial<ExperienceEntry>, index = 0): Experi
   }
 
   normalized.location = normalizeExperienceLocationForCompany(normalized);
-
-  normalized.bullets = normalized.bullets.slice(0, 5);
 
   return normalized;
 }
@@ -12659,16 +12644,14 @@ function ModularResumeEditor({
       : entry.bulletsText
         ? entry.bulletsText.split(/\s+\/\s+/)
         : [""];
-    return source
-      .map(cleanStructuredBullet)
-      .filter((line) => !isPlaceholderResumeText(line) && !isSourceArtifactHeading(line));
+    return source.length > 0 ? source : [""];
   }
 
   function updateExperienceBullet(entryIndex: number, bulletIndex: number, value: string) {
     const entry = editableResumeRef.current.experience[entryIndex];
     if (!entry) return;
     const bullets = experienceBullets(entry);
-    bullets[bulletIndex] = cleanStructuredBullet(value);
+    bullets[bulletIndex] = value;
     updateExperience(entryIndex, { bulletsText: bullets.join("\n") });
   }
 

@@ -14,6 +14,7 @@ import {
   createSupabaseBrowserClient,
   getSupabaseBrowserConfigMessage,
 } from "@/lib/supabaseClient";
+import { getSupabasePublicEnvDebug } from "@/lib/supabaseConfig";
 
 type AuthContextValue = {
   user: User | null;
@@ -69,6 +70,12 @@ function getAuthErrorDetails(error: unknown): AuthErrorDetails {
     message: typeof error === "string" ? error : "",
     code: "",
   };
+}
+
+function logAuthDebug(label: string, payload?: unknown) {
+  if (process.env.NODE_ENV !== "production") {
+    console.warn(`[auth] ${label}`, payload);
+  }
 }
 
 function mapLoginError(error: unknown) {
@@ -139,6 +146,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState(() => getSupabaseBrowserConfigMessage());
 
   useEffect(() => {
+    logAuthDebug("Supabase browser config", getSupabasePublicEnvDebug());
+  }, []);
+
+  useEffect(() => {
     if (!supabase) {
       return;
     }
@@ -157,6 +168,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (sessionError) {
+          logAuthDebug("session restore failed", getAuthErrorDetails(sessionError));
+
           if (!hasRetried && isTransientSessionError(sessionError)) {
             retryScheduled = true;
             window.setTimeout(() => {
@@ -174,6 +187,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!mounted) {
           return;
         }
+
+        logAuthDebug("session restore threw", getAuthErrorDetails(sessionError));
 
         if (!hasRetried && isTransientSessionError(sessionError)) {
           retryScheduled = true;
@@ -253,6 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!supabase) {
         const message = authNotConfiguredMessage;
+        logAuthDebug("signup blocked because Supabase client is unavailable", getSupabasePublicEnvDebug());
         setError(message);
         throw new Error(message);
       }
@@ -285,6 +301,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return { needsEmailConfirmation: !data.session };
       } catch (signUpError) {
+        logAuthDebug("signup failed", getAuthErrorDetails(signUpError));
         const message = mapSignupError(signUpError);
         setError(message);
         throw new Error(message);
@@ -301,6 +318,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!supabase) {
         const message = authNotConfiguredMessage;
+        logAuthDebug("login blocked because Supabase client is unavailable", getSupabasePublicEnvDebug());
         setError(message);
         throw new Error(message);
       }
@@ -325,6 +343,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user);
         await ensureUserProfile(data.user);
       } catch (loginError) {
+        logAuthDebug("login failed", getAuthErrorDetails(loginError));
         const message = mapLoginError(loginError);
         setError(message);
         throw new Error(message);
@@ -340,6 +359,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!supabase) {
       const message = authNotConfiguredMessage;
+      logAuthDebug("logout blocked because Supabase client is unavailable", getSupabasePublicEnvDebug());
       setError(message);
       throw new Error(message);
     }
@@ -356,6 +376,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       setUser(null);
     } catch (logoutError) {
+      logAuthDebug("logout failed", getAuthErrorDetails(logoutError));
       const message = mapAuthError(logoutError, "Logout failed. Please try again.");
       setError(message);
       throw new Error(message);
@@ -370,6 +391,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!supabase) {
         const message = authNotConfiguredMessage;
+        logAuthDebug("password reset blocked because Supabase client is unavailable", getSupabasePublicEnvDebug());
         setError(message);
         throw new Error(message);
       }
@@ -385,6 +407,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw resetError;
         }
       } catch (resetError) {
+        logAuthDebug("password reset failed", getAuthErrorDetails(resetError));
         const message = mapAuthError(resetError, "Password reset failed. Please try again.");
         setError(message);
         throw new Error(message);
@@ -401,6 +424,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!supabase) {
         const message = authNotConfiguredMessage;
+        logAuthDebug("password update blocked because Supabase client is unavailable", getSupabasePublicEnvDebug());
         setError(message);
         throw new Error(message);
       }
@@ -414,6 +438,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw updateError;
         }
       } catch (updateError) {
+        logAuthDebug("password update failed", getAuthErrorDetails(updateError));
         const message = mapAuthError(updateError, "Password update failed. Please request a new reset link.");
         setError(message);
         throw new Error(message);

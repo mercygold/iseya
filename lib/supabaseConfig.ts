@@ -34,8 +34,12 @@ function isLikelySupabaseUrl(value: string) {
   }
 }
 
-function isLikelyPublishableKey(value: string) {
-  return value.startsWith("sb_publishable_");
+function isLikelyLegacyAnonJwt(value: string) {
+  return value.startsWith("eyJ") && value.split(".").length === 3;
+}
+
+function isLikelySupabaseAnonKey(value: string) {
+  return value.startsWith("sb_publishable_") || isLikelyLegacyAnonJwt(value);
 }
 
 function isLikelySecretKey(value: string) {
@@ -66,7 +70,7 @@ export function getSupabasePublicConfigStatus(): SupabaseConfigResult {
     return publicConfigError();
   }
 
-  if (/\s/.test(anonKey) || !isLikelyPublishableKey(anonKey)) {
+  if (/\s/.test(anonKey) || !isLikelySupabaseAnonKey(anonKey)) {
     return publicConfigError();
   }
 
@@ -79,12 +83,35 @@ export function getSupabasePublicConfigStatus(): SupabaseConfigResult {
 export function getSupabasePublicEnvDebug() {
   const url = cleanEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const anonKey = cleanEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const hasWhitespaceInAnonKey = /\s/.test(anonKey);
+  const supabaseUrlShapeOk = Boolean(url && isLikelySupabaseUrl(url));
+  const supabaseAnonKeyShapeOk = Boolean(
+    anonKey && !hasWhitespaceInAnonKey && isLikelySupabaseAnonKey(anonKey),
+  );
 
   return {
     hasSupabaseUrl: Boolean(url),
     hasSupabaseAnonKey: Boolean(anonKey),
-    supabaseUrlShapeOk: Boolean(url && isLikelySupabaseUrl(url)),
-    supabaseAnonKeyShapeOk: Boolean(anonKey && !/\s/.test(anonKey) && isLikelyPublishableKey(anonKey)),
+    supabaseUrlShapeOk,
+    supabaseAnonKeyShapeOk,
+    anonKeyType: anonKey.startsWith("sb_publishable_")
+      ? "publishable"
+      : isLikelyLegacyAnonJwt(anonKey)
+        ? "legacy_anon_jwt"
+        : anonKey
+          ? "unrecognized"
+          : "missing",
+    reason: !url
+      ? "missing NEXT_PUBLIC_SUPABASE_URL"
+      : !anonKey
+        ? "missing NEXT_PUBLIC_SUPABASE_ANON_KEY"
+        : !supabaseUrlShapeOk
+          ? "invalid NEXT_PUBLIC_SUPABASE_URL shape"
+          : hasWhitespaceInAnonKey
+            ? "NEXT_PUBLIC_SUPABASE_ANON_KEY contains whitespace"
+            : !supabaseAnonKeyShapeOk
+              ? "invalid NEXT_PUBLIC_SUPABASE_ANON_KEY shape"
+              : "configured",
   };
 }
 
