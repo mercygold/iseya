@@ -5238,7 +5238,7 @@ async function createResumePdfBlob(
   const contactSeparator = "  |  ";
 	  const styles = StyleSheet.create({
     page: {
-      padding: pagePadding,
+      padding: 0,
       color: theme.textHex,
       fontFamily:
         family === "academic" || family === "legal" ? "Times-Roman" : "Helvetica",
@@ -5249,9 +5249,16 @@ async function createResumePdfBlob(
 	      backgroundColor: hasHeaderBand ? theme.headerHex : "#ffffff",
 	      borderBottomColor: theme.accentHex,
 	      borderBottomWidth: hasHeaderBand ? 0 : family === "ats" ? 1 : 2,
-	      marginBottom: family === "executive" ? 26 : 21,
-	      padding: hasHeaderBand ? (family === "executive" ? 22 : 18) : 0,
+	      marginBottom: 0,
+	      paddingBottom: hasHeaderBand ? (family === "executive" ? 22 : 18) : 0,
+	      paddingHorizontal: pagePadding,
+	      paddingTop: hasHeaderBand ? (family === "executive" ? 24 : 20) : pagePadding,
 	    },
+    content: {
+      paddingBottom: pagePadding,
+      paddingHorizontal: pagePadding,
+      paddingTop: family === "executive" ? 18 : 16,
+    },
     name: {
       color: hasHeaderBand ? "#ffffff" : theme.accentHex,
       fontSize:
@@ -5403,23 +5410,27 @@ async function createResumePdfBlob(
           ),
         ),
       ),
-	      ...preview.sections.map((section, sectionIndex) =>
-	        createElement(
-	          View,
-	          {
-              key: `${section.heading}-${sectionIndex}`,
-              style: styles.section,
-              wrap: section.lines.length <= 8 ? false : true,
-            },
-	          createElement(Text, { style: styles.heading }, section.heading),
-	          ...section.lines.map((line, lineIndex) =>
-	            createElement(
-	              Text,
-	              {
-                key: `${section.heading}-${line.text}-${lineIndex}`,
-                style: pdfLineStyle(line),
+      createElement(
+        View,
+        { style: styles.content },
+	        ...preview.sections.map((section, sectionIndex) =>
+	          createElement(
+	            View,
+	            {
+                key: `${section.heading}-${sectionIndex}`,
+                style: styles.section,
+                wrap: section.lines.length <= 8 ? false : true,
               },
-              pdfLineChildren(line),
+	            createElement(Text, { style: styles.heading }, section.heading),
+	            ...section.lines.map((line, lineIndex) =>
+	              createElement(
+	                Text,
+	                {
+                  key: `${section.heading}-${line.text}-${lineIndex}`,
+                  style: pdfLineStyle(line),
+                },
+                pdfLineChildren(line),
+              ),
             ),
           ),
         ),
@@ -6172,12 +6183,27 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   const optimizationCreditsRemaining = Number.isFinite(optimizationCreditLimit)
     ? Math.max(0, optimizationCreditLimit - effectiveOptimizationCreditsUsed)
     : optimizationCreditLimit;
+  const documentExportProgressPercent = Number.isFinite(documentExportLimit)
+    ? Math.min(100, Math.round((effectiveDownloadsUsed / Math.max(1, documentExportLimit)) * 100))
+    : 100;
+  const documentExportLimitLabel = Number.isFinite(documentExportLimit)
+    ? String(documentExportLimit)
+    : "Unlimited";
+  const documentExportsRemainingLabel = Number.isFinite(documentExportLimit)
+    ? String(documentExportsRemaining)
+    : "Unlimited";
   const starterResumeExportUsed =
     isStarterPlan(subscriptionPlan) && effectiveDownloadsUsed >= 1;
   const optimizationProgressPercent = Number.isFinite(optimizationLimit)
     ? Math.min(100, Math.round((effectiveOptimizationCreditsUsed / Math.max(1, optimizationCreditLimit)) * 100))
     : 100;
-  const activeSavedVersionsCount = authUser ? savedVersionsCount : savedVersions.length;
+  const optimizationCreditLimitLabel = Number.isFinite(optimizationCreditLimit)
+    ? String(optimizationCreditLimit)
+    : "Unlimited";
+  const optimizationCreditsRemainingLabel = Number.isFinite(optimizationCreditLimit)
+    ? String(optimizationCreditsRemaining)
+    : "Unlimited";
+  const activeSavedVersionsCount = Math.max(savedVersions.length, authUser ? savedVersionsCount : 0);
   const savedVersionLimit = planSavedVersionLimit(subscriptionPlan);
   const savedVersionProgressPercent = Number.isFinite(savedVersionLimit)
     ? Math.min(100, Math.round((activeSavedVersionsCount / Math.max(1, savedVersionLimit)) * 100))
@@ -7508,7 +7534,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         return true;
       }
 
-      setSystemStatus("You have used your available document exports. Upgrade or renew your plan for more exports.");
+      setSystemStatus(`You have used ${effectiveDownloadsUsed}/${documentExportLimit} premium exports.`);
       return false;
     }
 
@@ -7516,7 +7542,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       return true;
     }
 
-    setSystemStatus("Starter includes 1 free resume download. Upgrade to Plus or Pro for premium document exports.");
+    setSystemStatus("You have used 1/1 premium exports.");
     return false;
   }
 
@@ -7697,12 +7723,20 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     key: string,
     activeLabel: string,
     doneLabel: string,
-    action: () => void | Promise<void>,
+    action: () => void | boolean | Promise<void | boolean>,
   ) {
     showActionFeedback(key, activeLabel, 30000);
 
     try {
-      await action();
+      const completed = await action();
+      if (completed === false) {
+        setActionFeedback((current) => {
+          const next = { ...current };
+          delete next[key];
+          return next;
+        });
+        return;
+      }
       showActionFeedback(key, doneLabel);
     } catch (error) {
       showActionFeedback(key, "Try again");
@@ -7842,7 +7876,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         ? "Current resume version saved."
         : "Current resume version saved locally for recovery.",
     );
-    const nextSavedVersionsCount = savedVersionsCount + 1;
+    const nextSavedVersionsCount = savedVersions.length + 1;
     setSavedVersionsCount(nextSavedVersionsCount);
     syncProfileUsage({ savedVersionsCount: nextSavedVersionsCount });
 
@@ -7954,7 +7988,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       return nextVersions;
     });
     setSelectedVersionId(duplicate.id);
-    const nextSavedVersionsCount = savedVersionsCount + 1;
+    const nextSavedVersionsCount = savedVersions.length + 1;
     setSavedVersionsCount(nextSavedVersionsCount);
     syncProfileUsage({ savedVersionsCount: nextSavedVersionsCount });
     setVersionStatus("Version duplicated.");
@@ -8001,7 +8035,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     });
     setCompareVersionIds((current) => current.filter((id) => id !== version.id));
     setSelectedVersionId((current) => (current === version.id ? "" : current));
-    const nextSavedVersionsCount = Math.max(0, savedVersionsCount - 1);
+    const nextSavedVersionsCount = Math.max(0, savedVersions.length - 1);
     setSavedVersionsCount(nextSavedVersionsCount);
     syncProfileUsage({ savedVersionsCount: nextSavedVersionsCount });
     setVersionStatus("Version deleted.");
@@ -8475,11 +8509,12 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 
   async function downloadCoverLetterPdf() {
     if (!requireDownloadAccess("Cover letter PDF export", true)) {
-      return;
+      return false;
     }
 
     if (!result) {
-      return;
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
 
     try {
@@ -8492,18 +8527,21 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       });
       saveBlob(blob, coverLetterFileName(targetRole, "pdf"));
       trackUsage("exportsCreated");
+      return true;
     } catch {
-      setSystemStatus("Cover letter PDF export failed. Try DOCX or refresh and retry.");
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
   }
 
   async function downloadCoverLetterDocx() {
     if (!requireDownloadAccess("Cover letter DOCX export", true)) {
-      return;
+      return false;
     }
 
     if (!result) {
-      return;
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
 
     try {
@@ -8516,18 +8554,21 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       });
       saveBlob(blob, coverLetterFileName(targetRole, "docx"));
       trackUsage("exportsCreated");
+      return true;
     } catch {
-      setSystemStatus("Cover letter DOCX export failed. Try PDF or refresh and retry.");
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
   }
 
   function downloadCoverLetterTxt() {
     if (!requireDownloadAccess("Cover letter TXT export", true)) {
-      return;
+      return false;
     }
 
     if (!result) {
-      return;
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
 
     try {
@@ -8536,19 +8577,21 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         coverLetterFileName(targetRole, "txt"),
       );
       trackUsage("exportsCreated");
+      return true;
     } catch {
-      setSystemStatus("Cover letter TXT export failed. Try PDF or DOCX.");
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
   }
 
   async function downloadResumePdf() {
     if (!requireDownloadAccess("Resume export")) {
-      return;
+      return false;
     }
 
 	    if (!resumeV2 || !resumePreviewV2 || shouldBlockResumePreview) {
 	      setSystemStatus("Preview blocked because malformed parser data was detected. Please regenerate from structured fields.");
-	      return;
+	      return false;
 	    }
 
     if (estimatedResumePageCount > 3) {
@@ -8564,19 +8607,21 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       );
       saveBlob(blob, fileNameForRole(targetRole, "pdf"));
       trackUsage("exportsCreated");
+      return true;
     } catch {
-      setSystemStatus("Resume PDF export failed. Try DOCX or refresh and retry.");
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
   }
 
   async function downloadResumeDocx() {
     if (!requireDownloadAccess("Resume export")) {
-      return;
+      return false;
     }
 
 	    if (!resumeV2 || !resumePreviewV2 || shouldBlockResumePreview) {
 	      setSystemStatus("Preview blocked because malformed parser data was detected. Please regenerate from structured fields.");
-	      return;
+	      return false;
 	    }
 
     if (estimatedResumePageCount > 3) {
@@ -8592,18 +8637,21 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       );
       saveBlob(blob, fileNameForRole(targetRole, "docx"));
       trackUsage("exportsCreated");
+      return true;
     } catch {
-      setSystemStatus("Resume DOCX export failed. Try PDF or refresh and retry.");
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
   }
 
   async function downloadLinkedInKitPdf() {
     if (!requireDownloadAccess("LinkedIn Kit PDF export", true)) {
-      return;
+      return false;
     }
 
     if (!result) {
-      return;
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
 
     try {
@@ -8614,18 +8662,21 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       });
       saveBlob(blob, linkedinKitFileName(targetRole, "pdf"));
       trackUsage("exportsCreated");
+      return true;
     } catch {
-      setSystemStatus("LinkedIn Kit PDF export failed. Try DOCX or retry.");
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
   }
 
   async function downloadLinkedInKitDocx() {
     if (!requireDownloadAccess("LinkedIn Kit DOCX export", true)) {
-      return;
+      return false;
     }
 
     if (!result) {
-      return;
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
 
     try {
@@ -8636,18 +8687,21 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       });
       saveBlob(blob, linkedinKitFileName(targetRole, "docx"));
       trackUsage("exportsCreated");
+      return true;
     } catch {
-      setSystemStatus("LinkedIn Kit DOCX export failed. Try PDF or retry.");
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
   }
 
   async function downloadApplicationKitPdf() {
     if (!requireDownloadAccess("Application Kit PDF export", true)) {
-      return;
+      return false;
     }
 
     if (!result) {
-      return;
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
 
     try {
@@ -8658,18 +8712,21 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       });
       saveBlob(blob, applicationKitFileName(targetRole, "pdf"));
       trackUsage("exportsCreated");
+      return true;
     } catch {
-      setSystemStatus("Application Kit PDF export failed. Try DOCX or retry.");
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
   }
 
   async function downloadApplicationKitDocx() {
     if (!requireDownloadAccess("Application Kit DOCX export", true)) {
-      return;
+      return false;
     }
 
     if (!result) {
-      return;
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
 
     try {
@@ -8680,8 +8737,10 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       });
       saveBlob(blob, applicationKitFileName(targetRole, "docx"));
       trackUsage("exportsCreated");
+      return true;
     } catch {
-      setSystemStatus("Application Kit DOCX export failed. Try PDF or retry.");
+      setSystemStatus("Export failed. Please try again.");
+      return false;
     }
   }
 
@@ -9121,7 +9180,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
             </div>
           </div>
 
-          <div className="mt-4 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-5">
             <MiniAnalyticsCard
               label="ATS Readiness"
               value={`${Math.round(safeMatchBreakdown(workspaceResult.matchBreakdown, safeScore(workspaceResult.score, 0)).atsReadability)}/100`}
@@ -9138,15 +9197,22 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
             />
             <MiniAnalyticsCard
               label="Optimization Credits"
-              value={`${optimizationCreditsRemaining}/${optimizationCreditLimit}`}
-              detail={`${effectiveOptimizationCreditsUsed} used`}
+              value={`${effectiveOptimizationCreditsUsed}/${optimizationCreditLimitLabel} used`}
+              detail={`${optimizationCreditsRemainingLabel} remaining`}
               progress={optimizationProgressPercent}
               tone="gold"
             />
             <MiniAnalyticsCard
+              label="Premium Exports"
+              value={`${effectiveDownloadsUsed}/${documentExportLimitLabel} used`}
+              detail={`${documentExportsRemainingLabel} remaining`}
+              progress={documentExportProgressPercent}
+              tone="gold"
+            />
+            <MiniAnalyticsCard
               label="Saved Versions"
-              value={`${activeSavedVersionsCount}${Number.isFinite(savedVersionLimit) ? `/${savedVersionLimit}` : ""}`}
-              detail={Number.isFinite(savedVersionLimit) ? "Role-specific drafts" : "Unlimited version history"}
+              value={`${activeSavedVersionsCount}${Number.isFinite(savedVersionLimit) ? `/${savedVersionLimit}` : ""} used`}
+              detail={Number.isFinite(savedVersionLimit) ? `${Math.max(0, savedVersionLimit - activeSavedVersionsCount)} remaining` : "Unlimited version history"}
               progress={savedVersionProgressPercent}
               tone="blue"
             />

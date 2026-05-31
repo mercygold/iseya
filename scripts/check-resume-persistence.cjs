@@ -26,7 +26,11 @@ const savedWorkspace = {
           startDate: "",
           endDate: "",
           isCurrent: false,
-          bulletsText: "Built and led implementation of ISEYA.",
+          bulletsText: [
+            "Built and led implementation of ISEYA.",
+            "Managed phased releases, QA review, and production troubleshooting.",
+            "Translated user needs into technical requirements for resume exports and mobile responsiveness.",
+          ].join("\n"),
         },
       ],
       publications: [
@@ -76,6 +80,9 @@ if (restored.personalBranding.fullName !== "Manual Name") failures.push("manual 
 if (restored.personalBranding.phone !== "+1 555 0100") failures.push("manual phone did not persist");
 if (restored.personalBranding.location !== "Toronto, Canada") failures.push("manual location did not persist");
 if (restored.editableResumeSession.draft.experience[0].company !== "Jormp LLC") failures.push("experience did not persist");
+if (restored.editableResumeSession.draft.experience[0].bulletsText.split("\n").length !== 3) {
+  failures.push("manual experience bullets did not persist after reload");
+}
 if (restored.editableResumeSession.draft.publications.length !== 2) failures.push("publications merged or disappeared");
 if (restored.editableResumeSession.draft.projects.length !== 2) failures.push("projects merged or disappeared");
 if (!restored.editableResumeSession.lockedFields.includes("summary")) failures.push("manual summary was not locked");
@@ -94,6 +101,7 @@ if (failures.length > 0) {
 }
 
 console.log("[resume-persistence] passed", {
+  experienceBullets: restored.editableResumeSession.draft.experience[0].bulletsText.split("\n").length,
   publications: restored.editableResumeSession.draft.publications.length,
   projects: restored.editableResumeSession.draft.projects.length,
   lockedFields: restored.editableResumeSession.lockedFields,
