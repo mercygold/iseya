@@ -469,6 +469,12 @@ type ResumeV2Section =
   | { heading: "VOLUNTEER"; kind: "volunteer"; value: ResumeV2["volunteer"] }
   | { heading: string; kind: "custom"; value: ResumeV2["customSections"][number] };
 
+type ResumePreviewLine = {
+  text: string;
+  isBullet: boolean;
+  tone?: "entry" | "meta" | "body" | "link";
+};
+
 type AiOptimizationAction =
   | "Optimize Summary"
   | "Improve Skills"
@@ -4563,15 +4569,15 @@ function serializeResumeV2(resume: ResumeV2) {
 }
 
 function resumePreviewLinesFromV2Section(section: ResumeV2Section) {
-  const lines: Array<{ text: string; isBullet: boolean }> = [];
+  const lines: ResumePreviewLine[] = [];
 
   if (section.kind === "summary") {
-    lines.push({ text: section.value, isBullet: false });
+    lines.push({ text: section.value, isBullet: false, tone: "body" });
   } else if (section.kind === "skills") {
-    lines.push({ text: section.value.join(" | "), isBullet: false });
+    lines.push({ text: section.value.join(" | "), isBullet: false, tone: "body" });
   } else if (section.kind === "experience") {
     for (const entry of section.value) {
-      lines.push({ text: entry.company || entry.title, isBullet: false });
+      lines.push({ text: entry.company || entry.title, isBullet: false, tone: "entry" });
       lines.push({
         text: [
           entry.title,
@@ -4579,56 +4585,61 @@ function resumePreviewLinesFromV2Section(section: ResumeV2Section) {
           [entry.startDate, entry.isCurrent ? "Present" : entry.endDate].filter(Boolean).join(" - "),
         ].filter(Boolean).join(" | "),
         isBullet: false,
+        tone: "meta",
       });
-      lines.push(...entry.bullets.map((bullet) => ({ text: bullet, isBullet: true })));
+      lines.push(...entry.bullets.map((bullet) => ({ text: bullet, isBullet: true, tone: "body" as const })));
     }
   } else if (section.kind === "projects") {
     for (const project of section.value) {
-      lines.push({ text: [project.name, project.role].filter(Boolean).join(" | "), isBullet: false });
+      lines.push({ text: [project.name, project.role].filter(Boolean).join(" | "), isBullet: false, tone: "entry" });
       lines.push({
         text: [project.platform, project.tools.join(" | ")].filter(Boolean).join(" | "),
         isBullet: false,
+        tone: "meta",
       });
-      lines.push(...project.bullets.map((bullet) => ({ text: bullet, isBullet: true })));
+      lines.push(...project.bullets.map((bullet) => ({ text: bullet, isBullet: true, tone: "body" as const })));
     }
   } else if (section.kind === "education") {
     for (const education of section.value) {
       lines.push({
         text: [education.school, education.degree, education.location, education.date].filter(Boolean).join(" | "),
         isBullet: false,
+        tone: "entry",
       });
-      lines.push(...splitCleanLines(education.details).map((detail) => ({ text: detail, isBullet: true })));
+      lines.push(...splitCleanLines(education.details).map((detail) => ({ text: detail, isBullet: true, tone: "body" as const })));
     }
   } else if (section.kind === "certifications") {
     lines.push(
       ...section.value.map((certification) => ({
         text: [certification.name, certification.issuer].filter(Boolean).join(", "),
         isBullet: true,
+        tone: "body" as const,
       })),
     );
   } else if (section.kind === "publications") {
     for (const publication of section.value) {
-      lines.push({ text: [publication.title, publication.date].filter(Boolean).join(" | "), isBullet: false });
-      if (publication.description) lines.push({ text: publication.description, isBullet: false });
-      if (publication.link) lines.push({ text: publication.link, isBullet: false });
-      lines.push(...publication.bullets.map((bullet) => ({ text: bullet, isBullet: true })));
+      lines.push({ text: [publication.title, publication.date].filter(Boolean).join(" | "), isBullet: false, tone: "entry" });
+      if (publication.publisher) lines.push({ text: publication.publisher, isBullet: false, tone: "meta" });
+      if (publication.description) lines.push({ text: publication.description, isBullet: false, tone: "body" });
+      if (publication.link) lines.push({ text: publication.link, isBullet: false, tone: "link" });
+      lines.push(...publication.bullets.map((bullet) => ({ text: bullet, isBullet: true, tone: "body" as const })));
     }
   } else if (section.kind === "awards") {
     for (const award of section.value) {
-      lines.push({ text: [award.title, award.date].filter(Boolean).join(" | "), isBullet: false });
-      if (award.organization) lines.push({ text: award.organization, isBullet: false });
-      if (award.description) lines.push({ text: award.description, isBullet: false });
+      lines.push({ text: [award.title, award.date].filter(Boolean).join(" | "), isBullet: false, tone: "entry" });
+      if (award.organization) lines.push({ text: award.organization, isBullet: false, tone: "meta" });
+      if (award.description) lines.push({ text: award.description, isBullet: false, tone: "body" });
     }
   } else if (section.kind === "volunteer") {
     for (const entry of section.value) {
-      lines.push({ text: [entry.role, entry.date].filter(Boolean).join(" | "), isBullet: false });
+      lines.push({ text: [entry.role, entry.date].filter(Boolean).join(" | "), isBullet: false, tone: "entry" });
       if ([entry.organization, entry.location].filter(Boolean).join(" | ")) {
-        lines.push({ text: [entry.organization, entry.location].filter(Boolean).join(" | "), isBullet: false });
+        lines.push({ text: [entry.organization, entry.location].filter(Boolean).join(" | "), isBullet: false, tone: "meta" });
       }
-      if (entry.description) lines.push({ text: entry.description, isBullet: false });
+      if (entry.description) lines.push({ text: entry.description, isBullet: false, tone: "body" });
     }
   } else {
-    lines.push(...section.value.items.map((item) => ({ text: item, isBullet: true })));
+    lines.push(...section.value.items.map((item) => ({ text: item, isBullet: true, tone: "body" as const })));
   }
 
   return lines.filter((line) => line.text && (section.kind === "experience" || !hasMalformedParserData(line.text)));
@@ -4691,6 +4702,66 @@ function buildResumePreviewFromResumeV2(resume: ResumeV2) {
     text,
     malformed: hasMalformedParserData(text),
   };
+}
+
+function estimateResumePageCount(resume: ResumeV2 | null | undefined) {
+  if (!resume) {
+    return 1;
+  }
+
+  const sections = resumeV2Sections(resume);
+  let units = 7;
+
+  if (resume.contact.name) units += 1;
+  if (resume.contact.title) units += 1;
+  if (
+    [
+      resume.contact.email,
+      resume.contact.phone,
+      resume.contact.location,
+      resume.contact.linkedin,
+      resume.contact.portfolio,
+      resume.contact.website,
+    ].some(Boolean)
+  ) {
+    units += 1;
+  }
+
+  for (const section of sections) {
+    units += 2;
+
+    if (section.kind === "summary") {
+      units += Math.max(2, Math.ceil(section.value.length / 115));
+    } else if (section.kind === "skills") {
+      units += Math.max(1, Math.ceil(section.value.join(" | ").length / 95));
+    } else if (section.kind === "experience") {
+      for (const entry of section.value) {
+        units += 2 + entry.bullets.filter((bullet) => bullet.trim()).length;
+      }
+    } else if (section.kind === "projects") {
+      for (const project of section.value) {
+        units += 2 + project.bullets.filter((bullet) => bullet.trim()).length;
+      }
+    } else if (section.kind === "publications") {
+      for (const publication of section.value) {
+        units += 2;
+        if (publication.description) units += Math.ceil(publication.description.length / 120);
+        units += publication.bullets.filter((bullet) => bullet.trim()).length;
+      }
+    } else if (section.kind === "education") {
+      units += section.value.reduce((total, education) => total + 1 + splitCleanLines(education.details).length, 0);
+    } else if (section.kind === "certifications") {
+      units += Math.ceil(section.value.length / 2);
+    } else if (section.kind === "awards") {
+      units += section.value.reduce((total, award) => total + 1 + (award.description ? 1 : 0), 0);
+    } else if (section.kind === "volunteer") {
+      units += section.value.reduce((total, entry) => total + 1 + (entry.description ? 1 : 0), 0);
+    } else {
+      units += section.value.items.length;
+    }
+  }
+
+  return Math.max(1, Math.ceil(units / 44));
 }
 
 function userFacingGuidance(value: string) {
@@ -5158,12 +5229,12 @@ async function createResumePdfBlob(
   const isModern = ["product", "technical", "creative"].includes(family);
   const pagePadding =
     family === "ats"
-      ? 30
+      ? 26
       : family === "executive"
-        ? 44
+        ? 36
         : family === "academic" || family === "legal"
-          ? 38
-          : 36;
+          ? 34
+          : 32;
   const contactSeparator = "  |  ";
 	  const styles = StyleSheet.create({
     page: {
@@ -5171,8 +5242,8 @@ async function createResumePdfBlob(
       color: theme.textHex,
       fontFamily:
         family === "academic" || family === "legal" ? "Times-Roman" : "Helvetica",
-      fontSize: isAts ? 9.5 : family === "executive" ? 10.5 : 10,
-      lineHeight: family === "consulting" || family === "finance" ? 1.35 : 1.45,
+      fontSize: isAts ? 9 : family === "executive" ? 9.7 : 9.4,
+      lineHeight: family === "consulting" || family === "finance" ? 1.23 : 1.27,
     },
 	    header: {
 	      backgroundColor: hasHeaderBand ? theme.headerHex : "#ffffff",
@@ -5185,12 +5256,12 @@ async function createResumePdfBlob(
       color: hasHeaderBand ? "#ffffff" : theme.accentHex,
       fontSize:
         family === "executive"
-          ? 24
+          ? 22
           : family === "creative"
-            ? 23
+            ? 21
             : family === "ats"
-              ? 18
-              : 20,
+              ? 17
+              : 19,
 	      fontWeight: 700,
 	      marginBottom: family === "ats" ? 7 : 8,
 	    },
@@ -5226,30 +5297,63 @@ async function createResumePdfBlob(
       borderLeftWidth: isModern ? (family === "creative" ? 4 : 2) : 0,
 	      marginBottom:
 	        family === "ats" || family === "consulting" || family === "finance"
-	          ? 12
-	          : 16,
+	          ? 8
+	          : 10,
 	      paddingLeft: isModern ? 9 : 0,
 	    },
     heading: {
       borderBottomColor: theme.accentHex,
-      borderBottomWidth: family === "ats" ? 0.5 : 1,
+      borderBottomWidth: family === "ats" ? 1 : 1.5,
       color: theme.accentHex,
-      fontSize: family === "academic" || family === "legal" ? 10 : 9,
+      fontSize: family === "academic" || family === "legal" ? 10.5 : 10,
       fontWeight: 700,
       letterSpacing: family === "ats" ? 0.2 : 0.8,
-	      marginBottom: 8,
-	      paddingBottom: 4,
+	      marginBottom: 5,
+	      paddingBottom: 3,
 	      textTransform: "uppercase",
 	    },
 	    paragraph: {
-	      marginBottom: 6,
+	      marginBottom: 3,
 	    },
+    entry: {
+      fontWeight: 700,
+      marginBottom: 2,
+    },
+    meta: {
+      color: theme.textHex,
+      fontSize: isAts ? 8.5 : 8.8,
+      fontWeight: 600,
+      marginBottom: 3,
+    },
+    link: {
+      color: theme.accentHex,
+      marginBottom: 3,
+      textDecoration: "underline",
+    },
 	    bullet: {
-	      lineHeight: 1.5,
-	      marginBottom: 5,
+	      lineHeight: 1.2,
+	      marginBottom: 2,
 	      paddingLeft: 10,
 	    },
   });
+  const pdfLineStyle = (line: ResumePreviewLine) => {
+    if (line.isBullet) return styles.bullet;
+    if (line.tone === "entry") return [styles.paragraph, styles.entry];
+    if (line.tone === "meta") return [styles.paragraph, styles.meta];
+    if (line.tone === "link" || isUrlLike(line.text)) return [styles.paragraph, styles.link];
+    return styles.paragraph;
+  };
+  const pdfLineChildren = (line: ResumePreviewLine) => {
+    if (line.isBullet) {
+      return `• ${line.text}`;
+    }
+
+    if (line.tone === "link" || isUrlLike(line.text)) {
+      return createElement(Link, { src: normalizeUrl(line.text) }, line.text);
+    }
+
+    return line.text;
+  };
 
   const documentNode = createElement(
     Document,
@@ -5302,16 +5406,20 @@ async function createResumePdfBlob(
 	      ...preview.sections.map((section, sectionIndex) =>
 	        createElement(
 	          View,
-	          { key: `${section.heading}-${sectionIndex}`, style: styles.section },
+	          {
+              key: `${section.heading}-${sectionIndex}`,
+              style: styles.section,
+              wrap: section.lines.length <= 8 ? false : true,
+            },
 	          createElement(Text, { style: styles.heading }, section.heading),
 	          ...section.lines.map((line, lineIndex) =>
 	            createElement(
 	              Text,
 	              {
                 key: `${section.heading}-${line.text}-${lineIndex}`,
-                style: line.isBullet ? styles.bullet : styles.paragraph,
+                style: pdfLineStyle(line),
               },
-              line.isBullet ? `• ${line.text}` : line.text,
+              pdfLineChildren(line),
             ),
           ),
         ),
@@ -5370,8 +5478,9 @@ async function createResumeDocxBlob(
   const accentColor = stripHash(theme.accentHex);
   const headerColor = stripHash(theme.headerHex);
   const textColor = stripHash(theme.textHex);
-  const headingSize = family === "academic" || family === "legal" ? 21 : 19;
-  const bodySize = family === "ats" ? 20 : family === "executive" ? 22 : 21;
+  const headingSize = family === "academic" || family === "legal" ? 23 : 22;
+  const bodySize = family === "ats" ? 18 : family === "executive" ? 19 : 18;
+  const metaSize = family === "ats" ? 16 : 17;
   const contactSize = family === "ats" ? 17 : 18;
   const headerShading = hasHeaderBand
     ? {
@@ -5480,8 +5589,8 @@ async function createResumeDocxBlob(
           },
         },
         spacing: {
-          before: family === "executive" ? 190 : 145,
-          after: family === "ats" ? 95 : 130,
+          before: family === "executive" ? 130 : 110,
+          after: family === "ats" ? 65 : 75,
         },
         children: [
           new TextRun({
@@ -5495,17 +5604,45 @@ async function createResumeDocxBlob(
     );
 
     for (const line of section.lines) {
+      const lineIsLink = line.tone === "link" || isUrlLike(line.text);
+      const lineSize = line.tone === "meta" ? metaSize : bodySize;
+      const lineChildren = lineIsLink
+        ? [
+            new ExternalHyperlink({
+              link: normalizeUrl(line.text),
+              children: [
+                new TextRun({
+                  text: line.text,
+                  color: accentColor,
+                  size: lineSize,
+                  underline: {},
+                }),
+              ],
+            }),
+          ]
+        : [
+            new TextRun({
+              text: line.text,
+              bold: line.tone === "entry",
+              color: line.tone === "link" ? accentColor : textColor,
+              italics: line.tone === "meta",
+              size: lineSize,
+            }),
+          ];
+
       children.push(
         new Paragraph({
           bullet: line.isBullet ? { level: 0 } : undefined,
-          spacing: { after: line.isBullet && (family === "consulting" || family === "finance") ? 75 : 90 },
-          children: [
-            new TextRun({
-              text: line.text,
-              color: textColor,
-              size: bodySize,
-            }),
-          ],
+          spacing: {
+            after: line.isBullet
+              ? family === "consulting" || family === "finance"
+                ? 45
+                : 50
+              : line.tone === "entry"
+                ? 25
+                : 45,
+          },
+          children: lineChildren,
         }),
       );
     }
@@ -6171,8 +6308,12 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 	      targetIndustry: industryTarget,
 	    });
 	  }, [canonicalResumeV2, editableResumeSession, generatedResumeIsMalformed, industryTarget, targetRole, workspaceBranding, workspaceResult.rewrittenResume]);
-		  const resumePreviewV2 = useMemo(
+	  const resumePreviewV2 = useMemo(
 	    () => (resumeV2 ? buildResumePreviewFromResumeV2(resumeV2) : null),
+	    [resumeV2],
+	  );
+	  const estimatedResumePageCount = useMemo(
+	    () => estimateResumePageCount(resumeV2),
 	    [resumeV2],
 	  );
 	  const shouldBlockResumePreview = !resumePreviewV2 || resumePreviewV2.malformed;
@@ -8409,6 +8550,10 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 	      setSystemStatus("Preview blocked because malformed parser data was detected. Please regenerate from structured fields.");
 	      return;
 	    }
+
+    if (estimatedResumePageCount > 3) {
+      setSystemStatus(`This resume is currently ${estimatedResumePageCount} pages. Consider shortening for non-academic roles.`);
+    }
 	
 	    try {
 	      const blob = await createResumePdfBlob(
@@ -8433,6 +8578,10 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 	      setSystemStatus("Preview blocked because malformed parser data was detected. Please regenerate from structured fields.");
 	      return;
 	    }
+
+    if (estimatedResumePageCount > 3) {
+      setSystemStatus(`This resume is currently ${estimatedResumePageCount} pages. Consider shortening for non-academic roles.`);
+    }
 	
 	    try {
 	      const blob = await createResumeDocxBlob(
@@ -10692,6 +10841,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                             <ResumePreviewControls
                               template={template}
                               theme={theme}
+                              estimatedPages={estimatedResumePageCount}
                               onTemplateChange={(nextTemplate) => {
                                 if (requireTemplateAccess(nextTemplate)) {
                                   setTemplate(nextTemplate);
@@ -10757,6 +10907,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                           <ResumePreviewControls
                             template={template}
                             theme={theme}
+                            estimatedPages={estimatedResumePageCount}
                             onTemplateChange={(nextTemplate) => {
                               if (requireTemplateAccess(nextTemplate)) {
                                 setTemplate(nextTemplate);
@@ -10909,6 +11060,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                     <ResumePreviewControls
                       template={template}
                       theme={theme}
+                      estimatedPages={estimatedResumePageCount}
                       onTemplateChange={(nextTemplate) => {
                         if (requireTemplateAccess(nextTemplate)) {
                           setTemplate(nextTemplate);
@@ -11460,6 +11612,7 @@ function DocumentFrame({
 function ResumePreviewControls({
   template,
   theme,
+  estimatedPages,
   onTemplateChange,
   onThemeChange,
   onPreview,
@@ -11467,16 +11620,29 @@ function ResumePreviewControls({
 }: {
   template: TemplateId;
   theme: ThemeId;
+  estimatedPages?: number;
   onTemplateChange: (template: TemplateId) => void;
   onThemeChange: (theme: ThemeId) => void;
   onPreview: () => void;
   onEdit: () => void;
 }) {
+  const pageCount = Math.max(1, Math.round(estimatedPages ?? 1));
+
   return (
     <div className="mb-4 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-      <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-navy)]">
-        Template &amp; Theme
-      </p>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--iseya-navy)]">
+          Template &amp; Theme
+        </p>
+        <p className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-600">
+          Est. {pageCount} {pageCount === 1 ? "page" : "pages"}
+        </p>
+      </div>
+      {pageCount > 3 ? (
+        <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-900">
+          This resume is currently {pageCount} pages. Consider shortening for non-academic roles.
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
         <div className="flex rounded-md bg-slate-100 p-1 text-xs font-semibold text-slate-600">
           <button type="button" onClick={onPreview} className="rounded-sm bg-white px-3 py-2 text-[var(--iseya-navy)] shadow-sm">
