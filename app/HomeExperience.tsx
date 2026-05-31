@@ -1081,100 +1081,6 @@ function templateProfile(template: TemplateId) {
   return templates[template] ?? templates["executive-navy"];
 }
 
-function sectionOrderScore(section: ResumeSection, template: TemplateId) {
-  const heading = section.heading.toUpperCase();
-  const order = templateProfile(template).sectionOrder;
-  const index = order.findIndex((token) => heading.includes(token));
-
-  return index === -1 ? order.length + 1 : index;
-}
-
-function orderedResumeSections(sections: ResumeSection[], template: TemplateId) {
-  return sections
-    .map((section, index) => ({ section, index }))
-    .sort((left, right) => {
-      const leftScore = sectionOrderScore(left.section, template);
-      const rightScore = sectionOrderScore(right.section, template);
-
-      return leftScore === rightScore ? left.index - right.index : leftScore - rightScore;
-    })
-    .map(({ section }) => section);
-}
-
-function preparedPreviewSections(sections: ResumeSection[], template: TemplateId) {
-  const prepared = new Map<string, ResumeSection>();
-
-  for (const section of sections) {
-    const heading = canonicalResumeHeading(section.heading);
-
-    if (!heading || isSourceArtifactHeading(heading) || isPlaceholderResumeText(heading)) {
-      continue;
-    }
-
-    const body = uniqueStrings(section.body);
-    const bullets = uniqueStrings(section.bullets);
-    const lines = Array.from(
-      new Set(
-        (section.lines ?? [])
-          .map((line) => line.trim())
-          .filter(
-            (line) =>
-              line &&
-              !isSourceArtifactHeading(cleanEditorText(line)) &&
-              !isPlaceholderResumeText(cleanEditorText(line)),
-          ),
-      ),
-    );
-
-    if (body.length === 0 && bullets.length === 0 && lines.length === 0) {
-      continue;
-    }
-
-    const existing = prepared.get(heading);
-
-    if (existing) {
-      prepared.set(heading, {
-        heading,
-        body: uniqueStrings([...existing.body, ...body]),
-        bullets: uniqueStrings([...existing.bullets, ...bullets]),
-        lines: Array.from(new Set([...(existing.lines ?? []), ...lines])),
-      });
-    } else {
-      prepared.set(heading, { heading, body, bullets, lines });
-    }
-  }
-
-  const experienceBullets = new Set(
-    (prepared.get("PROFESSIONAL EXPERIENCE")?.bullets ?? []).map((bullet) =>
-      cleanExportBullet(bullet).toLowerCase(),
-    ),
-  );
-  const achievements = prepared.get("ACHIEVEMENTS");
-
-  if (achievements) {
-    const uniqueAchievements = achievements.bullets.filter(
-      (bullet) => !experienceBullets.has(cleanExportBullet(bullet).toLowerCase()),
-    );
-
-    if (achievements.body.length === 0 && uniqueAchievements.length === 0) {
-      prepared.delete("ACHIEVEMENTS");
-    } else {
-      prepared.set("ACHIEVEMENTS", {
-        ...achievements,
-        bullets: uniqueAchievements,
-      });
-    }
-  }
-
-  if (prepared.has("AWARDS & VOLUNTEER")) {
-    prepared.delete("AWARDS");
-    prepared.delete("VOLUNTEER EXPERIENCE");
-    prepared.delete("LEADERSHIP");
-  }
-
-  return orderedResumeSections(Array.from(prepared.values()), template);
-}
-
 function isIndustryTarget(value: unknown): value is IndustryTarget {
   return typeof value === "string" && industryTargets.includes(value as IndustryTarget);
 }
@@ -4677,6 +4583,98 @@ function serializeResumeV2(resume: ResumeV2) {
   return cleanRenderedResumeText(lines.join("\n"));
 }
 
+function resumePreviewLinesFromV2Section(section: ResumeV2Section) {
+  const lines: Array<{ text: string; isBullet: boolean }> = [];
+
+  if (section.kind === "summary") {
+    lines.push({ text: section.value, isBullet: false });
+  } else if (section.kind === "skills") {
+    lines.push({ text: section.value.join(" | "), isBullet: false });
+  } else if (section.kind === "experience") {
+    for (const entry of section.value) {
+      lines.push({ text: entry.company || entry.title, isBullet: false });
+      lines.push({
+        text: [
+          entry.title,
+          entry.location,
+          [entry.startDate, entry.isCurrent ? "Present" : entry.endDate].filter(Boolean).join(" - "),
+        ].filter(Boolean).join(" | "),
+        isBullet: false,
+      });
+      lines.push(...entry.bullets.map((bullet) => ({ text: bullet, isBullet: true })));
+    }
+  } else if (section.kind === "projects") {
+    for (const project of section.value) {
+      lines.push({ text: [project.name, project.role].filter(Boolean).join(" | "), isBullet: false });
+      lines.push({
+        text: [project.platform, project.tools.join(" | ")].filter(Boolean).join(" | "),
+        isBullet: false,
+      });
+      lines.push(...project.bullets.map((bullet) => ({ text: bullet, isBullet: true })));
+    }
+  } else if (section.kind === "education") {
+    for (const education of section.value) {
+      lines.push({
+        text: [education.school, education.degree, education.location, education.date].filter(Boolean).join(" | "),
+        isBullet: false,
+      });
+      lines.push(...splitCleanLines(education.details).map((detail) => ({ text: detail, isBullet: true })));
+    }
+  } else if (section.kind === "certifications") {
+    lines.push(
+      ...section.value.map((certification) => ({
+        text: [certification.name, certification.issuer].filter(Boolean).join(", "),
+        isBullet: true,
+      })),
+    );
+  } else if (section.kind === "publications") {
+    for (const publication of section.value) {
+      lines.push({ text: [publication.title, publication.date].filter(Boolean).join(" | "), isBullet: false });
+      if (publication.description) lines.push({ text: publication.description, isBullet: false });
+      if (publication.link) lines.push({ text: publication.link, isBullet: false });
+      lines.push(...publication.bullets.map((bullet) => ({ text: bullet, isBullet: true })));
+    }
+  } else if (section.kind === "awards") {
+    for (const award of section.value) {
+      lines.push({ text: [award.title, award.date].filter(Boolean).join(" | "), isBullet: false });
+      if (award.organization) lines.push({ text: award.organization, isBullet: false });
+      if (award.description) lines.push({ text: award.description, isBullet: false });
+    }
+  } else if (section.kind === "volunteer") {
+    for (const entry of section.value) {
+      lines.push({ text: [entry.role, entry.date].filter(Boolean).join(" | "), isBullet: false });
+      if ([entry.organization, entry.location].filter(Boolean).join(" | ")) {
+        lines.push({ text: [entry.organization, entry.location].filter(Boolean).join(" | "), isBullet: false });
+      }
+      if (entry.description) lines.push({ text: entry.description, isBullet: false });
+    }
+  } else {
+    lines.push(...section.value.items.map((item) => ({ text: item, isBullet: true })));
+  }
+
+  return lines.filter((line) => line.text && !hasMalformedParserData(line.text));
+}
+
+function buildResumePreviewFromResumeV2(resume: ResumeV2) {
+  const sections = resumeV2Sections(resume)
+    .map((section) => ({
+      ...section,
+      lines: resumePreviewLinesFromV2Section(section),
+    }))
+    .filter((section) => section.lines.length > 0);
+  const text = serializeResumeV2({
+    ...resume,
+    customSections: resume.customSections.filter((section) => section.items.length > 0),
+  });
+
+  return {
+    contact: resume.contact,
+    sections,
+    text,
+    malformed: hasMalformedParserData(text),
+  };
+}
+
 function userFacingGuidance(value: string) {
   return value
     .replace(/AI suggestion - verify before use:/gi, "Suggested detail - verify before use:")
@@ -5103,15 +5101,29 @@ async function extractUploadedFile(file: File): Promise<UploadedSourceFile> {
 }
 
 async function createResumePdfBlob(
-  resumeText: string,
+  resumeV2: ResumeV2,
   template: TemplateId,
   theme: (typeof previewThemes)[ThemeId],
   branding?: PersonalBranding,
 ) {
   const ReactPdf = await import("@react-pdf/renderer");
   const { Document, Image, Link, Page, StyleSheet, Text, View, pdf } = ReactPdf;
-  const resume = parseResumePreview(resumeText);
-  const contact = mergeBrandingWithResume(resumeText, branding);
+  const preview = buildResumePreviewFromResumeV2(resumeV2);
+  if (preview.malformed) {
+    throw new Error("Malformed parser data detected.");
+  }
+  const contactBranding = normalizePersonalBranding(branding);
+  const contact = {
+    name: preview.contact.name,
+    title: preview.contact.title,
+    email: preview.contact.email,
+    phone: preview.contact.phone,
+    location: preview.contact.location,
+    linkedIn: preview.contact.linkedin,
+    portfolio: preview.contact.portfolio,
+    website: preview.contact.website,
+    profileImageDataUrl: contactBranding.profileImageDataUrl,
+  };
   const contactLines = [
     contact.email,
     contact.phone,
@@ -5134,7 +5146,6 @@ async function createResumePdfBlob(
         : family === "academic" || family === "legal"
           ? 38
           : 36;
-	  const orderedSections = preparedPreviewSections(resume.sections, template);
   const contactSeparator = "  |  ";
 	  const styles = StyleSheet.create({
     page: {
@@ -5270,15 +5281,15 @@ async function createResumePdfBlob(
           ),
         ),
       ),
-      ...orderedSections.map((section, sectionIndex) =>
-        createElement(
-          View,
-          { key: `${section.heading}-${sectionIndex}`, style: styles.section },
-          createElement(Text, { style: styles.heading }, section.heading),
-          ...orderedSectionLines(section).map((line, lineIndex) =>
-            createElement(
-              Text,
-              {
+	      ...preview.sections.map((section, sectionIndex) =>
+	        createElement(
+	          View,
+	          { key: `${section.heading}-${sectionIndex}`, style: styles.section },
+	          createElement(Text, { style: styles.heading }, section.heading),
+	          ...section.lines.map((line, lineIndex) =>
+	            createElement(
+	              Text,
+	              {
                 key: `${section.heading}-${line.text}-${lineIndex}`,
                 style: line.isBullet ? styles.bullet : styles.paragraph,
               },
@@ -5294,7 +5305,7 @@ async function createResumePdfBlob(
 }
 
 async function createResumeDocxBlob(
-  resumeText: string,
+  resumeV2: ResumeV2,
   template: TemplateId,
   theme: (typeof previewThemes)[ThemeId],
   branding?: PersonalBranding,
@@ -5309,8 +5320,22 @@ async function createResumeDocxBlob(
     ShadingType,
     TextRun,
   } = Docx;
-  const resume = parseResumePreview(resumeText);
-  const contact = mergeBrandingWithResume(resumeText, branding);
+  const preview = buildResumePreviewFromResumeV2(resumeV2);
+  if (preview.malformed) {
+    throw new Error("Malformed parser data detected.");
+  }
+  const contactBranding = normalizePersonalBranding(branding);
+  const contact = {
+    name: preview.contact.name,
+    title: preview.contact.title,
+    email: preview.contact.email,
+    phone: preview.contact.phone,
+    location: preview.contact.location,
+    linkedIn: preview.contact.linkedin,
+    portfolio: preview.contact.portfolio,
+    website: preview.contact.website,
+    profileImageDataUrl: contactBranding.profileImageDataUrl,
+  };
   const contactLines = [
     contact.email,
     contact.phone,
@@ -5327,7 +5352,6 @@ async function createResumeDocxBlob(
   const accentColor = stripHash(theme.accentHex);
   const headerColor = stripHash(theme.headerHex);
   const textColor = stripHash(theme.textHex);
-  const orderedSections = preparedPreviewSections(resume.sections, template);
   const headingSize = family === "academic" || family === "legal" ? 21 : 19;
   const bodySize = family === "ats" ? 20 : family === "executive" ? 22 : 21;
   const contactSize = family === "ats" ? 17 : 18;
@@ -5426,7 +5450,7 @@ async function createResumeDocxBlob(
     );
   }
 
-  for (const section of orderedSections) {
+  for (const section of preview.sections) {
     children.push(
       new Paragraph({
         border: {
@@ -5452,7 +5476,7 @@ async function createResumeDocxBlob(
       }),
     );
 
-    for (const line of orderedSectionLines(section)) {
+    for (const line of section.lines) {
       children.push(
         new Paragraph({
           bullet: line.isBullet ? { level: 0 } : undefined,
@@ -6129,11 +6153,11 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 	      targetIndustry: industryTarget,
 	    });
 	  }, [canonicalResumeV2, editableResumeSession, generatedResumeIsMalformed, industryTarget, targetRole, workspaceBranding, workspaceResult.rewrittenResume]);
-  const resumeV2Text = useMemo(
-    () => (resumeV2 ? serializeResumeV2(resumeV2) : ""),
-    [resumeV2],
-  );
-  const shouldBlockResumePreview = !resumeV2 || hasMalformedParserData(resumeV2Text);
+		  const resumePreviewV2 = useMemo(
+	    () => (resumeV2 ? buildResumePreviewFromResumeV2(resumeV2) : null),
+	    [resumeV2],
+	  );
+	  const shouldBlockResumePreview = !resumePreviewV2 || resumePreviewV2.malformed;
 
   const buildSavedState = useCallback((): SavedState => {
     return {
@@ -8363,17 +8387,17 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       return;
     }
 
-    if (!resumeV2Text || shouldBlockResumePreview) {
-      setSystemStatus("Resume output contains malformed parser data. Regenerate with Resume Engine V2.");
-      return;
-    }
-
-    try {
-      const blob = await createResumePdfBlob(
-        resumeV2Text,
-        template,
-        previewTheme,
-        workspaceBranding,
+	    if (!resumeV2 || !resumePreviewV2 || shouldBlockResumePreview) {
+	      setSystemStatus("Preview blocked because malformed parser data was detected. Please regenerate from structured fields.");
+	      return;
+	    }
+	
+	    try {
+	      const blob = await createResumePdfBlob(
+	        resumeV2,
+	        template,
+	        previewTheme,
+	        workspaceBranding,
       );
       saveBlob(blob, fileNameForRole(targetRole, "pdf"));
       trackUsage("exportsCreated");
@@ -8387,17 +8411,17 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       return;
     }
 
-    if (!resumeV2Text || shouldBlockResumePreview) {
-      setSystemStatus("Resume output contains malformed parser data. Regenerate with Resume Engine V2.");
-      return;
-    }
-
-    try {
-      const blob = await createResumeDocxBlob(
-        resumeV2Text,
-        template,
-        previewTheme,
-        workspaceBranding,
+	    if (!resumeV2 || !resumePreviewV2 || shouldBlockResumePreview) {
+	      setSystemStatus("Preview blocked because malformed parser data was detected. Please regenerate from structured fields.");
+	      return;
+	    }
+	
+	    try {
+	      const blob = await createResumeDocxBlob(
+	        resumeV2,
+	        template,
+	        previewTheme,
+	        workspaceBranding,
       );
       saveBlob(blob, fileNameForRole(targetRole, "docx"));
       trackUsage("exportsCreated");
@@ -10659,8 +10683,8 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                               onPreview={() => setActiveOutput("preview")}
                               onEdit={() => setActiveOutput("resume")}
                             />
-                            <ResumePreview
-                              resumeText={workspaceResult.rewrittenResume}
+	                            <ResumePreview
+	                              resumeText={resumePreviewV2?.text ?? ""}
                               theme={previewTheme}
                               template={template}
                               branding={workspaceBranding}
@@ -10724,8 +10748,8 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                             onPreview={() => setActiveOutput("preview")}
                             onEdit={() => setActiveOutput("resume")}
                           />
-                          <ResumePreview
-                            resumeText={workspaceResult.rewrittenResume}
+	                          <ResumePreview
+	                            resumeText={resumePreviewV2?.text ?? ""}
                             theme={previewTheme}
                             template={template}
                             branding={workspaceBranding}
@@ -10877,8 +10901,8 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                       onEdit={() => setActiveOutput("resume")}
                     />
                     <div className="rounded-2xl bg-slate-200/70 px-3 py-6 sm:px-6 lg:px-10">
-                      <ResumePreview
-                        resumeText={workspaceResult.rewrittenResume}
+	                      <ResumePreview
+	                        resumeText={resumePreviewV2?.text ?? ""}
                         theme={previewTheme}
                         template={template}
                         branding={workspaceBranding}
@@ -14584,20 +14608,21 @@ function ResumePreview({
   onRegenerate?: () => void;
   fullPage?: boolean;
 }) {
-  const contact = resumeV2
-	    ? {
-	        name: resumeV2.contact.name,
-	        title: resumeV2.contact.title,
-	        email: resumeV2.contact.email,
-	        phone: resumeV2.contact.phone,
-	        location: resumeV2.contact.location,
-	        linkedIn: resumeV2.contact.linkedin,
-	        portfolio: resumeV2.contact.portfolio,
-	        website: resumeV2.contact.website,
-	        profileImageDataUrl: "",
-	      }
-	    : mergeBrandingWithResume(resumeText, branding);
-  const effectiveBlocked = blocked || !resumeV2 || hasMalformedParserData(resumeText);
+  const preview = resumeV2 ? buildResumePreviewFromResumeV2(resumeV2) : null;
+  const contact = preview
+		    ? {
+		        name: preview.contact.name,
+		        title: preview.contact.title,
+		        email: preview.contact.email,
+		        phone: preview.contact.phone,
+		        location: preview.contact.location,
+		        linkedIn: preview.contact.linkedin,
+		        portfolio: preview.contact.portfolio,
+		        website: preview.contact.website,
+		        profileImageDataUrl: "",
+		      }
+		    : mergeBrandingWithResume(resumeText, branding);
+  const effectiveBlocked = blocked || !preview || preview.malformed;
   const contactItems = [
     contact.email,
     contact.phone,
@@ -14609,7 +14634,7 @@ function ResumePreview({
   const profile = templateProfile(template);
   const family = profile.family;
   const isExecutive = family === "executive";
-  const orderedV2Sections = resumeV2 ? resumeV2Sections(resumeV2) : [];
+  const orderedV2Sections = preview?.sections ?? [];
   const bodyClassByFamily: Record<TemplateFamily, string> = {
     ats: fullPage ? "space-y-4 px-10 py-8" : "space-y-4 p-6",
     executive: fullPage ? "space-y-5 px-12 py-9" : "space-y-5 p-7",
@@ -14735,7 +14760,7 @@ function ResumePreview({
             <h5 className={headingClassByFamily[family]}>Resume Engine V2</h5>
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
               <p className="font-semibold">
-                Resume output contains malformed parser data. Regenerate with Resume Engine V2.
+	                Preview blocked because malformed parser data was detected. Please regenerate from structured fields.
               </p>
               {onRegenerate ? (
                 <button
