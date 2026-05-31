@@ -389,8 +389,23 @@ type EditableResumeSession = {
   deletedSections?: string[];
 };
 
+type ResumeV2Contact = {
+  name: string;
+  title: string;
+  email: string;
+  phone: string;
+  location: string;
+  linkedin: string;
+  portfolio: string;
+  website: string;
+};
+
 type ResumeV2 = {
-  contact: PersonalBranding;
+  id: string;
+  updatedAt: string;
+  contact: ResumeV2Contact;
+  targetRole: string;
+  targetIndustry: string;
   summary: string;
   skills: string[];
   experience: ExperienceEntry[];
@@ -398,52 +413,61 @@ type ResumeV2 = {
     name: string;
     role: string;
     organization: string;
-    description: string;
-    link: string;
+    platform: string;
+    tools: string[];
     bullets: string[];
   }>;
-  education: EditableEducationEntry[];
-  certifications: EditableCertificationEntry[];
-  tools: string[];
+  education: Array<{
+    school: string;
+    degree: string;
+    location: string;
+    date: string;
+    details: string;
+  }>;
+  certifications: Array<{
+    name: string;
+    issuer: string;
+    date: string;
+  }>;
   publications: Array<{
     title: string;
-    date: string;
-    description: string;
-    link: string;
     publisher: string;
+    date: string;
+    link: string;
+    description: string;
     bullets: string[];
   }>;
   awards: Array<{
     title: string;
     organization: string;
-    location: string;
     date: string;
     description: string;
-    bullets: string[];
   }>;
   volunteer: Array<{
-    title: string;
+    role: string;
     organization: string;
     location: string;
     date: string;
     description: string;
-    bullets: string[];
   }>;
-  customSections: ResumeSection[];
+  customSections: Array<{
+    heading: string;
+    items: string[];
+  }>;
+  hiddenSections: string[];
 };
 
 type ResumeV2Section =
   | { heading: "PROFESSIONAL SUMMARY"; kind: "summary"; value: string }
   | { heading: "CORE SKILLS"; kind: "skills"; value: string[] }
-  | { heading: "TOOLS / TECHNOLOGIES"; kind: "tools"; value: string[] }
   | { heading: "PROFESSIONAL EXPERIENCE"; kind: "experience"; value: ExperienceEntry[] }
   | { heading: "PROJECTS"; kind: "projects"; value: ResumeV2["projects"] }
-  | { heading: "EDUCATION"; kind: "education"; value: EditableEducationEntry[] }
-  | { heading: "CERTIFICATIONS"; kind: "certifications"; value: EditableCertificationEntry[] }
+  | { heading: "EDUCATION"; kind: "education"; value: ResumeV2["education"] }
+  | { heading: "CERTIFICATIONS"; kind: "certifications"; value: ResumeV2["certifications"] }
   | { heading: "PUBLICATIONS / RESEARCH"; kind: "publications"; value: ResumeV2["publications"] }
   | { heading: "AWARDS"; kind: "awards"; value: ResumeV2["awards"] }
   | { heading: "VOLUNTEER"; kind: "volunteer"; value: ResumeV2["volunteer"] }
-  | { heading: string; kind: "custom"; value: ResumeSection };
+  | { heading: string; kind: "custom"; value: ResumeV2["customSections"][number] };
 
 type AiOptimizationAction =
   | "Optimize Summary"
@@ -499,6 +523,9 @@ type SavedState = {
   aiSettings?: AiSettings;
   personalBranding: PersonalBranding;
   editableResumeSession?: EditableResumeSession | null;
+  canonicalResumeV2?: ResumeV2 | null;
+  quarantinedGeneratedResume?: string;
+  migrationBackup?: ResumeMigrationBackup;
 };
 
 type CloudResumeContent = SavedState & {
@@ -531,6 +558,7 @@ type SavedResumeVersion = {
   result: TailoringResult;
   uploadedFiles: UploadedSourceFile[];
   personalBranding: PersonalBranding;
+  resumeV2?: ResumeV2 | null;
   workspaceState?: SavedState;
 };
 
@@ -546,8 +574,22 @@ type SavedResumeRecord = {
   createdAt: string;
   matchScore: number;
   previewSnippet: string;
+  resumeV2?: ResumeV2 | null;
   workspaceState: SavedState;
   versions: SavedResumeVersion[];
+};
+
+type ResumeMigrationBackup = {
+  createdAt: string;
+  currentDraftBackup?: unknown;
+  savedVersionsBackup?: unknown;
+  uploadedFilesBackup?: unknown;
+  sourceMaterialsBackup?: {
+    masterResume?: string;
+    jobDescription?: string;
+    targetRole?: string;
+  };
+  quarantinedGeneratedResume?: string;
 };
 
 type IndustryTarget =
@@ -606,6 +648,7 @@ const savedResumeStorageKey = "iseya_saved_resumes";
 const currentDraftStorageKey = "iseya_current_resume_draft";
 const activeResumeIdStorageKey = "iseya_active_resume_id";
 const usageStorageKey = "iseya_usage_stats";
+const migrationBackupStorageKey = "iseya_resume_engine_v2_migration_backup";
 const acceptedSourceFileTypes = ".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.ppt,.pptx";
 const industryTargets: IndustryTarget[] = [
   "AI / Technology",
@@ -3100,19 +3143,16 @@ function parseProjectSectionEntries(section?: ResumeSection) {
     }
   }
 
-  return entries
-    .filter((entry) => entry.name && !isPlaceholderResumeText(entry.name))
-    .map((entry) =>
-      [
-        "PROJECT_ENTRY",
-        `NAME: ${entry.name}`,
-        entry.role ? `ROLE: ${entry.role}` : "",
-        entry.tools ? `TOOLS: ${entry.tools}` : "",
-        entry.link ? `LINK: ${entry.link}` : "",
-        ...entry.bullets.map((bullet) => `BULLET: ${bullet}`),
-      ]
-        .filter(Boolean)
-        .join("\n"),
+	  return entries
+	    .filter((entry) => entry.name && !isPlaceholderResumeText(entry.name))
+	    .map((entry) =>
+	      [
+	        entry.name,
+	        [entry.role, entry.tools, entry.link].filter(Boolean).join(" | "),
+	        ...entry.bullets.map((bullet) => `- ${bullet}`),
+	      ]
+	        .filter(Boolean)
+	        .join("\n"),
     );
 }
 
@@ -3145,19 +3185,17 @@ function parsePublicationSectionEntries(section?: ResumeSection) {
     }
   }
 
-  return entries
-    .filter((entry) => entry.title && !isPlaceholderResumeText(entry.title))
-    .map((entry) =>
-      [
-        "PUBLICATION_ENTRY",
-        `TITLE: ${entry.title}`,
-        entry.publisher ? `PUBLISHER: ${entry.publisher}` : "",
-        entry.date ? `DATE: ${entry.date}` : "",
-        entry.link ? `LINK: ${entry.link}` : "",
-        ...entry.descriptions.map((description) => `DESCRIPTION: ${description}`),
-      ]
-        .filter(Boolean)
-        .join("\n"),
+	  return entries
+	    .filter((entry) => entry.title && !isPlaceholderResumeText(entry.title))
+	    .map((entry) =>
+	      [
+	        entry.title,
+	        [entry.publisher, entry.date].filter(Boolean).join(" | "),
+	        entry.link,
+	        ...entry.descriptions.map((description) => `- ${description}`),
+	      ]
+	        .filter(Boolean)
+	        .join("\n"),
     );
 }
 
@@ -4299,46 +4337,151 @@ function cleanRenderedResumeText(value: string) {
     .trim();
 }
 
-function rawSectionText(section: ResumeSection) {
-  return (section.lines && section.lines.length > 0
-    ? section.lines
-    : [...section.body, ...section.bullets.map((bullet) => `- ${bullet}`)]
-  ).join("\n");
-}
-
-function encodedRecordsFromSection(section: ResumeSection, marker: string) {
-  const raw = rawSectionText(section);
-  if (!containsParserToken(raw)) {
-    return [];
-  }
-
-  const pattern = new RegExp(`\\b${marker}\\b`, "i");
-  return raw
-    .split(new RegExp(`(?=\\b${marker}\\b)`, "gi"))
-    .map((item) => item.trim())
-    .filter((item) => pattern.test(item));
-}
-
 function hasMalformedParserData(value: string) {
   return containsParserToken(value);
+}
+
+function isResumeV2(value: unknown): value is ResumeV2 {
+  return Boolean(
+    isRecord(value) &&
+      isRecord(value.contact) &&
+      Array.isArray(value.skills) &&
+      Array.isArray(value.experience) &&
+      Array.isArray(value.projects) &&
+      Array.isArray(value.education) &&
+      Array.isArray(value.certifications) &&
+      Array.isArray(value.publications) &&
+      Array.isArray(value.awards) &&
+      Array.isArray(value.volunteer) &&
+      Array.isArray(value.customSections),
+  );
+}
+
+function resumeV2ContactFromBranding(branding: PersonalBranding): ResumeV2Contact {
+  const normalized = normalizePersonalBranding(branding);
+
+  return {
+    name: normalized.fullName,
+    title: normalized.professionalTitle,
+    email: normalized.email,
+    phone: normalized.phone,
+    location: normalized.location,
+    linkedin: normalized.linkedInUrl,
+    portfolio: normalized.portfolioUrl,
+    website: normalized.websiteUrl,
+  };
+}
+
+function normalizeResumeV2(value: unknown): ResumeV2 | null {
+  if (!isResumeV2(value)) {
+    return null;
+  }
+
+  return {
+    id: fieldString(value.id) || resumeRecordId(),
+    updatedAt: fieldString(value.updatedAt) || new Date().toISOString(),
+    contact: {
+      name: cleanStructuredBullet(fieldString(value.contact.name)),
+      title: cleanStructuredBullet(fieldString(value.contact.title)),
+      email: cleanStructuredBullet(fieldString(value.contact.email)),
+      phone: cleanStructuredBullet(fieldString(value.contact.phone)),
+      location: cleanStructuredBullet(fieldString(value.contact.location)),
+      linkedin: cleanStructuredBullet(fieldString(value.contact.linkedin)),
+      portfolio: cleanStructuredBullet(fieldString(value.contact.portfolio)),
+      website: cleanStructuredBullet(fieldString(value.contact.website)),
+    },
+    targetRole: cleanStructuredBullet(fieldString(value.targetRole)),
+    targetIndustry: cleanStructuredBullet(fieldString(value.targetIndustry)),
+    summary: cleanEditorText(fieldString(value.summary)),
+    skills: safeStringArray(value.skills).map(cleanStructuredBullet).filter(Boolean),
+    experience: Array.isArray(value.experience)
+      ? value.experience
+          .map((entry, index) => normalizeExperience(entry as Partial<ExperienceEntry>, index))
+          .filter((entry): entry is ExperienceEntry => Boolean(entry))
+      : [],
+    projects: value.projects
+      .map((project) => ({
+        name: cleanStructuredBullet(fieldString(project.name)),
+        role: cleanStructuredBullet(fieldString(project.role)),
+        organization: cleanStructuredBullet(fieldString(project.organization)),
+        platform: cleanStructuredBullet(fieldString(project.platform)),
+        tools: safeStringArray(project.tools).map(cleanStructuredBullet).filter(Boolean),
+        bullets: safeStringArray(project.bullets).flatMap(splitCleanLines),
+      }))
+      .filter((project) => project.name && !hasMalformedParserData(project.name)),
+    education: value.education
+      .map((education) => ({
+        school: cleanStructuredBullet(fieldString(education.school)),
+        degree: cleanStructuredBullet(fieldString(education.degree)),
+        location: cleanStructuredBullet(fieldString(education.location)),
+        date: cleanStructuredBullet(fieldString(education.date)),
+        details: splitCleanLines(fieldString(education.details)).join("\n"),
+      }))
+      .filter((education) => education.school || education.degree),
+    certifications: value.certifications
+      .map((certification) => ({
+        name: cleanStructuredBullet(fieldString(certification.name)),
+        issuer: cleanStructuredBullet(fieldString(certification.issuer)),
+        date: cleanStructuredBullet(fieldString(certification.date)),
+      }))
+      .filter((certification) => certification.name && !hasMalformedParserData(certification.name)),
+    publications: value.publications
+      .map((publication) => ({
+        title: cleanStructuredBullet(fieldString(publication.title)),
+        publisher: cleanStructuredBullet(fieldString(publication.publisher)),
+        date: cleanStructuredBullet(fieldString(publication.date)),
+        link: cleanStructuredBullet(fieldString(publication.link)),
+        description: cleanEditorText(fieldString(publication.description)),
+        bullets: safeStringArray(publication.bullets).flatMap(splitCleanLines),
+      }))
+      .filter((publication) => publication.title && !hasMalformedParserData(publication.title)),
+    awards: value.awards
+      .map((award) => ({
+        title: cleanStructuredBullet(fieldString(award.title)),
+        organization: cleanStructuredBullet(fieldString(award.organization)),
+        date: cleanStructuredBullet(fieldString(award.date)),
+        description: cleanEditorText(fieldString(award.description)),
+      }))
+      .filter((award) => award.title && !hasMalformedParserData(award.title)),
+    volunteer: value.volunteer
+      .map((volunteer) => ({
+        role: cleanStructuredBullet(fieldString(volunteer.role)),
+        organization: cleanStructuredBullet(fieldString(volunteer.organization)),
+        location: cleanStructuredBullet(fieldString(volunteer.location)),
+        date: cleanStructuredBullet(fieldString(volunteer.date)),
+        description: cleanEditorText(fieldString(volunteer.description)),
+      }))
+      .filter((volunteer) => volunteer.role && !hasMalformedParserData(volunteer.role)),
+    customSections: value.customSections
+      .map((section) => ({
+        heading: cleanStructuredBullet(fieldString(section.heading)),
+        items: safeStringArray(section.items).flatMap(splitCleanLines),
+      }))
+      .filter((section) => section.heading && section.items.length > 0),
+    hiddenSections: safeStringArray(value.hiddenSections),
+  };
 }
 
 function splitCleanLines(value: string) {
   return structuredBulletLines(value).filter((line) => !hasMalformedParserData(line));
 }
 
-function resumeV2FromDraft(draft: EditableResumeDraft, branding: PersonalBranding): ResumeV2 {
+function resumeV2FromDraft(
+  draft: EditableResumeDraft,
+  branding: PersonalBranding,
+  options: { id?: string; targetRole?: string; targetIndustry?: string; hiddenSections?: string[] } = {},
+): ResumeV2 {
   const awards: ResumeV2["awards"] = [];
   const volunteer: ResumeV2["volunteer"] = [];
 
   for (const entry of draft.awardsVolunteer) {
+    const description = splitCleanLines(entry.description).join("\n");
     const normalized = {
       title: cleanStructuredBullet(entry.title),
       organization: cleanStructuredBullet(entry.organization),
       location: cleanStructuredBullet(entry.location),
       date: cleanStructuredBullet(entry.date),
-      description: "",
-      bullets: splitCleanLines(entry.description),
+      description,
     };
 
     if (!normalized.title || hasMalformedParserData(normalized.title)) {
@@ -4348,17 +4491,34 @@ function resumeV2FromDraft(draft: EditableResumeDraft, branding: PersonalBrandin
     const joined = [normalized.title, normalized.organization].join(" ");
 
     if (isLikelyVolunteerLine(joined)) {
-      volunteer.push(normalized);
+      volunteer.push({
+        role: normalized.title,
+        organization: normalized.organization,
+        location: normalized.location,
+        date: normalized.date,
+        description: normalized.description,
+      });
     } else if (isLikelyAwardVolunteerEntry(joined)) {
-      awards.push(normalized);
+      awards.push({
+        title: normalized.title,
+        organization: normalized.organization || normalized.location,
+        date: normalized.date,
+        description: normalized.description,
+      });
     }
   }
 
+  const contact = resumeV2ContactFromBranding({
+    ...draft.header,
+    ...branding,
+  });
+
   return {
-    contact: normalizePersonalBranding({
-      ...draft.header,
-      ...branding,
-    }),
+    id: options.id ?? resumeRecordId(),
+    updatedAt: new Date().toISOString(),
+    contact,
+    targetRole: options.targetRole ?? contact.title,
+    targetIndustry: options.targetIndustry ?? "",
     summary: cleanEditorText(draft.summaryText),
     skills: splitResumeList(draft.skillsText).filter((skill) => !hasMalformedParserData(skill)),
     experience: dedupeExperience(
@@ -4379,38 +4539,35 @@ function resumeV2FromDraft(draft: EditableResumeDraft, branding: PersonalBrandin
         name: cleanStructuredBullet(project.name),
         role: cleanStructuredBullet(project.context),
         organization: "",
-        description: cleanStructuredBullet(project.tools),
-        link: cleanStructuredBullet(project.link),
+        platform: cleanStructuredBullet(project.link),
+        tools: splitResumeList(project.tools),
         bullets: splitCleanLines(project.details),
       }))
       .filter((project) => project.name && !hasMalformedParserData(project.name)),
     education: draft.education
       .map((education) => ({
-        ...education,
         school: cleanStructuredBullet(education.school),
         degree: cleanStructuredBullet(education.degree),
         location: cleanStructuredBullet(education.location),
-        dates: cleanStructuredBullet(education.dates),
+        date: cleanStructuredBullet(education.dates),
         details: splitCleanLines(education.details).join("\n"),
       }))
       .filter((education) => education.school || education.degree),
     certifications: draft.certifications
       .map((certification) => ({
-        ...certification,
         name: cleanStructuredBullet(certification.name),
         issuer: cleanStructuredBullet(certification.issuer),
-        year: cleanStructuredBullet(certification.year),
+        date: cleanStructuredBullet(certification.year),
       }))
       .filter((certification) => certification.name && !hasMalformedParserData(certification.name)),
-    tools: splitResumeList(draft.toolsText).filter((tool) => !hasMalformedParserData(tool)),
     publications: draft.publications
       .map((publication) => ({
         title: cleanStructuredBullet(publication.title),
-        date: cleanStructuredBullet(publication.date),
-        description: "",
-        link: cleanStructuredBullet(publication.link),
         publisher: cleanStructuredBullet(publication.publisher),
-        bullets: splitCleanLines(publication.description),
+        date: cleanStructuredBullet(publication.date),
+        link: cleanStructuredBullet(publication.link),
+        description: splitCleanLines(publication.description).join("\n"),
+        bullets: [],
       }))
       .filter((publication) => publication.title && !hasMalformedParserData(publication.title)),
     awards,
@@ -4418,10 +4575,10 @@ function resumeV2FromDraft(draft: EditableResumeDraft, branding: PersonalBrandin
     customSections: draft.additionalSections
       .map((section) => ({
         heading: cleanStructuredBullet(section.heading),
-        body: section.body.map(cleanStructuredBullet).filter(Boolean),
-        bullets: section.bullets.map(cleanStructuredBullet).filter(Boolean),
+        items: [...section.body, ...section.bullets].flatMap(splitCleanLines),
       }))
-      .filter((section) => section.heading && !hasMalformedParserData(section.heading)),
+      .filter((section) => section.heading && section.items.length > 0 && !hasMalformedParserData(section.heading)),
+    hiddenSections: options.hiddenSections ?? [],
   };
 }
 
@@ -4430,7 +4587,6 @@ function resumeV2Sections(resume: ResumeV2): ResumeV2Section[] {
 
   if (resume.summary) sections.push({ heading: "PROFESSIONAL SUMMARY", kind: "summary", value: resume.summary });
   if (resume.skills.length > 0) sections.push({ heading: "CORE SKILLS", kind: "skills", value: resume.skills });
-  if (resume.tools.length > 0) sections.push({ heading: "TOOLS / TECHNOLOGIES", kind: "tools", value: resume.tools });
   if (resume.experience.length > 0) sections.push({ heading: "PROFESSIONAL EXPERIENCE", kind: "experience", value: resume.experience });
   if (resume.projects.length > 0) sections.push({ heading: "PROJECTS", kind: "projects", value: resume.projects });
   if (resume.education.length > 0) sections.push({ heading: "EDUCATION", kind: "education", value: resume.education });
@@ -4439,32 +4595,34 @@ function resumeV2Sections(resume: ResumeV2): ResumeV2Section[] {
   if (resume.awards.length > 0) sections.push({ heading: "AWARDS", kind: "awards", value: resume.awards });
   if (resume.volunteer.length > 0) sections.push({ heading: "VOLUNTEER", kind: "volunteer", value: resume.volunteer });
   for (const section of resume.customSections) {
-    sections.push({ heading: section.heading, kind: "custom", value: section });
+    if (!resume.hiddenSections.includes(section.heading)) {
+      sections.push({ heading: section.heading, kind: "custom", value: section });
+    }
   }
   return sections;
 }
 
 function serializeResumeV2(resume: ResumeV2) {
   const lines: string[] = [];
-  const contact = normalizePersonalBranding(resume.contact);
+  const contact = resume.contact;
   const contactLine = [
     contact.email,
     contact.phone,
     contact.location,
-    contact.linkedInUrl,
-    contact.portfolioUrl,
-    contact.websiteUrl,
+    contact.linkedin,
+    contact.portfolio,
+    contact.website,
   ].filter(Boolean);
 
-  if (contact.fullName) lines.push(contact.fullName);
-  if (contact.professionalTitle) lines.push(contact.professionalTitle);
+  if (contact.name) lines.push(contact.name);
+  if (contact.title) lines.push(contact.title);
   if (contactLine.length > 0) lines.push(contactLine.join(" | "));
 
   for (const section of resumeV2Sections(resume)) {
     lines.push("", section.heading);
     if (section.kind === "summary") {
       lines.push(section.value);
-    } else if (section.kind === "skills" || section.kind === "tools") {
+    } else if (section.kind === "skills") {
       lines.push(section.value.join(" | "));
     } else if (section.kind === "experience") {
       for (const entry of section.value) {
@@ -4479,17 +4637,18 @@ function serializeResumeV2(resume: ResumeV2) {
       for (const project of section.value) {
         lines.push(project.name);
         if (project.role || project.organization) lines.push([project.role, project.organization].filter(Boolean).join(" | "));
-        if (project.description) lines.push(project.description);
-        if (project.link) lines.push(project.link);
+        if (project.platform || project.tools.length > 0) {
+          lines.push([project.platform, project.tools.join(" | ")].filter(Boolean).join(" | "));
+        }
         lines.push(...project.bullets.map((bullet) => `- ${bullet}`));
       }
     } else if (section.kind === "education") {
       for (const education of section.value) {
-        lines.push([education.school, education.degree, education.location, education.dates].filter(Boolean).join(" | "));
+        lines.push([education.school, education.degree, education.location, education.date].filter(Boolean).join(" | "));
         lines.push(...splitCleanLines(education.details).map((detail) => `- ${detail}`));
       }
     } else if (section.kind === "certifications") {
-      lines.push(...section.value.map((certification) => `- ${[certification.name, certification.issuer, certification.year].filter(Boolean).join(", ")}`));
+      lines.push(...section.value.map((certification) => `- ${[certification.name, certification.issuer, certification.date].filter(Boolean).join(", ")}`));
     } else if (section.kind === "publications") {
       for (const publication of section.value) {
         lines.push(publication.title);
@@ -4498,15 +4657,20 @@ function serializeResumeV2(resume: ResumeV2) {
         if (publication.description) lines.push(publication.description);
         lines.push(...publication.bullets.map((bullet) => `- ${bullet}`));
       }
-    } else if (section.kind === "awards" || section.kind === "volunteer") {
+    } else if (section.kind === "awards") {
       for (const entry of section.value) {
         lines.push(entry.title);
+        if (entry.organization || entry.date) lines.push([entry.organization, entry.date].filter(Boolean).join(" | "));
+        if (entry.description) lines.push(entry.description);
+      }
+    } else if (section.kind === "volunteer") {
+      for (const entry of section.value) {
+        lines.push(entry.role);
         if (entry.organization || entry.location || entry.date) lines.push([entry.organization, entry.location, entry.date].filter(Boolean).join(" | "));
         if (entry.description) lines.push(entry.description);
-        lines.push(...entry.bullets.map((bullet) => `- ${bullet}`));
       }
     } else if (section.kind === "custom") {
-      lines.push(...section.value.body, ...section.value.bullets.map((bullet) => `- ${bullet}`));
+      lines.push(...section.value.items.map((item) => `- ${item}`));
     }
   }
 
@@ -4746,7 +4910,8 @@ function normalizeSavedVersion(version: Partial<SavedResumeVersion>): SavedResum
     return null;
   }
 
-  const targetRole = version.targetRole || "Target Role";
+  const resumeV2 = normalizeResumeV2(version.resumeV2 ?? version.workspaceState?.canonicalResumeV2);
+  const targetRole = version.targetRole || resumeV2?.targetRole || "Target Role";
   const industryTarget = isIndustryTarget(version.industryTarget)
     ? version.industryTarget
     : "General / ATS";
@@ -4771,13 +4936,14 @@ function normalizeSavedVersion(version: Partial<SavedResumeVersion>): SavedResum
     matchScore: safeScore(version.matchScore, result.score),
     masterResume: version.masterResume || sampleResume,
     jobDescription: version.jobDescription || sampleJob,
-    result,
+    result: hasMalformedParserData(result.rewrittenResume) ? { ...result, rewrittenResume: "" } : result,
     uploadedFiles: Array.isArray(version.uploadedFiles)
       ? version.uploadedFiles
       : [],
     personalBranding: normalizePersonalBranding(
       version.personalBranding ?? brandingFromResumeText(version.masterResume || sampleResume),
     ),
+    resumeV2,
     workspaceState: version.workspaceState ? migrateSavedWorkspaceState(version.workspaceState) : undefined,
   } satisfies SavedResumeVersion;
 }
@@ -4788,6 +4954,7 @@ function normalizeSavedResumeRecord(record: Partial<SavedResumeRecord>): SavedRe
   }
 
   const workspaceState = migrateSavedWorkspaceState(record.workspaceState);
+  const resumeV2 = normalizeResumeV2(record.resumeV2 ?? workspaceState.canonicalResumeV2);
   const versions = Array.isArray(record.versions)
     ? record.versions
         .map(normalizeSavedVersion)
@@ -4808,9 +4975,11 @@ function normalizeSavedResumeRecord(record: Partial<SavedResumeRecord>): SavedRe
     matchScore: safeScore(record.matchScore, workspaceState.result?.score ?? 0),
     previewSnippet:
       record.previewSnippet ||
+      (resumeV2 ? serializeResumeV2(resumeV2).split(/\r?\n/).filter(Boolean).slice(0, 3).join(" ") : "") ||
       workspaceState.result?.rewrittenResume?.split(/\r?\n/).filter(Boolean).slice(0, 3).join(" ") ||
       workspaceState.targetRole ||
       "Saved resume workspace",
+    resumeV2,
     workspaceState,
     versions,
   };
@@ -5767,9 +5936,10 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   const subscriptionFetchFailedRef = useRef(false);
   const lastAutosaveVersionKeyRef = useRef("");
   const opportunityPrefillRef = useRef("");
-  const uploadInputRef = useRef<HTMLInputElement | null>(null);
-  const [editableResumeSession, setEditableResumeSession] = useState<EditableResumeSession | null>(null);
-  const feedbackTimers = useRef<Record<string, number>>({});
+	  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+	  const [editableResumeSession, setEditableResumeSession] = useState<EditableResumeSession | null>(null);
+	  const [canonicalResumeV2, setCanonicalResumeV2] = useState<ResumeV2 | null>(null);
+	  const feedbackTimers = useRef<Record<string, number>>({});
   const persistEditableResumeDraft = useCallback(
     (
       draft: EditableResumeDraft,
@@ -5777,11 +5947,19 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       manualOverrides: string[] = [],
       lockedFields: string[] = [],
       deletedSections: string[] = [],
-    ) => {
-      setEditableResumeSession({ draft, resumeText, manualOverrides, lockedFields, deletedSections });
-    },
-    [],
-  );
+	    ) => {
+	      setEditableResumeSession({ draft, resumeText, manualOverrides, lockedFields, deletedSections });
+	      setCanonicalResumeV2(
+	        resumeV2FromDraft(draft, personalBranding, {
+	          id: canonicalResumeV2?.id,
+	          targetRole,
+	          targetIndustry: industryTarget,
+	          hiddenSections: deletedSections,
+	        }),
+	      );
+	    },
+	    [canonicalResumeV2?.id, industryTarget, personalBranding, targetRole],
+	  );
   const previewTheme = previewThemes[theme];
   const displayedSubscriptionPlan =
     authUserId && !subscriptionProfileLoaded ? null : subscriptionPlan;
@@ -5926,18 +6104,30 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       workspaceBranding.email,
       workspaceBranding.location,
     ].some((field) => field.trim().length > 0);
-  const workspaceDirection = targetRole.trim() || "your target direction";
-  const resumeV2 = useMemo(() => {
-    if (editableResumeSession?.draft) {
-      return resumeV2FromDraft(editableResumeSession.draft, workspaceBranding);
-    }
+	  const workspaceDirection = targetRole.trim() || "your target direction";
+	  const resumeV2 = useMemo(() => {
+	    if (editableResumeSession?.draft) {
+	      return resumeV2FromDraft(editableResumeSession.draft, workspaceBranding, {
+	        id: canonicalResumeV2?.id,
+	        targetRole,
+	        targetIndustry: industryTarget,
+	        hiddenSections: editableResumeSession.deletedSections,
+	      });
+	    }
 
-    if (generatedResumeIsMalformed) {
-      return null;
-    }
+	    if (canonicalResumeV2) {
+	      return canonicalResumeV2;
+	    }
 
-    return resumeV2FromDraft(editableResumeDraftFromText(workspaceResult.rewrittenResume), workspaceBranding);
-  }, [editableResumeSession, generatedResumeIsMalformed, workspaceBranding, workspaceResult.rewrittenResume]);
+	    if (generatedResumeIsMalformed) {
+	      return null;
+	    }
+
+    return resumeV2FromDraft(editableResumeDraftFromText(workspaceResult.rewrittenResume), workspaceBranding, {
+      targetRole,
+	      targetIndustry: industryTarget,
+	    });
+	  }, [canonicalResumeV2, editableResumeSession, generatedResumeIsMalformed, industryTarget, targetRole, workspaceBranding, workspaceResult.rewrittenResume]);
   const resumeV2Text = useMemo(
     () => (resumeV2 ? serializeResumeV2(resumeV2) : ""),
     [resumeV2],
@@ -5949,28 +6139,33 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       masterResume,
       jobDescription,
       targetRole,
-      industryTarget,
-      template,
-      theme,
-      result,
-      uploadedFiles,
-      aiSettings,
-      personalBranding,
-      editableResumeSession,
-    };
-  }, [
-    aiSettings,
-    editableResumeSession,
-    industryTarget,
-    jobDescription,
-    masterResume,
-    personalBranding,
-    result,
-    targetRole,
-    template,
-    theme,
-    uploadedFiles,
-  ]);
+	      industryTarget,
+	      template,
+	      theme,
+	      result: generatedResumeIsMalformed ? null : result,
+	      uploadedFiles,
+	      aiSettings,
+	      personalBranding,
+	      editableResumeSession,
+	      canonicalResumeV2: resumeV2,
+	      quarantinedGeneratedResume: generatedResumeIsMalformed ? workspaceResult.rewrittenResume : undefined,
+	    };
+	  }, [
+	    aiSettings,
+	    editableResumeSession,
+	    generatedResumeIsMalformed,
+	    industryTarget,
+	    jobDescription,
+	    masterResume,
+	    personalBranding,
+	    resumeV2,
+	    result,
+	    targetRole,
+	    template,
+	    theme,
+	    uploadedFiles,
+	    workspaceResult.rewrittenResume,
+	  ]);
 
   const persistVisibleVersions = useCallback((nextVersions: SavedResumeVersion[]) => {
     try {
@@ -6001,12 +6196,13 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     }
   }, []);
 
-  const draftRecordFromState = useCallback((savedState: SavedState, id: string, source: "autosave" | "manual" = "autosave"): SavedResumeRecord | null => {
-    const snapshotResult = savedState.result ?? workspaceResult;
+	  const draftRecordFromState = useCallback((savedState: SavedState, id: string, source: "autosave" | "manual" = "autosave"): SavedResumeRecord | null => {
+	    const snapshotResult = savedState.result ?? workspaceResult;
+	    const snapshotResumeV2 = normalizeResumeV2(savedState.canonicalResumeV2) ?? resumeV2;
 
-    if (!snapshotResult) {
-      return null;
-    }
+	    if (!snapshotResult && !snapshotResumeV2) {
+	      return null;
+	    }
 
     const now = new Date().toISOString();
 
@@ -6015,30 +6211,34 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       title: savedState.targetRole?.trim() || "Current Draft",
       source,
       targetRole: savedState.targetRole,
-      template: savedState.template,
-      theme: savedState.theme,
-      updatedAt: now,
-      createdAt: now,
-      matchScore: snapshotResult.score,
-      previewSnippet: snapshotResult.rewrittenResume.split(/\r?\n/).filter(Boolean).slice(0, 4).join(" "),
-      workspaceState: savedState,
-      versions: [],
-    };
-  }, [workspaceResult]);
+	      template: savedState.template,
+	      theme: savedState.theme,
+	      updatedAt: now,
+	      createdAt: now,
+	      matchScore: snapshotResult?.score ?? 0,
+	      previewSnippet: snapshotResumeV2
+	        ? serializeResumeV2(snapshotResumeV2).split(/\r?\n/).filter(Boolean).slice(0, 4).join(" ")
+	        : snapshotResult?.rewrittenResume.split(/\r?\n/).filter(Boolean).slice(0, 4).join(" ") ?? "",
+	      resumeV2: snapshotResumeV2,
+	      workspaceState: { ...savedState, canonicalResumeV2: snapshotResumeV2 },
+	      versions: [],
+	    };
+	  }, [resumeV2, workspaceResult]);
 
-  const persistCurrentDraft = useCallback((savedState: SavedState) => {
-    const snapshotResult = savedState.result ?? workspaceResult;
+	  const persistCurrentDraft = useCallback((savedState: SavedState) => {
+	    const snapshotResult = savedState.result ?? workspaceResult;
+	    const snapshotResumeV2 = normalizeResumeV2(savedState.canonicalResumeV2) ?? resumeV2;
 
-    if (!snapshotResult) {
-      return;
-    }
+	    if (!snapshotResult && !snapshotResumeV2) {
+	      return;
+	    }
 
     const draftHash = contentHash({
-      targetRole: savedState.targetRole,
-      resume: snapshotResult.rewrittenResume,
-      branding: savedState.personalBranding,
-      editable: savedState.editableResumeSession,
-    });
+	      targetRole: savedState.targetRole,
+	      resume: snapshotResumeV2 ? serializeResumeV2(snapshotResumeV2) : snapshotResult?.rewrittenResume,
+	      branding: savedState.personalBranding,
+	      editable: savedState.editableResumeSession,
+	    });
 
     if (draftHash === lastAutosaveVersionKeyRef.current) {
       return;
@@ -6072,7 +6272,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         : [draft, ...savedResumes];
     persistSavedResumes(nextResumes);
     setLastSavedAt(draft.updatedAt);
-  }, [activeResumeId, draftRecordFromState, persistSavedResumes, readSavedResumes, workspaceResult]);
+	  }, [activeResumeId, draftRecordFromState, persistSavedResumes, readSavedResumes, resumeV2, workspaceResult]);
 
   const refreshSubscriptionProfile = useCallback(async () => {
     const applySubscriptionFallback = () => {
@@ -6291,10 +6491,11 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         isIndustryTarget(state.industryTarget) ? state.industryTarget : "AI / Technology",
         state.aiSettings?.positioningMode ?? defaultAiSettings.positioningMode,
       ),
-    );
-    setUploadedFiles(state.uploadedFiles ?? []);
-    setEditableResumeSession(state.editableResumeSession ?? null);
-  }, []);
+	    );
+	    setUploadedFiles(state.uploadedFiles ?? []);
+	    setEditableResumeSession(state.editableResumeSession ?? null);
+	    setCanonicalResumeV2(normalizeResumeV2(state.canonicalResumeV2));
+	  }, []);
 
   const starterSavedState = useCallback(
     (): SavedState => ({
@@ -6324,8 +6525,8 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     [starterSavedState],
   );
 
-  const loadLocalSavedState = useCallback((): Partial<CloudResumeContent> | null => {
-    try {
+	  const loadLocalSavedState = useCallback((): Partial<CloudResumeContent> | null => {
+	    try {
       const activeId = window.localStorage.getItem(activeResumeIdStorageKey) || "";
       const savedResumeData = window.localStorage.getItem(savedResumeStorageKey);
       const savedResumes = savedResumeData
@@ -6346,10 +6547,9 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 
       if (saved) {
         const parsed = JSON.parse(saved) as Partial<CloudResumeContent>;
-        if (containsRestrictedSeedData(parsed)) {
-          window.localStorage.removeItem(storageKey);
-          return null;
-        }
+	        if (containsRestrictedSeedData(parsed)) {
+	          return null;
+	        }
         return migrateSavedWorkspaceState(parsed);
       }
 
@@ -6373,11 +6573,39 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       }
 
       return null;
-    } catch {
-      window.localStorage.removeItem(storageKey);
-      return null;
-    }
-  }, []);
+	    } catch {
+	      return null;
+	    }
+	  }, []);
+
+	  const ensureResumeEngineV2Backup = useCallback(() => {
+	    try {
+	      if (window.localStorage.getItem(migrationBackupStorageKey)) {
+	        return;
+	      }
+
+	      const backup: ResumeMigrationBackup = {
+	        createdAt: new Date().toISOString(),
+	        currentDraftBackup: window.localStorage.getItem(currentDraftStorageKey)
+	          ? JSON.parse(window.localStorage.getItem(currentDraftStorageKey) || "null")
+	          : null,
+	        savedVersionsBackup: window.localStorage.getItem(versionStorageKey)
+	          ? JSON.parse(window.localStorage.getItem(versionStorageKey) || "null")
+	          : null,
+	        uploadedFilesBackup: uploadedFiles,
+	        sourceMaterialsBackup: {
+	          masterResume,
+	          jobDescription,
+	          targetRole,
+	        },
+	        quarantinedGeneratedResume: generatedResumeIsMalformed ? workspaceResult.rewrittenResume : undefined,
+	      };
+
+	      window.localStorage.setItem(migrationBackupStorageKey, JSON.stringify(backup));
+	    } catch {
+	      // Backup is best-effort and must never block workspace recovery.
+	    }
+	  }, [generatedResumeIsMalformed, jobDescription, masterResume, targetRole, uploadedFiles, workspaceResult.rewrittenResume]);
 
   const applyCloudContent = useCallback((content: CloudResumeContent) => {
     if (containsRestrictedSeedData(content)) {
@@ -6409,9 +6637,10 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       return;
     }
 
-    window.setTimeout(() => {
-      try {
-        const saved = loadLocalSavedState();
+	    window.setTimeout(() => {
+	      try {
+	        ensureResumeEngineV2Backup();
+	        const saved = loadLocalSavedState();
 
         if (saved) {
           applySavedState(saved);
@@ -6425,10 +6654,9 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
           const parsedVersions = JSON.parse(savedVersionData) as Array<
             Partial<SavedResumeVersion>
           >;
-          if (containsRestrictedSeedData(parsedVersions)) {
-            window.localStorage.removeItem(versionStorageKey);
-            setSavedVersions([]);
-          } else {
+	          if (containsRestrictedSeedData(parsedVersions)) {
+	            setSavedVersions([]);
+	          } else {
             const normalizedVersions = parsedVersions
               .map(normalizeSavedVersion)
               .filter((version): version is SavedResumeVersion => Boolean(version));
@@ -6474,7 +6702,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
         setHydrated(true);
       }
     }, 0);
-  }, [applySavedState, authLoaded, authUser, loadLocalSavedState, starterSavedState]);
+	  }, [applySavedState, authLoaded, authUser, ensureResumeEngineV2Backup, loadLocalSavedState, starterSavedState]);
 
   useEffect(() => {
     if (!authLoaded) {
@@ -7308,10 +7536,9 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     setSelectedVersionId("");
     setCompareVersionIds([]);
     window.localStorage.removeItem(storageKey);
-    window.localStorage.removeItem(versionStorageKey);
-    applySavedState(starterSavedState());
-    setAccountStatus("Signed out. Neutral starter workspace is ready.");
-  }
+	    applySavedState(starterSavedState());
+	    setAccountStatus("Signed out. Neutral starter workspace is ready.");
+	  }
 
   function openMyResumesPlaceholder() {
     setAccountStatus("");
@@ -7320,15 +7547,24 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 
   function currentVersionSnapshot(
     id = versionId(),
-    name = defaultVersionName(targetRole, industryTarget),
-    source: "autosave" | "manual" = "manual",
-    savedState: SavedState = buildSavedState(),
-  ) {
-    const snapshotResult = result ?? workspaceResult;
+	    name = defaultVersionName(targetRole, industryTarget),
+	    source: "autosave" | "manual" = "manual",
+	    savedState: SavedState = buildSavedState(),
+	  ) {
+	    const snapshotResumeV2 = normalizeResumeV2(savedState.canonicalResumeV2) ?? resumeV2;
+	    const snapshotResult =
+	      savedState.result ??
+	      result ??
+	      (snapshotResumeV2
+	        ? {
+	            ...workspaceResult,
+	            rewrittenResume: serializeResumeV2(snapshotResumeV2),
+	          }
+	        : workspaceResult);
 
-    if (!snapshotResult) {
-      return null;
-    }
+	    if (!snapshotResult && !snapshotResumeV2) {
+	      return null;
+	    }
 
     const now = new Date().toISOString();
 
@@ -7342,17 +7578,21 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       companyName: inferCompanyName(jobDescription),
       template,
       theme,
-      createdAt: now,
-      updatedAt: now,
-      matchScore: snapshotResult.score,
-      masterResume,
-      jobDescription,
-      result: snapshotResult,
-      uploadedFiles,
-      personalBranding,
-      workspaceState: savedState,
-    } satisfies SavedResumeVersion;
-  }
+	      createdAt: now,
+	      updatedAt: now,
+	      matchScore: snapshotResult?.score ?? 0,
+	      masterResume,
+	      jobDescription,
+	      result: {
+	        ...snapshotResult,
+	        rewrittenResume: snapshotResumeV2 ? serializeResumeV2(snapshotResumeV2) : snapshotResult.rewrittenResume,
+	      },
+	      uploadedFiles,
+	      personalBranding,
+	      resumeV2: snapshotResumeV2,
+	      workspaceState: { ...savedState, canonicalResumeV2: snapshotResumeV2 },
+	    } satisfies SavedResumeVersion;
+	  }
 
   async function saveCurrentVersion() {
     if (!canSaveAnotherVersion && canUseSubscriptionFeature(subscriptionPlan, "savedVersions")) {
@@ -7675,8 +7915,9 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     }
   }
 
-  function cleanRegenerateResumeV2() {
-    const cleanSource = separateResumeInputs({
+	  function cleanRegenerateResumeV2() {
+	    ensureResumeEngineV2Backup();
+	    const cleanSource = separateResumeInputs({
       sourceResumeText: masterResume,
       uploadedSourceText: extractedSourceText,
       explicitJobDescription: jobDescription,
@@ -7687,17 +7928,58 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       : [masterResume, extractedSourceText]
           .filter((text) => text.trim().length > 0)
           .join("\n\nSUPPORTING SOURCE MATERIAL\n");
-    const nextResult = buildTailoredResume(sourceText, jobDescription, targetRole);
+	    const nextResult = buildTailoredResume(sourceText, jobDescription, targetRole);
+	    const nextDraft = editableResumeDraftFromText(nextResult.rewrittenResume);
+	    const nextResumeV2 = resumeV2FromDraft(nextDraft, workspaceBranding, {
+	      id: resumeV2?.id,
+	      targetRole,
+	      targetIndustry: industryTarget,
+	      hiddenSections: editableResumeSession?.deletedSections,
+	    });
+	    const nextResumeText = serializeResumeV2(nextResumeV2);
+	    const nextSession: EditableResumeSession = {
+	      resumeText: nextResumeText,
+	      draft: nextDraft,
+	      manualOverrides: editableResumeSession?.manualOverrides ?? [],
+	      lockedFields: editableResumeSession?.lockedFields ?? [],
+	      deletedSections: editableResumeSession?.deletedSections ?? [],
+	    };
+	    const cleanResult = {
+	      ...nextResult,
+	      rewrittenResume: nextResumeText,
+	    };
 
-    setResult(nextResult);
-    setActiveOutput("resume");
-    setTailorError("");
-    setSystemStatus("Resume Engine V2 regenerated a clean editable draft from current source materials.");
+	    setResult(cleanResult);
+	    setEditableResumeSession(nextSession);
+	    setCanonicalResumeV2(nextResumeV2);
+	    setActiveOutput("resume");
+	    setTailorError("");
+	    setSystemStatus("Resume Engine V2 regenerated a clean editable draft from current source materials.");
 
-    if (!editableResumeSession?.draft) {
-      setEditableResumeSession(null);
-    }
-  }
+	    const regeneratedState: SavedState = {
+	      ...buildSavedState(),
+	      result: cleanResult,
+	      editableResumeSession: nextSession,
+	      canonicalResumeV2: nextResumeV2,
+	      quarantinedGeneratedResume: generatedResumeIsMalformed ? workspaceResult.rewrittenResume : undefined,
+	    };
+	    const snapshot = currentVersionSnapshot(
+	      versionId(),
+	      `Resume Engine V2 — ${formatVersionDate()}`,
+	      "manual",
+	      regeneratedState,
+	    );
+
+	    if (snapshot) {
+	      setSavedVersions((current) => {
+	        const nextVersions = [snapshot, ...current];
+	        persistVisibleVersions(nextVersions);
+	        return nextVersions;
+	      });
+	      setSelectedVersionId(snapshot.id);
+	      setLastSavedAt(snapshot.updatedAt);
+	    }
+	  }
 
   function generateCoverLetter() {
     if (!requireSubscriptionFeature("coverLetter", "Cover letters")) {
@@ -8075,7 +8357,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     }
 
     if (!resumeV2Text || shouldBlockResumePreview) {
-      setSystemStatus("Resume output contains malformed parser data. Please regenerate with Resume Engine V2.");
+      setSystemStatus("Resume output contains malformed parser data. Regenerate with Resume Engine V2.");
       return;
     }
 
@@ -8099,7 +8381,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     }
 
     if (!resumeV2Text || shouldBlockResumePreview) {
-      setSystemStatus("Resume output contains malformed parser data. Please regenerate with Resume Engine V2.");
+      setSystemStatus("Resume output contains malformed parser data. Regenerate with Resume Engine V2.");
       return;
     }
 
@@ -9809,7 +10091,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                   }
                   className={`${shouldBlockResumePreview ? primaryButtonClass : secondaryButtonClass} ${buttonSizeMdClass}`}
                 >
-                  {actionFeedback.cleanRegenerate ?? "Clean Regenerate Resume"}
+                  {actionFeedback.cleanRegenerate ?? "Regenerate with Resume Engine V2"}
                 </button>
                 <details className="relative">
                   <summary className={`${primaryButtonClass} ${buttonSizeMdClass} cursor-pointer list-none`}>
@@ -11687,8 +11969,20 @@ function migrateEditableResumeSession(value: unknown): EditableResumeSession | n
 }
 
 function migrateSavedWorkspaceState<T extends Partial<CloudResumeContent>>(state: T): T {
+  const result = state.result && hasMalformedParserData(state.result.rewrittenResume)
+    ? null
+    : state.result;
+  const quarantinedGeneratedResume =
+    state.quarantinedGeneratedResume ||
+    (state.result && hasMalformedParserData(state.result.rewrittenResume)
+      ? state.result.rewrittenResume
+      : undefined);
+
   return {
     ...state,
+    result,
+    quarantinedGeneratedResume,
+    canonicalResumeV2: normalizeResumeV2(state.canonicalResumeV2),
     editableResumeSession: migrateEditableResumeSession(state.editableResumeSession),
   };
 }
@@ -11724,12 +12018,9 @@ function structuredResumeFromEditableDraft(draft: EditableResumeDraft): Structur
       .filter((project) => project.name.trim().length > 0)
       .map((project) =>
         [
-          "PROJECT_ENTRY",
-          project.name ? `NAME: ${project.name}` : "",
-          project.context ? `ROLE: ${project.context}` : "",
-          project.tools ? `TOOLS: ${project.tools}` : "",
-          project.link ? `LINK: ${project.link}` : "",
-          ...structuredBulletLines(project.details).map((detail) => `BULLET: ${detail}`),
+          project.name,
+          [project.context, project.tools, project.link].filter((value) => value.trim().length > 0).join(" | "),
+          ...structuredBulletLines(project.details).map((detail) => `- ${detail}`),
         ]
           .filter((value) => value.trim().length > 0)
           .join("\n"),
@@ -11759,14 +12050,10 @@ function structuredResumeFromEditableDraft(draft: EditableResumeDraft): Structur
     publications: draft.publications
       .map((publication) =>
         [
-          "PUBLICATION_ENTRY",
-          publication.title ? `TITLE: ${publication.title}` : "",
-          publication.publisher ? `PUBLISHER: ${publication.publisher}` : "",
-          publication.date ? `DATE: ${publication.date}` : "",
-          publication.link ? `LINK: ${publication.link}` : "",
-          ...structuredBulletLines(publication.description).map(
-            (description) => `DESCRIPTION: ${description}`,
-          ),
+          publication.title,
+          [publication.publisher, publication.date].filter((value) => value.trim().length > 0).join(" | "),
+          publication.link,
+          ...structuredBulletLines(publication.description).map((description) => `- ${description}`),
         ]
           .filter((value) => value.trim().length > 0)
           .join("\n"),
@@ -11775,14 +12062,9 @@ function structuredResumeFromEditableDraft(draft: EditableResumeDraft): Structur
     awards: draft.awardsVolunteer
       .map((entry) =>
         [
-          "AWARD_VOLUNTEER_ENTRY",
-          entry.title ? `TITLE: ${entry.title}` : "",
-          entry.organization ? `ORGANIZATION: ${entry.organization}` : "",
-          entry.location ? `LOCATION: ${entry.location}` : "",
-          entry.date ? `DATE: ${entry.date}` : "",
-          ...structuredBulletLines(entry.description).map(
-            (description) => `DESCRIPTION: ${description}`,
-          ),
+          entry.title,
+          [entry.organization, entry.location, entry.date].filter((value) => value.trim().length > 0).join(" | "),
+          ...structuredBulletLines(entry.description).map((description) => `- ${description}`),
         ]
           .filter((value) => value.trim().length > 0)
           .join("\n"),
@@ -14055,12 +14337,6 @@ function BulletVariantButton({
   );
 }
 
-function previewSectionItems(section: ResumeSection) {
-  return [...section.body, ...section.bullets]
-    .map((item) => cleanExportBullet(item))
-    .filter(Boolean);
-}
-
 function orderedSectionLines(section: ResumeSection) {
   const rawLines = section.lines ?? [
     ...section.body,
@@ -14085,393 +14361,12 @@ function orderedSectionLines(section: ResumeSection) {
     );
 }
 
-function previewEntryParts(item: string) {
-  return item
-    .split(/\s+\|\s+/)
-    .map((part) => cleanEditorText(part))
-    .filter(Boolean);
-}
-
-function previewExperienceIdentity(line: string) {
-  const parts = line
-    .split(/\s+(?:-|–|—|\|)\s+/)
-    .map((part) => cleanEditorText(part))
-    .filter(Boolean);
-
-  if (parts.length < 2) {
-    return { company: "", title: line };
-  }
-
-  const [first, ...remaining] = parts;
-  const second = remaining.join(" | ");
-  const firstLooksCompany = companySignalRegex().test(first);
-  const secondLooksCompany = companySignalRegex().test(second);
-
-  return firstLooksCompany && !secondLooksCompany
-    ? { company: first, title: second }
-    : { company: second, title: first };
-}
-
-function ResumePreviewSectionContent({ section }: { section: ResumeSection }) {
-  if (section.heading === "CORE SKILLS") {
-    const skills = splitResumeList(previewSectionItems(section).join(" | "));
-
-    return skills.length > 0 ? (
-      <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1.5 text-xs font-medium text-zinc-700">
-        {skills.map((skill) => (
-          <span key={skill} className="flex items-center gap-2">
-            <span className="h-1 w-1 rounded-full bg-slate-400" />
-            {skill}
-          </span>
-        ))}
-      </div>
-    ) : null;
-  }
-
-  if (/PROJECTS$/.test(section.heading)) {
-    const encodedProjects = encodedRecordsFromSection(section, "PROJECT_ENTRY")
-      .map(parseProjectRecord)
-      .filter((project) => project.name);
-    const entries: Array<{ title: string; role: string; organization: string; description: string; meta: string[]; bullets: string[] }> =
-      encodedProjects.map((project) => ({
-        title: project.name,
-        role: project.role,
-        organization: project.organization,
-        description: project.description,
-        meta: [project.link].filter(Boolean),
-        bullets: project.bullets,
-      }));
-    let current: { title: string; meta: string[]; bullets: string[] } | null = null;
-
-    if (entries.length === 0) {
-      for (const line of orderedSectionLines(section)) {
-        if (line.isBullet) {
-          current?.bullets.push(line.text);
-          continue;
-        }
-
-        if (!current || current.bullets.length > 0) {
-          current = { title: line.text, meta: [], bullets: [] };
-          entries.push({ ...current, role: "", organization: "", description: "" });
-        } else {
-          current.meta.push(line.text);
-          entries[entries.length - 1] = {
-            ...entries[entries.length - 1],
-            meta: current.meta,
-          };
-        }
-      }
-    }
-
-    return (
-      <div className="mt-3 space-y-3">
-        {entries.map((project, projectIndex) => {
-          const [fallbackRole = "", ...fallbackMeta] = project.meta;
-          const role = project.role || fallbackRole;
-          const meta = [project.organization, project.description, ...fallbackMeta]
-            .map(cleanStructuredBullet)
-            .filter(Boolean);
-
-          return (
-          <div key={`${project.title}-${projectIndex}`} className="break-inside-avoid">
-            <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-              <p className="text-sm font-bold text-zinc-900">{project.title}</p>
-              {role ? (
-                <p className="shrink-0 text-sm font-semibold text-zinc-700 sm:text-right">
-                  {role}
-                </p>
-              ) : null}
-            </div>
-            {meta.length > 0 ? (
-              <div className="mt-1 space-y-0.5 text-sm leading-6 text-zinc-700">
-                {meta.map((item, itemIndex) => (
-                  <p key={`${project.title}-meta-${itemIndex}`}>{item}</p>
-                ))}
-              </div>
-            ) : null}
-            {project.bullets.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
-                {project.bullets.map((bullet, bulletIndex) => (
-                  <li key={`${bullet}-${bulletIndex}`}>{cleanStructuredBullet(bullet)}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  if (section.heading === "PUBLICATIONS / RESEARCH") {
-    const encodedPublications = encodedRecordsFromSection(section, "PUBLICATION_ENTRY")
-      .map(parsePublicationRecord)
-      .filter((publication) => publication.title);
-    const entries: Array<{ title: string; date: string; meta: string[]; bullets: string[] }> =
-      encodedPublications.map((publication) => ({
-        title: publication.title,
-        date: publication.date,
-        meta: [publication.publisher, publication.link, publication.description].filter(Boolean),
-        bullets: publication.bullets,
-      }));
-    let current: { title: string; meta: string[]; bullets: string[] } | null = null;
-
-    if (entries.length === 0) {
-      for (const line of orderedSectionLines(section)) {
-        if (line.isBullet) {
-          current?.bullets.push(line.text);
-          continue;
-        }
-
-        if (!current || current.bullets.length > 0) {
-          current = { title: line.text, meta: [], bullets: [] };
-          entries.push({ ...current, date: "" });
-        } else {
-          current.meta.push(line.text);
-          entries[entries.length - 1] = {
-            ...entries[entries.length - 1],
-            meta: current.meta,
-          };
-        }
-      }
-    }
-
-    return (
-      <div className="mt-3 space-y-3">
-        {entries.map((publication, publicationIndex) => (
-          <div key={`${publication.title}-${publicationIndex}`} className="break-inside-avoid">
-            <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-              <p className="text-sm font-bold text-zinc-900">{publication.title}</p>
-              {publication.date ? (
-                <p className="shrink-0 text-xs font-semibold text-zinc-500">{publication.date}</p>
-              ) : null}
-            </div>
-            {publication.meta.map((item, itemIndex) => (
-              isUrlLike(item) ? (
-                <a
-                  key={`${publication.title}-meta-${itemIndex}`}
-                  href={normalizeUrl(item)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-1 block break-words text-sm leading-6 text-zinc-700 underline decoration-current/30 underline-offset-2"
-                >
-                  {item}
-                </a>
-              ) : (
-                <p key={`${publication.title}-meta-${itemIndex}`} className="mt-1 text-sm leading-6 text-zinc-700">
-                  {item}
-                </p>
-              )
-            ))}
-            {publication.bullets.length > 1 ? (
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
-                {publication.bullets.map((bullet, bulletIndex) => (
-                  <li key={`${bullet}-${bulletIndex}`}>{cleanStructuredBullet(bullet)}</li>
-                ))}
-              </ul>
-            ) : publication.bullets[0] ? (
-              <p className="mt-2 text-sm leading-6 text-zinc-700">
-                {cleanStructuredBullet(publication.bullets[0])}
-              </p>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (section.heading === "AWARDS & VOLUNTEER") {
-    const encodedEntries = encodedRecordsFromSection(section, "AWARD_VOLUNTEER_ENTRY")
-      .map(parseAwardVolunteerRecord)
-      .filter((entry) => entry.title);
-    const entries: Array<{ title: string; meta: string[]; bullets: string[] }> =
-      encodedEntries.map((entry) => ({
-        title: entry.title,
-        meta: [entry.organization, entry.location, entry.date].filter(Boolean),
-        bullets: [entry.description, ...entry.bullets].filter(Boolean),
-      }));
-    let current: { title: string; meta: string[]; bullets: string[] } | null = null;
-
-    if (entries.length === 0) {
-      for (const line of orderedSectionLines(section)) {
-        if (line.isBullet) {
-          current?.bullets.push(line.text);
-          continue;
-        }
-
-        if (!current || current.bullets.length > 0) {
-          current = { title: line.text, meta: [], bullets: [] };
-          entries.push(current);
-        } else {
-          current.meta.push(line.text);
-        }
-      }
-    }
-
-    return (
-      <div className="mt-3 space-y-3">
-        {entries.map((entry, entryIndex) => (
-          <div key={`${entry.title}-${entryIndex}`} className="break-inside-avoid">
-            <p className="text-sm font-bold text-zinc-900">{entry.title}</p>
-            {entry.meta.length > 0 ? (
-              <p className="mt-1 text-sm leading-6 text-zinc-700">{entry.meta.join(" | ")}</p>
-            ) : null}
-            {entry.bullets.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
-                {entry.bullets.map((bullet, bulletIndex) => (
-                  <li key={`${bullet}-${bulletIndex}`}>{cleanStructuredBullet(bullet)}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (section.heading === "EDUCATION") {
-    return (
-      <div className="mt-3 space-y-3">
-        {previewSectionItems(section).map((education, educationIndex) => {
-          const [institution, ...credentialDetails] = previewEntryParts(education);
-
-          return (
-            <div key={`${education}-${educationIndex}`} className="break-inside-avoid">
-              <p className="text-sm font-semibold text-zinc-900">{institution}</p>
-              {credentialDetails.length > 0 ? (
-                <p className="mt-1 text-sm leading-6 text-zinc-700">
-                  {credentialDetails.join(" | ")}
-                </p>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  if (section.heading === "CERTIFICATIONS") {
-    return (
-      <div className="mt-3 space-y-1.5 text-sm leading-6 text-zinc-700">
-        {previewSectionItems(section).map((certification, certificationIndex) => (
-          <p key={`${certification}-${certificationIndex}`}>{certification}</p>
-        ))}
-      </div>
-    );
-  }
-
-  if (section.heading !== "PROFESSIONAL EXPERIENCE") {
-    return (
-      <>
-        {section.body.length > 0 ? (
-          <div className="mt-3 space-y-1.5">
-            {section.body.map((paragraph, paragraphIndex) => (
-              <p key={`${paragraph}-${paragraphIndex}`} className="text-sm leading-6 text-zinc-700">
-                {paragraph}
-              </p>
-            ))}
-          </div>
-        ) : null}
-        {section.bullets.length > 0 ? (
-          <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-6 text-zinc-700">
-            {section.bullets.map((bullet, bulletIndex) => (
-              <li key={`${bullet}-${bulletIndex}`}>{cleanExportBullet(bullet)}</li>
-            ))}
-          </ul>
-        ) : null}
-      </>
-    );
-  }
-
-  const lines = section.lines ?? [
-    ...section.body,
-    ...section.bullets.map((bullet) => `- ${bullet}`),
-  ];
-  const entries: Array<{ role: string; meta: string; bullets: string[] }> = [];
-  let current: { role: string; meta: string; bullets: string[] } | null = null;
-
-  for (const rawLine of lines) {
-    const line = cleanEditorText(rawLine);
-
-    if (!line) {
-      continue;
-    }
-
-    if (/^[-*•]\s+/.test(rawLine.trim())) {
-      current?.bullets.push(cleanExportBullet(line.replace(/^[-*•]\s+/, "")));
-      continue;
-    }
-
-    if (!current || (current.meta && current.bullets.length > 0)) {
-      current = { role: line, meta: "", bullets: [] };
-      entries.push(current);
-    } else if (current.meta && line.length > 34 && /[.!?]$/.test(line)) {
-      current.bullets.push(cleanExportBullet(line));
-    } else {
-      current.meta = line;
-    }
-  }
-
-  if (entries.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="mt-3 space-y-4">
-      {entries.map((entry, entryIndex) => {
-        const metadata = entry.meta.split(/\s+\|\s+/).filter(Boolean);
-        const dateIndex = metadata.findIndex((item) =>
-          /\b(?:present|current|\d{4}|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(item),
-        );
-        let date = dateIndex >= 0 ? metadata.splice(dateIndex, 1)[0] : "";
-        let location = metadata.join(" | ");
-        let identity = previewExperienceIdentity(entry.role);
-
-        if (!entry.meta && /\s+\|\s+/.test(entry.role)) {
-          const inlineMetadata = entry.role.split(/\s+\|\s+/).filter(Boolean);
-          const inlineDateIndex = inlineMetadata.findIndex((item) =>
-            /\b(?:present|current|\d{4}|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(item),
-          );
-
-          date = inlineDateIndex >= 0 ? inlineMetadata.splice(inlineDateIndex, 1)[0] : date;
-          identity = previewExperienceIdentity(inlineMetadata.slice(0, 2).join(" | "));
-          location = inlineMetadata.slice(2).join(" | ");
-        }
-
-        return (
-          <div key={`${entry.role}-${entryIndex}`} className="break-inside-avoid">
-            <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-              <p className="text-sm font-bold text-zinc-900">
-                {identity.company || identity.title || entry.role}
-              </p>
-              {location ? <p className="shrink-0 text-xs text-zinc-500">{location}</p> : null}
-            </div>
-            <div className="mt-0.5 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-              {identity.company && identity.title ? (
-                <p className="text-sm font-medium text-zinc-800">{identity.title}</p>
-              ) : null}
-              {date ? <p className="shrink-0 text-xs font-semibold text-zinc-500">{date}</p> : null}
-            </div>
-            {entry.bullets.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
-                {entry.bullets.map((bullet, bulletIndex) => (
-                  <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function ResumeV2SectionContent({ section }: { section: ResumeV2Section }) {
   if (section.kind === "summary") {
     return <p className="mt-3 text-sm leading-6 text-zinc-700">{section.value}</p>;
   }
 
-  if (section.kind === "skills" || section.kind === "tools") {
+  if (section.kind === "skills") {
     return (
       <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1.5 text-xs font-medium text-zinc-700">
         {section.value.map((item) => (
@@ -14529,13 +14424,10 @@ function ResumeV2SectionContent({ section }: { section: ResumeV2Section }) {
                 </p>
               ) : null}
             </div>
-            {project.description ? (
-              <p className="mt-1 text-sm leading-6 text-zinc-700">{project.description}</p>
-            ) : null}
-            {project.link ? (
-              <a href={normalizeUrl(project.link)} target="_blank" rel="noreferrer" className="mt-1 block break-words text-sm leading-6 text-zinc-700 underline decoration-current/30 underline-offset-2">
-                {project.link}
-              </a>
+            {[project.organization, project.platform, project.tools.join(" | ")].filter(Boolean).join(" | ") ? (
+              <p className="mt-1 text-sm leading-6 text-zinc-700">
+                {[project.organization, project.platform, project.tools.join(" | ")].filter(Boolean).join(" | ")}
+              </p>
             ) : null}
             {project.bullets.length > 0 ? (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
@@ -14579,25 +14471,36 @@ function ResumeV2SectionContent({ section }: { section: ResumeV2Section }) {
     );
   }
 
-  if (section.kind === "awards" || section.kind === "volunteer") {
+  if (section.kind === "awards") {
     return (
       <div className="mt-3 space-y-3">
         {section.value.map((entry, entryIndex) => (
           <div key={`${entry.title}-${entryIndex}`} className="break-inside-avoid">
             <p className="text-sm font-bold text-zinc-900">{entry.title}</p>
+            {[entry.organization, entry.date].filter(Boolean).join(" | ") ? (
+              <p className="mt-1 text-sm leading-6 text-zinc-700">
+                {[entry.organization, entry.date].filter(Boolean).join(" | ")}
+              </p>
+            ) : null}
+            {entry.description ? <p className="mt-1 text-sm leading-6 text-zinc-700">{entry.description}</p> : null}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (section.kind === "volunteer") {
+    return (
+      <div className="mt-3 space-y-3">
+        {section.value.map((entry, entryIndex) => (
+          <div key={`${entry.role}-${entryIndex}`} className="break-inside-avoid">
+            <p className="text-sm font-bold text-zinc-900">{entry.role}</p>
             {[entry.organization, entry.location, entry.date].filter(Boolean).join(" | ") ? (
               <p className="mt-1 text-sm leading-6 text-zinc-700">
                 {[entry.organization, entry.location, entry.date].filter(Boolean).join(" | ")}
               </p>
             ) : null}
             {entry.description ? <p className="mt-1 text-sm leading-6 text-zinc-700">{entry.description}</p> : null}
-            {entry.bullets.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700 marker:text-zinc-500">
-                {entry.bullets.map((bullet, bulletIndex) => (
-                  <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
-                ))}
-              </ul>
-            ) : null}
           </div>
         ))}
       </div>
@@ -14610,9 +14513,9 @@ function ResumeV2SectionContent({ section }: { section: ResumeV2Section }) {
         {section.value.map((education, educationIndex) => (
           <div key={`${education.school}-${educationIndex}`} className="break-inside-avoid">
             <p className="text-sm font-bold text-zinc-900">{education.school || education.degree}</p>
-            {[education.degree, education.location, education.dates].filter(Boolean).join(" | ") ? (
+            {[education.degree, education.location, education.date].filter(Boolean).join(" | ") ? (
               <p className="mt-1 text-sm leading-6 text-zinc-700">
-                {[education.degree, education.location, education.dates].filter(Boolean).join(" | ")}
+                {[education.degree, education.location, education.date].filter(Boolean).join(" | ")}
               </p>
             ) : null}
             {splitCleanLines(education.details).length > 0 ? (
@@ -14633,7 +14536,7 @@ function ResumeV2SectionContent({ section }: { section: ResumeV2Section }) {
       <div className="mt-3 space-y-1.5 text-sm leading-6 text-zinc-700">
         {section.value.map((certification, certificationIndex) => (
           <p key={`${certification.name}-${certificationIndex}`}>
-            {[certification.name, certification.issuer, certification.year].filter(Boolean).join(", ")}
+            {[certification.name, certification.issuer, certification.date].filter(Boolean).join(", ")}
           </p>
         ))}
       </div>
@@ -14642,21 +14545,14 @@ function ResumeV2SectionContent({ section }: { section: ResumeV2Section }) {
 
   return (
     <>
-      {section.value.body.length > 0 ? (
+      {section.value.items.length > 0 ? (
         <div className="mt-3 space-y-1.5">
-          {section.value.body.map((paragraph, paragraphIndex) => (
+          {section.value.items.map((paragraph, paragraphIndex) => (
             <p key={`${paragraph}-${paragraphIndex}`} className="text-sm leading-6 text-zinc-700">
               {paragraph}
             </p>
           ))}
         </div>
-      ) : null}
-      {section.value.bullets.length > 0 ? (
-        <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-6 text-zinc-700">
-          {section.value.bullets.map((bullet, bulletIndex) => (
-            <li key={`${bullet}-${bulletIndex}`}>{bullet}</li>
-          ))}
-        </ul>
       ) : null}
     </>
   );
@@ -14681,20 +14577,20 @@ function ResumePreview({
   onRegenerate?: () => void;
   fullPage?: boolean;
 }) {
-  const resume = resumeV2 ? null : parseResumePreview(resumeText);
   const contact = resumeV2
-    ? {
-        name: resumeV2.contact.fullName,
-        title: resumeV2.contact.professionalTitle,
-        email: resumeV2.contact.email,
-        phone: resumeV2.contact.phone,
-        location: resumeV2.contact.location,
-        linkedIn: resumeV2.contact.linkedInUrl,
-        portfolio: resumeV2.contact.portfolioUrl,
-        website: resumeV2.contact.websiteUrl,
-        profileImageDataUrl: resumeV2.contact.profileImageDataUrl,
-      }
-    : mergeBrandingWithResume(resumeText, branding);
+	    ? {
+	        name: resumeV2.contact.name,
+	        title: resumeV2.contact.title,
+	        email: resumeV2.contact.email,
+	        phone: resumeV2.contact.phone,
+	        location: resumeV2.contact.location,
+	        linkedIn: resumeV2.contact.linkedin,
+	        portfolio: resumeV2.contact.portfolio,
+	        website: resumeV2.contact.website,
+	        profileImageDataUrl: "",
+	      }
+	    : mergeBrandingWithResume(resumeText, branding);
+  const effectiveBlocked = blocked || !resumeV2 || hasMalformedParserData(resumeText);
   const contactItems = [
     contact.email,
     contact.phone,
@@ -14706,7 +14602,6 @@ function ResumePreview({
   const profile = templateProfile(template);
   const family = profile.family;
   const isExecutive = family === "executive";
-  const orderedSections = resume ? preparedPreviewSections(resume.sections, template) : [];
   const orderedV2Sections = resumeV2 ? resumeV2Sections(resumeV2) : [];
   const bodyClassByFamily: Record<TemplateFamily, string> = {
     ats: fullPage ? "space-y-4 px-10 py-8" : "space-y-4 p-6",
@@ -14828,12 +14723,12 @@ function ResumePreview({
       </header>
 
       <div className={bodyClass}>
-        {blocked ? (
+        {effectiveBlocked ? (
           <section className={sectionClassByFamily[family]}>
             <h5 className={headingClassByFamily[family]}>Resume Engine V2</h5>
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
               <p className="font-semibold">
-                Resume output contains malformed parser data. Please regenerate with Resume Engine V2.
+                Resume output contains malformed parser data. Regenerate with Resume Engine V2.
               </p>
               {onRegenerate ? (
                 <button
@@ -14841,12 +14736,12 @@ function ResumePreview({
                   onClick={onRegenerate}
                   className={`${primaryButtonClass} ${buttonSizeSmClass} mt-3`}
                 >
-                  Clean Regenerate Resume
+                  Regenerate with Resume Engine V2
                 </button>
               ) : null}
             </div>
           </section>
-        ) : resumeV2 ? orderedV2Sections.map((section, sectionIndex) => (
+        ) : orderedV2Sections.map((section, sectionIndex) => (
           <section
             key={`${section.heading}-${sectionIndex}`}
             className={sectionClassByFamily[family]}
@@ -14855,16 +14750,6 @@ function ResumePreview({
               {section.heading}
             </h5>
             <ResumeV2SectionContent section={section} />
-          </section>
-        )) : orderedSections.map((section, sectionIndex) => (
-          <section
-            key={`${section.heading}-${sectionIndex}`}
-            className={sectionClassByFamily[family]}
-          >
-            <h5 className={headingClassByFamily[family]}>
-              {section.heading}
-            </h5>
-            <ResumePreviewSectionContent section={section} />
           </section>
         ))}
       </div>
