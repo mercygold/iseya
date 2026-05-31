@@ -478,6 +478,22 @@ type SavedResumeVersion = {
   workspaceState?: SavedState;
 };
 
+type SavedResumeRecord = {
+  id: string;
+  title: string;
+  source: "manual" | "autosave";
+  activeVersionId?: string;
+  targetRole: string;
+  template: TemplateId;
+  theme: ThemeId;
+  updatedAt: string;
+  createdAt: string;
+  matchScore: number;
+  previewSnippet: string;
+  workspaceState: SavedState;
+  versions: SavedResumeVersion[];
+};
+
 type IndustryTarget =
   | "AI / Technology"
   | "SaaS"
@@ -530,6 +546,9 @@ type TailorApiResponse = {
 
 const storageKey = "resume-agent-state-v2";
 const versionStorageKey = "iseya_resume_versions";
+const savedResumeStorageKey = "iseya_saved_resumes";
+const currentDraftStorageKey = "iseya_current_resume_draft";
+const activeResumeIdStorageKey = "iseya_active_resume_id";
 const usageStorageKey = "iseya_usage_stats";
 const acceptedSourceFileTypes = ".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.ppt,.pptx";
 const industryTargets: IndustryTarget[] = [
@@ -4110,6 +4129,22 @@ function versionId() {
   return `version-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function resumeRecordId() {
+  return `resume-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function contentHash(value: unknown) {
+  let hash = 0;
+  const serialized = JSON.stringify(value);
+
+  for (let index = 0; index < serialized.length; index += 1) {
+    hash = (hash << 5) - hash + serialized.charCodeAt(index);
+    hash |= 0;
+  }
+
+  return String(hash);
+}
+
 function formatVersionDate(value: string | Date = new Date()) {
   const date = typeof value === "string" ? new Date(value) : value;
 
@@ -4211,6 +4246,40 @@ function normalizeSavedVersion(version: Partial<SavedResumeVersion>): SavedResum
     ),
     workspaceState: version.workspaceState ? migrateSavedWorkspaceState(version.workspaceState) : undefined,
   } satisfies SavedResumeVersion;
+}
+
+function normalizeSavedResumeRecord(record: Partial<SavedResumeRecord>): SavedResumeRecord | null {
+  if (!record.id || !record.workspaceState) {
+    return null;
+  }
+
+  const workspaceState = migrateSavedWorkspaceState(record.workspaceState);
+  const versions = Array.isArray(record.versions)
+    ? record.versions
+        .map(normalizeSavedVersion)
+        .filter((version): version is SavedResumeVersion => Boolean(version))
+    : [];
+  const now = new Date().toISOString();
+
+  return {
+    id: record.id,
+    title: record.title || workspaceState.targetRole || "Saved Resume",
+    source: record.source === "autosave" ? "autosave" : "manual",
+    activeVersionId: record.activeVersionId,
+    targetRole: record.targetRole || workspaceState.targetRole || "Target Role",
+    template: isTemplateId(record.template) ? record.template : workspaceState.template || "executive-navy",
+    theme: isThemeId(record.theme) ? record.theme : workspaceState.theme || "deep-navy",
+    updatedAt: record.updatedAt || now,
+    createdAt: record.createdAt || record.updatedAt || now,
+    matchScore: safeScore(record.matchScore, workspaceState.result?.score ?? 0),
+    previewSnippet:
+      record.previewSnippet ||
+      workspaceState.result?.rewrittenResume?.split(/\r?\n/).filter(Boolean).slice(0, 3).join(" ") ||
+      workspaceState.targetRole ||
+      "Saved resume workspace",
+    workspaceState,
+    versions,
+  };
 }
 
 function stripHash(color: string) {
@@ -5132,6 +5201,8 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   const [versionStatus, setVersionStatus] = useState("");
   const [showSavedVersionsPanel, setShowSavedVersionsPanel] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState("");
+  const [activeWorkspaceAction, setActiveWorkspaceAction] = useState("");
+  const [activeResumeId, setActiveResumeId] = useState("");
   const [accountStatus, setAccountStatus] = useState("");
   const [systemStatus, setSystemStatus] = useState("");
   const [usageStats, setUsageStats] = useState<UsageStats>(defaultUsageStats);
@@ -5358,59 +5429,99 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     }
   }, []);
 
-  const recordAutosaveVersion = useCallback((savedState: SavedState) => {
+  const persistSavedResumes = useCallback((nextResumes: SavedResumeRecord[]) => {
+    try {
+      window.localStorage.setItem(savedResumeStorageKey, JSON.stringify(nextResumes));
+    } catch {
+      // The active draft remains available even when saved resume indexing fails.
+    }
+  }, []);
+
+  const readSavedResumes = useCallback((): SavedResumeRecord[] => {
+    try {
+      const raw = window.localStorage.getItem(savedResumeStorageKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as Array<Partial<SavedResumeRecord>>;
+      return parsed
+        .map(normalizeSavedResumeRecord)
+        .filter((record): record is SavedResumeRecord => Boolean(record));
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const draftRecordFromState = useCallback((savedState: SavedState, id: string, source: "autosave" | "manual" = "autosave"): SavedResumeRecord | null => {
+    const snapshotResult = savedState.result ?? workspaceResult;
+
+    if (!snapshotResult) {
+      return null;
+    }
+
+    const now = new Date().toISOString();
+
+    return {
+      id,
+      title: savedState.targetRole?.trim() || "Current Draft",
+      source,
+      targetRole: savedState.targetRole,
+      template: savedState.template,
+      theme: savedState.theme,
+      updatedAt: now,
+      createdAt: now,
+      matchScore: snapshotResult.score,
+      previewSnippet: snapshotResult.rewrittenResume.split(/\r?\n/).filter(Boolean).slice(0, 4).join(" "),
+      workspaceState: savedState,
+      versions: [],
+    };
+  }, [workspaceResult]);
+
+  const persistCurrentDraft = useCallback((savedState: SavedState) => {
     const snapshotResult = savedState.result ?? workspaceResult;
 
     if (!snapshotResult) {
       return;
     }
 
-    const versionKey = JSON.stringify({
+    const draftHash = contentHash({
       targetRole: savedState.targetRole,
       resume: snapshotResult.rewrittenResume,
       branding: savedState.personalBranding,
       editable: savedState.editableResumeSession,
     });
 
-    if (versionKey === lastAutosaveVersionKeyRef.current) {
+    if (draftHash === lastAutosaveVersionKeyRef.current) {
       return;
     }
 
-    lastAutosaveVersionKeyRef.current = versionKey;
-    const now = new Date().toISOString();
-    const snapshot: SavedResumeVersion = {
-      id: versionId(),
-      name: `Autosave — ${savedState.targetRole?.trim() || "Resume"} — ${formatVersionDateTime(now)}`,
-      source: "autosave",
-      previewLabel: `Autosave | ${savedState.targetRole?.trim() || "Resume"} | ${formatVersionDateTime(now)}`,
-      targetRole: savedState.targetRole,
-      industryTarget: savedState.industryTarget,
-      companyName: inferCompanyName(savedState.jobDescription),
-      template: savedState.template,
-      theme: savedState.theme,
-      createdAt: now,
-      updatedAt: now,
-      matchScore: snapshotResult.score,
-      masterResume: savedState.masterResume,
-      jobDescription: savedState.jobDescription,
-      result: snapshotResult,
-      uploadedFiles: savedState.uploadedFiles ?? [],
-      personalBranding: savedState.personalBranding,
-      workspaceState: savedState,
-    };
+    lastAutosaveVersionKeyRef.current = draftHash;
+    const draftId = activeResumeId || "current-draft";
+    const draft = draftRecordFromState(savedState, draftId, "autosave");
 
-    setSavedVersions((current) => {
-      const manualVersions = current.filter((version) => version.source !== "autosave");
-      const autosaveVersions = current
-        .filter((version) => version.source === "autosave")
-        .slice(0, 19);
-      const nextVersions = [snapshot, ...manualVersions, ...autosaveVersions];
-      persistVisibleVersions(nextVersions);
-      return nextVersions;
-    });
-    setSavedVersionsCount((current) => Math.max(current, savedVersions.length + 1));
-    setLastSavedAt(snapshot.updatedAt);
-  }, [persistVisibleVersions, savedVersions.length, workspaceResult]);
+    if (!draft) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(currentDraftStorageKey, JSON.stringify({ ...draft, contentHash: draftHash }));
+      window.localStorage.setItem(activeResumeIdStorageKey, draftId);
+      setActiveResumeId(draftId);
+    } catch {
+      // Main workspace localStorage save still protects the editable draft.
+    }
+
+    const savedResumes = readSavedResumes();
+    const existingIndex = savedResumes.findIndex((resume) => resume.id === draftId);
+    const nextResumes =
+      existingIndex >= 0
+        ? savedResumes.map((resume, index) =>
+            index === existingIndex
+              ? { ...resume, ...draft, createdAt: resume.createdAt, versions: resume.versions }
+              : resume,
+          )
+        : [draft, ...savedResumes];
+    persistSavedResumes(nextResumes);
+    setLastSavedAt(draft.updatedAt);
+  }, [activeResumeId, draftRecordFromState, persistSavedResumes, readSavedResumes, workspaceResult]);
 
   const refreshSubscriptionProfile = useCallback(async () => {
     const applySubscriptionFallback = () => {
@@ -5668,14 +5779,53 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 
   const loadLocalSavedState = useCallback((): Partial<CloudResumeContent> | null => {
     try {
-      const saved = window.localStorage.getItem(storageKey);
-      if (!saved) return null;
-      const parsed = JSON.parse(saved) as Partial<CloudResumeContent>;
-      if (containsRestrictedSeedData(parsed)) {
-        window.localStorage.removeItem(storageKey);
-        return null;
+      const activeId = window.localStorage.getItem(activeResumeIdStorageKey) || "";
+      const savedResumeData = window.localStorage.getItem(savedResumeStorageKey);
+      const savedResumes = savedResumeData
+        ? (JSON.parse(savedResumeData) as Array<Partial<SavedResumeRecord>>)
+            .map(normalizeSavedResumeRecord)
+            .filter((record): record is SavedResumeRecord => Boolean(record))
+        : [];
+      const activeResume = activeId
+        ? savedResumes.find((resume) => resume.id === activeId)
+        : null;
+
+      if (activeResume?.workspaceState && !containsRestrictedSeedData(activeResume.workspaceState)) {
+        setActiveResumeId(activeResume.id);
+        return migrateSavedWorkspaceState(activeResume.workspaceState);
       }
-      return migrateSavedWorkspaceState(parsed);
+
+      const saved = window.localStorage.getItem(storageKey);
+
+      if (saved) {
+        const parsed = JSON.parse(saved) as Partial<CloudResumeContent>;
+        if (containsRestrictedSeedData(parsed)) {
+          window.localStorage.removeItem(storageKey);
+          return null;
+        }
+        return migrateSavedWorkspaceState(parsed);
+      }
+
+      const currentDraft = window.localStorage.getItem(currentDraftStorageKey);
+
+      if (currentDraft) {
+        const parsedDraft = normalizeSavedResumeRecord(JSON.parse(currentDraft) as Partial<SavedResumeRecord>);
+        if (parsedDraft?.workspaceState && !containsRestrictedSeedData(parsedDraft.workspaceState)) {
+          setActiveResumeId(parsedDraft.id);
+          return migrateSavedWorkspaceState(parsedDraft.workspaceState);
+        }
+      }
+
+      const latestSavedResume = [...savedResumes].sort(
+        (left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+      )[0];
+
+      if (latestSavedResume?.workspaceState && !containsRestrictedSeedData(latestSavedResume.workspaceState)) {
+        setActiveResumeId(latestSavedResume.id);
+        return migrateSavedWorkspaceState(latestSavedResume.workspaceState);
+      }
+
+      return null;
     } catch {
       window.localStorage.removeItem(storageKey);
       return null;
@@ -5700,10 +5850,11 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
           .map(normalizeSavedVersion)
           .filter((version): version is SavedResumeVersion => Boolean(version))
       : [];
+    const manualVersions = cloudVersions.filter((version) => version.source !== "autosave");
 
-    setSavedVersions(cloudVersions);
-    setSavedVersionsCount(cloudVersions.length);
-    setSelectedVersionId((current) => current || cloudVersions[0]?.id || "");
+    setSavedVersions(manualVersions);
+    setSavedVersionsCount(manualVersions.length);
+    setSelectedVersionId((current) => current || manualVersions[0]?.id || "");
   }, [applySavedState, starterSavedState]);
 
   useEffect(() => {
@@ -5734,8 +5885,34 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
             const normalizedVersions = parsedVersions
               .map(normalizeSavedVersion)
               .filter((version): version is SavedResumeVersion => Boolean(version));
+            const manualVersions = normalizedVersions.filter((version) => version.source !== "autosave");
+            const autosaveVersions = normalizedVersions.filter((version) => version.source === "autosave");
+            const latestAutosave = autosaveVersions.sort(
+              (left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+            )[0];
 
-            setSavedVersions(normalizedVersions);
+            if (latestAutosave?.workspaceState && !window.localStorage.getItem(currentDraftStorageKey)) {
+              const draft = normalizeSavedResumeRecord({
+                id: "current-draft",
+                title: latestAutosave.targetRole || latestAutosave.name,
+                source: "autosave",
+                targetRole: latestAutosave.targetRole,
+                template: latestAutosave.template,
+                theme: latestAutosave.theme,
+                updatedAt: latestAutosave.updatedAt,
+                createdAt: latestAutosave.createdAt,
+                matchScore: latestAutosave.matchScore,
+                previewSnippet: latestAutosave.previewLabel ?? latestAutosave.name,
+                workspaceState: latestAutosave.workspaceState,
+                versions: manualVersions,
+              });
+
+              if (draft) {
+                window.localStorage.setItem(currentDraftStorageKey, JSON.stringify(draft));
+              }
+            }
+
+            setSavedVersions(manualVersions);
           }
         }
 
@@ -6081,7 +6258,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 
       try {
         window.localStorage.setItem(storageKey, JSON.stringify(savedState));
-        recordAutosaveVersion(savedState);
+        persistCurrentDraft(savedState);
         setLastSavedAt(new Date().toISOString());
         setCloudSaveStatus("Saved");
       } catch {
@@ -6105,7 +6282,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     aiSettings,
     personalBranding,
     buildSavedState,
-    recordAutosaveVersion,
+    persistCurrentDraft,
     authUser,
   ]);
 
@@ -6143,7 +6320,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 
       try {
         window.localStorage.setItem(storageKey, JSON.stringify(content));
-        recordAutosaveVersion(content);
+        persistCurrentDraft(content);
       } catch {
         // Cloud save remains the source of truth for signed-in users.
       }
@@ -6210,7 +6387,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     theme,
     uploadedFiles,
     buildSavedState,
-    recordAutosaveVersion,
+    persistCurrentDraft,
   ]);
 
   useEffect(() => {
@@ -6393,6 +6570,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   }
 
   function openOutputTab(tab: OutputTab) {
+    setShowSavedVersionsPanel(false);
     setActiveOutput(tab);
   }
 
@@ -6589,12 +6767,8 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   }
 
   function openMyResumesPlaceholder() {
-    setAccountStatus(
-      authUser
-        ? "Your saved resume versions are synced in this workspace."
-        : "Login to sync saved resume versions to your account.",
-    );
-    setSelectedVersionId((current) => current || savedVersions[0]?.id || "");
+    setAccountStatus("");
+    router.push("/resumes");
   }
 
   function currentVersionSnapshot(
@@ -6655,6 +6829,34 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       persistVisibleVersions(nextVersions);
       return nextVersions;
     });
+    {
+      const savedState = buildSavedState();
+      const resumeId = activeResumeId && activeResumeId !== "current-draft" ? activeResumeId : resumeRecordId();
+      const savedResume = draftRecordFromState(savedState, resumeId, "manual");
+
+      if (savedResume) {
+        const savedResumes = readSavedResumes();
+        const existing = savedResumes.find((resume) => resume.id === resumeId);
+        const nextSavedResume = {
+          ...savedResume,
+          createdAt: existing?.createdAt ?? savedResume.createdAt,
+          activeVersionId: snapshot.id,
+          versions: [snapshot, ...(existing?.versions ?? [])],
+        };
+        const nextSavedResumes = [
+          nextSavedResume,
+          ...savedResumes.filter((resume) => resume.id !== resumeId),
+        ];
+        persistSavedResumes(nextSavedResumes);
+        try {
+          window.localStorage.setItem(activeResumeIdStorageKey, resumeId);
+          window.localStorage.setItem(currentDraftStorageKey, JSON.stringify(nextSavedResume));
+        } catch {
+          // Version and workspace state remain available in memory.
+        }
+        setActiveResumeId(resumeId);
+      }
+    }
     setSelectedVersionId(snapshot.id);
     setShowSavedVersionsPanel(true);
     setLastSavedAt(snapshot.updatedAt);
@@ -6730,6 +6932,19 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     setSelectedVersionId(version.id);
     setShowSavedVersionsPanel(true);
     setVersionStatus(`Viewing ${version.name}. Use Restore version to recover it.`);
+  }
+
+  function editVersion(version: SavedResumeVersion | null) {
+    if (!version) {
+      setVersionStatus("Select a saved version to edit.");
+      return;
+    }
+
+    loadVersion(version);
+    setSelectedVersionId(version.id);
+    setActiveOutput("resume");
+    setShowSavedVersionsPanel(false);
+    setVersionStatus(`Editing ${version.name}. Save Version later to keep a new copy.`);
   }
 
   function duplicateVersion(version: SavedResumeVersion | null) {
@@ -8992,15 +9207,22 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setActiveOutput("preview")}
-                  className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
+                  onClick={() => {
+                    setActiveWorkspaceAction("templates");
+                    setShowSavedVersionsPanel(false);
+                    setActiveOutput("preview");
+                  }}
+                  className={`${activeOutput === "preview" && !showSavedVersionsPanel ? primaryButtonClass : secondaryButtonClass} ${buttonSizeMdClass}`}
                 >
                   Templates
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowSavedVersionsPanel((current) => !current)}
-                  className={`${secondaryButtonClass} ${buttonSizeMdClass}`}
+                  onClick={() => {
+                    setActiveWorkspaceAction("savedVersions");
+                    setShowSavedVersionsPanel((current) => !current);
+                  }}
+                  className={`${showSavedVersionsPanel ? primaryButtonClass : secondaryButtonClass} ${buttonSizeMdClass}`}
                 >
                   Saved Versions
                 </button>
@@ -9090,9 +9312,12 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                 </details>
                 <button
                   type="button"
-                  onClick={() => runWithFeedback("saveVersion", "Saving...", "Saved", saveCurrentVersion)}
+                  onClick={() => {
+                    setActiveWorkspaceAction("saveVersion");
+                    void runWithFeedback("saveVersion", "Saving...", "Saved", saveCurrentVersion);
+                  }}
                   disabled={!workspaceResult}
-                  className={`${primaryButtonClass} ${buttonSizeMdClass}`}
+                  className={`${activeWorkspaceAction === "saveVersion" ? primaryButtonClass : secondaryButtonClass} ${buttonSizeMdClass}`}
                 >
                   {actionFeedback.saveVersion ?? "Save Version"}
                 </button>
@@ -9164,6 +9389,9 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                         <button type="button" onClick={() => loadVersion(version)} className={`${primaryButtonClass} ${buttonSizeSmClass}`}>
                           Restore version
                         </button>
+                        <button type="button" onClick={() => editVersion(version)} className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
+                          Edit
+                        </button>
                         <button type="button" onClick={() => duplicateVersion(version)} className={`${secondaryButtonClass} ${buttonSizeSmClass}`}>
                           Duplicate
                         </button>
@@ -9187,12 +9415,20 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 	              <div className="space-y-2 xl:sticky xl:top-20">
                 <WorkspaceNavigation
                   activeOutput={activeOutput}
+                  savedVersionsOpen={showSavedVersionsPanel}
                   onOpen={openOutputTab}
+                  onOpenSavedVersions={() => {
+                    setActiveWorkspaceAction("savedVersions");
+                    setShowSavedVersionsPanel(true);
+                  }}
+                  activeAction={activeWorkspaceAction}
+                  onAction={(action) => setActiveWorkspaceAction(action)}
                   hasCoverLetterAccess={hasCoverLetterAccess}
                   hasLinkedInAccess={hasLinkedInAccess}
                   hasApplicationKitAccess={hasApplicationKitAccess}
                   atsScore={safeMatchBreakdown(workspaceResult.matchBreakdown, safeScore(workspaceResult.score, 0)).atsReadability}
                   roleFit={safeMatchBreakdown(workspaceResult.matchBreakdown, safeScore(workspaceResult.score, 0)).roleFit}
+                  isOptimizing={isTailoring}
                   onOptimize={() => runWithFeedback("tailor", "Optimizing...", "Optimized", tailorResume)}
                 />
                 {isStarterWorkflowPreview ? <StarterWorkspacePreviewNotice /> : null}
@@ -9214,26 +9450,52 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                 <nav className="mb-3 flex gap-5 border-b border-slate-200 px-2 text-sm font-semibold text-slate-500" aria-label="Resume workflow">
                   <button
                     type="button"
-                    onClick={() => setActiveOutput("resume")}
+                    onClick={() => {
+                      setActiveWorkspaceAction("tailor");
+                      openOutputTab("resume");
+                    }}
                     className={`px-2 pb-3 transition ${
-                      activeOutput === "resume"
+                      activeOutput === "resume" && activeWorkspaceAction !== "optimize" && !showSavedVersionsPanel
                         ? "border-b-2 border-[var(--iseya-gold)] text-[var(--iseya-gold)]"
                         : "hover:text-[var(--iseya-navy)]"
                     }`}
                   >
                     Tailor
                   </button>
-                  <button type="button" onClick={() => runWithFeedback("tailor", "Optimizing...", "Optimized", tailorResume)} className="px-2 pb-3 transition hover:text-[var(--iseya-navy)]">
-                    Optimize
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveWorkspaceAction("optimize");
+                      void runWithFeedback("tailor", "Optimizing...", "Optimized", tailorResume);
+                    }}
+                    disabled={isTailoring}
+                    className={`px-2 pb-3 transition disabled:cursor-not-allowed disabled:opacity-70 ${
+                      activeWorkspaceAction === "optimize" || isTailoring
+                        ? "border-b-2 border-[var(--iseya-gold)] text-[var(--iseya-gold)]"
+                        : "hover:text-[var(--iseya-navy)]"
+                    }`}
+                  >
+                    {isTailoring ? "Optimizing..." : "Optimize"}
                   </button>
-                  <a href="#career-intelligence" className="px-2 pb-3 transition hover:text-[var(--iseya-navy)]">
+                  <a
+                    href="#career-intelligence"
+                    onClick={() => setActiveWorkspaceAction("analyze")}
+                    className={`px-2 pb-3 transition ${
+                      activeWorkspaceAction === "analyze"
+                        ? "border-b-2 border-[var(--iseya-gold)] text-[var(--iseya-gold)]"
+                        : "hover:text-[var(--iseya-navy)]"
+                    }`}
+                  >
                     Analyze
                   </a>
                   <button
                     type="button"
-                    onClick={() => setActiveOutput("preview")}
+                    onClick={() => {
+                      setActiveWorkspaceAction("preview");
+                      openOutputTab("preview");
+                    }}
                     className={`px-2 pb-3 transition ${
-                      activeOutput === "preview"
+                      activeOutput === "preview" && !showSavedVersionsPanel
                         ? "border-b-2 border-[var(--iseya-gold)] text-[var(--iseya-gold)]"
                         : "hover:text-[var(--iseya-navy)]"
                     }`}
@@ -10039,21 +10301,31 @@ function MiniAnalyticsCard({
 
 function WorkspaceNavigation({
   activeOutput,
+  savedVersionsOpen,
   onOpen,
+  onOpenSavedVersions,
+  activeAction,
+  onAction,
   hasCoverLetterAccess,
   hasLinkedInAccess,
   hasApplicationKitAccess,
   atsScore,
   roleFit,
+  isOptimizing,
   onOptimize,
 }: {
   activeOutput: OutputTab;
+  savedVersionsOpen: boolean;
   onOpen: (tab: OutputTab) => void;
+  onOpenSavedVersions: () => void;
+  activeAction: string;
+  onAction: (action: string) => void;
   hasCoverLetterAccess: boolean;
   hasLinkedInAccess: boolean;
   hasApplicationKitAccess: boolean;
   atsScore: number;
   roleFit: number;
+  isOptimizing: boolean;
   onOptimize: () => void;
 }) {
   const tabs: Array<{ id: OutputTab; label: string; icon: typeof FileText; locked?: boolean }> = [
@@ -10073,9 +10345,12 @@ function WorkspaceNavigation({
           <button
             key={tab.id}
             type="button"
-            onClick={() => onOpen(tab.id)}
+            onClick={() => {
+              onAction(tab.id);
+              onOpen(tab.id);
+            }}
             className={`flex min-h-9 items-center justify-between rounded-md px-2.5 text-left text-xs font-semibold transition ${
-              activeOutput === tab.id
+              activeOutput === tab.id && !savedVersionsOpen
                 ? "border-l-2 border-[var(--iseya-gold)] bg-[var(--iseya-navy)] text-[var(--iseya-gold)]"
                 : "text-slate-700 hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]"
             }`}
@@ -10087,6 +10362,17 @@ function WorkspaceNavigation({
             {tab.locked ? <span className="text-xs" aria-label="Premium preview">🔒</span> : null}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={onOpenSavedVersions}
+          className={`flex min-h-9 items-center gap-2 rounded-md px-2.5 text-left text-xs font-semibold transition ${
+            savedVersionsOpen
+              ? "border-l-2 border-[var(--iseya-gold)] bg-[var(--iseya-navy)] text-[var(--iseya-gold)]"
+              : "text-slate-700 hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]"
+          }`}
+        >
+          <FileText className="h-4 w-4" strokeWidth={1.8} /> Saved Versions
+        </button>
         <a href="#career-intelligence" className="flex min-h-9 items-center gap-2 rounded-md px-2.5 text-xs font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
           <ClipboardList className="h-4 w-4" strokeWidth={1.8} /> Interview Prep
         </a>
@@ -10096,7 +10382,15 @@ function WorkspaceNavigation({
         <a href="#source-materials" className="flex min-h-9 items-center gap-2 rounded-md px-2.5 text-xs font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
           <FileText className="h-4 w-4" strokeWidth={1.8} /> Documents
         </a>
-        <a href="#optimization-settings" className="flex min-h-9 items-center gap-2 rounded-md px-2.5 text-xs font-semibold text-slate-700 transition hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]">
+        <a
+          href="#optimization-settings"
+          onClick={() => onAction("settings")}
+          className={`flex min-h-9 items-center gap-2 rounded-md px-2.5 text-xs font-semibold transition ${
+            activeAction === "settings"
+              ? "border-l-2 border-[var(--iseya-gold)] bg-[var(--iseya-navy)] text-[var(--iseya-gold)]"
+              : "text-slate-700 hover:bg-[#FFF8E6] hover:text-[var(--iseya-navy)]"
+          }`}
+        >
           <Settings className="h-4 w-4" strokeWidth={1.8} /> Settings
         </a>
       </nav>
@@ -10114,14 +10408,42 @@ function WorkspaceNavigation({
           Quick Actions
         </p>
         <div className="mt-2 grid grid-cols-2 gap-1.5 text-xs font-semibold">
-          <a href="#career-intelligence" className="rounded-md border border-slate-200 px-3 py-2 text-slate-700 transition hover:border-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]">
+          <a
+            href="#career-intelligence"
+            onClick={() => onAction("ats")}
+            className={`rounded-md border px-3 py-2 transition ${
+              activeAction === "ats"
+                ? "border-[var(--iseya-gold)] bg-[var(--iseya-navy)] text-[var(--iseya-gold)]"
+                : "border-slate-200 text-slate-700 hover:border-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]"
+            }`}
+          >
             Run ATS Check
           </a>
-          <a href="#career-intelligence" className="rounded-md border border-slate-200 px-3 py-2 text-slate-700 transition hover:border-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]">
+          <a
+            href="#career-intelligence"
+            onClick={() => onAction("keywords")}
+            className={`rounded-md border px-3 py-2 transition ${
+              activeAction === "keywords"
+                ? "border-[var(--iseya-gold)] bg-[var(--iseya-navy)] text-[var(--iseya-gold)]"
+                : "border-slate-200 text-slate-700 hover:border-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]"
+            }`}
+          >
             Keyword Match
           </a>
-          <button type="button" onClick={onOptimize} className="col-span-2 rounded-md border border-slate-200 px-3 py-2 text-left text-slate-700 transition hover:border-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]">
-            Optimize Full Resume
+          <button
+            type="button"
+            onClick={() => {
+              onAction("optimizeFull");
+              onOptimize();
+            }}
+            disabled={isOptimizing}
+            className={`col-span-2 rounded-md border px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-70 ${
+              activeAction === "optimizeFull" || isOptimizing
+                ? "border-[var(--iseya-gold)] bg-[var(--iseya-navy)] text-[var(--iseya-gold)]"
+                : "border-slate-200 text-slate-700 hover:border-[var(--iseya-gold)] hover:text-[var(--iseya-navy)]"
+            }`}
+          >
+            {isOptimizing ? "Optimizing..." : "Optimize Full Resume"}
           </button>
         </div>
       </div>
