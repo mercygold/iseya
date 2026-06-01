@@ -1478,6 +1478,68 @@ function contextualEmptyPrompt(target: "job" | "resume" | "source") {
   return "Add resume experience, projects, or skills to generate contextual guidance.";
 }
 
+function intelligenceSentences(value: string) {
+  return cleanEditorText(value)
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 24);
+}
+
+function hasRepeatedIntelligenceSentences(value: string) {
+  const seen = new Set<string>();
+
+  return intelligenceSentences(value).some((sentence) => {
+    const key = sentence.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ");
+    if (seen.has(key)) return true;
+    seen.add(key);
+    return false;
+  });
+}
+
+function hasGenericIntelligenceText(value: string) {
+  const patterns = [
+    ["general", "ats"].join("\\s*"),
+    ["relevant", "source", "material"].join("\\s+"),
+    ["without", "inventing"].join("\\s+"),
+    ["recruiter", "readability"].join("\\s+"),
+    ["placeholder", "intelligence"].join("\\s+"),
+    ["sample", "derived"].join("[-\\s]+"),
+    "lorem\\s+ipsum",
+    "your\\s+company",
+    "company\\s+name",
+    "target\\s+company",
+  ];
+  return new RegExp(patterns.join("|"), "i").test(value);
+}
+
+function roleKeywordPresent(value: string, role: string) {
+  const roleTokens = role
+    .toLowerCase()
+    .split(/\s+/)
+    .map((token) => token.replace(/[^a-z0-9+#]/g, ""))
+    .filter((token) => token.length > 2 && !["the", "and", "for", "role", "target"].includes(token));
+
+  if (roleTokens.length === 0 || role === "the target role") return true;
+
+  const lowerValue = value.toLowerCase();
+  return roleTokens.some((token) => lowerValue.includes(token));
+}
+
+function cleanIntelligenceText(value: string) {
+  const sentences = intelligenceSentences(value);
+  if (sentences.length === 0) return cleanEditorText(value);
+
+  const seen = new Set<string>();
+  return sentences
+    .filter((sentence) => {
+      const key = sentence.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join(" ");
+}
+
 function buildWorkspaceIntelligenceContext({
   resumeText,
   targetRole,
@@ -1948,7 +2010,7 @@ function buildApplicationPackage({
   const role = context.role;
   const industry = context.industryName;
   const strengths = safeStringArray(coach.topStrengths)
-    .filter((item) => !/relevant source material|without inventing|recruiter readability/i.test(item))
+    .filter((item) => !hasGenericIntelligenceText(item))
     .slice(0, 5);
   const keywords = Array.from(
     new Set([
@@ -1993,6 +2055,69 @@ function buildApplicationPackage({
       interviewIntroPitch: `I am ${article} ${role} candidate with experience in ${strengthText}. ${context.projectNames[0] ? `One project I can speak to is ${context.projectNames[0]}.` : ""} I focus on turning business needs into clear priorities, aligning stakeholders, and supporting delivery that is practical and evidence-based.`,
       tellMeAboutYourself: `I have built my background around ${strengthText}, with a focus on practical execution and cross-functional alignment. For this ${role} opportunity, I am especially interested in applying that experience to ${industry} challenges where clear priorities and measurable outcomes matter.`,
     },
+  };
+}
+
+function guardCoverLetterQuality(value: string, fallback: string, context: WorkspaceIntelligenceContext) {
+  const cleanValue = value.trim();
+  const shouldReplace =
+    !cleanValue ||
+    hasGenericIntelligenceText(cleanValue) ||
+    hasRepeatedIntelligenceSentences(cleanValue) ||
+    !roleKeywordPresent(cleanValue, context.role);
+
+  if (shouldReplace) {
+    return fallback || contextualEmptyPrompt(context.hasResumeEvidence ? "job" : "resume");
+  }
+
+  if (context.candidateName !== "Candidate" && context.candidateName && !cleanValue.includes(context.candidateName)) {
+    return `${cleanValue}\n${context.candidateName}`.trim();
+  }
+
+  return hasRepeatedIntelligenceSentences(cleanValue) ? cleanIntelligenceText(cleanValue) : cleanValue;
+}
+
+function guardLinkedInQuality(value: LinkedInKit, fallback: LinkedInKit, context: WorkspaceIntelligenceContext): LinkedInKit {
+  const headline = cleanEditorText(value.headline);
+  const about = cleanEditorText(value.about);
+  const shouldUseFallback =
+    hasGenericIntelligenceText([headline, about, value.featuredProjects].join(" ")) ||
+    hasRepeatedIntelligenceSentences(about) ||
+    !roleKeywordPresent(`${headline} ${about}`, context.role);
+
+  if (shouldUseFallback) {
+    return fallback;
+  }
+
+  return {
+    ...value,
+    headline: headline.trim(),
+    about: hasRepeatedIntelligenceSentences(about) ? cleanIntelligenceText(about) : about.trim(),
+    featuredProjects: value.featuredProjects.trim(),
+    openToWorkPositioning: value.openToWorkPositioning.trim(),
+    networkingMessage: value.networkingMessage.trim(),
+    recruiterOutreachMessage: value.recruiterOutreachMessage.trim(),
+  };
+}
+
+function guardApplicationKitQuality(value: ApplicationKit, fallback: ApplicationKit, context: WorkspaceIntelligenceContext): ApplicationKit {
+  const combined = Object.values(value).join("\n");
+  const shouldUseFallback =
+    hasGenericIntelligenceText(combined) ||
+    hasRepeatedIntelligenceSentences(combined) ||
+    !roleKeywordPresent(combined, context.role);
+
+  if (shouldUseFallback) {
+    return fallback;
+  }
+
+  return {
+    recruiterEmail: value.recruiterEmail.trim(),
+    followUpEmail: value.followUpEmail.trim(),
+    referralRequest: value.referralRequest.trim(),
+    connectionRequest: value.connectionRequest.trim(),
+    interviewIntroPitch: value.interviewIntroPitch.trim(),
+    tellMeAboutYourself: value.tellMeAboutYourself.trim(),
   };
 }
 
@@ -5244,7 +5369,7 @@ function formatVersionDateTime(value: string | Date = new Date()) {
 function readableIndustryName(industry: IndustryTarget) {
   return industry
     .replace(" / ", " ")
-    .replace("General ATS", "General ATS")
+    .replace(/^general\s*ats$/i, "target role")
     .replace("Healthcare Health IT", "Healthcare IT")
     .replace("Finance Fintech", "Fintech");
 }
@@ -6686,15 +6811,58 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       }),
     [contextualWorkspaceResult.coach, currentResumeIntelligenceText, industryTarget, jobDescription, targetRole],
   );
+  const contextualCoverLetter = useMemo(
+    () => buildCoverLetterFromInputs(currentResumeIntelligenceText, targetRole, jobDescription, industryTarget),
+    [currentResumeIntelligenceText, industryTarget, jobDescription, targetRole],
+  );
   const panelCoverLetter = hasCoverLetterAccess
-    ? result?.coverLetter ?? buildCoverLetterFromInputs(currentResumeIntelligenceText, targetRole, jobDescription, industryTarget)
+    ? guardCoverLetterQuality(result?.coverLetter ?? contextualCoverLetter, contextualCoverLetter, workspaceIntelligenceContext)
     : result?.coverLetter ?? starterWorkspacePreviewResult.coverLetter;
   const panelLinkedIn = hasLinkedInAccess
-    ? result?.linkedin ?? contextualPackage.linkedin
+    ? guardLinkedInQuality(result?.linkedin ?? contextualPackage.linkedin, contextualPackage.linkedin, workspaceIntelligenceContext)
     : result?.linkedin ?? contextualPackage.linkedin;
   const panelApplicationKit = hasApplicationKitAccess
-    ? result?.applicationKit ?? contextualPackage.applicationKit
+    ? guardApplicationKitQuality(result?.applicationKit ?? contextualPackage.applicationKit, contextualPackage.applicationKit, workspaceIntelligenceContext)
     : result?.applicationKit ?? contextualPackage.applicationKit;
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+
+    const diagnosticBase = {
+      targetRole: workspaceIntelligenceContext.role,
+      industry: workspaceIntelligenceContext.industryName,
+      jobDescriptionPresent: workspaceIntelligenceContext.hasJobDescription,
+      sourceMaterialLength: masterResume.length + extractedSourceTextForPreview.length,
+      experienceCount: workspaceIntelligenceContext.experienceEntries.length,
+      projectCount: workspaceIntelligenceContext.projectEntries.length,
+      fallbackUsed: !result,
+    };
+
+    [
+      "Cover Letter",
+      "LinkedIn Profile",
+      "Application Kit",
+      "Interview Prep",
+      "Career Intelligence",
+      "Resume Integrity",
+      "Industry Alignment",
+      "Job Description Intelligence",
+      "Achievement Suggestions",
+    ].forEach((panelName) => {
+      console.info("[workspace-intelligence]", {
+        panelName,
+        ...diagnosticBase,
+      });
+    });
+  }, [
+    extractedSourceTextForPreview.length,
+    masterResume.length,
+    result,
+    workspaceIntelligenceContext.experienceEntries.length,
+    workspaceIntelligenceContext.hasJobDescription,
+    workspaceIntelligenceContext.industryName,
+    workspaceIntelligenceContext.projectEntries.length,
+    workspaceIntelligenceContext.role,
+  ]);
 	  const estimatedResumePageCount = useMemo(
 	    () => estimateResumePageCount(resumeV2),
 	    [resumeV2],
@@ -8929,11 +9097,22 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
   function replaceBulletWithVersion(original: string, replacement: string) {
     setResult((current) => {
       if (!current) {
+        setSystemStatus("This suggestion needs a matching editable resume section before applying.");
         return current;
       }
 
       const escapedOriginal = original.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const bulletPattern = new RegExp(`(^|\\n)([-*]\\s*)?${escapedOriginal}`, "m");
+      const hasMappedBullet =
+        bulletPattern.test(current.rewrittenResume) ||
+        current.bullets.some((bullet) => bullet === original) ||
+        currentResumeIntelligenceText.includes(original);
+
+      if (!hasMappedBullet) {
+        setSystemStatus("This suggestion needs a matching editable resume section before applying.");
+        return current;
+      }
+
       const rewrittenResume = bulletPattern.test(current.rewrittenResume)
         ? current.rewrittenResume.replace(
             bulletPattern,

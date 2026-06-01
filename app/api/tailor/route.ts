@@ -527,6 +527,52 @@ function uniqueStrings(values: string[]) {
     });
 }
 
+function intelligenceSentences(value: string) {
+  return stripMarkdown(value)
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 24);
+}
+
+function hasRepeatedIntelligenceSentences(value: string) {
+  const seen = new Set<string>();
+  return intelligenceSentences(value).some((sentence) => {
+    const key = normalizeText(sentence).replace(/\s+/g, " ").trim();
+    if (seen.has(key)) return true;
+    seen.add(key);
+    return false;
+  });
+}
+
+function hasGenericIntelligenceText(value: string) {
+  const patterns = [
+    ["general", "ats"].join("\\s*"),
+    ["relevant", "source", "material"].join("\\s+"),
+    ["without", "inventing"].join("\\s+"),
+    ["recruiter", "readability"].join("\\s+"),
+    ["placeholder", "intelligence"].join("\\s+"),
+    ["sample", "derived"].join("[-\\s]+"),
+    "lorem\\s+ipsum",
+    "your\\s+company",
+    "company\\s+name",
+    "target\\s+company",
+  ];
+  return new RegExp(patterns.join("|"), "i").test(value);
+}
+
+function roleKeywordPresent(value: string, role: string) {
+  const roleTokens = role
+    .toLowerCase()
+    .split(/\s+/)
+    .map((token) => token.replace(/[^a-z0-9+#]/g, ""))
+    .filter((token) => token.length > 2 && !["the", "and", "for", "role", "target"].includes(token));
+
+  if (roleTokens.length === 0 || role === "the target role") return true;
+
+  const lowerValue = value.toLowerCase();
+  return roleTokens.some((token) => lowerValue.includes(token));
+}
+
 type ServerWorkspaceContext = {
   candidateName: string;
   role: string;
@@ -1064,6 +1110,40 @@ function buildLocalApplicationPackage({
   };
 }
 
+function guardServerCoverLetter(value: string, fallback: string, context: ServerWorkspaceContext) {
+  const cleanValue = value.trim();
+  const shouldReplace =
+    !cleanValue ||
+    hasGenericIntelligenceText(cleanValue) ||
+    hasRepeatedIntelligenceSentences(cleanValue) ||
+    !roleKeywordPresent(cleanValue, context.role) ||
+    Boolean(context.candidateName && !cleanValue.includes(context.candidateName));
+
+  return shouldReplace ? fallback : cleanValue;
+}
+
+function guardServerLinkedIn(value: LinkedInKit | undefined, fallback: LinkedInKit, context: ServerWorkspaceContext): LinkedInKit {
+  if (!value) return fallback;
+  const combined = [value.headline, value.about, value.featuredProjects, value.openToWorkPositioning].join("\n");
+  const shouldReplace =
+    hasGenericIntelligenceText(combined) ||
+    hasRepeatedIntelligenceSentences(value.about) ||
+    !roleKeywordPresent(combined, context.role);
+
+  return shouldReplace ? fallback : value;
+}
+
+function guardServerApplicationKit(value: ApplicationKit | undefined, fallback: ApplicationKit, context: ServerWorkspaceContext): ApplicationKit {
+  if (!value) return fallback;
+  const combined = Object.values(value).join("\n");
+  const shouldReplace =
+    hasGenericIntelligenceText(combined) ||
+    hasRepeatedIntelligenceSentences(combined) ||
+    !roleKeywordPresent(combined, context.role);
+
+  return shouldReplace ? fallback : value;
+}
+
 function sourceMaterialText(files: UploadedSourceMaterial[] = []) {
   return files
     .map((file) => file.extractedText?.trim())
@@ -1383,17 +1463,28 @@ function normalizeResponse(response: TailorResponse, request: TailorRequest = {}
     response: normalizedResponse,
     request,
   });
+  const context = buildServerWorkspaceContext({
+    request,
+    resumeText: normalizedResponse.tailoredResume,
+    response: normalizedResponse,
+  });
+  const fallbackCoverLetter = buildLocalCoverLetter({
+    request,
+    resumeText: normalizedResponse.tailoredResume,
+    response: normalizedResponse,
+  });
 
   return {
     ...normalizedResponse,
+    coverLetter: guardServerCoverLetter(normalizedResponse.coverLetter, fallbackCoverLetter, context),
     extractedResumeJson: response.extractedResumeJson,
     optimizedResumeJson: response.optimizedResumeJson,
     renderResumeState: response.renderResumeState,
     advancedAnalysis:
       response.advancedAnalysis ??
       buildLocalAdvancedAnalysis(normalizedResponse, request),
-    linkedin: response.linkedin ?? fallbackPackage.linkedin,
-    applicationKit: response.applicationKit ?? fallbackPackage.applicationKit,
+    linkedin: guardServerLinkedIn(response.linkedin, fallbackPackage.linkedin, context),
+    applicationKit: guardServerApplicationKit(response.applicationKit, fallbackPackage.applicationKit, context),
   };
 }
 
