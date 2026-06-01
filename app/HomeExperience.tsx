@@ -8777,7 +8777,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       <section className="iseya-header">
         <div className="mx-auto max-w-[112rem] px-5 py-3 sm:px-8 sm:py-4">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-4">
+            <div className="flex min-w-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-4">
               <Link href="/" aria-label="ISEYA home">
                 <Image
                   src="/brand/iseya-logo2.png"
@@ -8788,7 +8788,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                   className="h-auto w-[128px] object-contain sm:w-[185px] xl:w-[170px] 2xl:w-[185px]"
                 />
               </Link>
-              <p className="hidden border-l border-[var(--iseya-gold)] pl-4 text-sm font-bold uppercase tracking-[0.18em] text-[var(--iseya-gold)] sm:block xl:text-[11px] xl:tracking-[0.14em] 2xl:text-xs">
+              <p className="max-w-[13.5rem] text-[9px] font-bold uppercase leading-3 tracking-[0.12em] text-[var(--iseya-gold)] sm:block sm:max-w-none sm:border-l sm:border-[var(--iseya-gold)] sm:pl-4 sm:text-sm sm:leading-normal sm:tracking-[0.18em] xl:text-[11px] xl:tracking-[0.14em] 2xl:text-xs">
                 Beyond Resume. Positioning.
               </p>
             </div>

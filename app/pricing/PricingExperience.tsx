@@ -23,6 +23,33 @@ const pricingCurrencyStorageKey = "iseya.checkout.currency";
 const headerNavigationLink =
   "rounded-sm transition hover:text-[var(--iseya-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iseya-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--iseya-navy)]";
 
+type CandidateCheckoutErrorCode =
+  | "AUTH_CLIENT_UNAVAILABLE"
+  | "AUTH_REQUIRED"
+  | "UNSUPPORTED_PLAN"
+  | "PROFILE_LOOKUP_FAILED"
+  | "PROFILE_REQUIRED"
+  | "UNSUPPORTED_CURRENCY"
+  | "MISSING_STRIPE_SECRET"
+  | "INVALID_STRIPE_SECRET"
+  | "MISSING_PRICE_ID"
+  | "INVALID_PRICE_ID"
+  | "APP_URL_MISSING"
+  | "STRIPE_SESSION_MISSING_URL"
+  | "STRIPE_SESSION_FAILED";
+
+type CandidateCheckoutResponse = {
+  url?: string;
+  error?: string;
+  message?: string;
+  notice?: string;
+  code?: CandidateCheckoutErrorCode;
+  errorCode?: CandidateCheckoutErrorCode;
+  missingVariable?: string | null;
+  plan?: string | null;
+  currency?: string | null;
+};
+
 export default function PricingExperience({ requestedPlan }: { requestedPlan?: string }) {
   return <PricingContent requestedPlan={requestedPlan} />;
 }
@@ -55,10 +82,21 @@ function PricingContent({ requestedPlan }: { requestedPlan?: string }) {
         return;
       }
 
-      const data = (await response.json()) as { url?: string; error?: string; notice?: string };
+      const data = (await response.json().catch(() => null)) as CandidateCheckoutResponse | null;
+      const checkoutLog = {
+        planId,
+        currency,
+        status: response.status,
+        errorBody: data,
+      };
 
-      if (!response.ok || !data.url) {
-        throw new Error(safeCheckoutMessage(data.error));
+      if (process.env.NODE_ENV !== "production") {
+        console.info("[candidate-checkout:response]", checkoutLog);
+      }
+
+      if (!response.ok || !data?.url) {
+        console.error("[candidate-checkout]", checkoutLog);
+        throw new Error(candidateCheckoutMessage(data));
       }
 
       if (data.notice) {
@@ -68,7 +106,7 @@ function PricingContent({ requestedPlan }: { requestedPlan?: string }) {
 
       window.location.assign(data.url);
     } catch (error) {
-      setCheckoutStatus(safeCheckoutMessage(error instanceof Error ? error.message : ""));
+      setCheckoutStatus(error instanceof Error ? error.message : safeCheckoutMessage(""));
     } finally {
       setCheckoutPlan("");
     }
@@ -468,6 +506,54 @@ function safeCheckoutMessage(message?: string) {
   }
 
   return normalized;
+}
+
+function planLabel(planId?: string) {
+  if (planId === "plus") return "Plus";
+  if (planId === "pro_monthly") return "Pro Monthly";
+  if (planId === "pro_annual") return "Pro Annual";
+  return "this plan";
+}
+
+function candidateCheckoutMessage(errorBody: CandidateCheckoutResponse | null) {
+  if (!errorBody || Object.keys(errorBody).length === 0) {
+    return "Checkout config missing. Check server logs.";
+  }
+
+  const code = errorBody.errorCode ?? errorBody.code;
+
+  switch (code) {
+    case "AUTH_CLIENT_UNAVAILABLE":
+      return "Checkout cannot verify your session right now. Please refresh and try again.";
+    case "AUTH_REQUIRED":
+      return "Please sign in before upgrading.";
+    case "UNSUPPORTED_PLAN":
+      return "This checkout plan is not supported.";
+    case "UNSUPPORTED_CURRENCY":
+      return "This checkout currency is not supported yet.";
+    case "MISSING_STRIPE_SECRET":
+    case "INVALID_STRIPE_SECRET":
+      return errorBody.missingVariable
+        ? `Checkout config missing: ${errorBody.missingVariable}.`
+        : "Stripe checkout is not configured yet.";
+    case "MISSING_PRICE_ID":
+      return errorBody.missingVariable
+        ? `Checkout config missing: ${errorBody.missingVariable}.`
+        : `Checkout is not configured for ${planLabel(errorBody.plan ?? undefined)} in ${errorBody.currency ?? "the selected currency"} yet.`;
+    case "INVALID_PRICE_ID":
+      return errorBody.missingVariable
+        ? `Checkout config invalid: ${errorBody.missingVariable}.`
+        : "Checkout price is not configured correctly for the selected plan.";
+    case "APP_URL_MISSING":
+      return errorBody.missingVariable
+        ? `Checkout config missing: ${errorBody.missingVariable}.`
+        : "Checkout needs a valid app URL before it can start.";
+    case "STRIPE_SESSION_MISSING_URL":
+    case "STRIPE_SESSION_FAILED":
+      return errorBody.message || "Checkout could not start. Please try again.";
+    default:
+      return errorBody.message || safeCheckoutMessage(errorBody.error);
+  }
 }
 
 function planButtonLabel(planId: string) {

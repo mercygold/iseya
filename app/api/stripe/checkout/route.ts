@@ -24,7 +24,9 @@ type CheckoutErrorCode =
   | "PROFILE_REQUIRED"
   | "UNSUPPORTED_CURRENCY"
   | "MISSING_STRIPE_SECRET"
+  | "INVALID_STRIPE_SECRET"
   | "MISSING_PRICE_ID"
+  | "INVALID_PRICE_ID"
   | "APP_URL_MISSING"
   | "STRIPE_SESSION_MISSING_URL"
   | "STRIPE_SESSION_FAILED";
@@ -47,8 +49,28 @@ const plusCheckoutImagePath = "/stripe/iseya-plus-checkout.png";
 
 export const runtime = "nodejs";
 
-function checkoutError(status = 503, message = checkoutUnavailableMessage, code?: CheckoutErrorCode) {
-  return Response.json(code ? { error: message, code } : { error: message }, { status });
+function checkoutError(
+  status = 503,
+  message = checkoutUnavailableMessage,
+  code: CheckoutErrorCode = "STRIPE_SESSION_FAILED",
+  context: {
+    missingVariable?: string | null;
+    plan?: string | null;
+    currency?: string | null;
+  } = {},
+) {
+  return Response.json(
+    {
+      error: message,
+      message,
+      errorCode: code,
+      code,
+      missingVariable: context.missingVariable ?? null,
+      plan: context.plan ?? null,
+      currency: context.currency ?? null,
+    },
+    { status },
+  );
 }
 
 function logCheckoutDiagnostic(
@@ -89,6 +111,53 @@ function stripeKeyMode(stripeSecretKey: string) {
   if (stripeSecretKey.startsWith("sk_live_")) return "live";
   if (stripeSecretKey.startsWith("sk_test_")) return "test";
   return "unknown";
+}
+
+function isLikelyStripeSecretKey(value: string) {
+  return value.startsWith("sk_live_") || value.startsWith("sk_test_");
+}
+
+function isLikelyStripePriceId(value: string) {
+  return value.startsWith("price_");
+}
+
+function safeValuePrefix(value: string) {
+  if (!value) return "";
+  if (value.startsWith("sk_live_")) return "sk_live_...";
+  if (value.startsWith("sk_test_")) return "sk_test_...";
+  if (value.startsWith("pk_live_")) return "pk_live_...";
+  if (value.startsWith("pk_test_")) return "pk_test_...";
+  if (value.startsWith("price_")) return "price_...";
+  if (value.startsWith("whsec_")) return "whsec_...";
+  return `${value.slice(0, 4)}...`;
+}
+
+function logCheckoutRuntimeConfig({
+  plan,
+  currency,
+  priceEnv,
+  priceId,
+  stripeSecretKey,
+}: {
+  plan: CheckoutPlan;
+  currency: SupportedCurrency;
+  priceEnv: string;
+  priceId: string | null;
+  stripeSecretKey: string;
+}) {
+  const publishableKey = cleanSupabaseEnvValue(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+
+  logCheckoutDiagnostic("Checkout runtime config.", {
+    plan,
+    currency,
+    stripeSecretKeyExists: Boolean(stripeSecretKey),
+    stripeSecretKeyPrefix: safeValuePrefix(stripeSecretKey),
+    publishableKeyExists: Boolean(publishableKey),
+    publishableKeyPrefix: safeValuePrefix(publishableKey),
+    selectedPriceEnvName: priceEnv,
+    selectedPriceIdExists: Boolean(priceId),
+    selectedPriceIdPrefix: safeValuePrefix(priceId ?? ""),
+  });
 }
 
 function logRecruiterPriceResolution({
@@ -204,7 +273,7 @@ async function syncPlusCheckoutImage(stripe: Stripe, priceId: string, appUrl: st
   }
 }
 
-export async function POST(request: Request) {
+async function handleCheckoutPost(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     planId?: unknown;
     plan?: unknown;
@@ -222,6 +291,7 @@ export async function POST(request: Request) {
       503,
       checkoutUnavailableMessage,
       "AUTH_CLIENT_UNAVAILABLE",
+      { plan: requestedPlan ? String(requestedPlan) : null, currency: typeof body.currency === "string" ? body.currency : null },
     );
   }
 
@@ -230,11 +300,13 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return Response.json(
+    return checkoutError(
+      401,
       billingScope === "recruiter"
-        ? { error: "Please sign in before upgrading.", code: "AUTH_REQUIRED" }
-        : { error: "Login is required before checkout." },
-      { status: 401 },
+        ? "Please sign in before upgrading."
+        : "Login is required before checkout.",
+      "AUTH_REQUIRED",
+      { plan: requestedPlan ? String(requestedPlan) : null, currency: typeof body.currency === "string" ? body.currency : null },
     );
   }
 
@@ -251,7 +323,8 @@ export async function POST(request: Request) {
       billingScope === "recruiter"
         ? "Unsupported recruiter checkout plan."
         : checkoutUnavailableMessage,
-      billingScope === "recruiter" ? "UNSUPPORTED_PLAN" : undefined,
+      "UNSUPPORTED_PLAN",
+      { plan: requestedPlan ? String(requestedPlan) : null, currency: typeof body.currency === "string" ? body.currency : null },
     );
   }
   const checkoutPlan = requestedPlan as CheckoutPlan;
@@ -268,20 +341,21 @@ export async function POST(request: Request) {
         code: recruiterError.code,
         message: recruiterError.message,
       });
-      return Response.json(
-        {
-          error: "We could not verify your recruiter profile. Please try again.",
-          code: "PROFILE_LOOKUP_FAILED",
-        },
-        { status: 403 },
+      return checkoutError(
+        403,
+        "We could not verify your recruiter profile. Please try again.",
+        "PROFILE_LOOKUP_FAILED",
+        { plan: checkoutPlan, currency: typeof body.currency === "string" ? body.currency : null },
       );
     }
 
     if (!recruiterProfile) {
       logCheckoutDiagnostic("Recruiter checkout blocked because recruiter profile is missing.");
-      return Response.json(
-        { error: "Create your recruiter profile before upgrading.", code: "PROFILE_REQUIRED" },
-        { status: 403 },
+      return checkoutError(
+        403,
+        "Create your recruiter profile before upgrading.",
+        "PROFILE_REQUIRED",
+        { plan: checkoutPlan, currency: typeof body.currency === "string" ? body.currency : null },
       );
     }
   }
@@ -298,7 +372,8 @@ export async function POST(request: Request) {
       billingScope === "recruiter"
         ? "Unsupported recruiter checkout currency."
         : checkoutUnavailableMessage,
-      billingScope === "recruiter" ? "UNSUPPORTED_CURRENCY" : undefined,
+      "UNSUPPORTED_CURRENCY",
+      { plan: checkoutPlan, currency: String(body.currency) },
     );
   }
 
@@ -311,14 +386,38 @@ export async function POST(request: Request) {
   let notice: string | undefined;
   const mode = checkoutModes[checkoutPlan];
 
+  logCheckoutRuntimeConfig({
+    plan: checkoutPlan,
+    currency: requestedCurrency,
+    priceEnv: configuredPrice.envName || configuredPrice.primaryEnvName,
+    priceId: configuredPrice.priceId,
+    stripeSecretKey,
+  });
+
   if (!stripeSecretKey) {
     logCheckoutDiagnostic("Missing Stripe secret key.");
     return checkoutError(
       503,
       billingScope === "recruiter"
         ? "Recruiter checkout is not configured yet."
-        : checkoutUnavailableMessage,
-      billingScope === "recruiter" ? "MISSING_STRIPE_SECRET" : undefined,
+        : "Stripe checkout is not configured yet.",
+      "MISSING_STRIPE_SECRET",
+      { missingVariable: "STRIPE_SECRET_KEY", plan: checkoutPlan, currency: requestedCurrency },
+    );
+  }
+
+  if (!isLikelyStripeSecretKey(stripeSecretKey)) {
+    logCheckoutDiagnostic("Invalid Stripe secret key shape.", {
+      scope: billingScope,
+      stripeMode: stripeKeyMode(stripeSecretKey),
+    });
+    return checkoutError(
+      503,
+      billingScope === "recruiter"
+        ? "Recruiter checkout is not configured yet."
+        : "Stripe checkout is not configured yet.",
+      "INVALID_STRIPE_SECRET",
+      { missingVariable: "STRIPE_SECRET_KEY", plan: checkoutPlan, currency: requestedCurrency },
     );
   }
 
@@ -348,6 +447,13 @@ export async function POST(request: Request) {
         checkoutCurrency = defaultCurrency;
         configuredPrice = usdPrice;
         notice = "Local checkout is not active yet. Continuing in USD.";
+        logCheckoutRuntimeConfig({
+          plan: checkoutPlan,
+          currency: defaultCurrency,
+          priceEnv: usdPrice.envName || usdPrice.primaryEnvName,
+          priceId: usdPrice.priceId,
+          stripeSecretKey,
+        });
         if (billingScope === "recruiter") {
           logRecruiterPriceResolution({
             plan: checkoutPlan,
@@ -367,8 +473,13 @@ export async function POST(request: Request) {
           503,
           billingScope === "recruiter"
             ? "Recruiter checkout is not configured for this plan yet."
-            : checkoutUnavailableMessage,
-          billingScope === "recruiter" ? "MISSING_PRICE_ID" : undefined,
+            : `Checkout is not configured for ${checkoutPlan} in ${requestedCurrency} yet.`,
+          "MISSING_PRICE_ID",
+          {
+            missingVariable: usdPrice.primaryEnvName,
+            plan: checkoutPlan,
+            currency: requestedCurrency,
+          },
         );
       }
     } else {
@@ -376,8 +487,13 @@ export async function POST(request: Request) {
         503,
         billingScope === "recruiter"
           ? "Recruiter checkout is not configured for this plan yet."
-          : checkoutUnavailableMessage,
-        billingScope === "recruiter" ? "MISSING_PRICE_ID" : undefined,
+          : `Checkout is not configured for ${checkoutPlan} in ${requestedCurrency} yet.`,
+        "MISSING_PRICE_ID",
+        {
+          missingVariable: configuredPrice.primaryEnvName,
+          plan: checkoutPlan,
+          currency: requestedCurrency,
+        },
       );
     }
   }
@@ -388,8 +504,35 @@ export async function POST(request: Request) {
       503,
       billingScope === "recruiter"
         ? "Recruiter checkout is not configured for this plan yet."
-        : checkoutUnavailableMessage,
-      billingScope === "recruiter" ? "MISSING_PRICE_ID" : undefined,
+        : `Checkout is not configured for ${checkoutPlan} in ${requestedCurrency} yet.`,
+      "MISSING_PRICE_ID",
+      {
+        missingVariable: configuredPrice.primaryEnvName,
+        plan: checkoutPlan,
+        currency: requestedCurrency,
+      },
+    );
+  }
+
+  if (!isLikelyStripePriceId(priceId)) {
+    logCheckoutDiagnostic("Invalid Stripe price ID shape.", {
+      scope: billingScope,
+      plan: checkoutPlan,
+      currency: checkoutCurrency,
+      priceEnv: configuredPrice.envName || configuredPrice.primaryEnvName,
+      stripeMode: stripeKeyMode(stripeSecretKey),
+    });
+    return checkoutError(
+      503,
+      billingScope === "recruiter"
+        ? "Recruiter checkout is not configured for this plan yet."
+        : `Checkout price is not configured correctly for ${checkoutPlan} in ${checkoutCurrency}.`,
+      "INVALID_PRICE_ID",
+      {
+        missingVariable: configuredPrice.envName || configuredPrice.primaryEnvName,
+        plan: checkoutPlan,
+        currency: checkoutCurrency,
+      },
     );
   }
 
@@ -401,8 +544,9 @@ export async function POST(request: Request) {
       503,
       billingScope === "recruiter"
         ? "Recruiter checkout needs a valid production app URL."
-        : checkoutUnavailableMessage,
-      billingScope === "recruiter" ? "APP_URL_MISSING" : undefined,
+        : "Checkout needs a valid app URL.",
+      "APP_URL_MISSING",
+      { missingVariable: "NEXT_PUBLIC_APP_URL", plan: checkoutPlan, currency: checkoutCurrency },
     );
   }
 
@@ -460,8 +604,9 @@ export async function POST(request: Request) {
         502,
         billingScope === "recruiter"
           ? "Checkout could not start. Please try again."
-          : checkoutUnavailableMessage,
-        billingScope === "recruiter" ? "STRIPE_SESSION_MISSING_URL" : undefined,
+          : "Checkout could not start. Please try again.",
+        "STRIPE_SESSION_MISSING_URL",
+        { plan: checkoutPlan, currency: checkoutCurrency },
       );
     }
 
@@ -472,20 +617,36 @@ export async function POST(request: Request) {
       notice,
     });
   } catch (error) {
+    const stripeErrorDetails = safeStripeErrorDetails(error);
+    const safeStripeMessage =
+      typeof stripeErrorDetails.message === "string" && stripeErrorDetails.message.trim()
+        ? `Stripe checkout failed: ${stripeErrorDetails.message}`
+        : "Checkout could not start. Please try again.";
+
     logCheckoutDiagnostic("Stripe checkout creation failed.", {
       scope: billingScope,
       plan: checkoutPlan,
       currency: checkoutCurrency,
       priceEnv: configuredPrice.envName || configuredPrice.primaryEnvName,
       stripeMode: stripeKeyMode(stripeSecretKey),
-      ...safeStripeErrorDetails(error),
+      ...stripeErrorDetails,
     });
     return checkoutError(
       502,
-      billingScope === "recruiter"
-        ? "Checkout could not start. Please try again."
-        : checkoutUnavailableMessage,
-      billingScope === "recruiter" ? "STRIPE_SESSION_FAILED" : undefined,
+      safeStripeMessage,
+      "STRIPE_SESSION_FAILED",
+      { plan: checkoutPlan, currency: checkoutCurrency },
     );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    return await handleCheckoutPost(request);
+  } catch (error) {
+    logCheckoutDiagnostic("Checkout route failed before response.", {
+      ...safeStripeErrorDetails(error),
+    });
+    return checkoutError(500, "Checkout could not start. Please try again.", "STRIPE_SESSION_FAILED");
   }
 }
