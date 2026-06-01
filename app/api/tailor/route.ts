@@ -468,6 +468,162 @@ function articleFor(value: string) {
   return /^[aeiou]/i.test(value.trim()) ? "an" : "a";
 }
 
+function readableIndustry(value?: string) {
+  const cleaned = stripMarkdown(value || "").trim();
+
+  if (!cleaned || /^general\s*\/?\s*ats$/i.test(cleaned)) {
+    return "the target industry";
+  }
+
+  return cleaned;
+}
+
+function meaningfulJobDescription(value?: string) {
+  const cleaned = stripMarkdown(value || "").replace(/\s+/g, " ").trim();
+  return cleaned.length >= 80 && !/paste the target job description here/i.test(cleaned);
+}
+
+function contextualEmptyPrompt(target: "job" | "resume" | "source") {
+  if (target === "job") {
+    return "Add a target job description to generate role-specific recruiter intelligence.";
+  }
+
+  if (target === "source") {
+    return "Add source materials or upload a resume so ISEYA can ground suggestions in verified experience.";
+  }
+
+  return "Add resume experience, projects, or skills to generate contextual guidance.";
+}
+
+function inferCompanyName(jobDescription = "") {
+  const lines = jobDescription
+    .split(/\r?\n/)
+    .map((line) => stripMarkdown(line).replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, 12);
+  const companyLine = lines.find((line) =>
+    /^(company|organization|employer|about)\s*[:|-]/i.test(line),
+  );
+
+  if (companyLine) {
+    return companyLine.replace(/^(company|organization|employer|about)\s*[:|-]\s*/i, "").slice(0, 80);
+  }
+
+  const aboutLine = lines.find((line) => /\b(at|with)\s+[A-Z][A-Za-z0-9&.,' -]{2,60}\b/.test(line));
+  const match = aboutLine?.match(/\b(?:at|with)\s+([A-Z][A-Za-z0-9&.,' -]{2,60})\b/);
+  return match?.[1]?.replace(/[.,;:]$/, "").trim() || "";
+}
+
+function uniqueStrings(values: string[]) {
+  const seen = new Set<string>();
+  return values
+    .map((value) => stripMarkdown(value).replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .filter((value) => {
+      const key = normalizeText(value);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+type ServerWorkspaceContext = {
+  candidateName: string;
+  role: string;
+  companyName: string;
+  industryName: string;
+  hasJobDescription: boolean;
+  hasResumeEvidence: boolean;
+  resumeKeywords: string[];
+  jobKeywords: string[];
+  matchedKeywords: string[];
+  missingKeywords: string[];
+  skills: string[];
+  bullets: string[];
+  strongBullets: string[];
+  projectNames: string[];
+  strongestEvidence: string[];
+  sourceSignals: string[];
+};
+
+function buildServerWorkspaceContext({
+  request,
+  resumeText,
+  response,
+}: {
+  request: TailorRequest;
+  resumeText: string;
+  response?: Partial<TailorResponse>;
+}): ServerWorkspaceContext {
+  const pipelineInputs = resumePipelineInputs(request);
+  const sourceText = [
+    request.currentEditedResume,
+    pipelineInputs.candidateResumeFacts,
+    request.masterResume,
+    sourceMaterialText(request.uploadedSourceMaterials),
+    resumeText,
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join("\n\n");
+  const role = titleCase(
+    request.targetRole ||
+      pipelineInputs.targetRole ||
+      firstMeaningfulLine(resumeText, "the target role"),
+  );
+  const hasJobDescription = meaningfulJobDescription(pipelineInputs.targetJobDescription || request.jobDescription);
+  const resumeKeywords = extractKeywords(sourceText);
+  const jobKeywords = hasJobDescription ? extractKeywords(pipelineInputs.targetJobDescription || request.jobDescription || "") : [];
+  const matchedKeywords = uniqueStrings([
+    ...(response?.recommendedKeywords ?? []),
+    ...jobKeywords.filter((keyword) => resumeKeywords.includes(keyword)),
+  ]);
+  const missingKeywords = uniqueStrings([
+    ...(response?.missingKeywords ?? []),
+    ...jobKeywords.filter((keyword) => !resumeKeywords.includes(keyword)),
+  ]);
+  const bullets = resumeBullets(sourceText);
+  const strongBullets = bullets
+    .filter((bullet) => /\$?\d[\d,.]*\+?%?|\b(led|built|launched|improved|delivered|owned|managed|created|implemented)\b/i.test(bullet))
+    .slice(0, 6);
+  const projectNames = uniqueStrings(
+    sourceText
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^[-*]\s+/, "").trim())
+      .filter((line) => /\b(project|platform|product|system|agent|assistant|implementation)\b/i.test(line))
+      .filter((line) => line.length <= 90)
+      .slice(0, 5),
+  );
+  const sourceSignals = uniqueStrings([
+    ...resumeKeywords,
+    ...sourceText
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^[-*]\s+/, "").trim())
+      .filter((line) => /\b(certified|certificate|award|published|research|led|managed|built|launched)\b/i.test(line))
+      .slice(0, 12),
+  ]).slice(0, 18);
+  const skills = uniqueStrings([...matchedKeywords, ...resumeKeywords]).slice(0, 12);
+  const candidateName = firstMeaningfulLine(resumeText, firstMeaningfulLine(sourceText, "Candidate"));
+
+  return {
+    candidateName: candidateName === "Candidate" ? "" : candidateName,
+    role: role && !/target role/i.test(role) ? role : "the target role",
+    companyName: inferCompanyName(pipelineInputs.targetJobDescription || request.jobDescription || ""),
+    industryName: readableIndustry(request.industryTarget),
+    hasJobDescription,
+    hasResumeEvidence: Boolean(bullets.length || skills.length || projectNames.length || sourceSignals.length),
+    resumeKeywords,
+    jobKeywords,
+    matchedKeywords,
+    missingKeywords,
+    skills,
+    bullets,
+    strongBullets,
+    projectNames,
+    strongestEvidence: uniqueStrings([...strongBullets, ...projectNames]).slice(0, 6),
+    sourceSignals,
+  };
+}
+
 function stripMarkdown(text: string) {
   return text
     .replace(/^#{1,6}\s+/gm, "")
@@ -546,13 +702,19 @@ function buildLocalCoaching({
   coverLetter,
   improvementNotes,
   riskFlags,
-}: Omit<TailorResponse, "coaching">): Coaching {
+  request,
+}: Omit<TailorResponse, "coaching"> & { request?: TailorRequest }): Coaching {
+  const context = buildServerWorkspaceContext({
+    request: request ?? {},
+    resumeText: tailoredResume,
+    response: { missingKeywords, recommendedKeywords: [] },
+  });
   const hasContact =
     /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(tailoredResume) ||
     /(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/.test(
       tailoredResume,
     );
-  const hasProjects = /\bprojects?\b/i.test(tailoredResume);
+  const hasProjects = context.projectNames.length > 0 || /\bprojects?\b/i.test(tailoredResume);
 
   return {
     overallRecruiterImpression:
@@ -563,9 +725,13 @@ function buildLocalCoaching({
           : "Relevant experience is present, but the resume needs sharper evidence and closer role alignment.",
     whyThisScore: scoreNotesFromBreakdown(matchBreakdown),
     topStrengths: [
-      "Relevant source material is available for truthful tailoring.",
-      "The resume can be positioned around role fit without inventing new experience.",
-      "Experience language can be tightened for recruiter readability and ATS scanning.",
+      context.strongestEvidence[0] || contextualEmptyPrompt("source"),
+      context.skills.length > 0
+        ? `Visible role alignment: ${context.skills.slice(0, 5).join(", ")}.`
+        : contextualEmptyPrompt("resume"),
+      context.projectNames.length > 0
+        ? `Project evidence available: ${context.projectNames.slice(0, 3).join(", ")}.`
+        : "Add project evidence only when the user's source materials support it.",
     ],
     topGaps:
       missingKeywords.length > 0
@@ -574,7 +740,7 @@ function buildLocalCoaching({
     atsRisks: riskFlags.slice(0, 5),
     recruiterReadabilityScore: matchBreakdown.atsReadability,
     seniorityAlignment: `Seniority alignment is ${matchBreakdown.seniorityAlignment}/100 based on title language, leadership signals, and scope described in the resume.`,
-    industryAlignment: `Industry alignment is ${matchBreakdown.industryFit}/100 based on the selected industry target and available source material.`,
+    industryAlignment: `Industry alignment is ${matchBreakdown.industryFit}/100 for ${context.industryName} based on the current resume and target role evidence.`,
     keywordDensityNotes:
       missingKeywords.length > 0
         ? [
@@ -600,7 +766,7 @@ function buildLocalCoaching({
       experience: improvementNotes.slice(0, 2),
       projects: [
         hasProjects
-          ? "Project evidence is visible; connect it directly to the target role."
+          ? `Project evidence is visible${context.projectNames[0] ? ` through ${context.projectNames[0]}` : ""}; connect it directly to ${context.role}.`
           : "Add projects only if source material supports them.",
       ],
       educationCertifications: [
@@ -621,7 +787,7 @@ function buildLocalCoaching({
               .join(", ")}.`,
             "Any new claim should be supported by the resume or uploaded source materials.",
           ]
-        : ["Recruiter objections are mostly around proof depth, not keyword coverage."],
+        : [context.bullets.length > 0 ? "Recruiter objections are mostly around proof depth, not keyword coverage." : contextualEmptyPrompt("resume")],
   };
 }
 
@@ -643,6 +809,11 @@ function buildLocalAdvancedAnalysis(
   request: TailorRequest,
 ): AdvancedAnalysis {
   const positioningMode = request.aiSettings?.positioningMode || "Product";
+  const context = buildServerWorkspaceContext({
+    request,
+    resumeText: response.tailoredResume,
+    response,
+  });
   const interviewLabel =
     response.matchScore >= 85 ? "Strong" : response.matchScore >= 70 ? "Moderate" : "Limited";
   const makeReview = (
@@ -684,23 +855,35 @@ function buildLocalAdvancedAnalysis(
     recruiterSimulation: {
       atsScreening: makeReview(
         response.matchBreakdown.atsReadability,
-        ["Plain section structure and role keywords support ATS parsing."],
+        context.skills.length > 0
+          ? [`ATS parsing is supported by visible skills such as ${context.skills.slice(0, 4).join(", ")}.`]
+          : [contextualEmptyPrompt("resume")],
         response.missingKeywords.length > 0
           ? [`Missing or light keywords: ${response.missingKeywords.slice(0, 5).join(", ")}.`]
-          : ["No major ATS keyword gaps detected."],
+          : context.hasJobDescription
+            ? ["No major ATS keyword gaps detected from the target job description."]
+            : [contextualEmptyPrompt("job")],
         ["Unsupported keywords should not be added without source evidence."],
       ),
       recruiterReview: makeReview(
         response.matchScore,
-        ["Resume has a clear role target and recruiter-readable positioning."],
-        ["Some bullets may need stronger measurable proof."],
+        context.strongestEvidence[0]
+          ? [`Strongest visible evidence: ${context.strongestEvidence[0]}`]
+          : [contextualEmptyPrompt("source")],
+        context.bullets.some((bullet) => !/\d/.test(bullet))
+          ? ["Some bullets describe work without verified scope, metric, or outcome detail."]
+          : ["Evidence is present; verify that metrics and claims are accurate before export."],
         response.riskFlags,
       ),
       hiringManagerReview: makeReview(
         response.matchBreakdown.seniorityAlignment,
-        ["Experience can be mapped to ownership, delivery, and stakeholder outcomes."],
+        context.bullets[0]
+          ? [`Use this evidence for ownership discussion: ${context.bullets[0]}`]
+          : [contextualEmptyPrompt("resume")],
         ["Hiring manager may ask for deeper examples of scope and decision-making."],
-        ["Prepare proof stories for the most senior claims."],
+        context.projectNames[0]
+          ? [`Prepare a project deep-dive for ${context.projectNames[0]}.`]
+          : ["Prepare proof stories for the most senior claims."],
       ),
     },
     keyScores: {
@@ -718,25 +901,35 @@ function buildLocalAdvancedAnalysis(
     interviewPrep: {
       whyYouFitThisRole: response.positioningStrategy,
       likelyQuestions: [
-        "Walk me through the most relevant project for this role.",
-        "Which accomplishment best proves your fit for this position?",
-        "How have you translated ambiguous requirements into execution?",
+        context.projectNames[0]
+          ? `Walk me through ${context.projectNames[0]} and why it matters for ${context.role}.`
+          : contextualEmptyPrompt("resume"),
+        context.strongestEvidence[0]
+          ? `Which part of this accomplishment would you defend in an interview: ${context.strongestEvidence[0]}`
+          : "Which accomplishment best proves your fit for this position?",
+        `How would you apply your ${context.skills.slice(0, 2).join(" and ") || "current"} experience to ${context.role}?`,
       ],
       behavioralQuestions: [
-        "Tell me about a time you influenced stakeholders without direct authority.",
-        "Describe a project that changed direction and how you handled it.",
+        "Tell me about a time you influenced stakeholders without direct authority using an example from your resume.",
+        context.bullets[0]
+          ? `Describe a difficult delivery or prioritization moment connected to: ${context.bullets[0]}`
+          : contextualEmptyPrompt("resume"),
       ],
       technicalQuestions: [
-        "Which systems, tools, or technical workflows are most relevant here?",
-        "How do you work with engineering or technical teams to make tradeoffs?",
+        `Which tools or workflows from your resume best support ${context.role}?`,
+        context.projectNames[0]
+          ? `What technical or operational tradeoffs did you handle in ${context.projectNames[0]}?`
+          : "How do you work with technical teams to make tradeoffs?",
       ],
       executiveQuestions: [
-        "How would you prioritize the first 90 days in this role?",
-        "What business outcome would you focus on first?",
+        context.hasJobDescription
+          ? "How would you prioritize the first 90 days based on this job description?"
+          : contextualEmptyPrompt("job"),
+        `What business outcome would you focus on first in ${context.industryName}?`,
       ],
       industrySpecificQuestions: [
-        `What makes your experience relevant to ${request.industryTarget || "this industry"}?`,
-        "Which industry risks or constraints would you watch first?",
+        `What makes your experience relevant to ${context.industryName}?`,
+        `Which ${context.industryName} risks or constraints would you watch first?`,
       ],
       potentialRecruiterObjections: response.riskFlags,
     },
@@ -753,8 +946,12 @@ function buildLocalAdvancedAnalysis(
         "Add certifications only if already earned or clearly marked as planned.",
       ],
       recommendations: [
-        "Prioritize bullets with action, scope, and verified outcome.",
-        "Add missing keywords only where source material supports them.",
+        context.bullets.length > 0
+          ? "Prioritize bullets with action, scope, and verified outcome."
+          : contextualEmptyPrompt("source"),
+        context.hasJobDescription
+          ? "Add missing keywords only where source material supports them."
+          : contextualEmptyPrompt("job"),
         `Adjust tone toward ${positioningMode.toLowerCase()} positioning.`,
       ],
       wordingChanges: [
@@ -766,7 +963,7 @@ function buildLocalAdvancedAnalysis(
       requiredSkills: response.recommendedKeywords.slice(0, 6),
       preferredSkills: response.missingKeywords.slice(0, 6),
       hiddenPriorities: [
-        "Ability to reduce ambiguity",
+        context.hasJobDescription ? "Ability to reduce ambiguity" : contextualEmptyPrompt("job"),
         "Stakeholder trust",
         "Evidence of execution under constraints",
       ],
@@ -785,7 +982,9 @@ function buildLocalAdvancedAnalysis(
         ...response.recommendedKeywords,
         ...response.missingKeywords,
       ].slice(0, 12),
-      alignmentSummary: `The resume is positioned for ${request.industryTarget || "the selected industry"} with a ${response.matchScore}/100 overall match.`,
+      alignmentSummary: context.hasResumeEvidence
+        ? `The resume is positioned for ${context.industryName} with a ${response.matchScore}/100 overall match.`
+        : contextualEmptyPrompt("resume"),
       roleStrategy: `Use ${positioningMode.toLowerCase()} positioning while keeping every claim grounded in source material.`,
     },
     bulletImprovements,
@@ -808,44 +1007,59 @@ function buildLocalApplicationPackage({
   response: Omit<TailorResponse, "linkedin" | "applicationKit">;
   request: TailorRequest;
 }): { linkedin: LinkedInKit; applicationKit: ApplicationKit } {
-  const role = titleCase(request.targetRole || firstMeaningfulLine(response.tailoredResume, "Target Role"));
-  const industry = request.industryTarget || "General / ATS";
-  const candidateName = firstMeaningfulLine(response.tailoredResume, "Candidate");
+  const context = buildServerWorkspaceContext({
+    request,
+    resumeText: response.tailoredResume,
+    response,
+  });
+  const role = context.role;
+  const industry = context.industryName;
+  const candidateName = context.candidateName;
   const strengths =
-    response.coaching.topStrengths.slice(0, 5).join(", ") ||
-    "product delivery, stakeholder alignment, and execution";
+    response.coaching.topStrengths
+      .filter((item) => !/source material|fabricat|readability|general\s*\/?\s*ats/i.test(item))
+      .slice(0, 5)
+      .join(", ") ||
+    context.skills.slice(0, 5).join(", ") ||
+    context.sourceSignals.slice(0, 4).join(", ") ||
+    contextualEmptyPrompt("source");
   const keywords = Array.from(
     new Set([
-      ...response.coaching.topStrengths,
+      ...context.matchedKeywords,
+      ...context.skills,
       ...response.recommendedKeywords,
       ...response.missingKeywords,
     ]),
   ).slice(0, 12);
-  const firstBullet =
-    response.tailoredResume
-      .split(/\r?\n/)
-      .map((line) => line.replace(/^[-*]\s+/, "").trim())
-      .find((line) => line.length > 40) || response.positioningStrategy;
+  const firstEvidence =
+    context.projectNames[0]
+      ? `${context.projectNames[0]}: ${context.strongestEvidence[0] || "project evidence available in the current resume."}`
+      : context.strongestEvidence[0] || contextualEmptyPrompt("resume");
+  const companyPhrase = context.companyName ? ` at ${context.companyName}` : "";
   const article = articleFor(role);
 
   return {
     linkedin: {
       headline: `${role} | ${industry} | ${strengths}`,
-      about: `${role} focused on ${industry} opportunities. I bring experience in ${strengths}, with a practical record of translating business needs into clear priorities, stakeholder alignment, and execution-ready work. My background is strongest where product judgment, technical fluency, and measurable delivery need to come together.`,
-      featuredProjects: firstBullet,
+      about: context.hasResumeEvidence
+        ? `${role} focused on ${industry} opportunities. I bring experience in ${strengths}. My strongest evidence includes ${context.strongestEvidence.slice(0, 2).join(" ")} I am targeting roles where I can connect structured execution, credible evidence, and role-specific outcomes.`
+        : contextualEmptyPrompt("resume"),
+      featuredProjects: firstEvidence,
       topSkills: keywords.slice(0, 10),
       recruiterKeywords: keywords,
       openToWorkPositioning: `Open to ${role} opportunities in ${industry}, especially roles that value execution discipline, stakeholder leadership, and practical technical fluency.`,
-      networkingMessage: `Hi, I am exploring ${role} opportunities in ${industry}. Your work caught my attention, and I would value connecting with professionals in this space.`,
-      recruiterOutreachMessage: `Hi, I am interested in ${role} opportunities and bring experience across ${strengths}. I would welcome a conversation if my background aligns with roles you are supporting.`,
+      networkingMessage: context.hasJobDescription
+        ? `Hi, I am exploring ${role} opportunities in ${industry} and noticed alignment with ${keywords.slice(0, 3).join(", ") || "the role requirements"}. I would value connecting.`
+        : contextualEmptyPrompt("job"),
+      recruiterOutreachMessage: `Hi, I am interested in ${role} opportunities${companyPhrase} and bring experience across ${strengths}. I would welcome a conversation if my background aligns with roles you are supporting.`,
     },
     applicationKit: {
-      recruiterEmail: `Hello,\n\nI am reaching out regarding ${role} opportunities. My background aligns with ${industry} needs through ${strengths}. I would welcome the chance to share how my experience could support your team.\n\nBest regards,\n${candidateName}`,
-      followUpEmail: `Hello,\n\nI wanted to follow up on my interest in the ${role} role. I remain interested because the opportunity aligns with my experience in ${strengths}. Please let me know if I can provide any additional information.\n\nBest regards,\n${candidateName}`,
-      referralRequest: `Hi, I am applying for ${article} ${role} role and noticed your connection to the team. If you feel comfortable, I would appreciate a referral or any guidance on how to position my background for this opportunity.`,
-      connectionRequest: `Hi, I am exploring ${role} opportunities in ${industry} and would value connecting with people working in this space.`,
-      interviewIntroPitch: `I am ${article} ${role} candidate with experience in ${strengths}. I focus on turning business needs into clear priorities, aligning stakeholders, and supporting delivery that is practical, measurable, and recruiter-ready.`,
-      tellMeAboutYourself: `I have built my background around ${strengths}, with a focus on practical execution and cross-functional alignment. For this ${role} opportunity, I am especially interested in applying that experience to ${industry} challenges where clear priorities, technical fluency, and measurable outcomes matter.`,
+      recruiterEmail: `Hello,\n\nI am reaching out regarding the ${role} role${companyPhrase}. My background aligns with ${industry} needs through ${strengths}. ${context.strongestEvidence[0] ? `One relevant proof point is: ${context.strongestEvidence[0]}` : ""}\n\nBest regards,\n${candidateName}`.trim(),
+      followUpEmail: `Hello,\n\nI wanted to follow up on my interest in the ${role} role${companyPhrase}. I remain interested because the opportunity aligns with my experience in ${strengths}. Please let me know if I can provide any additional information.\n\nBest regards,\n${candidateName}`.trim(),
+      referralRequest: `Hi, I am applying for ${article} ${role} role${companyPhrase} and noticed your connection to the team. If you feel comfortable, I would appreciate a referral or any guidance on positioning my background around ${strengths}.`,
+      connectionRequest: `Hi, I am exploring ${role} opportunities in ${industry} and would value connecting with people working around ${keywords.slice(0, 3).join(", ") || "this role"}.`,
+      interviewIntroPitch: `I am ${article} ${role} candidate with experience in ${strengths}. ${context.projectNames[0] ? `One project I can speak to is ${context.projectNames[0]}.` : ""} I focus on turning business needs into clear priorities, aligning stakeholders, and supporting delivery that is practical and evidence-based.`,
+      tellMeAboutYourself: `I have built my background around ${strengths}, with a focus on practical execution and cross-functional alignment. For this ${role} opportunity, I am especially interested in applying that experience to ${industry} challenges where clear priorities and measurable outcomes matter.`,
     },
   };
 }
@@ -886,6 +1100,49 @@ function sourceMaterialWarnings(
   return warnings;
 }
 
+function buildLocalCoverLetter({
+  request,
+  resumeText,
+  response,
+}: {
+  request: TailorRequest;
+  resumeText: string;
+  response?: Partial<TailorResponse>;
+}) {
+  const context = buildServerWorkspaceContext({ request, resumeText, response });
+  const greeting = context.companyName ? `Dear ${context.companyName} Hiring Team,` : "Dear Hiring Team,";
+  const strengths =
+    context.matchedKeywords.slice(0, 4).join(", ") ||
+    context.skills.slice(0, 4).join(", ") ||
+    context.sourceSignals.slice(0, 4).join(", ");
+  const jobFocus = context.hasJobDescription
+    ? firstMeaningfulLine(request.jobDescription || "", context.role).replace(/[.。]\s*$/, "")
+    : `${context.role} priorities`;
+  const evidence = context.strongestEvidence[0];
+  const companyPhrase = context.companyName ? ` at ${context.companyName}` : "";
+  const signature = context.candidateName ? `\n${context.candidateName}` : "";
+
+  if (!context.hasResumeEvidence) {
+    return `${greeting}
+
+I am interested in the ${context.role} role. Add resume experience, projects, or source materials to make this cover letter specific to verified accomplishments.
+
+Sincerely,${signature}`.trim();
+  }
+
+  return `${greeting}
+
+I am interested in the ${context.role} role${companyPhrase} because your focus on ${jobFocus} aligns with my experience in ${strengths || context.industryName}.
+
+${evidence
+  ? `One relevant example from my background is: ${evidence} This reflects how I approach the work: clarify priorities, align stakeholders, and turn requirements into practical outcomes.`
+  : `My background shows alignment through ${strengths || "the resume evidence currently available"}, and I would welcome the opportunity to connect that experience to the role's priorities.`}
+
+I would welcome the opportunity to bring this mix of judgment, execution discipline, and role-relevant experience to your team.
+
+Sincerely,${signature}`.trim();
+}
+
 function localTailor(request: TailorRequest): TailorResponse {
   const {
     candidateResumeFacts: masterResume,
@@ -919,7 +1176,7 @@ function localTailor(request: TailorRequest): TailorResponse {
   )
     ? 90
     : 72;
-  const industryFit = request.industryTarget && request.industryTarget !== "General / ATS"
+  const industryFit = request.industryTarget && !/^general\s*\/?\s*ats$/i.test(request.industryTarget)
     ? projectRelevance
     : 84;
   const atsReadability = 90;
@@ -955,16 +1212,11 @@ EXPERIENCE HIGHLIGHTS
 - Reframed relevant experience around ${role} priorities while staying grounded in the provided source material.
 - Connected stakeholder needs, technical execution, and launch readiness across product and delivery work.
 - Improved ATS alignment by emphasizing role-relevant language that appears in the job description.`;
-  const signature = candidateName ? `\n${candidateName}` : "";
-  const coverLetter = `Dear Hiring Team,
-
-I am interested in the ${role} role because it aligns with my verified experience in ${strongestKeywords.slice(0, 4).join(", ") || "role-relevant execution, stakeholder alignment, and practical delivery"}.
-
-One relevant strength is translating business goals into clear requirements, coordinating technical and business stakeholders, and supporting launch-ready product work. That experience maps directly to the priorities in this role while keeping the resume grounded in what I can explain in interviews.
-
-I would welcome the opportunity to bring practical judgment, execution discipline, and role-relevant experience to your team.
-
-Sincerely,${signature}`;
+  const coverLetter = buildLocalCoverLetter({
+    request,
+    resumeText: tailoredResume,
+    response: { missingKeywords, recommendedKeywords: strongestKeywords },
+  });
 
   const sourceWarnings = sourceMaterialWarnings(
     request.uploadedSourceMaterials,
@@ -1006,7 +1258,7 @@ Sincerely,${signature}`;
       ],
   };
 
-  const coaching = buildLocalCoaching(resultWithoutCoaching);
+  const coaching = buildLocalCoaching({ ...resultWithoutCoaching, request });
   const resultWithCoaching = {
     ...resultWithoutCoaching,
     coaching: {
@@ -1030,7 +1282,7 @@ Sincerely,${signature}`;
   };
 }
 
-function normalizeResponse(response: TailorResponse): TailorResponse {
+function normalizeResponse(response: TailorResponse, request: TailorRequest = {}): TailorResponse {
   const normalizedBreakdown = {
     roleFit: clampScore(response.matchBreakdown.roleFit),
     industryFit: clampScore(response.matchBreakdown.industryFit),
@@ -1052,7 +1304,7 @@ function normalizeResponse(response: TailorResponse): TailorResponse {
     improvementNotes: response.improvementNotes.map(stripMarkdown).filter(Boolean),
     riskFlags: response.riskFlags.map(stripMarkdown).filter(Boolean),
   };
-  const fallbackCoaching = buildLocalCoaching(normalizedBase);
+  const fallbackCoaching = buildLocalCoaching({ ...normalizedBase, request });
   const coaching = response.coaching ?? fallbackCoaching;
 
   const normalizedResponse = {
@@ -1129,7 +1381,7 @@ function normalizeResponse(response: TailorResponse): TailorResponse {
   };
   const fallbackPackage = buildLocalApplicationPackage({
     response: normalizedResponse,
-    request: { industryTarget: "General / ATS", targetRole: "" },
+    request,
   });
 
   return {
@@ -1139,10 +1391,7 @@ function normalizeResponse(response: TailorResponse): TailorResponse {
     renderResumeState: response.renderResumeState,
     advancedAnalysis:
       response.advancedAnalysis ??
-      buildLocalAdvancedAnalysis(normalizedResponse, {
-        industryTarget: "General / ATS",
-        aiSettings: { positioningMode: "Product" },
-      }),
+      buildLocalAdvancedAnalysis(normalizedResponse, request),
     linkedin: response.linkedin ?? fallbackPackage.linkedin,
     applicationKit: response.applicationKit ?? fallbackPackage.applicationKit,
   };
@@ -1194,7 +1443,7 @@ async function applyResumePipeline(
           "Some source content needs review before generating a clean resume.",
         ]),
       ),
-    });
+    }, request);
   }
 
   const extractedResumeSchema = extractResumeSchemaFromFacts(candidateResumeFacts, targetRole);
@@ -1256,11 +1505,19 @@ async function applyResumePipeline(
   const sourceReviewBlocked =
     needsSourceReview && sourceConfidence === "low" && targetJobDescription.trim().length > 0;
 
-  return normalizeResponse({
-    ...response,
-    tailoredResume: qualityBlocked || sourceReviewBlocked
+  const finalResumeText =
+    qualityBlocked || sourceReviewBlocked
       ? "We need a cleaner source resume or manual review before generating."
-      : renderReadyResume,
+      : renderReadyResume;
+  const contextualCoverLetter = buildLocalCoverLetter({
+    request,
+    resumeText: finalResumeText,
+    response,
+  });
+  const contextualBase = {
+    ...response,
+    tailoredResume: finalResumeText,
+    coverLetter: contextualCoverLetter,
     riskFlags: needsReview || hasContamination || qualityBlocked || sourceReviewBlocked
       ? Array.from(
           new Set([
@@ -1272,6 +1529,25 @@ async function applyResumePipeline(
           ]),
         ).filter(Boolean)
       : response.riskFlags,
+  };
+  const contextualCoaching = buildLocalCoaching({
+    ...contextualBase,
+    request,
+  });
+  const contextualResponse = {
+    ...contextualBase,
+    coaching: contextualCoaching,
+  };
+  const contextualPackage = buildLocalApplicationPackage({
+    response: contextualResponse,
+    request,
+  });
+
+  return normalizeResponse({
+    ...contextualResponse,
+    advancedAnalysis: buildLocalAdvancedAnalysis(contextualResponse, request),
+    linkedin: contextualPackage.linkedin,
+    applicationKit: contextualPackage.applicationKit,
     extractedResumeJson,
     optimizedResumeJson: renderReadyCanonicalResume,
     renderResumeState: {
@@ -1290,7 +1566,7 @@ async function applyResumePipeline(
         })),
       ],
     },
-  });
+  }, request);
 }
 
 async function callOpenAI(request: TailorRequest, apiKey: string) {
@@ -1327,14 +1603,14 @@ async function callOpenAI(request: TailorRequest, apiKey: string) {
         {
           role: "system",
           content:
-            "You are Iseya, a truthful senior resume strategist and recruiter-facing resume coach. Return only structured JSON that matches the schema. Only candidateResumeFacts may become resume content. userResumeInstructions may guide tone and priority but must never appear in output. targetJobDescription may guide tailoring but must never appear in output. Do not fabricate employers, degrees, certifications, metrics, tools, keywords, or experience. Treat uploaded materials as supporting source material, not as permission to invent. Never copy raw job-description fragments, user instructions, placeholder labels, or prompt notes into the resume. If uploaded materials conflict with the candidate facts, surface that in riskFlags and coaching.recruiterObjections. Reframe only what is supported by candidateResumeFacts. Rewrite weak bullets without inventing metrics; include metrics only when directly supported. Use clean plain text with no markdown symbols.",
+            "You are Iseya, a truthful senior resume strategist and recruiter-facing resume coach. Return only structured JSON that matches the schema. Only candidateResumeFacts may become resume content. userResumeInstructions may guide tone and priority but must never appear in output. targetJobDescription may guide tailoring but must never appear in output. Do not fabricate employers, degrees, certifications, metrics, tools, keywords, or experience. Treat uploaded materials as supporting evidence, not as permission to fabricate. Never copy raw job-description fragments, user instructions, placeholder labels, or prompt notes into the resume. If uploaded materials conflict with the candidate facts, surface that in riskFlags and coaching.recruiterObjections. Reframe only what is supported by candidateResumeFacts. Rewrite weak bullets without fabricating metrics; include metrics only when directly supported. Use clean plain text with no markdown symbols.",
         },
         {
           role: "user",
           content: JSON.stringify({
             task:
-              "Analyze the role, industry, required skills, preferred skills, tools, responsibilities, seniority, hidden hiring signals, ATS fit, recruiter readability, truthful candidate positioning, recruiter objections, section-by-section resume quality, weak bullets, keyword density, role positioning, and uploaded source materials. Use uploaded extracted text only when relevant and truthful. Generate a tailored resume, concise recruiter-ready cover letter, score breakdown, detailed AI Resume Coach data, LinkedIn optimization kit, and job application kit. For weakBullets, include the original bullet, issue type, issue, and a stronger rewritten version grounded only in the source material.",
-            industryTarget: request.industryTarget || "General / ATS",
+              "Analyze the role, industry, required skills, preferred skills, tools, responsibilities, seniority, hidden hiring signals, ATS fit, recruiter clarity, truthful candidate positioning, recruiter objections, section-by-section resume quality, weak bullets, keyword density, role positioning, and uploaded source materials. Use uploaded extracted text only when relevant and truthful. Generate a tailored resume, concise recruiter-ready cover letter, score breakdown, detailed AI Resume Coach data, LinkedIn optimization kit, and job application kit. For weakBullets, include the original bullet, issue type, issue, and a stronger rewritten version grounded only in the source material.",
+            industryTarget: readableIndustry(request.industryTarget),
             targetRole: pipelineInputs.targetRole || "",
             candidateResumeFacts: pipelineInputs.candidateResumeFacts,
             userResumeInstructions: pipelineInputs.userInstructions,
@@ -1440,9 +1716,9 @@ async function callOpenAIOptimization(
             masterResume: request.masterResume?.slice(0, 12000) || "",
             jobDescription: request.jobDescription?.slice(0, 8000) || "",
             targetRole: request.targetRole || "",
-            industryTarget: request.industryTarget || "General / ATS",
+            industryTarget: readableIndustry(request.industryTarget),
             instruction:
-              "Return a revised version of only sectionText. Preserve truthfulness, keep the same basic content scope, improve recruiter readability and ATS clarity, and avoid markdown.",
+              "Return a revised version of only sectionText. Preserve truthfulness, keep the same basic content scope, improve recruiter clarity and ATS clarity, and avoid markdown.",
           }),
         },
       ],

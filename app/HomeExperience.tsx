@@ -1268,36 +1268,52 @@ function buildCoverLetterFromInputs(
   resumeText: string,
   targetRole: string,
   jobDescription: string,
+  industryTarget: IndustryTarget = "General / ATS",
 ) {
-  const candidateName = firstMeaningfulLine(resumeText, "");
-  const role = titleCase(
-    targetRole || firstMeaningfulLine(jobDescription, "Target Role"),
-  );
-  const resumeKeywords = extractKeywords(resumeText);
-  const jobKeywords = extractKeywords(jobDescription);
-  const alignedKeywords = jobKeywords.filter((keyword) =>
-    resumeKeywords.includes(keyword),
-  );
+  const context = buildWorkspaceIntelligenceContext({
+    resumeText,
+    targetRole,
+    industryTarget,
+    jobDescription,
+  });
+  const candidateName = context.candidateName === "Candidate" ? firstMeaningfulLine(resumeText, "") : context.candidateName;
+  const role = context.role;
+  const companyName = context.companyName;
   const primaryStrengths =
-    alignedKeywords.slice(0, 4).join(", ") ||
-    resumeKeywords.slice(0, 4).join(", ") ||
-    "role-relevant execution, stakeholder alignment, and practical delivery";
+    context.matchedKeywords.slice(0, 4).join(", ") ||
+    context.skills.slice(0, 4).join(", ") ||
+    context.sourceSignals.slice(0, 4).join(", ");
   const impactLine = cleanExportBullet(
-    findResumeLine(resumeText, [
-      /\$?\d[\d,.]*\+?%?/,
-      /\b(led|launched|built|delivered|improved|managed|automated|coordinated)\b/i,
-    ]) ??
-      "I have led cross-functional work from requirements through delivery, aligning business goals with practical implementation.",
+    context.strongestEvidence[0] ||
+      findResumeLine(resumeText, [
+        /\$?\d[\d,.]*\+?%?/,
+        /\b(led|launched|built|delivered|improved|managed|automated|coordinated)\b/i,
+      ]) ||
+      "",
   );
-  const jobFocus =
-    firstMeaningfulLine(jobDescription, role).replace(/[.。]\s*$/, "");
+  const jobFocus = context.hasJobDescription
+    ? firstMeaningfulLine(jobDescription, role).replace(/[.。]\s*$/, "")
+    : `${role} priorities`;
   const signature = candidateName ? `\n${candidateName}` : "";
+  const greeting = companyName ? `Dear ${companyName} Hiring Team,` : "Dear Hiring Team,";
+  const evidenceParagraph = impactLine
+    ? `One relevant example from my background is: ${impactLine} This reflects how I approach the work: clarify priorities, align stakeholders, and turn requirements into practical outcomes.`
+    : `My background shows alignment through ${primaryStrengths || "the resume evidence currently available"}, and I would welcome the opportunity to connect that experience to the role's priorities.`;
 
-  return `Dear Hiring Team,
+  if (!context.hasResumeEvidence) {
+    return `${greeting}
 
-I am interested in the ${role} role because your focus on ${jobFocus} aligns with my verified experience in ${primaryStrengths}.
+I am interested in the ${role} role. Add resume experience, projects, or source materials to make this cover letter more specific to verified accomplishments.
 
-One relevant example is: ${impactLine} This reflects how I approach work: clarify priorities, align stakeholders, and turn requirements into practical outcomes.
+Sincerely,
+${signature}`.trim();
+  }
+
+  return `${greeting}
+
+I am interested in the ${role} role${companyName ? ` at ${companyName}` : ""} because your focus on ${jobFocus} aligns with my experience in ${primaryStrengths || context.industryName}.
+
+${evidenceParagraph}
 
 I would welcome the opportunity to bring this mix of judgment, execution discipline, and role-relevant experience to your team.
 
@@ -1421,6 +1437,101 @@ function safeStringArray(value: unknown, fallback: string[] = []) {
         (item): item is string => typeof item === "string" && item.trim().length > 0,
       )
     : fallback;
+}
+
+type WorkspaceIntelligenceContext = {
+  candidateName: string;
+  role: string;
+  companyName: string;
+  industryName: string;
+  hasTargetRole: boolean;
+  hasJobDescription: boolean;
+  hasResumeEvidence: boolean;
+  skills: string[];
+  resumeKeywords: string[];
+  jobKeywords: string[];
+  matchedKeywords: string[];
+  missingKeywords: string[];
+  experienceEntries: ExperienceEntry[];
+  projectEntries: EditableProjectEntry[];
+  bullets: string[];
+  strongBullets: string[];
+  projectNames: string[];
+  strongestEvidence: string[];
+  sourceSignals: string[];
+};
+
+function hasMeaningfulJobDescription(value: string) {
+  const cleaned = cleanEditorText(value);
+  return cleaned.length >= 80 && !/paste the target job description here/i.test(cleaned);
+}
+
+function contextualEmptyPrompt(target: "job" | "resume" | "source") {
+  if (target === "job") {
+    return "Add a target job description to generate role-specific recruiter intelligence.";
+  }
+
+  if (target === "source") {
+    return "Add source materials or upload a resume so ISEYA can ground suggestions in verified experience.";
+  }
+
+  return "Add resume experience, projects, or skills to generate contextual guidance.";
+}
+
+function buildWorkspaceIntelligenceContext({
+  resumeText,
+  targetRole,
+  industryTarget,
+  jobDescription,
+  sourceText = "",
+}: {
+  resumeText: string;
+  targetRole: string;
+  industryTarget: IndustryTarget;
+  jobDescription: string;
+  sourceText?: string;
+}): WorkspaceIntelligenceContext {
+  const structured = structuredResumeFromText(resumeText);
+  const parsed = parseResumePreview(resumeText);
+  const role = titleCase(targetRole || parsed.title || firstMeaningfulLine(jobDescription, ""));
+  const industryName =
+    industryTarget === "General / ATS" ? "the target industry" : readableIndustryName(industryTarget);
+  const hasTargetRole = Boolean(role && !/target role/i.test(role));
+  const hasJobDescription = hasMeaningfulJobDescription(jobDescription);
+  const resumeKeywords = extractKeywords(resumeText);
+  const jobKeywords = hasJobDescription ? extractKeywords(jobDescription) : [];
+  const matchedKeywords = jobKeywords.filter((keyword) => resumeKeywords.includes(keyword));
+  const missingKeywords = jobKeywords.filter((keyword) => !resumeKeywords.includes(keyword));
+  const sourceSignals = extractSignals([sourceText, resumeText].filter(Boolean).join("\n")).slice(0, 18);
+  const bullets = structured.experience.flatMap((entry) => entry.bullets).filter(Boolean);
+  const strongBullets =
+    bullets.filter((bullet) => /\$?\d[\d,.]*\+?%?|\b(led|built|launched|improved|delivered|owned|managed|created|implemented)\b/i.test(bullet)).slice(0, 6);
+  const projectEntries = editableProjectEntries(structured.projects).filter((project) =>
+    [project.name, project.context, project.details].some((value) => value.trim()),
+  );
+  const skills = prioritizeSkillsForJob(structured.skills, jobDescription, 18);
+
+  return {
+    candidateName: parsed.name || "Candidate",
+    role: hasTargetRole ? role : "the target role",
+    companyName: inferCompanyName(jobDescription),
+    industryName,
+    hasTargetRole,
+    hasJobDescription,
+    hasResumeEvidence: Boolean(structured.experience.length || projectEntries.length || skills.length || sourceSignals.length),
+    skills,
+    resumeKeywords,
+    jobKeywords,
+    matchedKeywords,
+    missingKeywords,
+    experienceEntries: structured.experience,
+    projectEntries,
+    bullets,
+    strongBullets,
+    projectNames: projectEntries.map((project) => project.name).filter(Boolean).slice(0, 4),
+    strongestEvidence: [...strongBullets, ...projectEntries.map((project) => project.details).filter(Boolean)].slice(0, 6),
+    sourceSignals,
+  };
 }
 
 async function safeFetchJson<T>(
@@ -1646,19 +1757,36 @@ function buildAdvancedAnalysis({
 }): AdvancedAnalysis {
   const requiredSkills = recommendedKeywords.slice(0, 6);
   const preferredSkills = missingKeywords.slice(0, 6);
-  const industryName = readableIndustryName(industryTarget);
+  const context = buildWorkspaceIntelligenceContext({
+    resumeText: rewrittenResume,
+    targetRole: "",
+    industryTarget,
+    jobDescription: [...recommendedKeywords, ...missingKeywords].join(" "),
+  });
+  const industryName = industryTarget === "General / ATS" ? context.industryName : readableIndustryName(industryTarget);
+  const role = context.role === "the target role" ? "this role" : context.role;
+  const topExperience = context.experienceEntries[0];
+  const topProject = context.projectNames[0];
+  const evidence = context.strongestEvidence[0];
+  const missingKeywordGuidance =
+    missingKeywords.length > 0
+      ? `Missing or light keywords: ${missingKeywords.slice(0, 5).join(", ")}.`
+      : context.hasJobDescription
+        ? "No major ATS keyword gaps detected from the target role language."
+        : contextualEmptyPrompt("job");
 
   return {
     recruiterSimulation: {
       atsScreening: safeReviewSimulation(
         {
           score: breakdown.atsReadability,
-          strengths: ["Plain section structure and role keywords support ATS parsing."],
-          weaknesses:
-            missingKeywords.length > 0
-              ? [`Missing or light keywords: ${missingKeywords.slice(0, 5).join(", ")}.`]
-              : ["No major ATS keyword gaps detected."],
-          concerns: ["Unsupported keywords should not be added without source evidence."],
+          strengths: context.skills.length > 0
+            ? [`ATS parsing is supported by visible skills such as ${context.skills.slice(0, 4).join(", ")}.`]
+            : [contextualEmptyPrompt("resume")],
+          weaknesses: [missingKeywordGuidance],
+          concerns: context.missingKeywords.length > 0
+            ? [`Only add ${context.missingKeywords.slice(0, 3).join(", ")} where the resume/source materials support it.`]
+            : ["Keep claims tied to source-backed experience and avoid unsupported terminology."],
           interviewProbability:
             breakdown.atsReadability >= 85 ? "Likely to pass ATS" : "Needs ATS tightening",
         },
@@ -1667,9 +1795,13 @@ function buildAdvancedAnalysis({
       recruiterReview: safeReviewSimulation(
         {
           score,
-          strengths: ["Resume has a clear role target and recruiter-readable positioning."],
-          weaknesses: ["Some bullets may need stronger measurable proof."],
-          concerns: missingKeywords.slice(0, 3),
+          strengths: evidence
+            ? [`Strongest visible evidence: ${evidence}`]
+            : [contextualEmptyPrompt("source")],
+          weaknesses: context.bullets.some((bullet) => !/\d/.test(bullet))
+            ? ["Some bullets describe work without verified scope, metric, or outcome detail."]
+            : ["Evidence is present; verify that metrics and claims are accurate before export."],
+          concerns: missingKeywords.length > 0 ? missingKeywords.slice(0, 3) : ["Recruiter may ask for deeper proof behind the strongest claims."],
           interviewProbability: score >= 85 ? "Strong" : score >= 70 ? "Moderate" : "Limited",
         },
         score,
@@ -1677,9 +1809,13 @@ function buildAdvancedAnalysis({
       hiringManagerReview: safeReviewSimulation(
         {
           score: breakdown.seniorityAlignment,
-          strengths: ["Experience can be mapped to ownership, delivery, and stakeholder outcomes."],
-          weaknesses: ["Hiring manager may ask for deeper examples of scope and decision-making."],
-          concerns: ["Prepare proof stories for the most senior claims."],
+          strengths: topExperience
+            ? [`${topExperience.title || "Experience"} at ${topExperience.company || "the current company"} can anchor ownership and delivery examples.`]
+            : [contextualEmptyPrompt("resume")],
+          weaknesses: ["Hiring manager may ask for context on ownership level, decision rights, and tradeoffs."],
+          concerns: topProject
+            ? [`Prepare a project deep-dive for ${topProject}.`]
+            : ["Prepare proof stories for the most senior claims."],
           interviewProbability:
             breakdown.seniorityAlignment >= 85 ? "Strong" : "Moderate with proof points",
         },
@@ -1695,23 +1831,23 @@ function buildAdvancedAnalysis({
       industryAlignment: breakdown.industryFit,
     },
     interviewPrep: {
-      whyYouFitThisRole: summary,
+      whyYouFitThisRole: summary || (evidence ? `Your strongest fit signal is: ${evidence}` : contextualEmptyPrompt("resume")),
       likelyQuestions: [
-        "Walk me through the most relevant project for this role.",
-        "Which accomplishment best proves your fit for this position?",
-        "How have you translated ambiguous requirements into execution?",
+        topProject ? `Walk me through ${topProject} and why it matters for ${role}.` : contextualEmptyPrompt("resume"),
+        evidence ? `Which part of this accomplishment would you defend in an interview: ${evidence}` : "Which accomplishment best proves your fit for this position?",
+        `How would you apply your ${context.skills.slice(0, 2).join(" and ") || "current"} experience to ${role}?`,
       ],
       behavioralQuestions: [
-        "Tell me about a time you influenced stakeholders without direct authority.",
-        "Describe a project that changed direction and how you handled it.",
+        "Tell me about a time you influenced stakeholders without direct authority using an example from your resume.",
+        topExperience ? `Describe a difficult delivery or prioritization moment from ${topExperience.company || topExperience.title}.` : contextualEmptyPrompt("resume"),
       ],
       technicalQuestions: [
-        "Which systems, tools, or technical workflows are most relevant here?",
-        "How do you work with engineering or technical teams to make tradeoffs?",
+        `Which tools or workflows from your resume best support ${role}?`,
+        topProject ? `What technical or operational tradeoffs did you handle in ${topProject}?` : "How do you work with technical teams to make tradeoffs?",
       ],
       executiveQuestions: [
-        "How would you prioritize the first 90 days in this role?",
-        "What business outcome would you focus on first?",
+        context.hasJobDescription ? "How would you prioritize the first 90 days based on this job description?" : contextualEmptyPrompt("job"),
+        `What business outcome would you focus on first in ${industryName}?`,
       ],
       industrySpecificQuestions: [
         `What makes your experience relevant to ${industryName}?`,
@@ -1720,13 +1856,17 @@ function buildAdvancedAnalysis({
       potentialRecruiterObjections:
         missingKeywords.length > 0
           ? [`Potential concern: evidence for ${missingKeywords.slice(0, 4).join(", ")}.`]
-          : ["Potential concern: depth of proof for the strongest claims."],
+          : [context.hasResumeEvidence ? "Potential concern: depth of proof for the strongest claims." : contextualEmptyPrompt("resume")],
     },
     gapAnalysis: {
       missingKeywords,
-      weakExperienceAreas: ["Quantified impact", "Scope clarity", "Role-specific proof stories"],
-      seniorityGaps: ["Make ownership level, decision rights, and stakeholder level explicit."],
-      leadershipGaps: ["Add leadership outcomes only where supported by source material."],
+      weakExperienceAreas: context.bullets.length > 0
+        ? ["Quantified impact", "Scope clarity", "Role-specific proof stories"]
+        : [contextualEmptyPrompt("resume")],
+      seniorityGaps: topExperience
+        ? [`Clarify ownership level and decision rights for ${topExperience.company || topExperience.title}.`]
+        : [contextualEmptyPrompt("resume")],
+      leadershipGaps: ["Add leadership outcomes only where the current resume/source material supports them."],
       technicalGaps: missingKeywords.filter((keyword) =>
         /ai|ml|api|data|analytics|automation|llm|technical/i.test(keyword),
       ),
@@ -1735,8 +1875,12 @@ function buildAdvancedAnalysis({
         "Add certifications only if already earned or clearly marked as planned.",
       ],
       recommendations: [
-        "Prioritize achievements with action, scope, and verified outcome.",
-        "Add missing keywords only where the source resume or uploaded materials support them.",
+        context.bullets.length > 0
+          ? "Prioritize achievements with action, scope, and verified outcome."
+          : contextualEmptyPrompt("source"),
+        context.hasJobDescription
+          ? "Add missing keywords only where the source resume or uploaded materials support them."
+          : contextualEmptyPrompt("job"),
         `Adjust tone toward ${positioningMode.toLowerCase()} positioning.`,
       ],
       wordingChanges: [
@@ -1748,7 +1892,7 @@ function buildAdvancedAnalysis({
       requiredSkills,
       preferredSkills,
       hiddenPriorities: [
-        "Ability to reduce ambiguity",
+        context.hasJobDescription ? "Ability to reduce ambiguity" : contextualEmptyPrompt("job"),
         "Stakeholder trust",
         "Evidence of execution under constraints",
       ],
@@ -1764,7 +1908,9 @@ function buildAdvancedAnalysis({
         "Decision quality",
       ],
       keywordMap: [...requiredSkills, ...preferredSkills].slice(0, 12),
-      alignmentSummary: `The resume is positioned for ${industryName} with a ${score}/100 overall match.`,
+      alignmentSummary: context.hasResumeEvidence
+        ? `The resume is positioned for ${industryName} with a ${score}/100 overall match.`
+        : contextualEmptyPrompt("resume"),
       roleStrategy: `Use ${positioningMode.toLowerCase()} positioning while keeping every claim grounded in the source material.`,
     },
     bulletImprovements: buildBulletImprovements(rewrittenResume),
@@ -1793,43 +1939,59 @@ function buildApplicationPackage({
   jobDescription: string;
   coach: CoachData;
 }): { linkedin: LinkedInKit; applicationKit: ApplicationKit } {
-  const resume = parseResumePreview(resumeText);
-  const role = titleCase(targetRole || resume.title || "Target Role");
-  const industry = readableIndustryName(industryTarget);
-  const strengths = safeStringArray(coach.topStrengths).slice(0, 5);
+  const context = buildWorkspaceIntelligenceContext({
+    resumeText,
+    targetRole,
+    industryTarget,
+    jobDescription,
+  });
+  const role = context.role;
+  const industry = context.industryName;
+  const strengths = safeStringArray(coach.topStrengths)
+    .filter((item) => !/relevant source material|without inventing|recruiter readability/i.test(item))
+    .slice(0, 5);
   const keywords = Array.from(
     new Set([
       ...strengths,
-      ...extractKeywords(jobDescription),
+      ...context.matchedKeywords,
       ...safeStringArray(coach.topGaps).slice(0, 4),
+      ...context.skills.slice(0, 8),
     ]),
   ).slice(0, 12);
   const strengthText =
-    strengths.join(", ") || "product delivery, stakeholder alignment, and execution";
-  const firstProject =
-    parseResumePreview(resumeText)
-      .sections.flatMap((section) => section.bullets)
-      .find(Boolean) || "Relevant projects available in the tailored resume";
+    strengths.join(", ") ||
+    context.skills.slice(0, 4).join(", ") ||
+    context.sourceSignals.slice(0, 4).join(", ") ||
+    contextualEmptyPrompt("source");
+  const firstProject = context.projectNames[0]
+    ? `${context.projectNames[0]}: ${context.projectEntries[0]?.details || "project evidence available in the editable resume."}`
+    : context.strongestEvidence[0] || contextualEmptyPrompt("resume");
+  const companyPhrase = context.companyName ? ` at ${context.companyName}` : "";
   const article = articleFor(role);
+  const candidateName = context.candidateName === "Candidate" ? "" : context.candidateName;
 
   return {
     linkedin: {
       headline: `${role} | ${industry} | ${strengthText}`,
-      about: `${role} focused on ${industry} opportunities. I bring experience in ${strengthText}, with a practical record of translating business needs into clear priorities, stakeholder alignment, and execution-ready work. My background is strongest where product judgment, technical fluency, and measurable delivery need to come together. I am targeting roles where I can help teams clarify strategy, improve workflows, and deliver outcomes grounded in real customer or business needs.`,
+      about: context.hasResumeEvidence
+        ? `${role} focused on ${industry} opportunities. I bring experience in ${strengthText}. My strongest evidence includes ${context.strongestEvidence.slice(0, 2).join(" ")} I am targeting roles where I can connect structured execution, credible evidence, and role-specific outcomes.`
+        : contextualEmptyPrompt("resume"),
       featuredProjects: firstProject,
       topSkills: keywords.slice(0, 10),
       recruiterKeywords: keywords,
       openToWorkPositioning: `Open to ${role} opportunities in ${industry}, especially roles that value execution discipline, stakeholder leadership, and practical technical fluency.`,
-      networkingMessage: `Hi, I am exploring ${role} opportunities in ${industry}. Your work caught my attention, and I would value connecting with professionals in this space.`,
-      recruiterOutreachMessage: `Hi, I am interested in ${role} opportunities and bring experience across ${strengthText}. I would welcome a conversation if my background aligns with roles you are supporting.`,
+      networkingMessage: context.hasJobDescription
+        ? `Hi, I am exploring ${role} opportunities in ${industry} and noticed alignment with ${keywords.slice(0, 3).join(", ")}. I would value connecting.`
+        : contextualEmptyPrompt("job"),
+      recruiterOutreachMessage: `Hi, I am interested in ${role} opportunities${companyPhrase} and bring experience across ${strengthText}. I would welcome a conversation if my background aligns with roles you are supporting.`,
     },
     applicationKit: {
-      recruiterEmail: `Hello,\n\nI am reaching out regarding ${role} opportunities. My background aligns with ${industry} needs through ${strengthText}. I would welcome the chance to share how my experience could support your team.\n\nBest regards,\n${resume.name}`,
-      followUpEmail: `Hello,\n\nI wanted to follow up on my interest in the ${role} role. I remain interested because the opportunity aligns with my experience in ${strengthText}. Please let me know if I can provide any additional information.\n\nBest regards,\n${resume.name}`,
-      referralRequest: `Hi, I am applying for ${article} ${role} role and noticed your connection to the team. If you feel comfortable, I would appreciate a referral or any guidance on how to position my background for this opportunity.`,
-      connectionRequest: `Hi, I am exploring ${role} opportunities in ${industry} and would value connecting with people working in this space.`,
-      interviewIntroPitch: `I am ${article} ${role} candidate with experience in ${strengthText}. I focus on turning business needs into clear priorities, aligning stakeholders, and supporting delivery that is practical, measurable, and recruiter-ready.`,
-      tellMeAboutYourself: `I have built my background around ${strengthText}, with a focus on practical execution and cross-functional alignment. For this ${role} opportunity, I am especially interested in applying that experience to ${industry} challenges where clear priorities, technical fluency, and measurable outcomes matter.`,
+      recruiterEmail: `Hello,\n\nI am reaching out regarding the ${role} role${companyPhrase}. My background aligns with ${industry} needs through ${strengthText}. ${context.strongestEvidence[0] ? `One relevant proof point is: ${context.strongestEvidence[0]}` : ""}\n\nBest regards,\n${candidateName}`.trim(),
+      followUpEmail: `Hello,\n\nI wanted to follow up on my interest in the ${role} role${companyPhrase}. I remain interested because the opportunity aligns with my experience in ${strengthText}. Please let me know if I can provide any additional information.\n\nBest regards,\n${candidateName}`.trim(),
+      referralRequest: `Hi, I am applying for ${article} ${role} role${companyPhrase} and noticed your connection to the team. If you feel comfortable, I would appreciate a referral or any guidance on positioning my background around ${strengthText}.`,
+      connectionRequest: `Hi, I am exploring ${role} opportunities in ${industry} and would value connecting with people working around ${keywords.slice(0, 3).join(", ") || "this role"}.`,
+      interviewIntroPitch: `I am ${article} ${role} candidate with experience in ${strengthText}. ${context.projectNames[0] ? `One project I can speak to is ${context.projectNames[0]}.` : ""} I focus on turning business needs into clear priorities, aligning stakeholders, and supporting delivery that is practical and evidence-based.`,
+      tellMeAboutYourself: `I have built my background around ${strengthText}, with a focus on practical execution and cross-functional alignment. For this ${role} opportunity, I am especially interested in applying that experience to ${industry} challenges where clear priorities and measurable outcomes matter.`,
     },
   };
 }
@@ -2199,6 +2361,12 @@ function buildCoachData({
   coverLetter: string;
 }): CoachData {
   const parsedResume = parseResumePreview(rewrittenResume);
+  const context = buildWorkspaceIntelligenceContext({
+    resumeText: rewrittenResume,
+    targetRole: parsedResume.title,
+    industryTarget: "General / ATS",
+    jobDescription: [...missingKeywords, ...improvementNotes].join(" "),
+  });
   const hasEmail = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(rewrittenResume);
   const hasPhone = /(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/.test(
     rewrittenResume,
@@ -2217,9 +2385,13 @@ function buildCoachData({
           : "Some relevant experience is present, but the resume needs sharper evidence and closer role alignment.",
     whyThisScore: scoreNotesFromBreakdown(breakdown),
     topStrengths: [
-      "Relevant source material is available for truthful tailoring.",
-      "The resume can be positioned around role fit without inventing new experience.",
-      "Experience language can be tightened for recruiter readability and ATS scanning.",
+      context.strongestEvidence[0] || contextualEmptyPrompt("source"),
+      context.skills.length > 0
+        ? `Visible skill alignment: ${context.skills.slice(0, 5).join(", ")}.`
+        : contextualEmptyPrompt("resume"),
+      context.projectNames.length > 0
+        ? `Project evidence available: ${context.projectNames.slice(0, 3).join(", ")}.`
+        : "Add projects only if they are supported by source material.",
     ],
     topGaps:
       missingKeywords.length > 0
@@ -2253,10 +2425,12 @@ function buildCoachData({
       ],
       experience: improvementNotes[0]
         ? [improvementNotes[0]]
-        : ["Prioritize achievements that show action, scope, and measurable outcome."],
+        : context.bullets.length > 0
+          ? ["Prioritize achievements that show action, scope, and measurable outcome."]
+          : [contextualEmptyPrompt("resume")],
       projects: [
         hasProjects
-          ? "Project evidence is visible; connect it directly to the target role."
+          ? `Project evidence is visible${context.projectNames[0] ? ` through ${context.projectNames[0]}` : ""}; connect it directly to the target role.`
           : "Add a projects section only if the source resume supports relevant project work.",
       ],
       educationCertifications: [
@@ -2277,7 +2451,7 @@ function buildCoachData({
               .join(", ")}.`,
             "Claims should stay tied to source material and avoid unsupported tools or metrics.",
           ]
-        : ["Recruiter objections are mostly around proof depth, not keyword coverage."],
+        : [context.bullets.length > 0 ? "Recruiter objections are mostly around proof depth, not keyword coverage." : contextualEmptyPrompt("resume")],
   };
 }
 
@@ -2653,6 +2827,7 @@ function buildTailoredResume(
     rewrittenResume,
     targetRole,
     jobDescription,
+    "General / ATS",
   );
   const coach = buildCoachData({
     score: scoreResult.score,
@@ -6359,10 +6534,6 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       },
     };
   }, [extractedSourceTextForPreview, jobDescription, masterResume, targetRole]);
-  const premiumPreviewResult = useMemo(
-    () => buildTailoredResume(sampleResume, sampleJob, "Product Manager"),
-    [],
-  );
   const starterPreviewSourceText = useMemo(
     () =>
       [
@@ -6386,26 +6557,6 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       ),
     [jobDescription, starterPreviewSourceText, targetRole],
   );
-  const premiumPreviewPackage = useMemo(
-    () =>
-      buildApplicationPackage({
-        resumeText: starterWorkspacePreviewResult.rewrittenResume,
-        targetRole: targetRole.trim() || "Product Manager",
-        industryTarget,
-        jobDescription: jobDescription.trim().length >= 40 ? jobDescription : sampleJob,
-        coach: starterWorkspacePreviewResult.coach,
-      }),
-    [industryTarget, jobDescription, starterWorkspacePreviewResult, targetRole],
-  );
-  const panelCoverLetter = hasCoverLetterAccess
-    ? result?.coverLetter ?? premiumPreviewResult.coverLetter
-    : result?.coverLetter ?? starterWorkspacePreviewResult.coverLetter;
-  const panelLinkedIn = hasLinkedInAccess
-    ? result?.linkedin ?? premiumPreviewPackage.linkedin
-    : result?.linkedin ?? premiumPreviewPackage.linkedin;
-  const panelApplicationKit = hasApplicationKitAccess
-    ? result?.applicationKit ?? premiumPreviewPackage.applicationKit
-    : result?.applicationKit ?? premiumPreviewPackage.applicationKit;
   const workspaceResult = result ?? starterWorkspacePreviewResult;
   const generatedResumeIsMalformed = hasMalformedParserData(workspaceResult.rewrittenResume);
   const isStarterWorkflowPreview = !result && Boolean(workspaceResult) && isStarterPlan(subscriptionPlan);
@@ -6454,6 +6605,96 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
 	    () => (resumeV2 ? buildResumePreviewFromResumeV2(resumeV2) : null),
 	    [resumeV2],
 	  );
+  const currentResumeIntelligenceText =
+    resumePreviewV2?.text ?? (resumeV2 ? serializeResumeV2(resumeV2) : workspaceResult.rewrittenResume);
+  const workspaceIntelligenceContext = useMemo(
+    () =>
+      buildWorkspaceIntelligenceContext({
+        resumeText: currentResumeIntelligenceText,
+        targetRole,
+        industryTarget,
+        jobDescription,
+        sourceText: masterResume,
+      }),
+    [currentResumeIntelligenceText, industryTarget, jobDescription, masterResume, targetRole],
+  );
+  const contextualAdvancedAnalysis = useMemo(
+    () =>
+      buildAdvancedAnalysis({
+        score: safeScore(workspaceResult.score, 0),
+        breakdown: safeMatchBreakdown(workspaceResult.matchBreakdown, safeScore(workspaceResult.score, 0)),
+        missingKeywords: workspaceIntelligenceContext.missingKeywords,
+        recommendedKeywords: workspaceIntelligenceContext.matchedKeywords,
+        rewrittenResume: currentResumeIntelligenceText,
+        summary: resumeV2?.summary || workspaceResult.summary,
+        industryTarget,
+        positioningMode: aiSettings.positioningMode,
+      }),
+    [
+      aiSettings.positioningMode,
+      currentResumeIntelligenceText,
+      industryTarget,
+      resumeV2?.summary,
+      workspaceIntelligenceContext.matchedKeywords,
+      workspaceIntelligenceContext.missingKeywords,
+      workspaceResult.matchBreakdown,
+      workspaceResult.score,
+      workspaceResult.summary,
+    ],
+  );
+  const contextualWorkspaceResult = useMemo(() => {
+    const score = safeScore(workspaceResult.score, 0);
+    const breakdown = safeMatchBreakdown(workspaceResult.matchBreakdown, score);
+    const coach = buildCoachData({
+      score,
+      breakdown,
+      positioningStrategy: workspaceResult.positioningStrategy || "",
+      missingKeywords: workspaceIntelligenceContext.missingKeywords,
+      improvementNotes: workspaceResult.improvementNotes,
+      riskFlags: workspaceResult.riskFlags,
+      rewrittenResume: currentResumeIntelligenceText,
+      coverLetter: workspaceResult.coverLetter,
+    });
+
+    return {
+      ...workspaceResult,
+      rewrittenResume: currentResumeIntelligenceText,
+      missingKeywords: workspaceIntelligenceContext.missingKeywords,
+      recommendedKeywords: workspaceIntelligenceContext.matchedKeywords,
+      skills: workspaceIntelligenceContext.skills,
+      bullets: workspaceIntelligenceContext.bullets.slice(0, 8),
+      coach,
+      advancedAnalysis: contextualAdvancedAnalysis,
+    };
+  }, [
+    contextualAdvancedAnalysis,
+    currentResumeIntelligenceText,
+    workspaceIntelligenceContext.bullets,
+    workspaceIntelligenceContext.matchedKeywords,
+    workspaceIntelligenceContext.missingKeywords,
+    workspaceIntelligenceContext.skills,
+    workspaceResult,
+  ]);
+  const contextualPackage = useMemo(
+    () =>
+      buildApplicationPackage({
+        resumeText: currentResumeIntelligenceText,
+        targetRole,
+        industryTarget,
+        jobDescription,
+        coach: contextualWorkspaceResult.coach,
+      }),
+    [contextualWorkspaceResult.coach, currentResumeIntelligenceText, industryTarget, jobDescription, targetRole],
+  );
+  const panelCoverLetter = hasCoverLetterAccess
+    ? result?.coverLetter ?? buildCoverLetterFromInputs(currentResumeIntelligenceText, targetRole, jobDescription, industryTarget)
+    : result?.coverLetter ?? starterWorkspacePreviewResult.coverLetter;
+  const panelLinkedIn = hasLinkedInAccess
+    ? result?.linkedin ?? contextualPackage.linkedin
+    : result?.linkedin ?? contextualPackage.linkedin;
+  const panelApplicationKit = hasApplicationKitAccess
+    ? result?.applicationKit ?? contextualPackage.applicationKit
+    : result?.applicationKit ?? contextualPackage.applicationKit;
 	  const estimatedResumePageCount = useMemo(
 	    () => estimateResumePageCount(resumeV2),
 	    [resumeV2],
@@ -8345,6 +8586,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
           resumeText,
           targetRole,
           jobDescription,
+          industryTarget,
         ),
       };
     });
@@ -8374,7 +8616,6 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       return {
         ...nextResult,
         linkedin: packageKit.linkedin,
-        applicationKit: packageKit.applicationKit,
       };
     });
     setActiveOutput("linkedin");
@@ -10760,10 +11001,10 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                   onOptimize={() => runWithFeedback("tailor", "Optimizing...", "Optimized", tailorResume)}
                 />
                 {isStarterWorkflowPreview ? <StarterWorkspacePreviewNotice /> : null}
-                <CompactAiSidebar result={workspaceResult} />
+                <CompactAiSidebar result={contextualWorkspaceResult} />
                 <div id="career-intelligence" className="scroll-mt-24">
                   <AdvancedIntelligencePanel
-                    analysis={workspaceResult.advancedAnalysis}
+                    analysis={contextualWorkspaceResult.advancedAnalysis}
                     onReplaceBullet={
                       isStarterWorkflowPreview
                         ? () => setSystemStatus("Upgrade to unlock advanced bullet rewriting.")
@@ -14734,12 +14975,57 @@ function AdvancedIntelligencePanel({
     replacement: string;
   } | null>(null);
   const [gapActionStatus, setGapActionStatus] = useState("");
+  const [suggestionMemory, setSuggestionMemory] = useState<{
+    accepted: string[];
+    rejected: string[];
+  }>(() => {
+    if (typeof window === "undefined") return { accepted: [], rejected: [] };
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem("iseya_suggestion_memory") || "{}") as {
+        accepted?: unknown;
+        rejected?: unknown;
+      };
+      return {
+        accepted: safeStringArray(parsed.accepted),
+        rejected: safeStringArray(parsed.rejected),
+      };
+    } catch {
+      return { accepted: [], rejected: [] };
+    }
+  });
+  const rejectedSuggestions = new Set(suggestionMemory.rejected);
   const groundedImprovements = analysis.bulletImprovements
     .filter((bullet) => bullet.original && bullet.strongerVersion)
+    .filter((bullet) => !rejectedSuggestions.has(`${bullet.original}||${bullet.strongerVersion}`))
     .slice(0, 5);
+
+  function rememberSuggestion(status: "accepted" | "rejected", original: string, replacement: string) {
+    const key = `${original}||${replacement}`;
+    setSuggestionMemory((current) => {
+      const next = {
+        accepted:
+          status === "accepted"
+            ? uniqueStrings([...current.accepted, key])
+            : current.accepted,
+        rejected:
+          status === "rejected"
+            ? uniqueStrings([...current.rejected, key])
+            : current.rejected,
+      };
+
+      try {
+        window.localStorage.setItem("iseya_suggestion_memory", JSON.stringify(next));
+      } catch {
+        // Suggestion memory is a local enhancement; the resume itself remains saved elsewhere.
+      }
+
+      return next;
+    });
+  }
 
   function applyGroundedImprovement(original: string, replacement: string) {
     onReplaceBullet(original, replacement);
+    rememberSuggestion("accepted", original, replacement);
     setGapActionStatus("Applied");
     window.setTimeout(() => setGapActionStatus(""), 1400);
   }
@@ -14823,6 +15109,9 @@ function AdvancedIntelligencePanel({
                       groundedImprovements.forEach((item) =>
                         onReplaceBullet(item.original, item.strongerVersion),
                       );
+                      groundedImprovements.forEach((item) =>
+                        rememberSuggestion("accepted", item.original, item.strongerVersion),
+                      );
                       setGapActionStatus("Applied suggested improvements");
                     }}
                     className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
@@ -14859,6 +15148,7 @@ function AdvancedIntelligencePanel({
                         <button
                           type="button"
                           onClick={() => {
+                            rememberSuggestion("rejected", item.original, item.strongerVersion);
                             setPreviewImprovement(null);
                             setGapActionStatus("Rejected");
                           }}
