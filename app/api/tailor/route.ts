@@ -1,5 +1,11 @@
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { optimizationModel } from "@/lib/ai/models";
+import {
+  buildAiQualityAnalysis as buildSharedAiQualityAnalysis,
+  buildEvaluatedQualityOutputs,
+  type QualityEvaluation,
+  type QualityWorkspaceContext,
+} from "@/lib/resume/qualityEngine";
 import { rankResumeIntelligence } from "@/lib/resume/intelligenceRanker";
 import {
   generatedResumeContainsContamination,
@@ -209,6 +215,9 @@ type TailorResponse = {
   advancedAnalysis?: AdvancedAnalysis;
   linkedin?: LinkedInKit;
   applicationKit?: ApplicationKit;
+  qualityAnalysis?: unknown;
+  qualityEvaluations?: Record<string, QualityEvaluation>;
+  qualitySectionOutputs?: Record<string, string>;
   extractedResumeJson?: CanonicalResume;
   optimizedResumeJson?: CanonicalResume;
   renderResumeState?: RenderResumeState;
@@ -667,6 +676,24 @@ function buildServerWorkspaceContext({
     projectNames,
     strongestEvidence: uniqueStrings([...strongBullets, ...projectNames]).slice(0, 6),
     sourceSignals,
+  };
+}
+
+function toQualityWorkspaceContext(context: ServerWorkspaceContext): QualityWorkspaceContext {
+  return {
+    candidateName: context.candidateName,
+    role: context.role,
+    companyName: context.companyName,
+    industryName: context.industryName,
+    hasJobDescription: context.hasJobDescription,
+    hasResumeEvidence: context.hasResumeEvidence,
+    skills: context.skills,
+    matchedKeywords: context.matchedKeywords,
+    missingKeywords: context.missingKeywords,
+    bullets: context.bullets,
+    projectNames: context.projectNames,
+    strongestEvidence: context.strongestEvidence,
+    sourceSignals: context.sourceSignals,
   };
 }
 
@@ -1480,6 +1507,9 @@ function normalizeResponse(response: TailorResponse, request: TailorRequest = {}
     extractedResumeJson: response.extractedResumeJson,
     optimizedResumeJson: response.optimizedResumeJson,
     renderResumeState: response.renderResumeState,
+    qualityAnalysis: response.qualityAnalysis,
+    qualityEvaluations: response.qualityEvaluations,
+    qualitySectionOutputs: response.qualitySectionOutputs,
     advancedAnalysis:
       response.advancedAnalysis ??
       buildLocalAdvancedAnalysis(normalizedResponse, request),
@@ -1629,16 +1659,66 @@ async function applyResumePipeline(
     ...contextualBase,
     coaching: contextualCoaching,
   };
-  const contextualPackage = buildLocalApplicationPackage({
-    response: contextualResponse,
-    request,
-  });
+  const qualityContext = toQualityWorkspaceContext(
+    buildServerWorkspaceContext({
+      request,
+      resumeText: finalResumeText,
+      response: contextualResponse,
+    }),
+  );
+  const qualityAnalysis = buildSharedAiQualityAnalysis(qualityContext);
+  const qualityOutputs = buildEvaluatedQualityOutputs(qualityContext, qualityAnalysis);
+  const qualityEvaluations = {
+    resumeSummary: qualityOutputs.resumeSummary.evaluation,
+    resumeBullets: qualityOutputs.resumeBullets.evaluation,
+    coverLetter: qualityOutputs.coverLetter.evaluation,
+    linkedInHeadline: qualityOutputs.linkedInHeadline.evaluation,
+    linkedInAbout: qualityOutputs.linkedInAbout.evaluation,
+    recruiterEmail: qualityOutputs.recruiterEmail.evaluation,
+    recruiterMessage: qualityOutputs.recruiterMessage.evaluation,
+    interviewTalkingPoints: qualityOutputs.interviewTalkingPoints.evaluation,
+    skillGaps: qualityOutputs.skillGaps.evaluation,
+    careerRoadmap: qualityOutputs.careerRoadmap.evaluation,
+  };
+  const qualitySectionOutputs = {
+    resumeSummary: qualityOutputs.resumeSummary.output,
+    resumeBullets: qualityOutputs.resumeBullets.output,
+    coverLetter: qualityOutputs.coverLetter.output,
+    linkedInHeadline: qualityOutputs.linkedInHeadline.output,
+    linkedInAbout: qualityOutputs.linkedInAbout.output,
+    recruiterEmail: qualityOutputs.recruiterEmail.output,
+    recruiterMessage: qualityOutputs.recruiterMessage.output,
+    interviewTalkingPoints: qualityOutputs.interviewTalkingPoints.output,
+    skillGaps: qualityOutputs.skillGaps.output,
+    careerRoadmap: qualityOutputs.careerRoadmap.output,
+  };
+  const qualityDrivenAdvancedAnalysis = buildLocalAdvancedAnalysis(contextualResponse, request);
+  qualityDrivenAdvancedAnalysis.interviewPrep = {
+    ...qualityDrivenAdvancedAnalysis.interviewPrep,
+    likelyQuestions: qualityOutputs.interviewTalkingPoints.output
+      .split(/\r?\n/)
+      .map((line) => stripMarkdown(line).replace(/^[-*]\s+/, "").trim())
+      .filter(Boolean)
+      .slice(0, 8),
+  };
+  qualityDrivenAdvancedAnalysis.gapAnalysis = {
+    ...qualityDrivenAdvancedAnalysis.gapAnalysis,
+    missingKeywords: qualityAnalysis.matchStrategy.gapsToAddress,
+    recommendations: qualityOutputs.careerRoadmap.output
+      .split(/\r?\n/)
+      .map((line) => stripMarkdown(line).replace(/^[-*]\s+/, "").trim())
+      .filter(Boolean),
+  };
 
   return normalizeResponse({
     ...contextualResponse,
-    advancedAnalysis: buildLocalAdvancedAnalysis(contextualResponse, request),
-    linkedin: contextualPackage.linkedin,
-    applicationKit: contextualPackage.applicationKit,
+    coverLetter: qualityOutputs.coverLetter.output || contextualCoverLetter,
+    advancedAnalysis: qualityDrivenAdvancedAnalysis,
+    linkedin: qualityOutputs.linkedIn,
+    applicationKit: qualityOutputs.applicationKit,
+    qualityAnalysis,
+    qualityEvaluations,
+    qualitySectionOutputs,
     extractedResumeJson,
     optimizedResumeJson: renderReadyCanonicalResume,
     renderResumeState: {

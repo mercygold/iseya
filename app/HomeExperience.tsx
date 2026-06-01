@@ -128,6 +128,22 @@ type ApplicationKit = {
   tellMeAboutYourself: string;
 };
 
+type QualityBadgeLabel =
+  | "Strong Match"
+  | "Needs More Evidence"
+  | "Too Generic"
+  | "Missing Keywords"
+  | "Good for Recruiter Review";
+
+type QualityEvaluation = {
+  score: number;
+  badge: QualityBadgeLabel;
+  notes: string[];
+  addressedRequirements: string[];
+  evidenceUsed: string[];
+  missingEvidence: string[];
+};
+
 type PersonalBranding = {
   fullName: string;
   professionalTitle: string;
@@ -1593,6 +1609,212 @@ function buildWorkspaceIntelligenceContext({
     projectNames: projectEntries.map((project) => project.name).filter(Boolean).slice(0, 4),
     strongestEvidence: [...strongBullets, ...projectEntries.map((project) => project.details).filter(Boolean)].slice(0, 6),
     sourceSignals,
+  };
+}
+
+type AiQualityAnalysis = {
+  jobIntelligence: {
+    targetRole: string;
+    seniorityLevel: string;
+    industry: string;
+    requiredSkills: string[];
+    preferredSkills: string[];
+    toolsPlatforms: string[];
+    leadershipExpectations: string[];
+    technicalExpectations: string[];
+    keywords: string[];
+    hiringPainPoints: string[];
+  };
+  candidateIntelligence: {
+    strongestExperiences: string[];
+    relevantAchievements: string[];
+    transferableSkills: string[];
+    toolsUsed: string[];
+    industriesDomains: string[];
+    leadershipSignals: string[];
+    technicalSignals: string[];
+    weakAreas: string[];
+    proofPoints: string[];
+  };
+  matchStrategy: {
+    emphasize: string[];
+    reduce: string[];
+    keywordsToInclude: string[];
+    safeClaims: string[];
+    gapsToAddress: string[];
+    tone: string;
+    doNotInvent: string[];
+  };
+  positioningStatement: string;
+  contentPlan: Record<string, string[]>;
+};
+
+function inferSeniorityLevel(role: string, text: string) {
+  const combined = `${role} ${text}`;
+  if (/\b(chief|vp|vice president|director|head of|principal|staff)\b/i.test(combined)) return "Executive / senior leadership";
+  if (/\b(senior|sr\.|lead|manager)\b/i.test(combined)) return "Senior / lead";
+  if (/\b(associate|junior|entry|graduate|intern)\b/i.test(combined)) return "Early career";
+  return "Mid-level / experienced";
+}
+
+function roleRubric(role: string, industry: string) {
+  const combined = `${role} ${industry}`.toLowerCase();
+  if (/data analyst|analytics|business intelligence|bi\b/.test(combined)) {
+    return ["SQL/data tools", "reporting", "dashboards", "analysis", "business insights", "visualization", "data quality", "decision support"];
+  }
+  if (/healthcare|health|admin|administrat|clinic|patient/.test(combined)) {
+    return ["operations", "compliance", "scheduling", "documentation", "patient/customer coordination", "EMR/process tools", "process improvement"];
+  }
+  if (/finance|financial|fp&a|accounting|investment|risk|bank/.test(combined)) {
+    return ["financial analysis", "modeling", "reporting", "reconciliation", "forecasting", "risk/compliance", "Excel/tools", "business impact"];
+  }
+  if (/product|program manager|project manager|technical product/.test(combined)) {
+    return ["roadmap ownership", "stakeholder management", "product delivery", "technical collaboration", "metrics/business impact", "customer/user insight", "prioritization", "launch execution"];
+  }
+  return ["role alignment", "stakeholder communication", "execution evidence", "tools", "measurable outcomes", "domain fit"];
+}
+
+function buildAiQualityAnalysis(context: WorkspaceIntelligenceContext): AiQualityAnalysis {
+  const rubric = roleRubric(context.role, context.industryName);
+  const requiredSkills = uniqueStrings([...context.jobKeywords, ...context.matchedKeywords]).slice(0, 10);
+  const preferredSkills = context.missingKeywords.slice(0, 8);
+  const toolsPlatforms = uniqueStrings(
+    [...context.skills, ...context.sourceSignals].filter((item) =>
+      /\b(sql|excel|power bi|tableau|jira|asana|figma|salesforce|hubspot|api|python|r|ga4|supabase|next\.js|openai|emr|ehr)\b/i.test(item),
+    ),
+  ).slice(0, 8);
+  const leadershipSignals = context.bullets.filter((bullet) => /\b(led|owned|managed|directed|coordinated|aligned|mentored)\b/i.test(bullet)).slice(0, 5);
+  const technicalSignals = context.bullets.filter((bullet) => /\b(api|data|sql|analytics|platform|system|automation|technical|workflow|integration|ai|llm)\b/i.test(bullet)).slice(0, 5);
+  const proofPoints = uniqueStrings([...context.strongestEvidence, ...leadershipSignals, ...technicalSignals]).slice(0, 8);
+  const safeClaims = proofPoints.length > 0 ? proofPoints : context.sourceSignals.slice(0, 5);
+
+  return {
+    jobIntelligence: {
+      targetRole: context.role,
+      seniorityLevel: inferSeniorityLevel(context.role, context.jobKeywords.join(" ")),
+      industry: context.industryName,
+      requiredSkills,
+      preferredSkills,
+      toolsPlatforms,
+      leadershipExpectations: rubric.filter((item) => /ownership|management|leadership|coordination|stakeholder|decision|prioritization/i.test(item)),
+      technicalExpectations: rubric.filter((item) => /sql|tools|dashboard|technical|data|platform|modeling|emr|reporting|visualization/i.test(item)),
+      keywords: uniqueStrings([...context.matchedKeywords, ...context.missingKeywords, ...rubric]).slice(0, 14),
+      hiringPainPoints: context.hasJobDescription
+        ? [`Evidence of ${rubric.slice(0, 3).join(", ")}.`, "Clear proof that claims can be defended in interview."]
+        : [contextualEmptyPrompt("job")],
+    },
+    candidateIntelligence: {
+      strongestExperiences: context.experienceEntries.map((entry) => `${entry.title || "Experience"} at ${entry.company || "current organization"}`).slice(0, 5),
+      relevantAchievements: context.strongBullets,
+      transferableSkills: context.skills.slice(0, 10),
+      toolsUsed: toolsPlatforms,
+      industriesDomains: uniqueStrings([context.industryName, ...context.sourceSignals.filter((signal) => /health|finance|product|data|operations|technology|saas|ai/i.test(signal))]).slice(0, 6),
+      leadershipSignals,
+      technicalSignals,
+      weakAreas: context.missingKeywords.length > 0 ? context.missingKeywords.slice(0, 6) : ["Proof depth and metric specificity."],
+      proofPoints,
+    },
+    matchStrategy: {
+      emphasize: uniqueStrings([...rubric.slice(0, 5), ...context.skills.slice(0, 5), ...proofPoints.slice(0, 3)]).slice(0, 10),
+      reduce: ["Unsupported metrics", "generic claims", "unverified tools", "job-description phrasing copied verbatim"],
+      keywordsToInclude: uniqueStrings([...context.matchedKeywords, ...context.missingKeywords]).slice(0, 10),
+      safeClaims,
+      gapsToAddress: context.missingKeywords.slice(0, 8),
+      tone: "specific, concise, recruiter-ready, and evidence-led",
+      doNotInvent: ["employers", "degrees", "tools", "metrics", "job titles", "certifications", "outcomes"],
+    },
+    positioningStatement: `Position this candidate as ${articleFor(context.role)} ${context.role} for ${context.industryName}, emphasizing ${uniqueStrings([...rubric, ...context.skills]).slice(0, 6).join(", ")} while keeping every claim tied to resume/source evidence.`,
+    contentPlan: {
+      resumeSummary: ["Lead with role fit", "include strongest supported domains", "avoid raw keyword stuffing"],
+      resumeBullets: ["action + scope + supported result", "preserve truth", "align with target role keywords"],
+      coverLetter: ["specific opening", "role alignment", "one evidence-backed proof point", "concise close"],
+      linkedIn: ["keyword-rich headline", "natural about section", "featured evidence"],
+      recruiterMessage: ["short role-specific outreach", "one proof point", "clear next step"],
+      interviewTalkingPoints: ["defend strongest proof", "prepare gaps", "connect projects to role priorities"],
+      gapAnalysis: ["show missing keywords", "separate safe claims from gaps", "recommend evidence collection"],
+      careerRoadmap: ["strengthen missing evidence", "prepare interview examples", "align documents to target role"],
+    },
+  };
+}
+
+function evaluateQualityOutput({
+  section,
+  text,
+  context,
+  analysis,
+}: {
+  section: string;
+  text: string;
+  context: WorkspaceIntelligenceContext;
+  analysis: AiQualityAnalysis;
+}): QualityEvaluation {
+  const cleaned = cleanEditorText(text);
+  const lowerText = cleaned.toLowerCase();
+  const matchedKeywords = analysis.matchStrategy.keywordsToInclude.filter((keyword) =>
+    lowerText.includes(keyword.toLowerCase()),
+  );
+  const evidenceUsed = analysis.matchStrategy.safeClaims.filter((claim) => {
+    const tokens = claim.toLowerCase().split(/\s+/).filter((token) => token.length > 4).slice(0, 4);
+    return tokens.some((token) => lowerText.includes(token));
+  }).slice(0, 4);
+  const generic = hasGenericIntelligenceText(cleaned) || /\b(results-driven|passionate|hardworking|proven track record)\b/i.test(cleaned);
+  const repeated = hasRepeatedIntelligenceSentences(cleaned);
+  const wrongRole = !roleKeywordPresent(cleaned, context.role);
+  const hasEvidence = evidenceUsed.length > 0 || context.hasResumeEvidence;
+  const score = clampPercent(
+    62 +
+      Math.min(16, matchedKeywords.length * 3) +
+      Math.min(14, evidenceUsed.length * 5) +
+      (context.hasJobDescription ? 6 : -8) +
+      (hasEvidence ? 8 : -18) -
+      (generic ? 18 : 0) -
+      (repeated ? 10 : 0) -
+      (wrongRole ? 12 : 0),
+    0,
+  );
+  const notes = [
+    generic ? `${section} contained generic or placeholder language and should use the contextual version.` : `${section} is grounded in the current workspace context.`,
+    matchedKeywords.length > 0 ? `Addresses role language: ${matchedKeywords.slice(0, 4).join(", ")}.` : "Add a target job description to strengthen keyword alignment.",
+    evidenceUsed.length > 0 ? `Uses resume evidence: ${evidenceUsed.slice(0, 2).join(" | ")}.` : "More source-backed proof would improve this output.",
+    repeated ? "Repeated sentence patterns were detected and should be tightened." : "No major repetition detected.",
+  ];
+  const badge: QualityBadgeLabel =
+    generic ? "Too Generic"
+      : !context.hasJobDescription || matchedKeywords.length === 0 ? "Missing Keywords"
+        : !hasEvidence || evidenceUsed.length === 0 ? "Needs More Evidence"
+          : score >= 86 ? "Strong Match"
+            : "Good for Recruiter Review";
+
+  return {
+    score,
+    badge,
+    notes,
+    addressedRequirements: matchedKeywords.slice(0, 6),
+    evidenceUsed,
+    missingEvidence: analysis.matchStrategy.gapsToAddress.slice(0, 5),
+  };
+}
+
+function reviseOutputWithQuality({
+  section,
+  text,
+  fallback,
+  context,
+  analysis,
+}: {
+  section: string;
+  text: string;
+  fallback: string;
+  context: WorkspaceIntelligenceContext;
+  analysis: AiQualityAnalysis;
+}) {
+  const evaluation = evaluateQualityOutput({ section, text, context, analysis });
+  const shouldUseFallback = evaluation.badge === "Too Generic" || evaluation.score < 58 || !roleKeywordPresent(text, context.role);
+  const revised = shouldUseFallback ? fallback : text.trim();
+
+  return {
+    output: revised,
+    evaluation: evaluateQualityOutput({ section, text: revised, context, analysis }),
   };
 }
 
@@ -6743,6 +6965,10 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
       }),
     [currentResumeIntelligenceText, industryTarget, jobDescription, masterResume, targetRole],
   );
+  const aiQualityAnalysis = useMemo(
+    () => buildAiQualityAnalysis(workspaceIntelligenceContext),
+    [workspaceIntelligenceContext],
+  );
   const contextualAdvancedAnalysis = useMemo(
     () =>
       buildAdvancedAnalysis({
@@ -6815,8 +7041,54 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     () => buildCoverLetterFromInputs(currentResumeIntelligenceText, targetRole, jobDescription, industryTarget),
     [currentResumeIntelligenceText, industryTarget, jobDescription, targetRole],
   );
+  const coverLetterQuality = useMemo(
+    () =>
+      reviseOutputWithQuality({
+        section: "coverLetter",
+        text: guardCoverLetterQuality(result?.coverLetter ?? contextualCoverLetter, contextualCoverLetter, workspaceIntelligenceContext),
+        fallback: contextualCoverLetter,
+        context: workspaceIntelligenceContext,
+        analysis: aiQualityAnalysis,
+      }),
+    [aiQualityAnalysis, contextualCoverLetter, result?.coverLetter, workspaceIntelligenceContext],
+  );
+  const linkedInQuality = useMemo(
+    () =>
+      evaluateQualityOutput({
+        section: "linkedin",
+        text: Object.values(result?.linkedin ?? contextualPackage.linkedin).flat().join("\n"),
+        context: workspaceIntelligenceContext,
+        analysis: aiQualityAnalysis,
+      }),
+    [aiQualityAnalysis, contextualPackage.linkedin, result?.linkedin, workspaceIntelligenceContext],
+  );
+  const applicationKitQuality = useMemo(
+    () =>
+      evaluateQualityOutput({
+        section: "applicationKit",
+        text: Object.values(result?.applicationKit ?? contextualPackage.applicationKit).join("\n"),
+        context: workspaceIntelligenceContext,
+        analysis: aiQualityAnalysis,
+      }),
+    [aiQualityAnalysis, contextualPackage.applicationKit, result?.applicationKit, workspaceIntelligenceContext],
+  );
+  const careerIntelligenceQuality = useMemo(
+    () =>
+      evaluateQualityOutput({
+        section: "careerIntelligence",
+        text: [
+          contextualAdvancedAnalysis.interviewPrep.whyYouFitThisRole,
+          ...contextualAdvancedAnalysis.interviewPrep.likelyQuestions,
+          ...contextualAdvancedAnalysis.gapAnalysis.recommendations,
+          contextualAdvancedAnalysis.jobDescriptionIntelligence.alignmentSummary,
+        ].join("\n"),
+        context: workspaceIntelligenceContext,
+        analysis: aiQualityAnalysis,
+      }),
+    [aiQualityAnalysis, contextualAdvancedAnalysis, workspaceIntelligenceContext],
+  );
   const panelCoverLetter = hasCoverLetterAccess
-    ? guardCoverLetterQuality(result?.coverLetter ?? contextualCoverLetter, contextualCoverLetter, workspaceIntelligenceContext)
+    ? coverLetterQuality.output
     : result?.coverLetter ?? starterWorkspacePreviewResult.coverLetter;
   const panelLinkedIn = hasLinkedInAccess
     ? guardLinkedInQuality(result?.linkedin ?? contextualPackage.linkedin, contextualPackage.linkedin, workspaceIntelligenceContext)
@@ -11184,6 +11456,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                 <div id="career-intelligence" className="scroll-mt-24">
                   <AdvancedIntelligencePanel
                     analysis={contextualWorkspaceResult.advancedAnalysis}
+                    quality={careerIntelligenceQuality}
                     onReplaceBullet={
                       isStarterWorkflowPreview
                         ? () => setSystemStatus("Upgrade to unlock advanced bullet rewriting.")
@@ -11679,6 +11952,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                         </button>
                       )}
                     </div>
+                    <OutputQualityBadge evaluation={coverLetterQuality.evaluation} />
                     <textarea
                       value={panelCoverLetter}
                       readOnly={!hasCoverLetterAccess}
@@ -11720,6 +11994,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                         </>
                       ) : null}
                     </div>
+                    <OutputQualityBadge evaluation={linkedInQuality} />
                     <div className="grid gap-4 lg:grid-cols-2">
                       <EditableField disabled={!hasLinkedInAccess} label="LinkedIn Headline" value={panelLinkedIn.headline} onChange={(value) => updateLinkedIn("headline", value)} />
                       <EditableField disabled={!hasLinkedInAccess} label="Open-To-Work Positioning" value={panelLinkedIn.openToWorkPositioning} onChange={(value) => updateLinkedIn("openToWorkPositioning", value)} />
@@ -11792,6 +12067,7 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                 ) : (
                   <DocumentFrame title="Application Kit" subtitle="Outreach package">
                     {!hasApplicationKitAccess ? <PremiumPreviewBanner /> : null}
+                    <OutputQualityBadge evaluation={applicationKitQuality} />
                     <div className="grid gap-4 lg:grid-cols-2">
                       <EditableField disabled={!hasApplicationKitAccess} label="Short Recruiter Email" value={panelApplicationKit.recruiterEmail} onChange={(value) => updateApplicationKit("recruiterEmail", value)} copy />
                       <EditableField disabled={!hasApplicationKitAccess} label="Follow-Up Email" value={panelApplicationKit.followUpEmail} onChange={(value) => updateApplicationKit("followUpEmail", value)} copy />
@@ -12286,6 +12562,53 @@ function EditableField({
         }`}
       />
     </section>
+  );
+}
+
+function OutputQualityBadge({ evaluation }: { evaluation: QualityEvaluation }) {
+  const tone =
+    evaluation.badge === "Strong Match"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      : evaluation.badge === "Good for Recruiter Review"
+        ? "border-blue-200 bg-blue-50 text-blue-700"
+        : evaluation.badge === "Too Generic"
+          ? "border-red-200 bg-red-50 text-red-700"
+          : "border-amber-200 bg-amber-50 text-amber-800";
+
+  return (
+    <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${tone}`}>
+          {evaluation.badge}
+        </span>
+        <span className="text-xs font-semibold text-slate-500">
+          Output Quality: {evaluation.score}/100
+        </span>
+      </div>
+      <details className="mt-2">
+        <summary className="cursor-pointer text-xs font-semibold text-[var(--iseya-navy)]">
+          Why this output?
+        </summary>
+        <div className="mt-2 grid gap-2 text-xs leading-5 text-slate-600 sm:grid-cols-3">
+          <div>
+            <p className="font-semibold text-slate-800">Stronger because</p>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              {evaluation.notes.slice(0, 3).map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="font-semibold text-slate-800">Job requirements</p>
+            <p className="mt-1">{evaluation.addressedRequirements.slice(0, 4).join(", ") || "Add a target job description for stronger alignment."}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-slate-800">Evidence used</p>
+            <p className="mt-1">{evaluation.evidenceUsed.slice(0, 2).join(" | ") || "More resume/source evidence would strengthen this section."}</p>
+          </div>
+        </div>
+      </details>
+    </div>
   );
 }
 
@@ -15144,9 +15467,11 @@ function CoachBlock({
 
 function AdvancedIntelligencePanel({
   analysis,
+  quality,
   onReplaceBullet,
 }: {
   analysis: AdvancedAnalysis;
+  quality: QualityEvaluation;
   onReplaceBullet: (original: string, replacement: string) => void;
 }) {
   const [previewImprovement, setPreviewImprovement] = useState<{
@@ -15215,6 +15540,7 @@ function AdvancedIntelligencePanel({
         Career Intelligence
       </summary>
       <div className="mt-2 space-y-1.5">
+        <OutputQualityBadge evaluation={quality} />
         <details className="rounded-md border border-zinc-200 bg-zinc-50 p-2">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--iseya-navy)]">
             Interview Preparation
