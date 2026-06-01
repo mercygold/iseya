@@ -449,7 +449,7 @@ export function normalizeProjects(values: unknown): ResumeProject[] {
         title.length > 90 ||
         (enterpriseVerbPattern.test(title) && /\b(i|we|built|led|implemented|platform|system)\b/i.test(title));
       return {
-        title: titleLooksLikeAchievement ? "Implementation Reporting System" : title,
+        title: titleLooksLikeAchievement ? "" : title,
         organization: cleanLine(source.organization),
         bullets: normalizeBullets([
           ...(titleLooksLikeAchievement ? [title] : []),

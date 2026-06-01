@@ -2779,7 +2779,7 @@ function canonicalResumeHeading(value: string) {
     return "PROFESSIONAL EXPERIENCE";
   }
 
-  if (/^(PROJECTS|PROJECT EXPERIENCE|SELECTED PROJECTS|AI PROJECTS|AI & AUTOMATION PROJECTS)$/.test(heading)) {
+  if (/^(PROJECTS|PROJECT EXPERIENCE|PRODUCT PROJECTS|TECHNICAL PROJECTS|SELECTED PROJECTS|AI PROJECTS|AI & AUTOMATION PROJECTS)$/.test(heading)) {
     return "PROJECTS";
   }
 
@@ -2825,7 +2825,7 @@ function isRecognizedResumeHeading(value: string) {
   }
 
   if (
-    /^(PROFILE|SUMMARY|PROFESSIONAL SUMMARY|CAREER SUMMARY|EXECUTIVE SUMMARY|CORE SKILLS|SKILLS|KEY SKILLS|TECHNICAL SKILLS|COMPETENCIES|AREAS OF EXPERTISE|EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|EMPLOYMENT|EMPLOYMENT HISTORY|CAREER EXPERIENCE|PROJECTS|PROJECT EXPERIENCE|SELECTED PROJECTS|AI PROJECTS|AI & AUTOMATION PROJECTS|EDUCATION|ACADEMIC BACKGROUND|CERTIFICATIONS|CERTIFICATES|LICENSES|LICENSES & CERTIFICATIONS|ACHIEVEMENTS|KEY ACHIEVEMENTS|CAREER ACHIEVEMENTS|SELECTED ACHIEVEMENTS|PUBLICATIONS|RESEARCH|PUBLICATIONS \/ RESEARCH|PUBLICATIONS & RESEARCH|TOOLS|TECHNOLOGIES|TOOLS \/ TECHNOLOGIES|TECHNICAL TOOLS|PLATFORMS|LEADERSHIP|LEADERSHIP EXPERIENCE|AWARDS|HONORS|AWARDS & HONORS|AWARDS & VOLUNTEER|VOLUNTEER|VOLUNTEER EXPERIENCE|COMMUNITY LEADERSHIP)$/i.test(cleaned)
+    /^(PROFILE|SUMMARY|PROFESSIONAL SUMMARY|CAREER SUMMARY|EXECUTIVE SUMMARY|CORE SKILLS|SKILLS|KEY SKILLS|TECHNICAL SKILLS|COMPETENCIES|AREAS OF EXPERTISE|EXPERIENCE|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE|EMPLOYMENT|EMPLOYMENT HISTORY|CAREER EXPERIENCE|PROJECTS|PROJECT EXPERIENCE|PRODUCT PROJECTS|TECHNICAL PROJECTS|SELECTED PROJECTS|AI PROJECTS|AI & AUTOMATION PROJECTS|EDUCATION|ACADEMIC BACKGROUND|CERTIFICATIONS|CERTIFICATES|LICENSES|LICENSES & CERTIFICATIONS|ACHIEVEMENTS|KEY ACHIEVEMENTS|CAREER ACHIEVEMENTS|SELECTED ACHIEVEMENTS|PUBLICATIONS|RESEARCH|PUBLICATIONS \/ RESEARCH|PUBLICATIONS & RESEARCH|TOOLS|TECHNOLOGIES|TOOLS \/ TECHNOLOGIES|TECHNICAL TOOLS|PLATFORMS|LEADERSHIP|LEADERSHIP EXPERIENCE|AWARDS|HONORS|AWARDS & HONORS|AWARDS & VOLUNTEER|VOLUNTEER|VOLUNTEER EXPERIENCE|COMMUNITY LEADERSHIP)$/i.test(cleaned)
   ) {
     return true;
   }
@@ -3022,6 +3022,14 @@ function isLikelyAwardVolunteerEntry(line: string) {
   return hasAwardVolunteerSignal;
 }
 
+function isNumberedEntryLine(value: string) {
+  return /^(?:[-*•]\s*)?\d+[.)]\s+/.test(value.trim());
+}
+
+function stripEntryMarker(value: string) {
+  return cleanEditorText(value.replace(/^(?:[-*•]\s*)?\d+[.)]\s+/, "").replace(/^[-*•]\s+/, ""));
+}
+
 function parseProjectSectionEntries(section?: ResumeSection) {
   if (!section) return [];
 
@@ -3029,13 +3037,34 @@ function parseProjectSectionEntries(section?: ResumeSection) {
   let current: { name: string; role: string; tools: string; link: string; bullets: string[] } | null = null;
 
   for (const line of orderedSectionLines(section)) {
+    const numberedEntry = isNumberedEntryLine(line.raw);
+
     if (line.isBullet) {
+      if (numberedEntry) {
+        const parsed = parseProjectRecord(stripEntryMarker(line.raw));
+        current = {
+          name: parsed.name || stripEntryMarker(line.raw),
+          role: parsed.role,
+          tools: parsed.description,
+          link: parsed.link,
+          bullets: parsed.bullets,
+        };
+        entries.push(current);
+        continue;
+      }
       current?.bullets.push(line.text);
       continue;
     }
 
-    if (!current || current.bullets.length > 0) {
-      current = { name: line.text, role: "", tools: "", link: "", bullets: [] };
+    if (!current || current.bullets.length > 0 || numberedEntry) {
+      const parsed = parseProjectRecord(stripEntryMarker(line.text));
+      current = {
+        name: parsed.name || stripEntryMarker(line.text),
+        role: parsed.role,
+        tools: parsed.description,
+        link: parsed.link,
+        bullets: parsed.bullets,
+      };
       entries.push(current);
       continue;
     }
@@ -3071,13 +3100,34 @@ function parsePublicationSectionEntries(section?: ResumeSection) {
   let current: { title: string; publisher: string; date: string; link: string; descriptions: string[] } | null = null;
 
   for (const line of orderedSectionLines(section)) {
+    const numberedEntry = isNumberedEntryLine(line.raw);
+
     if (line.isBullet) {
+      if (numberedEntry && !/^https?:\/\//i.test(line.text)) {
+        const parsed = parsePublicationRecord(stripEntryMarker(line.raw));
+        current = {
+          title: parsed.title || stripEntryMarker(line.raw),
+          publisher: parsed.publisher,
+          date: parsed.date,
+          link: parsed.link,
+          descriptions: [parsed.description, ...parsed.bullets].filter(Boolean),
+        };
+        entries.push(current);
+        continue;
+      }
       current?.descriptions.push(line.text);
       continue;
     }
 
-    if (!current || current.descriptions.length > 0) {
-      current = { title: line.text, publisher: "", date: "", link: "", descriptions: [] };
+    if (!current || current.descriptions.length > 0 || (numberedEntry && !/^https?:\/\//i.test(line.text))) {
+      const parsed = parsePublicationRecord(stripEntryMarker(line.text));
+      current = {
+        title: parsed.title || stripEntryMarker(line.text),
+        publisher: parsed.publisher,
+        date: parsed.date,
+        link: parsed.link,
+        descriptions: [parsed.description, ...parsed.bullets].filter(Boolean),
+      };
       entries.push(current);
       continue;
     }
@@ -3107,30 +3157,68 @@ function parsePublicationSectionEntries(section?: ResumeSection) {
     );
 }
 
-function normalizeExperienceLocationForCompany(entry: ExperienceEntry) {
-  const company = cleanEditorText(entry.company).toLowerCase();
-  const currentLocation = cleanEditorText(entry.location);
-  const hasWrongNigeriaBleed =
-    /nigeria/i.test(currentLocation) &&
-    /\b(?:jormp|trafford|uk|united kingdom)\b/i.test(company);
+function parseAwardVolunteerSectionEntries(section?: ResumeSection) {
+  if (!section) return [];
 
-  if (/jormp/.test(company) && (!currentLocation || hasWrongNigeriaBleed)) {
-    return "Remote / United States";
+  const entries: Array<{ title: string; organization: string; location: string; date: string; descriptions: string[] }> = [];
+  let current: { title: string; organization: string; location: string; date: string; descriptions: string[] } | null = null;
+
+  for (const line of orderedSectionLines(section)) {
+    const numberedEntry = isNumberedEntryLine(line.raw);
+
+    if (line.isBullet) {
+      if (numberedEntry) {
+        const parsed = parseAwardVolunteerRecord(stripEntryMarker(line.raw));
+        current = {
+          title: parsed.title || stripEntryMarker(line.raw),
+          organization: parsed.organization,
+          location: parsed.location,
+          date: parsed.date,
+          descriptions: [parsed.description, ...parsed.bullets].filter(Boolean),
+        };
+        entries.push(current);
+        continue;
+      }
+
+      current?.descriptions.push(line.text);
+      continue;
+    }
+
+    if (!current || current.descriptions.length > 0 || numberedEntry) {
+      const parsed = parseAwardVolunteerRecord(stripEntryMarker(line.text));
+      current = {
+        title: parsed.title || stripEntryMarker(line.text),
+        organization: parsed.organization,
+        location: parsed.location,
+        date: parsed.date,
+        descriptions: [parsed.description, ...parsed.bullets].filter(Boolean),
+      };
+      entries.push(current);
+      continue;
+    }
+
+    if (!current.organization) {
+      current.organization = line.text;
+    } else if (!current.date && dateSignalRegex().test(line.text)) {
+      current.date = line.text;
+    } else if (!current.location && /,|remote|united|nigeria|canada|germany|kingdom|states/i.test(line.text)) {
+      current.location = line.text;
+    } else {
+      current.descriptions.push(line.text);
+    }
   }
 
-  if (/bech360/.test(company) && (!currentLocation || /^nigeria$/i.test(currentLocation))) {
-    return "Lagos, Nigeria / Remote";
-  }
-
-  if (/japaul/.test(company) && (!currentLocation || /^nigeria$/i.test(currentLocation))) {
-    return "Lagos, Nigeria";
-  }
-
-  if (/\btrafford\b|kent|united kingdom|uk\b/i.test(company) && (!currentLocation || hasWrongNigeriaBleed)) {
-    return "Kent, United Kingdom";
-  }
-
-  return currentLocation;
+  return entries
+    .filter((entry) => entry.title && !isPlaceholderResumeText(entry.title))
+    .map((entry) =>
+      [
+        entry.title,
+        [entry.organization, entry.location, entry.date].filter(Boolean).join(" | "),
+        ...entry.descriptions.map((description) => `- ${description}`),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
 }
 
 function inferProjectSectionTitle(projects: string[], industryTarget?: string) {
@@ -3321,8 +3409,6 @@ function normalizeExperience(entry: Partial<ExperienceEntry>, index = 0): Experi
     normalized.title = "";
   }
 
-  normalized.location = normalizeExperienceLocationForCompany(normalized);
-
   return normalized;
 }
 
@@ -3379,13 +3465,41 @@ function parseExperienceEntries(section?: ResumeSection): ExperienceEntry[] {
 
   for (const rawLine of orderedLines) {
     const isBullet = /^[-*•]\s+/.test(rawLine);
-    const line = cleanEditorText(rawLine.replace(/^[-*•]\s+/, ""));
+    const line = stripEntryMarker(rawLine);
 
     if (!line) {
       continue;
     }
 
     if (isBullet) {
+      const parsedBulletRole = parseExperienceLine(line);
+      const bulletStartsNewRole =
+        (isNumberedEntryLine(rawLine) || /\s+[-–—]\s+/.test(line)) &&
+        parsedBulletRole.company &&
+        parsedBulletRole.title;
+
+      if (bulletStartsNewRole) {
+        const normalized = normalizeExperience(
+          {
+            id: `experience-${entries.length}`,
+            title: parsedBulletRole.title,
+            company: parsedBulletRole.company,
+            location: parsedBulletRole.location,
+            startDate: parsedBulletRole.startDate,
+            endDate: parsedBulletRole.endDate,
+            isCurrent: parsedBulletRole.isCurrent,
+            bullets: [],
+          },
+          entries.length,
+        );
+
+        if (normalized) {
+          current = normalized;
+          entries.push(current);
+        }
+        continue;
+      }
+
       if (!current) {
         const fallback = normalizeExperience(
           {
@@ -3787,9 +3901,9 @@ function structuredResumeFromText(resumeText: string): StructuredResume {
       !knownSections.has(section.heading) &&
       !isSourceArtifactHeading(section.heading),
   );
-  const inferredAwards = sectionItems(awardsSection).filter(isLikelyAwardVolunteerEntry);
-  const inferredLeadership = sectionItems(leadershipSection).filter(isLikelyAwardVolunteerEntry);
-  const inferredVolunteer = sectionItems(volunteerSection).filter(isLikelyAwardVolunteerEntry);
+  const inferredAwards = parseAwardVolunteerSectionEntries(awardsSection).filter(isLikelyAwardVolunteerEntry);
+  const inferredLeadership = parseAwardVolunteerSectionEntries(leadershipSection).filter(isLikelyAwardVolunteerEntry);
+  const inferredVolunteer = parseAwardVolunteerSectionEntries(volunteerSection).filter(isLikelyAwardVolunteerEntry);
 
   return validateCanonicalResume({
     header: brandingFromResumeText(cleanedResumeText),
@@ -4125,6 +4239,20 @@ function parseProjectRecord(item: string) {
   }
 
   const parts = pipeSeparatedParts(item);
+  const dashParts = cleanEditorText(item).split(/\s+[-–—]\s+/).filter(Boolean);
+
+  if (parts.length <= 1 && dashParts.length >= 2) {
+    const [name = "", role = "", ...details] = dashParts;
+    return {
+      name: cleanStructuredBullet(name),
+      role: cleanStructuredBullet(role),
+      organization: "",
+      description: cleanStructuredBullet(details.shift() ?? ""),
+      link: details.find((detail) => /^https?:\/\//i.test(detail)) ?? "",
+      bullets: details.flatMap(structuredBulletLines),
+    };
+  }
+
   if (parts.length <= 1) {
     return {
       name: "",
@@ -4645,13 +4773,6 @@ function resumePreviewLinesFromV2Section(section: ResumeV2Section) {
   return lines.filter((line) => line.text && (section.kind === "experience" || !hasMalformedParserData(line.text)));
 }
 
-const experienceBulletRenderCheckCompanies = [
-  "Jormp LLC",
-  "Bech360",
-  "Japaul",
-  "PATJEDA",
-  "Choice Foods",
-];
 const loggedExperienceBulletRenderChecks = new Set<string>();
 
 function logExperienceBulletRenderCheck(resume: ResumeV2) {
@@ -4660,11 +4781,6 @@ function logExperienceBulletRenderCheck(resume: ResumeV2) {
   }
 
   const rows = resume.experience
-    .filter((entry) =>
-      experienceBulletRenderCheckCompanies.some((company) =>
-        entry.company.toLowerCase().includes(company.toLowerCase()),
-      ),
-    )
     .map((entry) => ({
       company: entry.company || entry.title,
       renderedBullets: entry.bullets.filter((bullet) => bullet.trim()).length,
@@ -12609,7 +12725,15 @@ function mergeExtractedSourceDraft(
     for (const entry of extracted.experience) {
       const key = normalizedEntryKey(entry.company, entry.title, entry.startDate, entry.endDate);
       if (!key || seen.has(key) || (!entry.company.trim() && !entry.title.trim())) continue;
-      next.experience.push({ ...entry, id: editorEntryId("experience") });
+      const emptyIndex = next.experience.findIndex(
+        (item) => !item.company.trim() && !item.title.trim() && !item.bulletsText.trim(),
+      );
+      const nextEntry = { ...entry, id: emptyIndex >= 0 ? next.experience[emptyIndex].id : editorEntryId("experience") };
+      if (emptyIndex >= 0) {
+        next.experience[emptyIndex] = nextEntry;
+      } else {
+        next.experience.push(nextEntry);
+      }
       seen.add(key);
       addedCount += 1;
     }
@@ -12620,7 +12744,15 @@ function mergeExtractedSourceDraft(
     for (const project of extracted.projects) {
       const key = normalizedEntryKey(project.name, project.context);
       if (!key || seen.has(key) || (!project.name.trim() && !project.details.trim())) continue;
-      next.projects.push({ ...project, id: editorEntryId("project") });
+      const emptyIndex = next.projects.findIndex(
+        (item) => !item.name.trim() && !item.context.trim() && !item.details.trim(),
+      );
+      const nextProject = { ...project, id: emptyIndex >= 0 ? next.projects[emptyIndex].id : editorEntryId("project") };
+      if (emptyIndex >= 0) {
+        next.projects[emptyIndex] = nextProject;
+      } else {
+        next.projects.push(nextProject);
+      }
       seen.add(key);
       addedCount += 1;
     }
@@ -12631,7 +12763,15 @@ function mergeExtractedSourceDraft(
     for (const entry of extracted.education) {
       const key = normalizedEntryKey(entry.school, entry.degree);
       if (!key || seen.has(key) || (!entry.school.trim() && !entry.degree.trim())) continue;
-      next.education.push({ ...entry, id: editorEntryId("education") });
+      const emptyIndex = next.education.findIndex(
+        (item) => !item.school.trim() && !item.degree.trim() && !item.details.trim(),
+      );
+      const nextEntry = { ...entry, id: emptyIndex >= 0 ? next.education[emptyIndex].id : editorEntryId("education") };
+      if (emptyIndex >= 0) {
+        next.education[emptyIndex] = nextEntry;
+      } else {
+        next.education.push(nextEntry);
+      }
       seen.add(key);
       addedCount += 1;
     }
@@ -12642,7 +12782,15 @@ function mergeExtractedSourceDraft(
     for (const entry of extracted.certifications) {
       const key = normalizedEntryKey(entry.name, entry.issuer);
       if (!key || seen.has(key) || !entry.name.trim()) continue;
-      next.certifications.push({ ...entry, id: editorEntryId("certification") });
+      const emptyIndex = next.certifications.findIndex(
+        (item) => !item.name.trim() && !item.issuer.trim(),
+      );
+      const nextEntry = { ...entry, id: emptyIndex >= 0 ? next.certifications[emptyIndex].id : editorEntryId("certification") };
+      if (emptyIndex >= 0) {
+        next.certifications[emptyIndex] = nextEntry;
+      } else {
+        next.certifications.push(nextEntry);
+      }
       seen.add(key);
       addedCount += 1;
     }
@@ -12653,7 +12801,15 @@ function mergeExtractedSourceDraft(
     for (const entry of extracted.publications) {
       const key = normalizedEntryKey(entry.title, entry.publisher);
       if (!key || seen.has(key) || !entry.title.trim()) continue;
-      next.publications.push({ ...entry, id: editorEntryId("publication") });
+      const emptyIndex = next.publications.findIndex(
+        (item) => !item.title.trim() && !item.description.trim() && !item.link.trim(),
+      );
+      const nextEntry = { ...entry, id: emptyIndex >= 0 ? next.publications[emptyIndex].id : editorEntryId("publication") };
+      if (emptyIndex >= 0) {
+        next.publications[emptyIndex] = nextEntry;
+      } else {
+        next.publications.push(nextEntry);
+      }
       seen.add(key);
       addedCount += 1;
     }
@@ -12664,7 +12820,15 @@ function mergeExtractedSourceDraft(
     for (const entry of extracted.awardsVolunteer) {
       const key = normalizedEntryKey(entry.title, entry.organization);
       if (!key || seen.has(key) || !entry.title.trim()) continue;
-      next.awardsVolunteer.push({ ...entry, id: editorEntryId("award-volunteer") });
+      const emptyIndex = next.awardsVolunteer.findIndex(
+        (item) => !item.title.trim() && !item.organization.trim() && !item.description.trim(),
+      );
+      const nextEntry = { ...entry, id: emptyIndex >= 0 ? next.awardsVolunteer[emptyIndex].id : editorEntryId("award-volunteer") };
+      if (emptyIndex >= 0) {
+        next.awardsVolunteer[emptyIndex] = nextEntry;
+      } else {
+        next.awardsVolunteer.push(nextEntry);
+      }
       seen.add(key);
       addedCount += 1;
     }
@@ -14919,7 +15083,7 @@ function orderedSectionLines(section: ResumeSection) {
       const text = isBullet
         ? cleanStructuredBullet(trimmed)
         : cleanEditorText(trimmed);
-      return { text, isBullet };
+      return { raw: trimmed, text, isBullet };
     })
     .filter(
       (line) =>

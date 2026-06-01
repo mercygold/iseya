@@ -145,7 +145,7 @@ const certificationPattern =
 const certificationRejectPattern =
   /\b(llc|consulting|manager|product owner|program lead|growth lead|platform|built|led|implemented|shipped|improved|supported|developed|delivered|launched|principal|owner|associate|analyst|coordinator|director)\b/i;
 const companySignalPattern =
-  /\b(llc|consulting|plc|group|foods|ventures|investofly|jormp|bech360|japaul|patjeda|choice foods|inc|ltd|corp|company)\b/i;
+  /\b(llc|consulting|plc|group|foods|ventures|partners|systems|technologies|technology|solutions|labs|agency|foundation|department|ministry|inc|ltd|corp|corporation|company|co\.)\b/i;
 const roleSignalPattern =
   /\b(manager|lead|owner|analyst|engineer|director|consultant|coordinator|associate|specialist|officer|developer)\b/i;
 const awardPattern =
@@ -159,15 +159,6 @@ const emailPattern = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 const phonePattern = /(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)?\d{3}[\s.-]?\d{4}/;
 const linkedinPattern = /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/[^\s|]+/i;
 const websitePattern = /(?:https?:\/\/)?(?:www\.)?(?!linkedin\.com)[a-z0-9-]+\.[a-z]{2,}(?:\/[^\s|]*)?/i;
-
-const knownExperienceCompanies = [
-  "Jormp LLC",
-  "Bech360 Consulting",
-  "Japaul Gold & Ventures PLC",
-  "PATJEDA Group",
-  "Choice Foods",
-  "Investofly",
-];
 
 const prioritySkills = [
   "SaaS Implementation Management",
@@ -278,18 +269,6 @@ export function parseCompanyRole(value: string): { company: string; title: strin
     if (roleSignalPattern.test(first) && companySignalPattern.test(second)) {
       return { company: second, title: first };
     }
-  }
-  const knownCompany = knownExperienceCompanies.find((company) =>
-    cleaned.toLowerCase().includes(company.toLowerCase()),
-  );
-  if (knownCompany) {
-    const title = cleaned
-      .replace(new RegExp(knownCompany.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), "")
-      .replace(/[-–—|,]/g, " ")
-      .replace(datePattern, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    return { company: knownCompany, title };
   }
   return null;
 }
