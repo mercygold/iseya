@@ -8438,6 +8438,94 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
     updateResumeOutput(value);
   }
 
+  function extractSourceMaterialsIntoEditableResume() {
+    const sourceFacts = separateResumeInputs({
+      sourceResumeText: masterResume,
+      uploadedSourceText: "",
+      explicitJobDescription: "",
+      targetRole,
+    }).candidateResumeFacts;
+    const sourceText = sourceFacts.trim();
+
+    if (sourceText.length < 20) {
+      setSystemStatus("No new extractable resume content found.");
+      return false;
+    }
+
+    const currentDraft =
+      editableResumeSession?.draft ?? editableResumeDraftFromText(workspaceResult.rewrittenResume);
+    const lockedFields = new Set(editableResumeSession?.lockedFields ?? editableResumeSession?.manualOverrides ?? []);
+    const extractedDraft = editableResumeDraftFromText(sourceText);
+    const { draft: nextDraft, addedCount } = mergeExtractedSourceDraft(
+      currentDraft,
+      extractedDraft,
+      lockedFields,
+    );
+    const extractedBranding = brandingFromResumeText(sourceText);
+    const currentLooksStarter =
+      personalBranding.fullName === starterBrandingIdentity.fullName &&
+      personalBranding.email === starterBrandingIdentity.email;
+    let contactUpdates = 0;
+    const nextBranding = { ...personalBranding };
+
+    (
+      [
+        "fullName",
+        "professionalTitle",
+        "email",
+        "phone",
+        "location",
+        "linkedInUrl",
+        "portfolioUrl",
+        "websiteUrl",
+      ] as const
+    ).forEach((field) => {
+      const currentValue = nextBranding[field].trim();
+      const extractedValue = extractedBranding[field].trim();
+
+      if (!extractedValue) return;
+      if (currentValue && !currentLooksStarter) return;
+      if (currentValue === extractedValue) return;
+
+      nextBranding[field] = extractedValue;
+      contactUpdates += 1;
+    });
+
+    if (addedCount === 0 && contactUpdates === 0) {
+      setSystemStatus("No new extractable resume content found.");
+      return false;
+    }
+
+    const output = serializeStructuredResume(
+      structuredResumeFromEditableDraft(nextDraft),
+      nextBranding,
+      { preserveEmptySections: true },
+    );
+    const manualOverrides = editableResumeSession?.manualOverrides ?? [];
+    const deletedSections = editableResumeSession?.deletedSections ?? [];
+
+    setPersonalBranding(nextBranding);
+    setEditableResumeSession({
+      draft: nextDraft,
+      resumeText: output,
+      manualOverrides,
+      lockedFields: [...lockedFields],
+      deletedSections,
+    });
+    setCanonicalResumeV2(
+      resumeV2FromDraft(nextDraft, nextBranding, {
+        id: canonicalResumeV2?.id,
+        targetRole,
+        targetIndustry: industryTarget,
+        hiddenSections: deletedSections,
+      }),
+    );
+    updateWorkspaceResumeOutput(output);
+    setActiveOutput("resume");
+    setSystemStatus("Source materials extracted into editable resume sections.");
+    return true;
+  }
+
   function updateCoverLetter(value: string) {
     setResult((current) =>
       current || workspaceResult
@@ -10722,14 +10810,30 @@ export default function HomeExperience({ homepageMetrics }: { homepageMetrics?: 
                                 Review how pasted material is separated before resume generation.
                               </p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => setShowSourceReview((current) => !current)}
-                              className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
-                              aria-expanded={showSourceReview}
-                            >
-                              Review extracted source
-                            </button>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  runWithFeedback(
+                                    "sourceExtract",
+                                    "Extracting...",
+                                    "Extracted",
+                                    extractSourceMaterialsIntoEditableResume,
+                                  )
+                                }
+                                className={`${primaryButtonClass} ${buttonSizeSmClass}`}
+                              >
+                                {actionFeedback.sourceExtract ?? "Extract from Source Materials"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setShowSourceReview((current) => !current)}
+                                className={`${secondaryButtonClass} ${buttonSizeSmClass}`}
+                                aria-expanded={showSourceReview}
+                              >
+                                Review extracted source
+                              </button>
+                            </div>
                           </div>
                           <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                             {[
@@ -12463,6 +12567,121 @@ function mergeUnlockedResumeDraft(
       ? current.additionalSections
       : suggestion.additionalSections,
     unmatchedSections: current.unmatchedSections,
+  };
+}
+
+function normalizedEntryKey(...parts: string[]) {
+  return parts
+    .map((part) => cleanEditorText(part).toLowerCase())
+    .filter(Boolean)
+    .join("|");
+}
+
+function mergeExtractedSourceDraft(
+  current: EditableResumeDraft,
+  extracted: EditableResumeDraft,
+  lockedFields: Set<string>,
+) {
+  const next = cleanupEditableResumeDraft(current);
+  let addedCount = 0;
+  const sectionLocked = (field: string) => lockedPrefixMatch(lockedFields, field);
+
+  if (!sectionLocked("summary") && !next.summaryText.trim() && extracted.summaryText.trim()) {
+    next.summaryText = extracted.summaryText;
+    addedCount += 1;
+  }
+
+  if (!sectionLocked("skills")) {
+    const before = splitResumeList(next.skillsText).length;
+    const skills = uniqueStrings([...splitResumeList(next.skillsText), ...splitResumeList(extracted.skillsText)]);
+    if (skills.length > before) {
+      next.skillsText = skills.join(" | ");
+      addedCount += skills.length - before;
+    }
+  }
+
+  if (!sectionLocked("experience")) {
+    const seen = new Set(
+      next.experience.map((entry) =>
+        normalizedEntryKey(entry.company, entry.title, entry.startDate, entry.endDate),
+      ),
+    );
+    for (const entry of extracted.experience) {
+      const key = normalizedEntryKey(entry.company, entry.title, entry.startDate, entry.endDate);
+      if (!key || seen.has(key) || (!entry.company.trim() && !entry.title.trim())) continue;
+      next.experience.push({ ...entry, id: editorEntryId("experience") });
+      seen.add(key);
+      addedCount += 1;
+    }
+  }
+
+  if (!sectionLocked("projects")) {
+    const seen = new Set(next.projects.map((project) => normalizedEntryKey(project.name, project.context)));
+    for (const project of extracted.projects) {
+      const key = normalizedEntryKey(project.name, project.context);
+      if (!key || seen.has(key) || (!project.name.trim() && !project.details.trim())) continue;
+      next.projects.push({ ...project, id: editorEntryId("project") });
+      seen.add(key);
+      addedCount += 1;
+    }
+  }
+
+  if (!sectionLocked("education")) {
+    const seen = new Set(next.education.map((entry) => normalizedEntryKey(entry.school, entry.degree)));
+    for (const entry of extracted.education) {
+      const key = normalizedEntryKey(entry.school, entry.degree);
+      if (!key || seen.has(key) || (!entry.school.trim() && !entry.degree.trim())) continue;
+      next.education.push({ ...entry, id: editorEntryId("education") });
+      seen.add(key);
+      addedCount += 1;
+    }
+  }
+
+  if (!sectionLocked("certifications")) {
+    const seen = new Set(next.certifications.map((entry) => normalizedEntryKey(entry.name, entry.issuer)));
+    for (const entry of extracted.certifications) {
+      const key = normalizedEntryKey(entry.name, entry.issuer);
+      if (!key || seen.has(key) || !entry.name.trim()) continue;
+      next.certifications.push({ ...entry, id: editorEntryId("certification") });
+      seen.add(key);
+      addedCount += 1;
+    }
+  }
+
+  if (!sectionLocked("publications")) {
+    const seen = new Set(next.publications.map((entry) => normalizedEntryKey(entry.title, entry.publisher)));
+    for (const entry of extracted.publications) {
+      const key = normalizedEntryKey(entry.title, entry.publisher);
+      if (!key || seen.has(key) || !entry.title.trim()) continue;
+      next.publications.push({ ...entry, id: editorEntryId("publication") });
+      seen.add(key);
+      addedCount += 1;
+    }
+  }
+
+  if (!sectionLocked("awardsVolunteer")) {
+    const seen = new Set(next.awardsVolunteer.map((entry) => normalizedEntryKey(entry.title, entry.organization)));
+    for (const entry of extracted.awardsVolunteer) {
+      const key = normalizedEntryKey(entry.title, entry.organization);
+      if (!key || seen.has(key) || !entry.title.trim()) continue;
+      next.awardsVolunteer.push({ ...entry, id: editorEntryId("award-volunteer") });
+      seen.add(key);
+      addedCount += 1;
+    }
+  }
+
+  if (!sectionLocked("tools") && extracted.toolsText.trim()) {
+    const before = splitResumeList(next.toolsText).length;
+    const tools = uniqueStrings([...splitResumeList(next.toolsText), ...splitResumeList(extracted.toolsText)]);
+    if (tools.length > before) {
+      next.toolsText = tools.join(" | ");
+      addedCount += tools.length - before;
+    }
+  }
+
+  return {
+    draft: cleanupEditableResumeDraft(next),
+    addedCount,
   };
 }
 
